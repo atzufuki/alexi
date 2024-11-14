@@ -18,7 +18,7 @@ export function path(
 
 export function include(
   basePath: string,
-  patterns,
+  patterns: UrlPattern[],
 ) {
   return patterns.map((pattern) => {
     routeMap[pattern.name] = { ...pattern, path: `${basePath}${pattern.path}` };

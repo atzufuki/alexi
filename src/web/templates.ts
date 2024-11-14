@@ -1,5 +1,5 @@
 import { existsSync } from '@std/fs';
-import nunjucks from 'npm:nunjucks';
+import nunjucks from 'npm:nunjucks@3.2.4';
 
 export default class TemplateBackend {
   templatesDirname = 'templates';

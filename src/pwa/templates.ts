@@ -7,16 +7,18 @@ export default class TemplateBackend {
 
     for (const appName in apps) {
       const [name, extension] = fileName.split('.');
-      const importPath =
-        `/static/${appName}/static/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`;
       return async (context) => {
         switch (extension) {
           case 'ts': {
-            const template = await import(importPath);
+            const template = await import(
+              `/static/${appName}/static/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`
+            );
             return new template.default(context);
           }
           case 'js': {
-            const template = await import(importPath);
+            const template = await import(
+              `/static/${appName}/static/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`
+            );
             return new template.default(context);
           }
           default:
