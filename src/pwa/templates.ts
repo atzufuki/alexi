@@ -11,13 +11,13 @@ export default class TemplateBackend {
         switch (extension) {
           case 'ts': {
             const template = await import(
-              `/static/${appName}/static/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`
+              `/static/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`
             );
             return new template.default(context);
           }
           case 'js': {
             const template = await import(
-              `/static/${appName}/static/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`
+              `/static/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`
             );
             return new template.default(context);
           }
