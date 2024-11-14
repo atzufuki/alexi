@@ -1,0 +1,24 @@
+{
+  "name": "@alexi/web",
+  "version": "0.1.0",
+  "imports": {
+    "@alexi/web/": "./",
+    "esbuild": "npm:esbuild@^0.24.0",
+    "nunjucks": "npm:nunjucks@^3.2.4"
+  },
+  "exports": {
+    ".": "./mod.ts",
+    "./app": "./app.ts",
+    "./base_command": "./base_command.ts",
+    "./config": "./config.ts",
+    "./execute": "./execute.ts",
+    "./server": "./server.ts",
+    "./setup": "./setup.ts",
+    "./templates": "./templates.ts",
+    "./types": "./types.ts",
+    "./urls": "./urls.ts",
+    "./views": "./views.ts",
+    "./commands/collectstatic": "./commands/collectstatic.ts",
+    "./commands/runserver": "./commands/runserver.ts"
+  }
+}

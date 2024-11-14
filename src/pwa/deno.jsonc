@@ -1,0 +1,17 @@
+{
+  "name": "@alexi/pwa",
+  "version": "0.1.0",
+  "imports": {
+    "@alexi/pwa/": "./"
+  },
+  "exports": {
+    ".": "./mod.ts",
+    "./config.ts": "./config.ts",
+    "./dispatcher.ts": "./dispatcher.ts",
+    "./setup.ts": "./setup.ts",
+    "./templates.ts": "./templates.ts",
+    "./types.ts": "./types.ts",
+    "./urls.ts": "./urls.ts",
+    "./views.ts": "./views.ts"
+  }
+}

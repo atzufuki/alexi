@@ -1,0 +1,19 @@
+{
+  "name": "@alexi/db",
+  "version": "0.1.0",
+  "imports": {
+    "@alexi/db/": "./",
+    "idb": "npm:idb@8.0.0"
+  },
+  "exports": {
+    ".": "./mod.ts",
+    "./errors": "./errors.ts",
+    "./fields": "./fields.ts",
+    "./manager": "./manager.ts",
+    "./model": "./model.ts",
+    "./models": "./models.ts",
+    "./query": "./query.ts",
+    "./types": "./types.ts",
+    "./backends/indexeddb.ts": "./backends/indexeddb.ts"
+  }
+}

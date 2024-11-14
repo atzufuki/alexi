@@ -1,0 +1,33 @@
+{
+  "version": "4",
+  "specifiers": {
+    "npm:idb@8.0.0": "8.0.0"
+  },
+  "npm": {
+    "idb@8.0.0": {
+      "integrity": "sha512-l//qvlAKGmQO31Qn7xdzagVPPaHTxXx199MhrAFuVBTPqydcPYBWjkrbv4Y0ktB+GmWOiwHl237UUOrLmQxLvw=="
+    }
+  },
+  "workspace": {
+    "dependencies": [
+      "jsr:@deno/emit@0.45",
+      "jsr:@std/assert@1",
+      "jsr:@std/fs@^1.0.5",
+      "jsr:@std/io@0.225",
+      "jsr:@std/path@^1.0.7"
+    ],
+    "members": {
+      "src/db": {
+        "dependencies": [
+          "npm:idb@8.0.0"
+        ]
+      },
+      "src/web": {
+        "dependencies": [
+          "npm:esbuild@0.24",
+          "npm:nunjucks@^3.2.4"
+        ]
+      }
+    }
+  }
+}
