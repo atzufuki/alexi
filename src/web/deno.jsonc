@@ -1,6 +1,6 @@
 {
   "name": "@alexi/web",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "imports": {
     "@alexi/web/": "./",
     "esbuild": "npm:esbuild@^0.24.0",
