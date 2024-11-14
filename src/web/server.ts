@@ -1,5 +1,4 @@
 import { build } from 'esbuild';
-import { httpImports } from 'https://deno.land/x/esbuild_serve@1.4.1/features/httpImports.ts';
 
 const STATIC_ROOT = './static';
 const STATICFILES_DIRS = [
@@ -154,9 +153,6 @@ export async function bundle() {
 
   await findFiles(STATIC_ROOT);
   await build({
-    plugins: [
-      httpImports({}),
-    ],
     entryPoints: files,
     bundle: false,
     outExtension: { '.js': '.ts' },
