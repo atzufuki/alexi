@@ -12,11 +12,11 @@ import {
   UpdateOrCreateParams,
   UpdateOrCreateResponse,
   UpdateParams,
-} from '@alexi/db/types.ts';
-import { Model } from '@alexi/db/model.ts';
-import { Manager } from '@alexi/db/manager.ts';
-import { Field } from '@alexi/db/fields.ts';
-import { DoesNotExist } from '@alexi/db/errors.ts';
+} from './types.ts';
+import { Model } from './model.ts';
+import { Manager } from './manager.ts';
+import { Field } from './fields.ts';
+import { DoesNotExist } from './errors.ts';
 
 class Query<T extends Model<T>> {
   ordering: string[] = [];
