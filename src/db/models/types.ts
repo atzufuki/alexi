@@ -1,8 +1,8 @@
-import type { Manager } from '@alexi/db/manager.ts';
-import type { Model } from '@alexi/db/model.ts';
-import type { Field } from '@alexi/db/fields.ts';
-import type { QuerySet } from '@alexi/db/query.ts';
-import type { BaseDatabaseBackend } from '@alexi/db/backends/base.ts';
+import type { Manager } from './manager.ts';
+import type { Model } from './model.ts';
+import type { Field } from './fields.ts';
+import type { QuerySet } from './query.ts';
+import type { BaseDatabaseBackend } from '../backends/base.ts';
 
 export type DATABASE = {
   NAME: string;

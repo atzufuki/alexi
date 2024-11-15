@@ -1,7 +1,7 @@
-import { ModelProps } from '@alexi/db/types.ts';
-import { DoesNotExist, MultipleObjectsReturned } from '@alexi/db/errors.ts';
-import { AutoField, Field } from '@alexi/db/fields.ts';
-import { Manager } from '@alexi/db/manager.ts';
+import { ModelProps } from './types.ts';
+import { DoesNotExist, MultipleObjectsReturned } from './errors.ts';
+import { AutoField, Field } from './fields.ts';
+import { Manager } from './manager.ts';
 
 export abstract class Model<T extends Model<T>> {
   static DoesNotExist = DoesNotExist;

@@ -1,6 +1,6 @@
-import { FieldOptions } from '@alexi/db/types.ts';
-import { Model } from '@alexi/db/model.ts';
-import { QuerySet } from '@alexi/db/query.ts';
+import { FieldOptions } from './types.ts';
+import { Model } from './model.ts';
+import { QuerySet } from './query.ts';
 
 export class Field {
   primaryKey?: boolean;
