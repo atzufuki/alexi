@@ -13,7 +13,7 @@ export async function execute() {
         if (appConfig.commands) {
           for (const commandName in appConfig.commands) {
             if (commandName === command) {
-              const Command = appConfig.commands[commandName]['Command'];
+              const Command = appConfig.commands[commandName].default;
               const cmd = new Command();
               console.info(cmd.help);
               return;
@@ -28,7 +28,7 @@ export async function execute() {
       if (appConfig.commands) {
         for (const commandName in appConfig.commands) {
           if (commandName === command) {
-            const Command = appConfig.commands[commandName]['Command'];
+            const Command = appConfig.commands[commandName].default;
             const cmd = new Command();
             return await cmd.execute();
           }
