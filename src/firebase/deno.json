@@ -1,0 +1,22 @@
+{
+  "name": "@alexi/firebase",
+  "version": "0.1.0",
+  "imports": {
+    "@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.0",
+    "esbuild": "npm:esbuild@^0.24.0",
+    "firebase": "npm:firebase@^11.0.2",
+    "firebase-admin": "npm:firebase-admin@^13.0.0",
+    "firebase-functions": "npm:firebase-functions@^6.1.0"
+  },
+  "exports": {
+    "./backends": "./backends/mod.ts",
+    "./commands": "./commands/mod.ts",
+    "./commands/build": "./commands/build.ts",
+    "./commands/runemulators": "./commands/runemulators.ts",
+    "./models": "./models/mod.ts",
+    "./app": "./app.ts",
+    "./functions": "./functions.ts",
+    "./middlewares": "./middlewares.ts",
+    "./transactions": "./transactions.ts"
+  }
+}
