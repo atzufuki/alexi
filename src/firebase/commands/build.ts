@@ -20,10 +20,8 @@ export default class Command extends BaseCommand {
 
     await build({
       plugins: [...denoPlugins()],
-      entryPoints: [
-        './project/functions.ts',
-      ],
-      outfile: 'dist/functions.js',
+      entryPoints: settings.FIREBASE.ENTRY_POINTS ?? [],
+      outfile: settings.FIREBASE.OUTFILE,
       bundle: true,
       splitting: false,
       outExtension: { '.js': '.ts' },
