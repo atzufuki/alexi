@@ -110,7 +110,7 @@ export async function collectstatic() {
       outdir: `${STATIC_ROOT}/${appName}`,
       bundle: true,
       splitting: true,
-      outExtension: { '.js': '.ts' },
+      outExtension: { '.js': '.js' },
       allowOverwrite: true,
       write: true,
       format: 'esm',
