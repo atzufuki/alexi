@@ -34,6 +34,10 @@ export default class Command extends BaseCommand {
       target: 'esnext',
       define: envVariables,
       external: settings.FIREBASE.EXTERNAL,
+      banner: {
+        js:
+          "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+      },
     });
 
     console.info('Done.');

@@ -1,4 +1,4 @@
-import { AppConfig } from '@alexi/web/config';
+import { AppConfig } from './config.ts';
 
 export class AlexiFirebaseApp extends AppConfig {
   name = 'alexi_firebase';
