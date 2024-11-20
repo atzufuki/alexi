@@ -1,6 +1,6 @@
 import { BaseCommand } from '@alexi/web/base_command';
 import { CollectStaticMixin } from '@alexi/web/commands';
-import { BuildMixin } from '@alexi/firebase/commands';
+import { BuildMixin } from './mixins.ts';
 
 export default class Command extends CollectStaticMixin(
   BuildMixin(
