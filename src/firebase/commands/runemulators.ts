@@ -1,39 +1,31 @@
-import BuildCommand from './build.ts';
+import { BaseCommand } from '@alexi/web/base_command';
+import { CollectStaticMixin } from '@alexi/web/commands';
+import { BuildMixin } from '@alexi/firebase/commands';
 
-export default class Command extends BuildCommand {
+export default class Command extends CollectStaticMixin(
+  BuildMixin(
+    BaseCommand,
+  ),
+) {
   help = 'Starts a local Firebase emulators';
 
   async handle() {
-    await super.handle();
+    await this.build();
 
     const command = new Deno.Command('firebase', {
       args: [
         'emulators:start',
-        '--only',
-        'auth,functions,firestore,hosting,storage',
         '--import',
         '.firebase_export',
       ],
       env: { FORCE_COLOR: 'true' },
-      stdout: 'piped',
-      stderr: 'piped',
+      stdin: 'inherit',
+      stdout: 'inherit',
+      stderr: 'inherit',
     });
 
-    const process = command.spawn();
-    const { stdout, stderr } = await process.output();
+    command.spawn();
 
-    const decoder = new TextDecoder();
-    const outputStr = decoder.decode(stdout);
-    const errorStr = decoder.decode(stderr);
-
-    console.info(outputStr);
-    console.error(errorStr);
-
-    if (outputStr.includes('All emulators ready!')) {
-      console.info('Quit the server with CONTROL-C.');
-    }
-
-    const status = await process.status;
-    console.info(`Development server exited with code ${status.code}`);
+    this.startWatcher();
   }
 }

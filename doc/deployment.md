@@ -2,5 +2,5 @@
 
 ```bash
 # Dry run test
-deno publish --dry-run --allow-slow-types
+deno publish --allow-slow-types --dry-run
 ```
