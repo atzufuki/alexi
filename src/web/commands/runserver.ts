@@ -1,10 +1,15 @@
 import { BaseCommand } from '@alexi/web/base_command.ts';
-import { runserver } from '@alexi/web/server.ts';
+import { RunserverMixin } from '@alexi/web/commands/mixins.ts';
+import { CollectStaticMixin } from '@alexi/web/commands/mixins.ts';
 
-export default class Command extends BaseCommand {
+export default class Command extends CollectStaticMixin(
+  RunserverMixin(
+    BaseCommand,
+  ),
+) {
   help = 'Starts a lightweight web server.';
 
   async handle() {
-    await runserver();
+    await this.runserver();
   }
 }

@@ -1,10 +1,10 @@
 import { BaseCommand } from '@alexi/web/base_command.ts';
-import { collectstatic } from '@alexi/web/server.ts';
+import { CollectStaticMixin } from '@alexi/web/commands/mixins.ts';
 
-export default class Command extends BaseCommand {
+export default class Command extends CollectStaticMixin(BaseCommand) {
   help = 'Collects static files.';
 
   async handle() {
-    await collectstatic();
+    await this.collectstatic();
   }
 }
