@@ -5,24 +5,21 @@ export default class TemplateBackend {
     for (const appName in apps) {
       const app = apps[appName];
       const [_, extension] = templateName.split('.');
+
       return async (context) => {
         switch (extension) {
           case 'ts': {
-            return await app.getTemplate(
-              templateName,
-              context,
-            );
+            const template = await app.getTemplate(templateName);
+            return new template.default(context);
           }
           case 'js': {
-            return await app.getTemplate(
-              templateName,
-              context,
-            );
+            const template = await app.getTemplate(templateName);
+            return new template.default(context);
           }
           case 'svg': {
-            const template = await app.getTemplate(templateName, context);
+            const template = await app.getTemplate(templateName);
             const div = document.createElement('div');
-            div.innerHTML = template;
+            div.innerHTML = template.default;
             return div.firstChild as HTMLElement;
           }
           default:
