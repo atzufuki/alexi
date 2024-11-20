@@ -112,6 +112,14 @@ export const CollectStaticMixin = dedupeMixin(
 
         const apps = globalThis.alexi.conf.apps;
 
+        // Filter and define environment variables with prefix "SITE_"
+        const envVariables = Object.keys(Deno.env.toObject())
+          .filter((key) => key.startsWith('SITE_'))
+          .reduce((acc, key) => {
+            acc[`import.meta.env.${key}`] = JSON.stringify(Deno.env.get(key));
+            return acc;
+          }, {});
+
         for (const appName in apps) {
           const entryPoints = STATICFILES.filter((path) => {
             return path.split('static/')[1].startsWith(appName);
@@ -129,6 +137,7 @@ export const CollectStaticMixin = dedupeMixin(
             format: 'esm',
             platform: 'browser',
             target: 'esnext',
+            define: envVariables,
           });
         }
 
