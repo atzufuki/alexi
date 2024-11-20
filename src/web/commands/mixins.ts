@@ -1,3 +1,4 @@
+import svg from 'esbuild-plugin-svg';
 import { build } from 'esbuild';
 import { denoPlugins } from '@luca/esbuild-deno-loader';
 import { Constructor, dedupeMixin } from '@open-wc/dedupe-mixin';
@@ -126,7 +127,7 @@ export const CollectStaticMixin = dedupeMixin(
           });
 
           await build({
-            plugins: [...denoPlugins()],
+            plugins: [svg(), ...denoPlugins()],
             entryPoints: entryPoints,
             outdir: `${STATIC_ROOT}/${appName}`,
             bundle: true,
