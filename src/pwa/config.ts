@@ -4,6 +4,5 @@ export abstract class AppConfig {
   getModels: () => Promise<object>;
   getTemplate: (
     templateName: string,
-    context: Record<string, any>,
   ) => Promise<any>;
 }

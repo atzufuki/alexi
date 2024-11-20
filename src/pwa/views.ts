@@ -124,9 +124,9 @@ export class TemplateView extends View {
   async renderToResponse(
     context: { [key: string]: any },
   ) {
+    const root = document.querySelector('#root');
     const render = await this.render(context);
 
-    const root = document.querySelector('#root');
     root.replaceChildren(render);
 
     return new LocalResponse(render, {
