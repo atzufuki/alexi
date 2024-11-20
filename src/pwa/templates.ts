@@ -22,7 +22,7 @@ export default class TemplateBackend {
           case 'svg': {
             const template = await app.getTemplate(templateName, context);
             const div = document.createElement('div');
-            div.innerHTML = template.default;
+            div.innerHTML = template;
             return div.firstChild as HTMLElement;
           }
           default:
