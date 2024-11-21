@@ -1,5 +1,4 @@
 import { firestore } from 'firebase-admin';
-import { getApp } from 'firebase-admin/app';
 import {
   DocumentReference,
   FieldPath,
@@ -85,10 +84,10 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
   }
 
   async init(databaseName: string): Promise<this> {
+    const settings = globalThis.alexi.conf.settings;
     const databases = globalThis.alexi.conf.databases;
-    const app = getApp();
 
-    this.db = getFirestore(app);
+    this.db = getFirestore(settings.FIREBASE.APP);
 
     databases[databaseName] = this;
 
