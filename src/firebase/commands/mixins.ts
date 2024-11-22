@@ -29,7 +29,7 @@ export const BuildMixin = dedupeMixin(
 
         await build({
           plugins: [...denoPlugins()],
-          entryPoints: settings.FIREBASE.ENTRY_POINTS ?? [],
+          entryPoints: settings.FIREBASE.FUNCTIONS.ENTRYPOINTS ?? [],
           outfile: settings.FIREBASE.OUTFILE,
           bundle: true,
           splitting: false,
@@ -60,19 +60,38 @@ export const BuildMixin = dedupeMixin(
         const apps = globalThis.alexi.conf.apps;
 
         for (const appName in apps) {
-          const entryPoints = FIREBASE.HOSTING.ENTRYPOINTS.filter((path) => {
+          const filePaths = FIREBASE.HOSTING.COPY_PATHS.filter((path) => {
             return path.split('static/')[1].startsWith(appName);
           });
 
-          for (const entryPoint of entryPoints) {
+          for (const filePath of filePaths) {
             const destination = `${STATIC_ROOT}/${
-              entryPoint.split('static/')[1]
+              filePath.split('static/')[1]
             }`;
-            await Deno.copyFile(entryPoint, destination);
+
+            const entryInfo = await Deno.stat(filePath);
+            if (entryInfo.isFile) {
+              await Deno.copyFile(filePath, destination);
+            } else if (entryInfo.isDirectory) {
+              await this.copyDirectory(filePath, destination);
+            }
           }
         }
 
         console.info('Done.');
+      }
+
+      async copyDirectory(src: string, dest: string) {
+        await Deno.mkdir(dest, { recursive: true });
+        for await (const entry of Deno.readDir(src)) {
+          const srcPath = `${src}/${entry.name}`;
+          const destPath = `${dest}/${entry.name}`;
+          if (entry.isFile) {
+            await Deno.copyFile(srcPath, destPath);
+          } else if (entry.isDirectory) {
+            await this.copyDirectory(srcPath, destPath);
+          }
+        }
       }
 
       async startWatcher() {
