@@ -1,4 +1,4 @@
-import { BaseCommand } from '@alexi/web/base_command';
+import { ArgumentParser, BaseCommand } from '@alexi/web/base_command';
 import { CollectStaticMixin } from '@alexi/web/commands';
 import { BuildMixin } from './mixins.ts';
 
@@ -9,14 +9,29 @@ export default class Command extends CollectStaticMixin(
 ) {
   help = 'Starts a local Firebase emulators';
 
-  async handle() {
+  addArguments(parser: ArgumentParser): void {
+    parser.addArgument({
+      name: 'only',
+      help: `
+      only specific emulators. This is a comma       
+      separated list of emulator names. Valid        
+      options are:
+      ["auth","functions","firestore","database","hosting","pubsub","storage","eventarc","dataconnect"]
+      `,
+    });
+  }
+
+  async handle(options: { only?: string }) {
     await this.build();
+
+    const only = options.only ? ['--only', options.only] : [];
 
     const command = new Deno.Command('firebase', {
       args: [
         'emulators:start',
         '--import',
         '.firebase_export',
+        ...only,
       ],
       env: { FORCE_COLOR: 'true' },
       stdin: 'inherit',
