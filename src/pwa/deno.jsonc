@@ -1,6 +1,6 @@
 {
   "name": "@alexi/pwa",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "imports": {
     "@alexi/pwa/": "./"
   },
