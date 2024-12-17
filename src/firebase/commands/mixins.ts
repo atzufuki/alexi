@@ -103,7 +103,7 @@ export const BuildMixin = dedupeMixin(
             if (!delayWatcher) {
               delayWatcher = true;
 
-              await this.build();
+              await this.buildFunctions();
 
               // Prevent duplicate reloads
               setTimeout(() => {
@@ -123,7 +123,7 @@ export const BuildMixin = dedupeMixin(
             if (!delayWatcher) {
               delayWatcher = true;
 
-              await this.build();
+              await this.buildSites();
 
               // Prevent duplicate reloads
               setTimeout(() => {
