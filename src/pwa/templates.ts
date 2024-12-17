@@ -7,23 +7,31 @@ export default class TemplateBackend {
       const [_, extension] = templateName.split('.');
 
       return async (context) => {
-        switch (extension) {
-          case 'ts': {
-            const template = await app.getTemplate(templateName);
-            return new template.default(context);
+        try {
+          switch (extension) {
+            case 'ts': {
+              const template = await app.getTemplate(templateName);
+              return new template.default(context);
+            }
+            case 'js': {
+              const template = await app.getTemplate(templateName);
+              return new template.default(context);
+            }
+            case 'svg': {
+              const template = await app.getTemplate(templateName);
+              const div = document.createElement('div');
+              div.innerHTML = template.default;
+              return div.firstChild as HTMLElement;
+            }
+            default:
+              throw new Error('Unsupported template extension.');
           }
-          case 'js': {
-            const template = await app.getTemplate(templateName);
-            return new template.default(context);
+        } catch (error) {
+          if (error.message.includes('Not an ESM module')) {
+            return '';
+          } else {
+            throw error;
           }
-          case 'svg': {
-            const template = await app.getTemplate(templateName);
-            const div = document.createElement('div');
-            div.innerHTML = template.default;
-            return div.firstChild as HTMLElement;
-          }
-          default:
-            throw new Error('Unsupported template extension.');
         }
       };
     }
