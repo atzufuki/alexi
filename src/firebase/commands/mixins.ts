@@ -94,11 +94,30 @@ export const BuildMixin = dedupeMixin(
         }
       }
 
-      async startWatcher() {
-        const watchFiles = [
-          './src/',
-        ];
-        const watcher = Deno.watchFs(watchFiles);
+      async watchFunctions() {
+        const settings = globalThis.alexi.conf.settings;
+        const watchPaths = settings.FIREBASE.FUNCTIONS.WATCH_PATHS ?? [];
+        const watcher = Deno.watchFs(watchPaths);
+        for await (const event of watcher) {
+          if (event.kind === 'modify') {
+            if (!delayWatcher) {
+              delayWatcher = true;
+
+              await this.build();
+
+              // Prevent duplicate reloads
+              setTimeout(() => {
+                delayWatcher = false;
+              }, 0);
+            }
+          }
+        }
+      }
+
+      async watchHosting() {
+        const settings = globalThis.alexi.conf.settings;
+        const watchPaths = settings.FIREBASE.HOSTING.WATCH_PATHS ?? [];
+        const watcher = Deno.watchFs(watchPaths);
         for await (const event of watcher) {
           if (event.kind === 'modify') {
             if (!delayWatcher) {

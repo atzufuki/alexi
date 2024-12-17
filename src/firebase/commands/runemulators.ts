@@ -41,6 +41,7 @@ export default class Command extends CollectStaticMixin(
 
     command.spawn();
 
-    this.startWatcher();
+    this.watchFunctions();
+    this.watchHosting();
   }
 }
