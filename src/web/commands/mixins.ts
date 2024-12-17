@@ -125,21 +125,30 @@ export const CollectStaticMixin = dedupeMixin(
           const entryPoints = STATICFILES.filter((path) => {
             return path.split('static/')[1].startsWith(appName);
           });
-
-          await build({
-            plugins: [svg(), ...denoPlugins()],
-            entryPoints: entryPoints,
-            outdir: `${STATIC_ROOT}/${appName}`,
-            bundle: true,
-            splitting: true,
-            outExtension: { '.js': '.js' },
-            allowOverwrite: true,
-            write: true,
-            format: 'esm',
-            platform: 'browser',
-            target: 'esnext',
-            define: envVariables,
-          });
+          try {
+            await build({
+              plugins: [svg(), ...denoPlugins()],
+              entryPoints: entryPoints,
+              outdir: `${STATIC_ROOT}/${appName}`,
+              bundle: true,
+              splitting: true,
+              outExtension: { '.js': '.js' },
+              allowOverwrite: true,
+              write: true,
+              format: 'esm',
+              platform: 'browser',
+              target: 'esnext',
+              define: envVariables,
+            });
+          } catch (error) {
+            if (error.message.includes('Not an ESM module')) {
+              console.warn(
+                `Failed to bundle ${appName} because it contains an entry point that is not an ESM module.`,
+              );
+              continue;
+            }
+            throw error;
+          }
         }
 
         console.info('Done.');
