@@ -147,6 +147,14 @@ export const CollectStaticMixin = dedupeMixin(
               );
               continue;
             }
+
+            if (error.message.includes('Module not found')) {
+              console.warn(
+                `Failed to bundle ${appName} because it contains an entry point that is not found.`,
+              );
+              continue;
+            }
+
             throw error;
           }
         }
