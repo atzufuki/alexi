@@ -87,46 +87,51 @@ export const RunserverMixin = dedupeMixin(
         console.info('Quit the server with CONTROL-C.');
 
         if (dev) {
-          // Watch for source file changes and restart server
-          const srcWatcher = Deno.watchFs(WATCHFILES_DIRS, {
+          const watcher = Deno.watchFs([
+            ...WATCHFILES_DIRS,
+            ...STATICFILES_DIRS,
+          ], {
             recursive: true,
           });
-          for await (const event of srcWatcher) {
-            let isNotStatic = true;
 
-            for (const staticDir of STATICFILES_DIRS) {
-              if (event.paths[0].startsWith(staticDir)) {
-                isNotStatic = false;
+          const handle = async (event: Deno.FsEvent) => {
+            for (const staticPath of STATICFILES_DIRS) {
+              if (event.paths[0].startsWith(staticPath)) {
+                if (!delayWatcher) {
+                  delayWatcher = true;
+
+                  await this.collectstatic();
+
+                  // Prevent duplicate reloads
+                  setTimeout(() => {
+                    delayWatcher = false;
+
+                    for (const client of clients) {
+                      client.send('reload');
+                    }
+                  }, 0);
+
+                  return;
+                }
               }
             }
 
-            if (isNotStatic && event.kind === 'modify') {
-              ac.abort();
-              srcWatcher.close();
-              await this.runserver();
+            for (const watchPath of WATCHFILES_DIRS) {
+              if (event.paths[0].startsWith(watchPath)) {
+                ac.abort();
+                watcher.close();
+                await this.runserver();
+                for (const client of clients) {
+                  client.send('reload');
+                  client.close();
+                }
+              }
             }
-          }
+          };
 
-          // Watch for static file changes and notify clients
-          const staticWatcher = Deno.watchFs(STATICFILES_DIRS, {
-            recursive: true,
-          });
-          for await (const event of staticWatcher) {
+          for await (const event of watcher) {
             if (event.kind === 'modify') {
-              if (!delayWatcher) {
-                delayWatcher = true;
-
-                await this.collectstatic();
-
-                // Prevent duplicate reloads
-                setTimeout(() => {
-                  delayWatcher = false;
-
-                  for (const client of clients) {
-                    client.send('reload');
-                  }
-                }, 0);
-              }
+              handle(event);
             }
           }
         }
