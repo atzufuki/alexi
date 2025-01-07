@@ -4,7 +4,7 @@ import { denoPlugins } from '@luca/esbuild-deno-loader';
 import { Constructor, dedupeMixin } from '@open-wc/dedupe-mixin';
 import { BaseCommand } from '@alexi/web/base_command.ts';
 
-const { STATIC_ROOT, STATICFILES, STATICFILES_DIRS, WATCHFILES_DIRS } =
+const { STATIC_ROOT, STATICFILES, WATCHFILES_DIRS } =
   globalThis.alexi.conf.settings;
 const dev = Deno.env.get('MODE') === 'development';
 const clients = new Set<WebSocket>();
@@ -25,10 +25,6 @@ export const RunserverMixin = dedupeMixin(
         console.info(
           `Starting server at http://${options.hostname}:${options.port}/`,
         );
-
-        if (dev) {
-          await this.collectstatic();
-        }
 
         Deno.serve(
           options,
@@ -87,51 +83,35 @@ export const RunserverMixin = dedupeMixin(
         console.info('Quit the server with CONTROL-C.');
 
         if (dev) {
-          const watcher = Deno.watchFs([
-            ...WATCHFILES_DIRS,
-            ...STATICFILES_DIRS,
-          ], {
+          const watcher = Deno.watchFs(WATCHFILES_DIRS, {
             recursive: true,
           });
 
-          const handle = async (event: Deno.FsEvent) => {
-            for (const staticPath of STATICFILES_DIRS) {
-              if (event.paths[0].startsWith(staticPath)) {
-                if (!delayWatcher) {
-                  delayWatcher = true;
+          const handleWatchFilesChange = async (event: Deno.FsEvent) => {
+            if (!delayWatcher) {
+              delayWatcher = true;
+              ac.abort();
+              watcher.close();
 
-                  await this.collectstatic();
+              await this.collectstatic();
 
-                  // Prevent duplicate reloads
-                  setTimeout(() => {
-                    delayWatcher = false;
+              // Prevent duplicate reloads
+              setTimeout(() => {
+                delayWatcher = false;
 
-                    for (const client of clients) {
-                      client.send('reload');
-                    }
-                  }, 0);
-
-                  return;
-                }
-              }
-            }
-
-            for (const watchPath of WATCHFILES_DIRS) {
-              if (event.paths[0].startsWith(watchPath)) {
-                ac.abort();
-                watcher.close();
-                await this.runserver();
                 for (const client of clients) {
                   client.send('reload');
                   client.close();
                 }
-              }
+              }, 0);
+
+              this.runserver();
             }
           };
 
           for await (const event of watcher) {
             if (event.kind === 'modify') {
-              handle(event);
+              handleWatchFilesChange(event);
             }
           }
         }
