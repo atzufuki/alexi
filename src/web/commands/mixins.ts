@@ -4,7 +4,8 @@ import { denoPlugins } from '@luca/esbuild-deno-loader';
 import { Constructor, dedupeMixin } from '@open-wc/dedupe-mixin';
 import { BaseCommand } from '@alexi/web/base_command.ts';
 
-const { STATIC_ROOT, STATICFILES } = globalThis.alexi.conf.settings;
+const { STATIC_ROOT, STATICFILES, STATICFILES_DIRS, WATCHFILES_DIRS } =
+  globalThis.alexi.conf.settings;
 const dev = Deno.env.get('MODE') === 'development';
 const clients = new Set<WebSocket>();
 let delayWatcher = false;
@@ -15,7 +16,12 @@ export const RunserverMixin = dedupeMixin(
       collectstatic() {}
 
       async runserver() {
-        const options = { port: 3000, hostname: 'localhost' };
+        const ac = new AbortController();
+        const options = {
+          signal: ac.signal,
+          port: 3000,
+          hostname: 'localhost',
+        };
         console.info(
           `Starting server at http://${options.hostname}:${options.port}/`,
         );
@@ -77,12 +83,35 @@ export const RunserverMixin = dedupeMixin(
             return new Response('404: Not Found', { status: 404 });
           },
         );
+
         console.info('Quit the server with CONTROL-C.');
 
         if (dev) {
-          // Watch for file changes and notify clients
-          const watcher = Deno.watchFs(STATICFILES);
-          for await (const event of watcher) {
+          // Watch for source file changes and restart server
+          const srcWatcher = Deno.watchFs(WATCHFILES_DIRS, {
+            recursive: true,
+          });
+          for await (const event of srcWatcher) {
+            let isNotStatic = true;
+
+            for (const staticDir of STATICFILES_DIRS) {
+              if (event.paths[0].startsWith(staticDir)) {
+                isNotStatic = false;
+              }
+            }
+
+            if (isNotStatic && event.kind === 'modify') {
+              ac.abort();
+              srcWatcher.close();
+              await this.runserver();
+            }
+          }
+
+          // Watch for static file changes and notify clients
+          const staticWatcher = Deno.watchFs(STATICFILES_DIRS, {
+            recursive: true,
+          });
+          for await (const event of staticWatcher) {
             if (event.kind === 'modify') {
               if (!delayWatcher) {
                 delayWatcher = true;
