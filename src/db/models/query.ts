@@ -268,10 +268,9 @@ export class QuerySet<T extends Model<T>> {
           value = value.getTime();
         }
 
-        if (!param) {
-          throw new Error('Invalid filter param:', {
-            [key]: param,
-          });
+        if (param === undefined) {
+          result = false;
+          continue;
         }
 
         switch (condition) {
