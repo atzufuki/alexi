@@ -270,54 +270,53 @@ export class QuerySet<T extends Model<T>> {
 
         if (param === undefined) {
           result = false;
-          continue;
-        }
-
-        switch (condition) {
-          case 'eq':
-            if (value === param) {
-              result = true;
-            }
-            break;
-          case 'ne':
-            if (value !== param) {
-              result = true;
-            }
-            break;
-          case 'in':
-            if (param.includes(value)) {
-              result = true;
-            }
-            break;
-          case 'nin':
-            if (!param.includes(value)) {
-              result = true;
-            }
-            break;
-          case 'gt':
-            if (value > param) {
-              result = true;
-            }
-            break;
-          case 'lt':
-            if (value < param) {
-              result = true;
-            }
-            break;
-          case 'gte':
-            if (value >= param) {
-              result = true;
-            }
-            break;
-          case 'lte':
-            if (value <= param) {
-              result = true;
-            }
-            break;
-          default:
-            throw new Error('Invalid filter condition:', {
-              [key]: condition,
-            });
+        } else {
+          switch (condition) {
+            case 'eq':
+              if (value === param) {
+                result = true;
+              }
+              break;
+            case 'ne':
+              if (value !== param) {
+                result = true;
+              }
+              break;
+            case 'in':
+              if (param.includes(value)) {
+                result = true;
+              }
+              break;
+            case 'nin':
+              if (!param.includes(value)) {
+                result = true;
+              }
+              break;
+            case 'gt':
+              if (value > param) {
+                result = true;
+              }
+              break;
+            case 'lt':
+              if (value < param) {
+                result = true;
+              }
+              break;
+            case 'gte':
+              if (value >= param) {
+                result = true;
+              }
+              break;
+            case 'lte':
+              if (value <= param) {
+                result = true;
+              }
+              break;
+            default:
+              throw new Error('Invalid filter condition:', {
+                [key]: condition,
+              });
+          }
         }
 
         results.push(result);
