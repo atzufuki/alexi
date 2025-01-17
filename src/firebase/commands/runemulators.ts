@@ -43,5 +43,6 @@ export default class Command extends CollectStaticMixin(
 
     this.watchFunctions();
     this.watchHosting();
+    this.runhmr();
   }
 }
