@@ -220,7 +220,9 @@ export class QuerySet<T extends Model<T>> {
     const qs = new (this.constructor as typeof QuerySet<T>)(this.modelClass);
     qs.modelClass = this.modelClass;
     qs.manager = this.manager;
-    qs.query = this.query;
+    qs.query = new Query<T>();
+    qs.query.ordering = [...this.query.ordering];
+    qs.query.where = [...this.query.where];
     qs.databaseConfig = this.databaseConfig;
     return qs;
   }

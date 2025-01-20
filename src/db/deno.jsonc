@@ -1,6 +1,6 @@
 {
   "name": "@alexi/db",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "imports": {
     "idb": "npm:idb@8.0.0"
   },
