@@ -1,11 +1,11 @@
 import svg from 'esbuild-plugin-svg';
+import chokidar from 'chokidar';
 import { build } from 'esbuild';
 import { denoPlugins } from '@luca/esbuild-deno-loader';
 import { Constructor, dedupeMixin } from '@open-wc/dedupe-mixin';
 import { BaseCommand } from '@alexi/web/base_command.ts';
 
-const { STATIC_ROOT, STATICFILES, WATCHFILES_DIRS } =
-  globalThis.alexi.conf.settings;
+const { STATIC_ROOT, STATICFILES, WATCHFILES_DIRS, WATCHER_USE_POLLING } = globalThis.alexi.conf.settings;
 const dev = Deno.env.get('MODE') === 'development';
 const clients = new Set<WebSocket>();
 let delayWatcher = false;
@@ -64,9 +64,7 @@ export const RunserverMixin = dedupeMixin(
             const settings = globalThis.alexi.conf.settings;
             const urlpatterns = settings.ROOT_URLCONF;
             for (const pattern of urlpatterns) {
-              const url = pathname.startsWith('/')
-                ? pathname.slice(1)
-                : pathname;
+              const url = pathname.startsWith('/') ? pathname.slice(1) : pathname;
               const regexPath = pattern.path.replace(/:\w+/g, '([^/]+)');
               const regex = new RegExp(`^${regexPath}/?$`);
               const match = url.match(regex);
@@ -83,35 +81,65 @@ export const RunserverMixin = dedupeMixin(
         console.info('Quit the server with CONTROL-C.');
 
         if (dev) {
-          const watcher = Deno.watchFs(WATCHFILES_DIRS, {
-            recursive: true,
-          });
+          if (WATCHER_USE_POLLING) {
+            const watcher = chokidar.watch(WATCHFILES_DIRS, {
+              ignored: /(^|[\/\\])\../,
+              persistent: true,
+              usePolling: true,
+            });
 
-          const handleWatchFilesChange = async (event: Deno.FsEvent) => {
-            if (!delayWatcher) {
-              delayWatcher = true;
-              ac.abort();
-              watcher.close();
+            watcher.on('change', async () => {
+              if (!delayWatcher) {
+                delayWatcher = true;
+                ac.abort();
+                watcher.close();
 
-              await this.collectstatic();
+                await this.collectstatic();
 
-              // Prevent duplicate reloads
-              setTimeout(() => {
-                delayWatcher = false;
+                // Prevent duplicate reloads
+                setTimeout(() => {
+                  delayWatcher = false;
 
-                for (const client of clients) {
-                  client.send('reload');
-                  client.close();
-                }
-              }, 0);
+                  for (const client of clients) {
+                    client.send('reload');
+                    client.close();
+                  }
+                }, 0);
 
-              this.runserver();
-            }
-          };
+                this.runserver();
+              }
+            });
+          } else {
+            const watcher = Deno.watchFs(WATCHFILES_DIRS, {
+              recursive: true,
+            });
 
-          for await (const event of watcher) {
-            if (event.kind === 'modify') {
-              handleWatchFilesChange(event);
+            const handleWatchFilesChange = async (event: Deno.FsEvent) => {
+              if (!delayWatcher) {
+                delayWatcher = true;
+                ac.abort();
+                watcher.close();
+
+                await this.collectstatic();
+
+                // Prevent duplicate reloads
+                setTimeout(() => {
+                  delayWatcher = false;
+
+                  for (const client of clients) {
+                    client.send('reload');
+                    client.close();
+                  }
+                }, 0);
+
+                this.runserver();
+              }
+            };
+
+            for await (const event of watcher) {
+              if (event.kind === 'modify') {
+                handleWatchFilesChange(event);
+              }
             }
           }
         }

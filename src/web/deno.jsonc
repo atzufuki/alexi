@@ -1,13 +1,15 @@
 {
   "name": "@alexi/web",
-  "version": "0.1.19",
+  "version": "0.2.0",
   "imports": {
+    "@std/fs": "jsr:@std/fs@^1.0.5",
     "@alexi/web/": "./",
     "@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
     "@open-wc/dedupe-mixin": "npm:@open-wc/dedupe-mixin@1.4.0",
     "esbuild": "npm:esbuild@^0.24.2",
     "esbuild-plugin-svg": "npm:esbuild-plugin-svg@^0.1.0",
-    "nunjucks": "npm:nunjucks@^3.2.4"
+    "nunjucks": "npm:nunjucks@^3.2.4",
+    "chokidar": "npm:chokidar@^4.0.3"
   },
   "exports": {
     ".": "./mod.ts",
