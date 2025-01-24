@@ -5,8 +5,7 @@ import { denoPlugins } from '@luca/esbuild-deno-loader';
 import { Constructor, dedupeMixin } from '@open-wc/dedupe-mixin';
 import { BaseCommand } from '@alexi/web/base_command.ts';
 
-const { STATIC_ROOT, STATICFILES, WATCHFILES_DIRS, WATCHER_USE_POLLING } =
-  globalThis.alexi.conf.settings;
+const { STATIC_ROOT, STATICFILES, WATCHFILES_DIRS, WATCHER_USE_POLLING } = globalThis.alexi.conf.settings;
 const dev = Deno.env.get('MODE') === 'development';
 const clients = new Set<WebSocket>();
 let delayWatcher = false;
@@ -19,7 +18,7 @@ export const RunserverMixin = dedupeMixin(
       async runserver() {
         const ac = new AbortController();
         const args = Deno.args.slice(1);
-        const [hostname, port] = args[0].split(':');
+        const [hostname, port] = args?.[0]?.split(':') ?? [];
         const options = {
           signal: ac.signal,
           port: parseInt(port ?? '3000'),
@@ -67,9 +66,7 @@ export const RunserverMixin = dedupeMixin(
             const settings = globalThis.alexi.conf.settings;
             const urlpatterns = settings.ROOT_URLCONF;
             for (const pattern of urlpatterns) {
-              const url = pathname.startsWith('/')
-                ? pathname.slice(1)
-                : pathname;
+              const url = pathname.startsWith('/') ? pathname.slice(1) : pathname;
               const regexPath = pattern.path.replace(/:\w+/g, '([^/]+)');
               const regex = new RegExp(`^${regexPath}/?$`);
               const match = url.match(regex);
