@@ -4,4 +4,5 @@ export abstract class AppConfig {
   getModels: (() => Promise<object>) | undefined;
   commands: object | undefined;
   getCommands: (() => Promise<object>) | undefined;
+  abstract get appDir(): string;
 }
