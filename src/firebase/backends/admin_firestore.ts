@@ -179,10 +179,18 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
   }
 
   async delete<T extends Model<T>>(qs: QuerySet<T>): Promise<void> {
-    const docs = await this.queryDocs(qs);
-    for (const doc of docs) {
-      await this.deleteDoc(doc.ref);
+    try {
+      const docs = await this.queryDocs(qs);
+      for (const doc of docs) {
+        await this.deleteDoc(doc.ref);
+      }
+    } finally {
+      await this.terminate();
     }
+  }
+
+  async terminate() {
+    this.db.terminate();
   }
 
   async getDocs(query: firestore.Query) {
