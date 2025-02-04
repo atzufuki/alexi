@@ -102,7 +102,7 @@ export const RunserverMixin = dedupeMixin(
                 await this.collectstatic();
 
                 // Prevent duplicate reloads
-                setTimeout(() => {
+                const timeout = setTimeout(() => {
                   delayWatcher = false;
 
                   for (const client of clients) {
@@ -110,6 +110,7 @@ export const RunserverMixin = dedupeMixin(
                     client.close();
                   }
                 }, 0);
+                clearTimeout(timeout);
 
                 this.runserver();
               }
@@ -128,7 +129,7 @@ export const RunserverMixin = dedupeMixin(
                 await this.collectstatic();
 
                 // Prevent duplicate reloads
-                setTimeout(() => {
+                const timeout = setTimeout(() => {
                   delayWatcher = false;
 
                   for (const client of clients) {
@@ -136,6 +137,7 @@ export const RunserverMixin = dedupeMixin(
                     client.close();
                   }
                 }, 0);
+                clearTimeout(timeout);
 
                 this.runserver();
               }
