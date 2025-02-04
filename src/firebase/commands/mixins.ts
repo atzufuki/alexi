@@ -108,9 +108,10 @@ export const BuildMixin = dedupeMixin(
               await this.buildFunctions();
 
               // Prevent duplicate reloads
-              setTimeout(() => {
+              const timeout = setTimeout(() => {
                 delayWatcher = false;
               }, 0);
+              clearTimeout(timeout);
             }
           }
         }
@@ -128,7 +129,7 @@ export const BuildMixin = dedupeMixin(
               await this.buildSites();
 
               // Prevent duplicate reloads
-              setTimeout(() => {
+              const timeout = setTimeout(() => {
                 delayWatcher = false;
 
                 for (const client of clients) {
@@ -136,6 +137,7 @@ export const BuildMixin = dedupeMixin(
                   client.close();
                 }
               }, 0);
+              clearTimeout(timeout);
             }
           }
         }
