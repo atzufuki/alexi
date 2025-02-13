@@ -1,10 +1,12 @@
 import svg from 'esbuild-plugin-svg';
+import chokidar from 'chokidar';
 import { build } from 'esbuild';
 import { denoPlugins } from '@luca/esbuild-deno-loader';
 import { Constructor, dedupeMixin } from '@open-wc/dedupe-mixin';
 import { BaseCommand } from '@alexi/web/base_command.ts';
 
-const { STATIC_ROOT, STATICFILES } = globalThis.alexi.conf.settings;
+const { STATIC_ROOT, STATICFILES, WATCHFILES_DIRS, WATCHER_USE_POLLING } =
+  globalThis.alexi.conf.settings;
 const dev = Deno.env.get('MODE') === 'development';
 const clients = new Set<WebSocket>();
 let delayWatcher = false;
@@ -15,14 +17,17 @@ export const RunserverMixin = dedupeMixin(
       collectstatic() {}
 
       async runserver() {
-        const options = { port: 3000, hostname: 'localhost' };
+        const ac = new AbortController();
+        const args = Deno.args.slice(1);
+        const [hostname, port] = args?.[0]?.split(':') ?? [];
+        const options = {
+          signal: ac.signal,
+          port: parseInt(port ?? '3000'),
+          hostname: hostname ?? 'localhost',
+        };
         console.info(
           `Starting server at http://${options.hostname}:${options.port}/`,
         );
-
-        if (dev) {
-          await this.collectstatic();
-        }
 
         Deno.serve(
           options,
@@ -42,7 +47,7 @@ export const RunserverMixin = dedupeMixin(
 
             // Serve static ts files
             if (pathname.startsWith('/static/')) {
-              const filePath = `${pathname.replace('/static/', './static/')}`;
+              const filePath = `${pathname.replace('/static/', STATIC_ROOT)}`;
 
               if (
                 filePath.endsWith('.ts') || filePath.endsWith('.js')
@@ -77,26 +82,70 @@ export const RunserverMixin = dedupeMixin(
             return new Response('404: Not Found', { status: 404 });
           },
         );
+
         console.info('Quit the server with CONTROL-C.');
 
         if (dev) {
-          // Watch for file changes and notify clients
-          const watcher = Deno.watchFs(STATICFILES);
-          for await (const event of watcher) {
-            if (event.kind === 'modify') {
+          if (WATCHER_USE_POLLING) {
+            const watcher = chokidar.watch(WATCHFILES_DIRS, {
+              ignored: /(^|[\/\\])\../,
+              persistent: true,
+              usePolling: true,
+            });
+
+            watcher.on('change', async () => {
               if (!delayWatcher) {
                 delayWatcher = true;
+                ac.abort();
+                watcher.close();
 
                 await this.collectstatic();
 
                 // Prevent duplicate reloads
-                setTimeout(() => {
+                const timeout = setTimeout(() => {
                   delayWatcher = false;
 
                   for (const client of clients) {
                     client.send('reload');
+                    client.close();
                   }
                 }, 0);
+                clearTimeout(timeout);
+
+                this.runserver();
+              }
+            });
+          } else {
+            const watcher = Deno.watchFs(WATCHFILES_DIRS, {
+              recursive: true,
+            });
+
+            const handleWatchFilesChange = async (event: Deno.FsEvent) => {
+              if (!delayWatcher) {
+                delayWatcher = true;
+                ac.abort();
+                watcher.close();
+
+                await this.collectstatic();
+
+                // Prevent duplicate reloads
+                const timeout = setTimeout(() => {
+                  delayWatcher = false;
+
+                  for (const client of clients) {
+                    client.send('reload');
+                    client.close();
+                  }
+                }, 0);
+                clearTimeout(timeout);
+
+                this.runserver();
+              }
+            };
+
+            for await (const event of watcher) {
+              if (event.kind === 'modify') {
+                handleWatchFilesChange(event);
               }
             }
           }

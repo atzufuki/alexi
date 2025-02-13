@@ -4,6 +4,8 @@ import { Constructor, dedupeMixin } from '@open-wc/dedupe-mixin';
 import { BaseCommand } from '@alexi/web/base_command';
 
 const { STATIC_ROOT, FIREBASE } = globalThis.alexi.conf.settings;
+const dev = Deno.env.get('MODE') === 'development';
+const clients = new Set<WebSocket>();
 let delayWatcher = false;
 
 export const BuildMixin = dedupeMixin(
@@ -106,9 +108,10 @@ export const BuildMixin = dedupeMixin(
               await this.buildFunctions();
 
               // Prevent duplicate reloads
-              setTimeout(() => {
+              const timeout = setTimeout(() => {
                 delayWatcher = false;
               }, 0);
+              clearTimeout(timeout);
             }
           }
         }
@@ -126,12 +129,44 @@ export const BuildMixin = dedupeMixin(
               await this.buildSites();
 
               // Prevent duplicate reloads
-              setTimeout(() => {
+              const timeout = setTimeout(() => {
                 delayWatcher = false;
+
+                for (const client of clients) {
+                  client.send('reload');
+                  client.close();
+                }
               }, 0);
+              clearTimeout(timeout);
             }
           }
         }
+      }
+
+      async runhmr() {
+        const options = {
+          port: 3000,
+          hostname: 'localhost',
+        };
+        Deno.serve(
+          options,
+          async (request: Request) => {
+            const requestURL = new URL(request.url);
+            const pathname = requestURL.pathname;
+
+            if (dev) {
+              // Handle WebSocket connections for HMR
+              if (pathname === '/hmr') {
+                const { response, socket } = Deno.upgradeWebSocket(request);
+                socket.onopen = () => clients.add(socket);
+                socket.onclose = () => clients.delete(socket);
+                return response;
+              }
+            }
+
+            return new Response('404: Not Found', { status: 404 });
+          },
+        );
       }
     },
 );

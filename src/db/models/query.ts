@@ -220,7 +220,9 @@ export class QuerySet<T extends Model<T>> {
     const qs = new (this.constructor as typeof QuerySet<T>)(this.modelClass);
     qs.modelClass = this.modelClass;
     qs.manager = this.manager;
-    qs.query = this.query;
+    qs.query = new Query<T>();
+    qs.query.ordering = [...this.query.ordering];
+    qs.query.where = [...this.query.where];
     qs.databaseConfig = this.databaseConfig;
     return qs;
   }
@@ -268,57 +270,55 @@ export class QuerySet<T extends Model<T>> {
           value = value.getTime();
         }
 
-        if (!param) {
-          throw new Error('Invalid filter param:', {
-            [key]: param,
-          });
-        }
-
-        switch (condition) {
-          case 'eq':
-            if (value === param) {
-              result = true;
-            }
-            break;
-          case 'ne':
-            if (value !== param) {
-              result = true;
-            }
-            break;
-          case 'in':
-            if (param.includes(value)) {
-              result = true;
-            }
-            break;
-          case 'nin':
-            if (!param.includes(value)) {
-              result = true;
-            }
-            break;
-          case 'gt':
-            if (value > param) {
-              result = true;
-            }
-            break;
-          case 'lt':
-            if (value < param) {
-              result = true;
-            }
-            break;
-          case 'gte':
-            if (value >= param) {
-              result = true;
-            }
-            break;
-          case 'lte':
-            if (value <= param) {
-              result = true;
-            }
-            break;
-          default:
-            throw new Error('Invalid filter condition:', {
-              [key]: condition,
-            });
+        if (param === undefined) {
+          result = false;
+        } else {
+          switch (condition) {
+            case 'eq':
+              if (value === param) {
+                result = true;
+              }
+              break;
+            case 'ne':
+              if (value !== param) {
+                result = true;
+              }
+              break;
+            case 'in':
+              if (param.includes(value)) {
+                result = true;
+              }
+              break;
+            case 'nin':
+              if (!param.includes(value)) {
+                result = true;
+              }
+              break;
+            case 'gt':
+              if (value > param) {
+                result = true;
+              }
+              break;
+            case 'lt':
+              if (value < param) {
+                result = true;
+              }
+              break;
+            case 'gte':
+              if (value >= param) {
+                result = true;
+              }
+              break;
+            case 'lte':
+              if (value <= param) {
+                result = true;
+              }
+              break;
+            default:
+              throw new Error('Invalid filter condition:', {
+                [key]: condition,
+              });
+          }
         }
 
         results.push(result);

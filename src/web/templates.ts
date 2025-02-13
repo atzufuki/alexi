@@ -5,14 +5,13 @@ export default class TemplateBackend {
   templatesDirname = 'templates';
 
   async getTemplate(templateName: string): Promise<any> {
-    const root = Deno.cwd();
     const [templateDirName, fileName] = templateName.split('/');
 
     const apps = globalThis.alexi.conf.apps;
     for (const appName in apps) {
+      const app = apps[appName];
       const [name, extension] = fileName.split('.');
-      const importPath =
-        `${root}/src/${appName}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`;
+      const importPath = `${app.appDir}/${this.templatesDirname}/${templateDirName}/${name}.${extension}`;
 
       if (!existsSync(importPath)) {
         continue;
