@@ -1982,14 +1982,18 @@
       "integrity": "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q=="
     }
   },
+  "remote": {
+    "https://deno.land/std@0.100.0/fmt/colors.ts": "db22b314a2ae9430ae7460ce005e0a7130e23ae1c999157e3bb77cf55800f7e4",
+    "https://deno.land/std@0.100.0/testing/_diff.ts": "a214632660e819a099f3ce719770031a69ba165853f930b90b44d7317a05585b",
+    "https://deno.land/std@0.100.0/testing/asserts.ts": "c4e8b3d81a5d80d6a4b48692e298dbeccfa22a5291782d6faa05115eb61d337e"
+  },
   "workspace": {
     "dependencies": [
       "jsr:@deno/emit@0.45",
       "jsr:@std/assert@1",
       "jsr:@std/fs@^1.0.5",
       "jsr:@std/io@0.225",
-      "jsr:@std/path@^1.0.7",
-      "npm:esbuild-plugin-svg@0.1"
+      "jsr:@std/path@^1.0.7"
     ],
     "members": {
       "src/db": {
@@ -2012,6 +2016,7 @@
         "dependencies": [
           "jsr:@luca/esbuild-deno-loader@0.11",
           "npm:@open-wc/dedupe-mixin@1.4.0",
+          "npm:esbuild-plugin-svg@0.1",
           "npm:esbuild@0.24",
           "npm:nunjucks@^3.2.4"
         ]
