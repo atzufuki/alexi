@@ -16,6 +16,7 @@
     "lib": [
       "dom",
       "deno.ns",
+      "deno.unstable",
       "deno.window",
       "DOM.Iterable",
       "DOM.AsyncIterable"
