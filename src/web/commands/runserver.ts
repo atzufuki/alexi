@@ -10,6 +10,10 @@ export default class Command extends CollectStaticMixin(
   help = 'Starts a lightweight web server.';
 
   async handle() {
+    const dev = Deno.env.get('MODE') === 'development';
+    if (dev) {
+      await this.collectstatic();
+    }
     await this.runserver();
   }
 }

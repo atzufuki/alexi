@@ -8,4 +8,8 @@ export class AlexiWebApp extends AppConfig {
       collectstatic: await import(`./commands/collectstatic.ts`),
     };
   };
+  get appDir() {
+    const url = new URL(import.meta.url);
+    return url.pathname.split('/').slice(1, -1).join('/');
+  }
 }
