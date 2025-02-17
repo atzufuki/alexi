@@ -80,6 +80,11 @@ export class View {
 export class TemplateView extends View {
   declare templateName: string;
 
+  async get(request: Request) {
+    const context = await this.getContextData(request);
+    return await this.renderToResponse(context);
+  }
+
   async getContextData(request: Request) {
     return {};
   }
