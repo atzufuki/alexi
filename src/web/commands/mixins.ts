@@ -12,13 +12,13 @@ const dev = Deno.env.get('MODE') === 'development';
 export const RunserverMixin = dedupeMixin(
   <T extends Constructor<BaseCommand>>(SuperClass: T) =>
     class RunserverMixin extends SuperClass {
-      ac = new AbortController();
+      ac: AbortController;
       clients = new Set<WebSocket>();
-      delayWatcher = false;
 
       collectstatic() {}
 
       async runserver() {
+        this.ac = new AbortController();
         const args = Deno.args.slice(1);
         const [hostname, port] = args?.[0]?.split(':') ?? [];
         const options = {
@@ -87,34 +87,11 @@ export const RunserverMixin = dedupeMixin(
         console.info('Quit the server with CONTROL-C.');
 
         if (dev) {
-          this.watch();
+          this._watch();
         }
       }
 
-      watch() {
-        const handleChange = async (closeCallback: () => void) => {
-          if (!this.delayWatcher) {
-            this.delayWatcher = true;
-            this.ac.abort();
-            closeCallback();
-
-            await this.collectstatic();
-
-            // Prevent duplicate reloads
-            const timeout = setTimeout(() => {
-              this.delayWatcher = false;
-
-              for (const client of this.clients) {
-                client.send('reload');
-                client.close();
-              }
-            }, 0);
-            clearTimeout(timeout);
-
-            this.runserver();
-          }
-        };
-
+      async _watch() {
         if (WATCHER_USE_POLLING) {
           const watcher = chokidar.watch(WATCHFILES_DIRS, {
             ignored: /(^|[\/\\])\../,
@@ -122,20 +99,33 @@ export const RunserverMixin = dedupeMixin(
             usePolling: true,
           });
 
-          watcher.on('change', () => {
-            handleChange(() => watcher.close());
+          watcher.on('change', async () => {
+            for (const client of this.clients) {
+              client.send('reload');
+              client.close();
+            }
+            this.ac.abort();
+            watcher.close();
+            await this.collectstatic();
+            this.runserver();
           });
         } else {
           const watcher = Deno.watchFs(WATCHFILES_DIRS, {
             recursive: true,
           });
-          (async () => {
-            for await (const event of watcher) {
-              if (event.kind === 'modify') {
-                handleChange(() => watcher.close());
+
+          for await (const event of watcher) {
+            if (event.kind === 'modify') {
+              for (const client of this.clients) {
+                client.send('reload');
+                client.close();
               }
+              watcher.close();
+              this.ac.abort();
+              await this.collectstatic();
+              this.runserver();
             }
-          })();
+          }
         }
       }
     },
