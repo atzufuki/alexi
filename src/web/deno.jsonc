@@ -1,6 +1,6 @@
 {
   "name": "@alexi/web",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "imports": {
     "@std/fs": "jsr:@std/fs@^1.0.5",
     "@alexi/web/": "./",
