@@ -28,60 +28,50 @@ export class View {
     }
     this.params = params;
 
-    let context: { [key: string]: any } = {};
-
     switch (request.method) {
       case 'GET':
-        context = await this.get(request);
-        break;
+        return await this.get(request);
       case 'POST':
-        context = await this.post(request);
-        break;
+        return await this.post(request);
       case 'PUT':
-        context = await this.put(request);
-        break;
+        return await this.put(request);
       case 'PATCH':
-        context = await this.patch(request);
-        break;
+        return await this.patch(request);
       case 'DELETE':
-        context = await this.delete(request);
-        break;
+        return await this.delete(request);
       default:
-        throw new Error('Method not allowed');
+        return new Response('', {
+          status: 405,
+        });
     }
-
-    return await this.renderToResponse(context);
-  }
-
-  async getContextData(request: Request) {
-    return {};
   }
 
   async get(request: Request): Promise<object | null> {
-    return await this.getContextData(request);
+    return new Response('', {
+      status: 200,
+    });
   }
 
   async post(request: Request): Promise<object | null> {
-    return await this.getContextData(request);
+    return new Response('', {
+      status: 200,
+    });
   }
 
   async put(request: Request): Promise<object | null> {
-    return await this.getContextData(request);
+    return new Response('', {
+      status: 200,
+    });
   }
 
   async patch(request: Request): Promise<object | null> {
-    return await this.getContextData(request);
+    return new Response('', {
+      status: 200,
+    });
   }
 
   async delete(request: Request): Promise<object | null> {
-    return await this.getContextData(request);
-  }
-
-  async renderToResponse(
-    context: { [key: string]: any },
-  ) {
-    const render = JSON.stringify(context);
-    return new Response(render, {
+    return new Response('', {
       status: 200,
     });
   }
@@ -89,6 +79,10 @@ export class View {
 
 export class TemplateView extends View {
   declare templateName: string;
+
+  async getContextData(request: Request) {
+    return {};
+  }
 
   async renderToResponse(
     context: { [key: string]: any },
@@ -106,31 +100,5 @@ export class TemplateView extends View {
     const backend = new TemplateBackend();
     const template = await backend.getTemplate(this.templateName);
     return template(context);
-  }
-}
-
-export class APIView extends View {
-  async list(): Promise<any[]> {
-    throw new Error('Not implemented');
-  }
-
-  async create(obj: any): Promise<any> {
-    throw new Error('Not implemented');
-  }
-
-  async retrieve({ id }: any): Promise<any> {
-    throw new Error('Not implemented');
-  }
-
-  async update({ id }: any, obj: any): Promise<any> {
-    throw new Error('Not implemented');
-  }
-
-  async partialUpdate({ id }: any, obj: any): Promise<any> {
-    throw new Error('Not implemented');
-  }
-
-  async destroy({ id }: any): Promise<any> {
-    throw new Error('Not implemented');
   }
 }
