@@ -1,6 +1,6 @@
-import { Settings } from '@alexi/web/types.ts';
+import { AppSettings } from '@alexi/web/types.ts';
 
-export async function setup(settings: Settings) {
+export async function setup(settings: AppSettings) {
   globalThis.alexi = { conf: { settings: settings, apps: {}, databases: {} } };
 
   for (const AppConfig of settings.INSTALLED_APPS) {
