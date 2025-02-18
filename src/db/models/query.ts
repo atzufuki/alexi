@@ -73,7 +73,9 @@ export class QuerySet<T extends Model<T>> {
     try {
       obj = await this.get(lookup);
       for (const key in defaults) {
-        obj[key].set(defaults[key]);
+        if (obj[key] instanceof Field) {
+          obj[key].set(defaults[key]);
+        }
       }
       obj = await obj.save();
     } catch (error) {
