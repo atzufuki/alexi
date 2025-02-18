@@ -8,9 +8,20 @@ export type UrlPattern = {
   name?: string;
 };
 
+export type BaseDatabaseBackend = new (databaseConfig: DatabaseConfig) => any;
+
+export interface DatabaseConfig {
+  NAME: string;
+  ENGINE: BaseDatabaseBackend;
+  [key: string]: any;
+}
+
 export type AppSettings = {
-  INSTALLED_APPS: any[];
-  APPEND_SLASH: boolean;
-  ROOT_URLCONF: UrlPattern[];
+  INSTALLED_APPS?: any[];
+  APPEND_SLASH?: boolean;
+  ROOT_URLCONF?: UrlPattern[];
+  DATABASES?: {
+    [key: string]: DatabaseConfig;
+  };
   [key: string]: any;
 };
