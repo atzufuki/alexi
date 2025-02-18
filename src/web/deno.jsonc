@@ -2,7 +2,6 @@
   "name": "@alexi/web",
   "version": "0.4.0",
   "imports": {
-    "@alexi/db": "jsr:@alexi/db@^0.3.0",
     "@std/fs": "jsr:@std/fs@^1.0.5",
     "@alexi/web/": "./",
     "@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",

@@ -1,5 +1,6 @@
 import type { View } from '@alexi/web/views.ts';
-import type { BaseDatabaseBackend } from '@alexi/db/backends';
+
+export type BaseDatabaseBackend = new (databaseConfig: DatabaseConfig) => any;
 
 export type AsView = View;
 
@@ -9,16 +10,16 @@ export type UrlPattern = {
   name?: string;
 };
 
-export type AppSettings = {
+export interface AppSettings {
   INSTALLED_APPS: any[];
   APPEND_SLASH: boolean;
   ROOT_URLCONF: UrlPattern[];
   [key: string]: any;
-};
+}
 
 export interface DatabaseConfig {
   NAME: string;
-  ENGINE: typeof BaseDatabaseBackend;
+  ENGINE: BaseDatabaseBackend;
   [key: string]: any;
 }
 
