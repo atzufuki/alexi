@@ -1,7 +1,8 @@
 {
   "name": "@alexi/db",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "imports": {
+    "@alexi/web": "jsr:@alexi/web@^0.4.0",
     "idb": "npm:idb@8.0.0"
   },
   "exports": {

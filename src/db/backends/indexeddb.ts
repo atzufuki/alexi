@@ -7,18 +7,16 @@ import { BaseDatabaseBackend } from './base.ts';
 export class IndexedDBBackend extends BaseDatabaseBackend {
   declare db: IDBPDatabase<unknown>;
 
-  async init(
-    databaseName: string,
-    version: number,
-    onUpgrade: (db: IDBPDatabase) => void,
-  ) {
-    this.db = await openDB(databaseName, version, {
-      upgrade: async (db) => {
-        onUpgrade(db);
+  async init() {
+    this.db = await openDB(
+      this.databaseConfig.NAME,
+      this.databaseConfig.VERSION,
+      {
+        upgrade: async (db) => {
+          this.databaseConfig.ON_UPGRADE(db);
+        },
       },
-    });
-    globalThis.alexi.conf.databases[databaseName] = this;
-    return this;
+    );
   }
 
   async create(qs: QuerySet<any>, serialized: any): Promise<any> {

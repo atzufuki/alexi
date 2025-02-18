@@ -17,11 +17,6 @@ await setup({
   },
 });
 
-const settings = globalThis.alexi.conf.settings;
-const backend = new settings.DATABASES.default
-  .ENGINE() as DenoKVBackend;
-await backend.init(settings.DATABASES.default.NAME);
-
 class TestModel extends Model<TestModel> {
   name = new CharField({ maxLength: 100 });
 
