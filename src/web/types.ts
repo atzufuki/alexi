@@ -10,22 +10,18 @@ export type UrlPattern = {
   name?: string;
 };
 
-export interface AppSettings {
-  INSTALLED_APPS: any[];
-  APPEND_SLASH: boolean;
-  ROOT_URLCONF: UrlPattern[];
-  [key: string]: any;
-}
-
 export interface DatabaseConfig {
   NAME: string;
   ENGINE: BaseDatabaseBackend;
   [key: string]: any;
 }
 
-export interface Settings {
-  INSTALLED_APPS: any[];
-  DATABASES: {
+export interface AppSettings {
+  INSTALLED_APPS?: any[];
+  APPEND_SLASH?: boolean;
+  ROOT_URLCONF?: UrlPattern[];
+  DATABASES?: {
     [key: string]: DatabaseConfig;
   };
+  [key: string]: any;
 }
