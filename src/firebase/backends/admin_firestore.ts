@@ -83,15 +83,9 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
     return field.get();
   }
 
-  async init(databaseName: string): Promise<this> {
+  async init() {
     const settings = globalThis.alexi.conf.settings;
-    const databases = globalThis.alexi.conf.databases;
-
     this.db = getFirestore(settings.FIREBASE.APP);
-
-    databases[databaseName] = this;
-
-    return this;
   }
 
   async create(qs: QuerySet<any>, serialized: any): Promise<any> {

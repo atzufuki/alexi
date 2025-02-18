@@ -2,15 +2,17 @@ import { CreateParams, GetParams, UpdateParams } from '../models/types.ts';
 import { Model } from '../models/model.ts';
 import { QuerySet } from '../models/query.ts';
 import { DoesNotExist, MultipleObjectsReturned } from '../models/errors.ts';
+import { DatabaseConfig } from '@alexi/web/types';
 
 export class BaseDatabaseBackend {
+  declare databaseConfig: DatabaseConfig;
   declare db: any;
 
-  async init(
-    _databaseName: string,
-    _version: number,
-    _onUpgrade: (db: any) => void,
-  ): Promise<this> {
+  constructor(databaseConfig: DatabaseConfig) {
+    this.databaseConfig = databaseConfig;
+  }
+
+  async init() {
     throw new Error('Not implemented');
   }
 

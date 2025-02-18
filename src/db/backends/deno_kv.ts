@@ -5,10 +5,8 @@ import { BaseDatabaseBackend } from './base.ts';
 export class DenoKVBackend extends BaseDatabaseBackend {
   declare db: Deno.Kv;
 
-  async init(databaseName: string): Promise<this> {
-    this.db = await Deno.openKv(databaseName);
-    globalThis.alexi.conf.databases[databaseName] = this;
-    return this;
+  async init() {
+    this.db = await Deno.openKv(this.databaseConfig.NAME);
   }
 
   async create(qs: QuerySet<any>, serialized: any): Promise<any> {
