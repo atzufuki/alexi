@@ -100,14 +100,15 @@ export const RunserverMixin = dedupeMixin(
           });
 
           watcher.on('change', async () => {
-            for (const client of this.clients) {
-              client.send('reload');
-              client.close();
-            }
             this.ac.abort();
             watcher.close();
+
             await this.collectstatic();
-            this.runserver();
+            await this.runserver();
+
+            for (const client of this.clients) {
+              client.send('reload');
+            }
           });
         } else {
           const watcher = Deno.watchFs(WATCHFILES_DIRS, {
@@ -116,14 +117,15 @@ export const RunserverMixin = dedupeMixin(
 
           for await (const event of watcher) {
             if (event.kind === 'modify') {
-              for (const client of this.clients) {
-                client.send('reload');
-                client.close();
-              }
               watcher.close();
               this.ac.abort();
+
               await this.collectstatic();
-              this.runserver();
+              await this.runserver();
+
+              for (const client of this.clients) {
+                client.send('reload');
+              }
             }
           }
         }
