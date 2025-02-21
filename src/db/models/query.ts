@@ -43,7 +43,7 @@ export class QuerySet<T extends Model<T>> {
 
   async delete() {
     const engine = await this.getDatabase();
-    return await engine.delete(this);
+    return await engine._delete(this);
   }
 
   async get(params: GetParams): Promise<T> {
