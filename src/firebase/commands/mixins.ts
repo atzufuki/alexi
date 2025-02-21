@@ -5,12 +5,12 @@ import { BaseCommand } from '@alexi/web/base_command';
 
 const { STATIC_ROOT, FIREBASE } = globalThis.alexi.conf.settings;
 const dev = Deno.env.get('MODE') === 'development';
-const clients = new Set<WebSocket>();
-let delayWatcher = false;
 
 export const BuildMixin = dedupeMixin(
   <T extends Constructor<BaseCommand>>(SuperClass: T) =>
     class BuildMixin extends SuperClass {
+      clients = new Set<WebSocket>();
+
       async build() {
         await this.buildFunctions();
         await this.buildSites();
@@ -102,17 +102,7 @@ export const BuildMixin = dedupeMixin(
         const watcher = Deno.watchFs(watchPaths);
         for await (const event of watcher) {
           if (event.kind === 'modify') {
-            if (!delayWatcher) {
-              delayWatcher = true;
-
-              await this.buildFunctions();
-
-              // Prevent duplicate reloads
-              const timeout = setTimeout(() => {
-                delayWatcher = false;
-              }, 0);
-              clearTimeout(timeout);
-            }
+            await this.buildFunctions();
           }
         }
       }
@@ -123,21 +113,11 @@ export const BuildMixin = dedupeMixin(
         const watcher = Deno.watchFs(watchPaths);
         for await (const event of watcher) {
           if (event.kind === 'modify') {
-            if (!delayWatcher) {
-              delayWatcher = true;
+            await this.buildSites();
 
-              await this.buildSites();
-
-              // Prevent duplicate reloads
-              const timeout = setTimeout(() => {
-                delayWatcher = false;
-
-                for (const client of clients) {
-                  client.send('reload');
-                  client.close();
-                }
-              }, 0);
-              clearTimeout(timeout);
+            for (const client of this.clients) {
+              client.send('reload');
+              client.close();
             }
           }
         }
@@ -158,8 +138,8 @@ export const BuildMixin = dedupeMixin(
               // Handle WebSocket connections for HMR
               if (pathname === '/hmr') {
                 const { response, socket } = Deno.upgradeWebSocket(request);
-                socket.onopen = () => clients.add(socket);
-                socket.onclose = () => clients.delete(socket);
+                socket.onopen = () => this.clients.add(socket);
+                socket.onclose = () => this.clients.delete(socket);
                 return response;
               }
             }
