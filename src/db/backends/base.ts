@@ -25,16 +25,13 @@ export class BaseDatabaseBackend {
   }
 
   private _writeToMemory(qs: QuerySet<any>, instances: Model<any>[]) {
-    const objects = qs.toArray();
     for (const instance of instances) {
-      if (objects.length > 0) {
-        const obj = objects.find((obj) => obj.id === instance.id.get());
-        if (obj) {
-          const index = qs.manager.objects[qs.databaseConfig.NAME].indexOf(obj);
-          qs.manager.objects[qs.databaseConfig.NAME][index] = instance;
-        } else {
-          qs.manager.objects[qs.databaseConfig.NAME].push(instance);
-        }
+      const obj = qs.manager.objects[qs.databaseConfig.NAME].find((obj) =>
+        obj.id.get() === instance.id.get()
+      );
+      if (obj) {
+        const index = qs.manager.objects[qs.databaseConfig.NAME].indexOf(obj);
+        qs.manager.objects[qs.databaseConfig.NAME][index] = instance;
       } else {
         qs.manager.objects[qs.databaseConfig.NAME].push(instance);
       }
@@ -42,20 +39,15 @@ export class BaseDatabaseBackend {
   }
 
   private _removeFromMemory(qs: QuerySet<any>, instances: Model<any>[]) {
-    const objects = qs.toArray();
     for (const instance of instances) {
-      if (objects.length > 0) {
-        const obj = objects.find((obj) => obj.id === instance.id.get());
-        if (obj) {
-          const index = qs.manager.objects[qs.databaseConfig.NAME].indexOf(obj);
-          qs.manager.objects[qs.databaseConfig.NAME].splice(index, 1);
-        }
+      const obj = qs.manager.objects[qs.databaseConfig.NAME].find((obj) =>
+        obj.id.get() === instance.id.get()
+      );
+      if (obj) {
+        const index = qs.manager.objects[qs.databaseConfig.NAME].indexOf(obj);
+        qs.manager.objects[qs.databaseConfig.NAME].splice(index, 1);
       }
     }
-  }
-
-  _clearMemory(qs: QuerySet<any>) {
-    qs.manager.objects[qs.databaseConfig.NAME] = [];
   }
 
   async _create(qs: QuerySet<any>, params: CreateParams): Promise<any> {
@@ -73,8 +65,6 @@ export class BaseDatabaseBackend {
   }
 
   async _get(qs: QuerySet<any>, params: GetParams): Promise<any> {
-    this._clearMemory(qs);
-
     const getted = await this.get(qs);
 
     if (getted.length === 0) {
@@ -93,8 +83,6 @@ export class BaseDatabaseBackend {
   }
 
   async _fetch(qs: QuerySet<any>): Promise<any[]> {
-    this._clearMemory(qs);
-
     const fetched = await this.fetch(qs);
 
     const instances = fetched.map((props) => {
