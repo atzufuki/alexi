@@ -100,9 +100,16 @@ export const BuildMixin = dedupeMixin(
         const settings = globalThis.alexi.conf.settings;
         const watchPaths = settings.FIREBASE.FUNCTIONS.WATCH_PATHS ?? [];
         const watcher = Deno.watchFs(watchPaths);
+        let isBuilding = false;
+
         for await (const event of watcher) {
-          if (event.kind === 'modify') {
-            await this.buildFunctions();
+          if (event.kind === 'modify' && !isBuilding) {
+            isBuilding = true;
+
+            (async () => {
+              await this.buildFunctions();
+              isBuilding = false;
+            })();
           }
         }
       }
@@ -111,14 +118,22 @@ export const BuildMixin = dedupeMixin(
         const settings = globalThis.alexi.conf.settings;
         const watchPaths = settings.FIREBASE.HOSTING.WATCH_PATHS ?? [];
         const watcher = Deno.watchFs(watchPaths);
-        for await (const event of watcher) {
-          if (event.kind === 'modify') {
-            await this.buildSites();
+        let isBuilding = false;
 
-            for (const client of this.clients) {
-              client.send('reload');
-              client.close();
-            }
+        for await (const event of watcher) {
+          if (event.kind === 'modify' && !isBuilding) {
+            isBuilding = true;
+
+            (async () => {
+              await this.buildSites();
+
+              for (const client of this.clients) {
+                client.send('reload');
+                client.close();
+              }
+
+              isBuilding = false;
+            })();
           }
         }
       }
