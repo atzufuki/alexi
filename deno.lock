@@ -1,6 +1,8 @@
 {
   "version": "4",
   "specifiers": {
+    "jsr:@alexi/db@~0.3.1": "0.3.1",
+    "jsr:@alexi/web@0.4": "0.4.2",
     "jsr:@deno/cache-dir@0.8": "0.8.0",
     "jsr:@deno/emit@0.45": "0.45.0",
     "jsr:@luca/esbuild-deno-loader@~0.11.1": "0.11.1",
@@ -37,6 +39,24 @@
     "npm:nunjucks@^3.2.4": "3.2.4"
   },
   "jsr": {
+    "@alexi/db@0.3.1": {
+      "integrity": "7f07db7fe370cd5b59b46dea73307126a67727b6e46189c3db1218a0b3a66995",
+      "dependencies": [
+        "npm:idb"
+      ]
+    },
+    "@alexi/web@0.4.2": {
+      "integrity": "17e56659745e11df5340e3f334063157087a4cca126194efa76623e559f2548d",
+      "dependencies": [
+        "jsr:@luca/esbuild-deno-loader",
+        "jsr:@std/fs@^1.0.5",
+        "npm:@open-wc/dedupe-mixin",
+        "npm:chokidar",
+        "npm:esbuild-plugin-svg",
+        "npm:esbuild@~0.24.2",
+        "npm:nunjucks@3.2.4"
+      ]
+    },
     "@deno/cache-dir@0.8.0": {
       "integrity": "e87e80a404958f6350d903e6238b72afb92468378b0b32111f7a1e4916ac7fe7",
       "dependencies": [
@@ -2491,7 +2511,7 @@
       },
       "src/firebase": {
         "dependencies": [
-          "jsr:@alexi/db@0.3",
+          "jsr:@alexi/db@~0.3.1",
           "jsr:@alexi/web@0.4",
           "jsr:@luca/esbuild-deno-loader@~0.11.1",
           "npm:@open-wc/dedupe-mixin@1.4.0",
