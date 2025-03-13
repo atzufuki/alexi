@@ -166,7 +166,6 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
 
     return docs.map((doc) => {
       return {
-        ...this.docToData(doc),
         id: doc.id,
       };
     });
