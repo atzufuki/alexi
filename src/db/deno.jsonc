@@ -9,5 +9,8 @@
   "exports": {
     "./backends": "./backends/mod.ts",
     "./models": "./models/mod.ts"
+  },
+  "tasks": {
+    "test": "deno test -A --no-check --unstable-kv"
   }
 }
