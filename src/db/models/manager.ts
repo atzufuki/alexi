@@ -37,13 +37,11 @@ export class Manager<T extends Model<T>> {
     const settings = globalThis.alexi.conf.settings;
     this.databaseConfig = settings.DATABASES.default;
 
-    for (const key in this.objects) {
-      this.objects[key] = [];
-    }
+    this.objects = {
+      default: [],
+    };
 
-    if (!this.objects[this.databaseConfig.NAME]) {
-      this.objects[this.databaseConfig.NAME] = [];
-    }
+    this.objects[this.databaseConfig.NAME] = [];
 
     const qs = new this.querysetClass(this.modelClass);
 
