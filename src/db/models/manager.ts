@@ -37,11 +37,9 @@ export class Manager<T extends Model<T>> {
     const settings = globalThis.alexi.conf.settings;
     this.databaseConfig = settings.DATABASES.default;
 
-    this.objects = {
-      default: [],
-    };
-
-    this.objects[this.databaseConfig.NAME] = [];
+    if (!this.objects[this.databaseConfig.NAME]) {
+      this.objects[this.databaseConfig.NAME] = [];
+    }
 
     const qs = new this.querysetClass(this.modelClass);
 
@@ -109,6 +107,12 @@ export class Manager<T extends Model<T>> {
     }
 
     return manager;
+  }
+
+  clear() {
+    for (const key in this.objects) {
+      this.objects[key] = [];
+    }
   }
 
   private clone() {

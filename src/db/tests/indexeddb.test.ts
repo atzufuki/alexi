@@ -4,7 +4,7 @@ import { setup } from '@alexi/web/setup';
 
 import { IndexedDBBackend } from '../backends/indexeddb.ts';
 import { Model } from '../models/model.ts';
-import { CharField } from '../models/fields.ts';
+import { CharField, ForeignKey } from '../models/fields.ts';
 import { Manager } from '../models/manager.ts';
 import { ModelProps } from '../models/types.ts';
 
@@ -27,6 +27,23 @@ class TestModel extends Model<TestModel> {
   };
 }
 
+class TestRelatedModel extends Model<TestRelatedModel> {
+  name = new CharField({ maxLength: 100 });
+  test = new ForeignKey<TestModel>(TestModel);
+
+  constructor(props?: ModelProps<TestRelatedModel>) {
+    super();
+    this.init(props);
+  }
+
+  static objects: Manager<TestRelatedModel> = new Manager<TestRelatedModel>(
+    TestRelatedModel,
+  );
+  static meta = {
+    dbTable: 'test_related_table',
+  };
+}
+
 await setup({
   INSTALLED_APPS: [],
   DATABASES: {
@@ -37,6 +54,12 @@ await setup({
       ON_UPGRADE: (db: any) => {
         if (!db.objectStoreNames.contains(TestModel.meta.dbTable)) {
           db.createObjectStore(TestModel.meta.dbTable, {
+            keyPath: 'id',
+            autoIncrement: true,
+          });
+        }
+        if (!db.objectStoreNames.contains(TestRelatedModel.meta.dbTable)) {
+          db.createObjectStore(TestRelatedModel.meta.dbTable, {
             keyPath: 'id',
             autoIncrement: true,
           });
@@ -52,7 +75,7 @@ Deno.test('IndexedDBBackend create - single entry', options, async () => {
   assert(result.name.get() === 'Alice');
   assert(result.id.get() === '1');
 
-  await result.delete();
+  await TestModel.objects.all().delete();
 });
 
 Deno.test('IndexedDBBackend create - multiple entries', options, async () => {
@@ -77,7 +100,7 @@ Deno.test('IndexedDBBackend create - missing id', options, async () => {
   assert(result.id.get());
   assert(result.name.get() === 'Alice');
 
-  await result.delete();
+  await TestModel.objects.all().delete();
 });
 
 Deno.test('IndexedDBBackend get - single entry', options, async () => {
@@ -87,7 +110,24 @@ Deno.test('IndexedDBBackend get - single entry', options, async () => {
   assert(result.name.get() === 'Alice');
   assert(result.id.get() === '1');
 
-  await result.delete();
+  await TestModel.objects.all().delete();
+});
+
+Deno.test('IndexedDBBackend get - related entry', options, async () => {
+  await TestModel.objects.create({ id: '1', name: 'Alice' });
+  await TestRelatedModel.objects.create({ id: '1', test: '1' });
+
+  TestModel.objects.clear();
+  TestRelatedModel.objects.clear();
+
+  const result = await TestRelatedModel.objects.get({ id: '1' });
+  await TestModel.objects.get({ id: result.test.id });
+
+  assert(result.test.get().name.get() === 'Alice');
+  assert(result.test.get().id.get() === '1');
+
+  await TestModel.objects.all().delete();
+  await TestRelatedModel.objects.all().delete();
 });
 
 Deno.test('IndexedDBBackend get - multiple entries', options, async () => {

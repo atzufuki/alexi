@@ -52,7 +52,7 @@ await setup({
   },
 });
 
-Deno.test('IndexedDBBackend create - single entry', options, async () => {
+Deno.test('FirestoreBackend create - single entry', options, async () => {
   const result = await TestModel.objects.create({ id: '1', name: 'Alice' });
 
   assert(result.name.get() === 'Alice');
@@ -61,7 +61,7 @@ Deno.test('IndexedDBBackend create - single entry', options, async () => {
   await result.delete();
 });
 
-Deno.test('IndexedDBBackend create - multiple entries', options, async () => {
+Deno.test('FirestoreBackend create - multiple entries', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   await TestModel.objects.create({ id: '2', name: 'Bob' });
   const results = await TestModel.objects.all().fetch();
@@ -77,7 +77,7 @@ Deno.test('IndexedDBBackend create - multiple entries', options, async () => {
   await TestModel.objects.all().delete();
 });
 
-Deno.test('IndexedDBBackend create - missing id', options, async () => {
+Deno.test('FirestoreBackend create - missing id', options, async () => {
   const result = await TestModel.objects.create({ name: 'Alice' });
 
   assert(result.id.get());
@@ -86,7 +86,7 @@ Deno.test('IndexedDBBackend create - missing id', options, async () => {
   await result.delete();
 });
 
-Deno.test('IndexedDBBackend get - single entry', options, async () => {
+Deno.test('FirestoreBackend get - single entry', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   const result = await TestModel.objects.get({ id: '1' });
 
@@ -96,7 +96,7 @@ Deno.test('IndexedDBBackend get - single entry', options, async () => {
   await result.delete();
 });
 
-Deno.test('IndexedDBBackend get - multiple entries', options, async () => {
+Deno.test('FirestoreBackend get - multiple entries', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   await TestModel.objects.create({ id: '2', name: 'Bob' });
   const result = await TestModel.objects.get({ id: '1' });
@@ -107,7 +107,7 @@ Deno.test('IndexedDBBackend get - multiple entries', options, async () => {
   await TestModel.objects.all().delete();
 });
 
-Deno.test('IndexedDBBackend get - missing entry', options, async () => {
+Deno.test('FirestoreBackend get - missing entry', options, async () => {
   let error = null;
 
   try {
@@ -120,7 +120,7 @@ Deno.test('IndexedDBBackend get - missing entry', options, async () => {
   assert(error.name === 'DoesNotExist');
 });
 
-Deno.test('IndexedDBBackend get - missing id', options, async () => {
+Deno.test('FirestoreBackend get - missing id', options, async () => {
   let error = null;
 
   try {
@@ -133,7 +133,7 @@ Deno.test('IndexedDBBackend get - missing id', options, async () => {
   assert(error.name === 'DoesNotExist');
 });
 
-Deno.test('IndexedDBBackend fetch - multiple entries', options, async () => {
+Deno.test('FirestoreBackend fetch - multiple entries', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   await TestModel.objects.create({ id: '2', name: 'Bob' });
   const results = await TestModel.objects.all().fetch();
@@ -149,7 +149,7 @@ Deno.test('IndexedDBBackend fetch - multiple entries', options, async () => {
   await TestModel.objects.all().delete();
 });
 
-Deno.test('IndexedDBBackend update - single entry', options, async () => {
+Deno.test('FirestoreBackend update - single entry', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   await TestModel.objects.filter({ id: '1' }).update({ name: 'Alice Updated' });
   const result = await TestModel.objects.get({ id: '1' });
@@ -160,7 +160,7 @@ Deno.test('IndexedDBBackend update - single entry', options, async () => {
   await TestModel.objects.all().delete();
 });
 
-Deno.test('IndexedDBBackend update - multiple entries', options, async () => {
+Deno.test('FirestoreBackend update - multiple entries', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   await TestModel.objects.create({ id: '2', name: 'Bob' });
   await TestModel.objects.all().update({ name: 'Everyone' });
@@ -175,7 +175,7 @@ Deno.test('IndexedDBBackend update - multiple entries', options, async () => {
   await TestModel.objects.all().delete();
 });
 
-Deno.test('IndexedDBBackend delete - single entry', options, async () => {
+Deno.test('FirestoreBackend delete - single entry', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   await TestModel.objects.filter({ id: '1' }).delete();
   const results = await TestModel.objects.all().fetch();
@@ -185,7 +185,7 @@ Deno.test('IndexedDBBackend delete - single entry', options, async () => {
   await TestModel.objects.all().delete();
 });
 
-Deno.test('IndexedDBBackend delete - multiple entries', options, async () => {
+Deno.test('FirestoreBackend delete - multiple entries', options, async () => {
   await TestModel.objects.create({ id: '1', name: 'Alice' });
   await TestModel.objects.create({ id: '2', name: 'Bob' });
   await TestModel.objects.all().delete();
