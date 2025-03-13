@@ -37,6 +37,10 @@ export class Manager<T extends Model<T>> {
     const settings = globalThis.alexi.conf.settings;
     this.databaseConfig = settings.DATABASES.default;
 
+    for (const key in this.objects) {
+      this.objects[key] = [];
+    }
+
     if (!this.objects[this.databaseConfig.NAME]) {
       this.objects[this.databaseConfig.NAME] = [];
     }
