@@ -71,7 +71,7 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
           .collection(field.relatedModel.meta.dbTable)
           .doc(field.id);
       }
-      return undefined;
+      return field.id; // returns null or undefined
     }
 
     if (field instanceof ManyToManyField) {
