@@ -270,6 +270,31 @@ export class DateField extends Field {
   }
 }
 
+export class GeoField extends Field {
+  public latitude?: number;
+  public longitude?: number;
+
+  public set(
+    position: { latitude: number; longitude: number } | null | undefined,
+  ) {
+    if (position === null || position === undefined) {
+      this.latitude = undefined;
+      this.longitude = undefined;
+    } else {
+      this.latitude = position.latitude;
+      this.longitude = position.longitude;
+    }
+  }
+
+  public get() {
+    if (this.latitude === undefined || this.longitude === undefined) {
+      return null;
+    }
+
+    return { latitude: this.latitude, longitude: this.longitude };
+  }
+}
+
 export default {
   Field,
   CharField,
@@ -279,4 +304,5 @@ export default {
   ManyToManyField,
   AutoField,
   DateField,
+  GeoField,
 };

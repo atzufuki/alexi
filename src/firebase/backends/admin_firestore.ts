@@ -2,6 +2,7 @@ import { firestore } from 'firebase-admin';
 import {
   DocumentReference,
   FieldPath,
+  GeoPoint,
   getFirestore,
   Timestamp,
   Transaction,
@@ -11,6 +12,7 @@ import {
   DateField,
   Field,
   ForeignKey,
+  GeoField,
   ManyToManyField,
   Model,
 } from '@alexi/db/models';
@@ -41,6 +43,10 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
 
       if (value instanceof Array && value[0] instanceof DocumentReference) {
         data[key] = value.map((docRef) => docRef.id);
+      }
+
+      if (value instanceof GeoPoint) {
+        data[key] = { latitude: value.latitude, longitude: value.longitude };
       }
     }
 
@@ -78,6 +84,11 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
       return field.ids.map((id) =>
         this.db.collection(field.relatedModel.meta.dbTable).doc(id)
       );
+    }
+
+    if (field instanceof GeoField) {
+      const { latitude, longitude } = field.get();
+      return new GeoPoint(latitude, longitude);
     }
 
     return field.get();
