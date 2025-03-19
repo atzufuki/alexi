@@ -271,27 +271,16 @@ export class DateField extends Field {
 }
 
 export class GeoField extends Field {
-  public latitude?: number;
-  public longitude?: number;
+  declare value: { latitude: number; longitude: number } | null;
 
-  public set(
-    position: { latitude: number; longitude: number } | null | undefined,
+  set(
+    position: { latitude: number; longitude: number } | null,
   ) {
-    if (position === null || position === undefined) {
-      this.latitude = undefined;
-      this.longitude = undefined;
-    } else {
-      this.latitude = position.latitude;
-      this.longitude = position.longitude;
-    }
+    this.value = position;
   }
 
-  public get() {
-    if (this.latitude === undefined || this.longitude === undefined) {
-      return null;
-    }
-
-    return { latitude: this.latitude, longitude: this.longitude };
+  get() {
+    return this.value;
   }
 }
 

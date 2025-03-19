@@ -87,8 +87,17 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
     }
 
     if (field instanceof GeoField) {
-      const { latitude, longitude } = field.get();
-      return new GeoPoint(latitude, longitude);
+      const coordinates = field.get();
+
+      if (coordinates === null) {
+        return null;
+      }
+
+      if (coordinates.latitude === undefined) {
+        return undefined;
+      }
+
+      return new GeoPoint(coordinates.latitude, coordinates.longitude);
     }
 
     return field.get();
