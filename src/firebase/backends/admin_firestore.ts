@@ -52,7 +52,7 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
 
     for (const key in instance) {
       const field = instance[key];
-      if (field && field.value) {
+      if (field && field.value !== undefined) {
         serialized[key] = this.serializeField(field);
       }
     }
