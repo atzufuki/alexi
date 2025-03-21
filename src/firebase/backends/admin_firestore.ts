@@ -68,7 +68,17 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
 
   serializeField(field: Field): any {
     if (field instanceof DateField) {
-      return Timestamp.fromDate(field.get());
+      const date = field.get();
+
+      if (date === null) {
+        return null;
+      }
+
+      if (date === undefined) {
+        return undefined;
+      }
+
+      return Timestamp.fromDate(date);
     }
 
     if (field instanceof ForeignKey) {

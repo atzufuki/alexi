@@ -1,6 +1,6 @@
 {
   "name": "@alexi/firebase",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "imports": {
     "@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
     "@open-wc/dedupe-mixin": "npm:@open-wc/dedupe-mixin@1.4.0",
