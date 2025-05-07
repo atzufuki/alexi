@@ -12,8 +12,15 @@ export const BuildMixin = dedupeMixin(
       clients = new Set<WebSocket>();
 
       async build() {
-        await this.buildFunctions();
-        await this.buildSites();
+        const settings = globalThis.alexi.conf.settings;
+
+        if (settings.FIREBASE.FUNCTIONS) {
+          await this.buildFunctions();
+        }
+
+        if (settings.FIREBASE.HOSTING) {
+          await this.buildSites();
+        }
       }
 
       async buildFunctions() {
