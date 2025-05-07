@@ -41,8 +41,15 @@ export default class Command extends CollectStaticMixin(
 
     command.spawn();
 
-    this.watchFunctions();
-    this.watchHosting();
-    this.runhmr();
+    const settings = globalThis.alexi.conf.settings;
+
+    if (settings.FIREBASE.FUNCTIONS) {
+      this.watchFunctions();
+    }
+
+    if (settings.FIREBASE.HOSTING) {
+      this.watchHosting();
+      this.runhmr();
+    }
   }
 }
