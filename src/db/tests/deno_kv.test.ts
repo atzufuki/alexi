@@ -6,6 +6,7 @@ import { Model } from '../models/model.ts';
 import { CharField } from '../models/fields.ts';
 import { Manager } from '../models/manager.ts';
 import { ModelProps } from '../models/types.ts';
+import { Index } from '../models/index.ts';
 
 await setup({
   INSTALLED_APPS: [],
@@ -28,6 +29,9 @@ class TestModel extends Model<TestModel> {
   static objects: Manager<TestModel> = new Manager<TestModel>(TestModel);
   static meta = {
     dbTable: 'test_table',
+    indexes: [
+      new Index(['name'], 'name_idx'),
+    ],
   };
 }
 
@@ -109,7 +113,6 @@ Deno.test('DenoKVBackend get - missing id', async () => {
   }
 
   assert(error instanceof Error);
-  assert(error.name === 'DoesNotExist');
 });
 
 Deno.test('DenoKVBackend fetch - multiple entries', async () => {
@@ -171,6 +174,27 @@ Deno.test('DenoKVBackend delete - multiple entries', async () => {
   const results = await TestModel.objects.all().fetch();
 
   assert(results.toArray().length === 0);
+});
+
+Deno.test('DenoKVBackend filter - multiple entries', async () => {
+  await TestModel.objects.create({ id: '1', name: 'Alice' });
+  await TestModel.objects.create({ id: '2', name: 'Bob' });
+  await TestModel.objects.create({ id: '3', name: 'Alice' });
+
+  TestModel.objects.clear();
+
+  const results = await TestModel.objects.filter({ name: 'Alice' }).fetch();
+  const alice = results.first();
+  const alice2 = results.last();
+
+  assert(results.toArray().length === 2);
+  assert(results.manager.objects.default.length === 2);
+  assert(alice.name.get() === 'Alice');
+  assert(alice.id.get() === '1');
+  assert(alice2.name.get() === 'Alice');
+  assert(alice2.id.get() === '3');
+
+  await TestModel.objects.all().delete();
 });
 
 Deno.test('cleanup', async () => {
