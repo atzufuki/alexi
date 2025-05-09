@@ -3,6 +3,7 @@ import type { Model } from './model.ts';
 import type { Field } from './fields.ts';
 import type { QuerySet } from './query.ts';
 import type { BaseDatabaseBackend } from '../backends/base.ts';
+import type { Index } from './index.ts';
 
 export type DATABASE = {
   NAME: string;
@@ -60,6 +61,7 @@ export interface ModelClass<T extends Model<T>> {
   objects: Manager<T>;
   meta: {
     dbTable: string;
+    indexes?: Index[];
   };
 }
 export type QuerySetClass<T extends Model<T>> = typeof QuerySet<T>;
