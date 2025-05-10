@@ -108,10 +108,10 @@ export class QuerySet<T extends Model<T>> {
           ...lookup,
           ...defaults,
         });
+        created = true;
+      } else {
+        throw error;
       }
-      created = true;
-
-      throw error;
     }
 
     return [obj, created];
