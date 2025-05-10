@@ -171,12 +171,15 @@ export class DenoKVBackend extends BaseDatabaseBackend {
     if (qs.modelClass.meta.indexes) {
       for (const index of qs.modelClass.meta.indexes) {
         for (const field of index.fields) {
-          const indexKey = [
-            qs.modelClass.meta.dbTable + '__' + field,
-            serialized[field],
-            serialized.id,
-          ];
-          await this.db.set(indexKey, serialized.id);
+          const fieldValue = serialized[field];
+          if (fieldValue) {
+            const indexKey = [
+              qs.modelClass.meta.dbTable + '__' + field,
+              fieldValue,
+              serialized.id,
+            ];
+            await this.db.set(indexKey, serialized.id);
+          }
         }
       }
     }
@@ -186,12 +189,15 @@ export class DenoKVBackend extends BaseDatabaseBackend {
     if (qs.modelClass.meta.indexes) {
       for (const index of qs.modelClass.meta.indexes) {
         for (const field of index.fields) {
-          const indexKey = [
-            qs.modelClass.meta.dbTable + '__' + field,
-            serialized[field],
-            serialized.id,
-          ];
-          await this.db.delete(indexKey);
+          const fieldValue = serialized[field];
+          if (fieldValue) {
+            const indexKey = [
+              qs.modelClass.meta.dbTable + '__' + field,
+              fieldValue,
+              serialized.id,
+            ];
+            await this.db.delete(indexKey);
+          }
         }
       }
     }
