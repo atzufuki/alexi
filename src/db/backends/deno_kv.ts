@@ -144,14 +144,20 @@ export class DenoKVBackend extends BaseDatabaseBackend {
           ];
 
           const entries = await this.db.list({ prefix: indexKeyPrefix });
-
+          const keysToFetch = [];
           for await (const entry of entries) {
-            const obj = await this.db.get([
+            keysToFetch.push([
               qs.modelClass.meta.dbTable,
               entry.value as string,
             ]);
-            if (obj.value) {
-              results.push(obj.value);
+          }
+
+          if (keysToFetch.length > 0) {
+            const objects = await this.db.getMany(keysToFetch);
+            for (const obj of objects) {
+              if (obj.value) {
+                results.push(obj.value);
+              }
             }
           }
         }
