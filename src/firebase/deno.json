@@ -1,6 +1,6 @@
 {
   "name": "@alexi/firebase",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "imports": {
     "@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
     "@open-wc/dedupe-mixin": "npm:@open-wc/dedupe-mixin@1.4.0",
@@ -22,7 +22,8 @@
     "./functions": "./functions.ts",
     "./middlewares": "./middlewares.ts",
     "./setup": "./setup.ts",
-    "./transactions": "./transactions.ts"
+    "./transactions": "./transactions.ts",
+    "./web_transactions": "./web_transactions.ts"
   },
   "tasks": {
     "test": "firebase emulators:exec 'deno test -A --no-check'"
