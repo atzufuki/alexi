@@ -181,11 +181,29 @@ export class IndexedDBBackend extends BaseDatabaseBackend {
             if (param.includes(value)) {
               result = true;
             }
+
+            if (Array.isArray(value)) {
+              for (const valueItem of value) {
+                if (param.includes(valueItem)) {
+                  result = true;
+                }
+              }
+            }
+
             break;
           case 'nin':
             if (!param.includes(value)) {
               result = true;
             }
+
+            if (Array.isArray(value)) {
+              for (const valueItem of value) {
+                if (!param.includes(valueItem)) {
+                  result = true;
+                }
+              }
+            }
+
             break;
           case 'gt':
             if (value > param) {
