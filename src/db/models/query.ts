@@ -287,29 +287,30 @@ export class QuerySet<T extends Model<T>> {
               }
               break;
             case 'in':
-              if (param.includes(value)) {
-                result = true;
-              }
-
               if (Array.isArray(value)) {
                 for (const valueItem of value) {
                   if (param.includes(valueItem)) {
                     result = true;
                   }
                 }
+              } else {
+                if (param.includes(value)) {
+                  result = true;
+                }
               }
 
               break;
             case 'nin':
-              if (!param.includes(value)) {
-                result = true;
-              }
-
+              result = true;
               if (Array.isArray(value)) {
                 for (const valueItem of value) {
-                  if (!param.includes(valueItem)) {
-                    result = true;
+                  if (param.includes(valueItem)) {
+                    result = false;
                   }
+                }
+              } else {
+                if (param.includes(value)) {
+                  result = false;
                 }
               }
 
