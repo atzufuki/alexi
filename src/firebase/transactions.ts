@@ -4,7 +4,7 @@ export async function transactionAtomic<T>(
   callback: (transaction: FirebaseFirestore.Transaction) => Promise<T>,
 ) {
   const settings = globalThis.alexi.conf.settings;
-  const firestore = getFirestore(settings.FIREBASE.APP);
+  const firestore = getFirestore(settings.FIREBASE.ADMIN_APP);
   return firestore.runTransaction(async (transaction) => {
     settings.FIREBASE.TRANSACTION = transaction;
     const result = await callback(transaction);

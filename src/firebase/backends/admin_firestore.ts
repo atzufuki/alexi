@@ -115,7 +115,7 @@ export default class FirestoreBackend extends BaseDatabaseBackend {
 
   async init() {
     const settings = globalThis.alexi.conf.settings;
-    this.db = getFirestore(settings.FIREBASE.APP);
+    this.db = getFirestore(settings.FIREBASE.ADMIN_APP);
   }
 
   async create(qs: QuerySet<any>, serialized: any): Promise<any> {
