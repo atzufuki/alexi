@@ -1,12 +1,13 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@alexi/db@~0.5.1": "0.5.1",
     "jsr:@alexi/web@0.4": "0.4.2",
     "jsr:@deno/cache-dir@0.8": "0.8.0",
     "jsr:@deno/emit@0.45": "0.45.0",
     "jsr:@luca/esbuild-deno-loader@~0.11.1": "0.11.1",
     "jsr:@std/assert@0.223": "0.223.0",
-    "jsr:@std/assert@1": "1.0.8",
+    "jsr:@std/assert@1": "1.0.11",
     "jsr:@std/assert@^1.0.10": "1.0.11",
     "jsr:@std/assert@~0.218.2": "0.218.2",
     "jsr:@std/bytes@^1.0.2": "1.0.4",
@@ -14,7 +15,7 @@
     "jsr:@std/data-structures@^1.0.6": "1.0.6",
     "jsr:@std/encoding@^1.0.5": "1.0.6",
     "jsr:@std/fmt@~0.218.2": "0.218.2",
-    "jsr:@std/fs@^1.0.5": "1.0.5",
+    "jsr:@std/fs@^1.0.5": "1.0.14",
     "jsr:@std/fs@^1.0.9": "1.0.14",
     "jsr:@std/fs@~0.218.2": "0.218.2",
     "jsr:@std/internal@^1.0.5": "1.0.5",
@@ -43,6 +44,12 @@
     "npm:nunjucks@^3.2.4": "3.2.4"
   },
   "jsr": {
+    "@alexi/db@0.5.1": {
+      "integrity": "59ce941c019e51683465a24f4fb4c392d385e25a2f5b5ee2e8f85ed9c69dc3e9",
+      "dependencies": [
+        "npm:idb"
+      ]
+    },
     "@alexi/web@0.4.2": {
       "integrity": "17e56659745e11df5340e3f334063157087a4cca126194efa76623e559f2548d",
       "dependencies": [
@@ -617,9 +624,6 @@
         "@firebase/logger@0.4.4",
         "@firebase/util@1.10.2",
         "tslib"
-      ],
-      "optionalPeers": [
-        "@react-native-async-storage/async-storage@^1.18.1"
       ]
     },
     "@firebase/auth@1.8.2_@firebase+app@0.10.18": {
@@ -630,9 +634,6 @@
         "@firebase/logger@0.4.4",
         "@firebase/util@1.10.3",
         "tslib"
-      ],
-      "optionalPeers": [
-        "@react-native-async-storage/async-storage@^1.18.1"
       ]
     },
     "@firebase/component@0.6.11": {
@@ -2275,9 +2276,6 @@
       "integrity": "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==",
       "dependencies": [
         "whatwg-url"
-      ],
-      "optionalPeers": [
-        "encoding@^0.1.0"
       ]
     },
     "node-forge@1.3.1": {
@@ -2295,9 +2293,6 @@
         "a-sync-waterfall",
         "asap",
         "commander@5.1.0"
-      ],
-      "optionalPeers": [
-        "chokidar"
       ],
       "bin": true
     },
@@ -2667,7 +2662,7 @@
       },
       "src/firebase": {
         "dependencies": [
-          "jsr:@alexi/db@0.4",
+          "jsr:@alexi/db@~0.5.1",
           "jsr:@alexi/web@0.4",
           "jsr:@luca/esbuild-deno-loader@~0.11.1",
           "npm:@open-wc/dedupe-mixin@1.4.0",
