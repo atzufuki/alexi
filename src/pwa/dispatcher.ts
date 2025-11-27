@@ -1,9 +1,14 @@
 import { AppSettings } from '@alexi/pwa/types.ts';
 import { LocalRequest, LocalResponse } from '@alexi/pwa/views.ts';
 
+interface DispatchOptions {
+  pushState?: boolean;
+}
+
 export async function dispatch(
   url: string,
   method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+  options: DispatchOptions = { pushState: true },
 ) {
   const settings = globalThis.alexi.conf.settings as AppSettings;
   const urlpatterns = settings.ROOT_URLCONF;
@@ -15,7 +20,9 @@ export async function dispatch(
   }
   request.url = `${resolvedUrl.pathname}${resolvedUrl.search}`;
 
-  globalThis.history.pushState({}, '', request.url);
+  if (options.pushState) {
+    globalThis.history.pushState({}, '', request.url);
+  }
 
   for (const pattern of urlpatterns) {
     const url = resolvedUrl.pathname.startsWith('/')
