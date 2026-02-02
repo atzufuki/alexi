@@ -14,3 +14,5 @@
 export { HelpCommand } from "./help.ts";
 export { TestCommand } from "./test.ts";
 export type { TestConfig } from "./test.ts";
+export { StartAppCommand } from "./startapp.ts";
+export type { AppType } from "./startapp.ts";

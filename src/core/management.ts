@@ -10,6 +10,7 @@ import { BaseCommand } from "./base_command.ts";
 import { CommandRegistry, globalRegistry } from "./registry.ts";
 import { HelpCommand } from "./commands/help.ts";
 import { TestCommand } from "./commands/test.ts";
+import { StartAppCommand } from "./commands/startapp.ts";
 import type {
   CommandConstructor,
   IConsole,
@@ -166,6 +167,9 @@ export class ManagementUtility {
 
     // Register test command
     this.registry.register(TestCommand);
+
+    // Register startapp command
+    this.registry.register(StartAppCommand);
 
     // Note: Other commands (flush, createsuperuser, bundle, collectstatic, runserver)
     // are loaded dynamically from INSTALLED_APPS via loadAppCommands()

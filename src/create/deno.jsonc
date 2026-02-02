@@ -1,0 +1,15 @@
+{
+  "name": "@alexi/create",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./main": "./main.ts"
+  },
+  "tasks": {
+    "test": "deno test -A"
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "esnext"],
+    "strict": true
+  }
+}
