@@ -1,0 +1,483 @@
+/**
+ * Alexi Admin Base Styles
+ *
+ * Core styles for the admin interface.
+ */
+
+@import "./variables.css";
+
+/* =========================================================================
+ * Reset & Base
+ * ========================================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+/* =========================================================================
+ * Admin Container
+ * ========================================================================= */
+
+.admin-container {
+  font-family: var(--admin-font-family);
+  font-size: var(--admin-font-size-base);
+  line-height: var(--admin-line-height-normal);
+  color: var(--admin-text);
+  background-color: var(--admin-bg);
+  min-height: 100vh;
+}
+
+/* =========================================================================
+ * Typography
+ * ========================================================================= */
+
+.admin-h1,
+.admin-h2,
+.admin-h3,
+.admin-h4,
+.admin-h5,
+.admin-h6 {
+  margin: 0 0 var(--admin-spacing-md);
+  font-weight: var(--admin-font-weight-semibold);
+  line-height: var(--admin-line-height-tight);
+  color: var(--admin-text);
+}
+
+.admin-h1 {
+  font-size: var(--admin-font-size-2xl);
+}
+
+.admin-h2 {
+  font-size: var(--admin-font-size-xl);
+}
+
+.admin-h3 {
+  font-size: var(--admin-font-size-lg);
+}
+
+.admin-h4 {
+  font-size: var(--admin-font-size-md);
+}
+
+.admin-text-muted {
+  color: var(--admin-text-muted);
+}
+
+.admin-text-light {
+  color: var(--admin-text-light);
+}
+
+.admin-text-small {
+  font-size: var(--admin-font-size-sm);
+}
+
+/* =========================================================================
+ * Links
+ * ========================================================================= */
+
+.admin-link {
+  color: var(--admin-text-link);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color var(--admin-transition-fast);
+}
+
+.admin-link:hover {
+  color: var(--admin-text-link-hover);
+  text-decoration: underline;
+}
+
+.admin-link:focus {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
+/* =========================================================================
+ * Buttons
+ * ========================================================================= */
+
+.admin-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--admin-spacing-sm);
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  border: none;
+  border-radius: var(--admin-radius);
+  font-family: var(--admin-font-family);
+  font-size: var(--admin-font-size-base);
+  font-weight: var(--admin-font-weight-medium);
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color var(--admin-transition-fast),
+    border-color var(--admin-transition-fast),
+    color var(--admin-transition-fast);
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.admin-btn:focus {
+  outline: 2px solid var(--admin-primary);
+  outline-offset: 2px;
+}
+
+.admin-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Primary button */
+.admin-btn-primary {
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+}
+
+.admin-btn-primary:hover:not(:disabled) {
+  background-color: var(--admin-primary-dark);
+}
+
+/* Secondary button */
+.admin-btn-secondary {
+  background-color: var(--admin-bg-alt);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-btn-secondary:hover:not(:disabled) {
+  background-color: var(--admin-bg-hover);
+  border-color: var(--admin-border-dark);
+}
+
+/* Danger button */
+.admin-btn-danger {
+  background-color: var(--admin-error);
+  color: var(--admin-text-inverse);
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+  background-color: #a01c1c;
+}
+
+/* Success button */
+.admin-btn-success {
+  background-color: var(--admin-success);
+  color: var(--admin-text-inverse);
+}
+
+.admin-btn-success:hover:not(:disabled) {
+  background-color: #3a9000;
+}
+
+/* Link-style button */
+.admin-btn-link {
+  background: none;
+  color: var(--admin-text-link);
+  padding: var(--admin-spacing-xs) var(--admin-spacing-sm);
+}
+
+.admin-btn-link:hover:not(:disabled) {
+  color: var(--admin-text-link-hover);
+  text-decoration: underline;
+}
+
+/* Button sizes */
+.admin-btn-sm {
+  padding: var(--admin-spacing-xs) var(--admin-spacing-sm);
+  font-size: var(--admin-font-size-sm);
+}
+
+.admin-btn-lg {
+  padding: var(--admin-spacing-md) var(--admin-spacing-lg);
+  font-size: var(--admin-font-size-md);
+}
+
+/* Button group */
+.admin-btn-group {
+  display: inline-flex;
+  gap: var(--admin-spacing-sm);
+}
+
+/* =========================================================================
+ * Cards & Panels
+ * ========================================================================= */
+
+.admin-card {
+  background-color: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-card-header {
+  padding: var(--admin-spacing-md) var(--admin-spacing-base);
+  border-bottom: 1px solid var(--admin-border-light);
+  font-weight: var(--admin-font-weight-semibold);
+  background-color: var(--admin-bg-alt);
+  border-radius: var(--admin-radius-md) var(--admin-radius-md) 0 0;
+}
+
+.admin-card-body {
+  padding: var(--admin-spacing-base);
+}
+
+.admin-card-footer {
+  padding: var(--admin-spacing-md) var(--admin-spacing-base);
+  border-top: 1px solid var(--admin-border-light);
+  background-color: var(--admin-bg-alt);
+  border-radius: 0 0 var(--admin-radius-md) var(--admin-radius-md);
+}
+
+/* =========================================================================
+ * Alerts & Messages
+ * ========================================================================= */
+
+.admin-alert {
+  padding: var(--admin-spacing-md) var(--admin-spacing-base);
+  border-radius: var(--admin-radius);
+  font-size: var(--admin-font-size-base);
+  margin-bottom: var(--admin-spacing-base);
+}
+
+.admin-alert-success {
+  background-color: var(--admin-success-bg);
+  color: var(--admin-success);
+  border: 1px solid var(--admin-success);
+}
+
+.admin-alert-error {
+  background-color: var(--admin-error-bg);
+  color: var(--admin-error);
+  border: 1px solid var(--admin-error);
+}
+
+.admin-alert-warning {
+  background-color: var(--admin-warning-bg);
+  color: var(--admin-warning);
+  border: 1px solid var(--admin-warning);
+}
+
+.admin-alert-info {
+  background-color: var(--admin-info-bg);
+  color: var(--admin-info);
+  border: 1px solid var(--admin-info);
+}
+
+/* =========================================================================
+ * Badges & Tags
+ * ========================================================================= */
+
+.admin-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: var(--admin-font-size-xs);
+  font-weight: var(--admin-font-weight-medium);
+  border-radius: var(--admin-radius-full);
+  white-space: nowrap;
+}
+
+.admin-badge-primary {
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+}
+
+.admin-badge-success {
+  background-color: var(--admin-success);
+  color: var(--admin-text-inverse);
+}
+
+.admin-badge-error {
+  background-color: var(--admin-error);
+  color: var(--admin-text-inverse);
+}
+
+.admin-badge-warning {
+  background-color: var(--admin-warning);
+  color: var(--admin-text-inverse);
+}
+
+.admin-badge-muted {
+  background-color: var(--admin-bg-alt);
+  color: var(--admin-text-light);
+  border: 1px solid var(--admin-border);
+}
+
+/* =========================================================================
+ * Empty State
+ * ========================================================================= */
+
+.admin-empty-state {
+  padding: var(--admin-spacing-3xl) var(--admin-spacing-base);
+  text-align: center;
+  color: var(--admin-text-muted);
+}
+
+.admin-empty-state-icon {
+  font-size: 48px;
+  margin-bottom: var(--admin-spacing-base);
+  opacity: 0.5;
+}
+
+.admin-empty-state-title {
+  font-size: var(--admin-font-size-lg);
+  font-weight: var(--admin-font-weight-medium);
+  margin-bottom: var(--admin-spacing-sm);
+  color: var(--admin-text-light);
+}
+
+.admin-empty-state-description {
+  font-size: var(--admin-font-size-base);
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* =========================================================================
+ * Loading Spinner
+ * ========================================================================= */
+
+.admin-spinner {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--admin-border);
+  border-top-color: var(--admin-primary);
+  border-radius: 50%;
+  animation: admin-spin 0.8s linear infinite;
+}
+
+.admin-spinner-lg {
+  width: 40px;
+  height: 40px;
+  border-width: 3px;
+}
+
+@keyframes admin-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* =========================================================================
+ * Utility Classes
+ * ========================================================================= */
+
+/* Text alignment */
+.admin-text-left {
+  text-align: left;
+}
+
+.admin-text-center {
+  text-align: center;
+}
+
+.admin-text-right {
+  text-align: right;
+}
+
+/* Flexbox utilities */
+.admin-flex {
+  display: flex;
+}
+
+.admin-flex-col {
+  flex-direction: column;
+}
+
+.admin-flex-wrap {
+  flex-wrap: wrap;
+}
+
+.admin-items-center {
+  align-items: center;
+}
+
+.admin-items-start {
+  align-items: flex-start;
+}
+
+.admin-items-end {
+  align-items: flex-end;
+}
+
+.admin-justify-center {
+  justify-content: center;
+}
+
+.admin-justify-between {
+  justify-content: space-between;
+}
+
+.admin-justify-end {
+  justify-content: flex-end;
+}
+
+.admin-gap-sm {
+  gap: var(--admin-spacing-sm);
+}
+
+.admin-gap-md {
+  gap: var(--admin-spacing-md);
+}
+
+.admin-gap-lg {
+  gap: var(--admin-spacing-lg);
+}
+
+/* Spacing utilities */
+.admin-mt-0 {
+  margin-top: 0;
+}
+
+.admin-mb-0 {
+  margin-bottom: 0;
+}
+
+.admin-mt-sm {
+  margin-top: var(--admin-spacing-sm);
+}
+
+.admin-mb-sm {
+  margin-bottom: var(--admin-spacing-sm);
+}
+
+.admin-mt-md {
+  margin-top: var(--admin-spacing-md);
+}
+
+.admin-mb-md {
+  margin-bottom: var(--admin-spacing-md);
+}
+
+.admin-mt-lg {
+  margin-top: var(--admin-spacing-lg);
+}
+
+.admin-mb-lg {
+  margin-bottom: var(--admin-spacing-lg);
+}
+
+/* Visibility */
+.admin-hidden {
+  display: none !important;
+}
+
+.admin-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Truncate */
+.admin-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

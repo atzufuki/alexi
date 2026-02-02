@@ -1,0 +1,10 @@
+{
+  "name": "@alexi/middleware",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./cors": "./cors.ts",
+    "./logging": "./logging.ts",
+    "./error": "./error.ts"
+  }
+}

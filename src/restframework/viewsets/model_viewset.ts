@@ -1,0 +1,494 @@
+/**
+ * ModelViewSet for Alexi REST Framework
+ *
+ * Provides CRUD operations for alexi/db Models.
+ *
+ * @module @alexi/restframework/viewsets/model_viewset
+ */
+
+import type { DatabaseBackend, Model, QuerySet } from "@alexi/db";
+import { getBackend, isInitialized } from "@alexi/db";
+import type { ModelSerializer } from "../serializers/model_serializer.ts";
+import { SerializerValidationError } from "../serializers/serializer.ts";
+import { type HttpMethod, ViewSet, type ViewSetContext } from "./viewset.ts";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Model class with static objects manager
+ */
+export interface ModelWithManager<T extends Model = Model> {
+  new (): T;
+  objects: {
+    all(): QuerySet<T>;
+    using(backend: DatabaseBackend): {
+      all(): QuerySet<T>;
+      create(data: Record<string, unknown>): Promise<T>;
+      get(conditions: Record<string, unknown>): Promise<T>;
+    };
+  };
+}
+
+/**
+ * Serializer class constructor
+ */
+export type SerializerClass = new (options: {
+  data?: Record<string, unknown>;
+  instance?: unknown;
+  partial?: boolean;
+  context?: Record<string, unknown>;
+  many?: boolean;
+}) => ModelSerializer;
+
+// ============================================================================
+// ModelViewSet Class
+// ============================================================================
+
+/**
+ * ModelViewSet provides default CRUD operations for a Model
+ *
+ * @example
+ * ```ts
+ * import { AssetModel } from "@comachine/models";
+ * import { AssetSerializer } from "./serializers.ts";
+ *
+ * class AssetViewSet extends ModelViewSet {
+ *   model = AssetModel;
+ *   serializer_class = AssetSerializer;
+ *
+ *   // Optional: customize queryset
+ *   getQueryset(context: ViewSetContext): QuerySet<AssetModel> {
+ *     const qs = super.getQueryset(context);
+ *     const unitId = new URL(context.request.url).searchParams.get("unit_id");
+ *     if (unitId) {
+ *       return qs.filter({ unitId });
+ *     }
+ *     return qs;
+ *   }
+ * }
+ * ```
+ */
+export abstract class ModelViewSet extends ViewSet {
+  /**
+   * The model class for this ViewSet
+   */
+  abstract model: ModelWithManager;
+
+  /**
+   * The serializer class for this ViewSet
+   */
+  abstract serializer_class: SerializerClass;
+
+  /**
+   * Database backend (optional, uses model's default if not set)
+   */
+  backend?: DatabaseBackend;
+
+  /**
+   * The field used as the lookup in URL (default: "id")
+   */
+  lookupField = "id";
+
+  /**
+   * The URL parameter name for the lookup (default: "id")
+   */
+  lookupUrlKwarg = "id";
+
+  // ==========================================================================
+  // Queryset Methods
+  // ==========================================================================
+
+  /**
+   * Get the base queryset for this ViewSet
+   *
+   * Override this method to customize filtering.
+   */
+  getQueryset(_context: ViewSetContext): QuerySet<Model> {
+    if (this.backend) {
+      return this.model.objects.using(this.backend).all();
+    }
+    return this.model.objects.all();
+  }
+
+  /**
+   * Get a single object by lookup field
+   */
+  async getObject(context: ViewSetContext): Promise<Model> {
+    const lookupValue = context.params[this.lookupUrlKwarg];
+
+    if (!lookupValue) {
+      throw new Error(`Missing lookup parameter: ${this.lookupUrlKwarg}`);
+    }
+
+    const queryset = this.getQueryset(context);
+    const conditions: Record<string, unknown> = {
+      [this.lookupField]: this.parseLookupValue(lookupValue),
+    };
+
+    try {
+      const instance = await queryset.get(conditions);
+      return instance;
+    } catch (error) {
+      // Check for DoesNotExist
+      if (error instanceof Error && error.name === "DoesNotExist") {
+        throw new NotFoundError(`${this.model.name} not found`);
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Parse the lookup value (e.g., convert string to number for ID)
+   */
+  protected parseLookupValue(value: string): unknown {
+    // Try to parse as integer for ID fields
+    if (this.lookupField === "id") {
+      const parsed = parseInt(value, 10);
+      if (!isNaN(parsed)) {
+        return parsed;
+      }
+    }
+    return value;
+  }
+
+  // ==========================================================================
+  // Serializer Methods
+  // ==========================================================================
+
+  /**
+   * Get the serializer class for the current action
+   *
+   * Override this to use different serializers for different actions.
+   */
+  getSerializerClass(): SerializerClass {
+    return this.serializer_class;
+  }
+
+  /**
+   * Create a serializer instance
+   */
+  getSerializer(options: {
+    data?: Record<string, unknown>;
+    instance?: unknown;
+    partial?: boolean;
+    many?: boolean;
+  }): ModelSerializer {
+    const SerializerClass = this.getSerializerClass();
+    return new SerializerClass({
+      ...options,
+      context: {
+        request: this.request,
+        viewset: this,
+        action: this.action,
+      },
+    });
+  }
+
+  // ==========================================================================
+  // CRUD Actions
+  // ==========================================================================
+
+  /**
+   * List all objects (GET /)
+   */
+  async list(context: ViewSetContext): Promise<Response> {
+    const queryset = this.getQueryset(context);
+    const instances = await queryset.fetch();
+
+    const serializer = this.getSerializer({
+      instance: instances,
+      many: true,
+    });
+
+    return Response.json(serializer.data);
+  }
+
+  /**
+   * Create a new object (POST /)
+   */
+  async create(context: ViewSetContext): Promise<Response> {
+    let data: Record<string, unknown>;
+
+    try {
+      data = await context.request.json();
+    } catch {
+      return Response.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
+    }
+
+    const serializer = this.getSerializer({ data });
+
+    if (!serializer.isValid()) {
+      return Response.json(
+        { errors: serializer.errors },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const instance = await this.performCreate(serializer);
+
+      // Serialize the created instance for response
+      const responseSerializer = this.getSerializer({ instance });
+      return Response.json(responseSerializer.data, { status: 201 });
+    } catch (error) {
+      if (error instanceof SerializerValidationError) {
+        return Response.json({ errors: error.errors }, { status: 400 });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Perform the create operation
+   *
+   * Override this to customize creation logic.
+   */
+  protected async performCreate(serializer: ModelSerializer): Promise<Model> {
+    // Use explicit backend or fall back to global backend
+    const backend = this.backend ?? (isInitialized() ? getBackend() : null);
+    if (backend) {
+      // Use backend for creation
+      const manager = this.model.objects.using(backend);
+      return await manager.create(serializer.validatedData);
+    }
+    return await serializer.save() as Model;
+  }
+
+  /**
+   * Retrieve a single object (GET /:id/)
+   */
+  async retrieve(context: ViewSetContext): Promise<Response> {
+    try {
+      const instance = await this.getObject(context);
+      const serializer = this.getSerializer({ instance });
+      return Response.json(serializer.data);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return Response.json({ error: error.message }, { status: 404 });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Update an object completely (PUT /:id/)
+   */
+  async update(context: ViewSetContext): Promise<Response> {
+    return this.performUpdateAction(context, false);
+  }
+
+  /**
+   * Partially update an object (PATCH /:id/)
+   */
+  async partial_update(context: ViewSetContext): Promise<Response> {
+    return this.performUpdateAction(context, true);
+  }
+
+  /**
+   * Common update logic for PUT and PATCH
+   */
+  private async performUpdateAction(
+    context: ViewSetContext,
+    partial: boolean,
+  ): Promise<Response> {
+    let instance: Model;
+    try {
+      instance = await this.getObject(context);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return Response.json({ error: error.message }, { status: 404 });
+      }
+      throw error;
+    }
+
+    let data: Record<string, unknown>;
+    try {
+      data = await context.request.json();
+    } catch {
+      return Response.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
+    }
+
+    const serializer = this.getSerializer({
+      instance,
+      data,
+      partial,
+    });
+
+    if (!serializer.isValid()) {
+      return Response.json(
+        { errors: serializer.errors },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const updatedInstance = await this.performUpdate(serializer, instance);
+
+      // Serialize the updated instance for response
+      const responseSerializer = this.getSerializer({
+        instance: updatedInstance,
+      });
+      return Response.json(responseSerializer.data);
+    } catch (error) {
+      if (error instanceof SerializerValidationError) {
+        return Response.json({ errors: error.errors }, { status: 400 });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Perform the update operation
+   *
+   * Override this to customize update logic.
+   */
+  protected async performUpdate(
+    serializer: ModelSerializer,
+    instance: Model,
+  ): Promise<Model> {
+    // Update the instance fields
+    const updatedInstance = await serializer.update(
+      instance,
+      serializer.validatedData,
+    );
+
+    // Save to database if backend is available
+    const backend = this.backend ?? (isInitialized() ? getBackend() : null);
+    if (backend) {
+      await backend.update(updatedInstance);
+    }
+
+    return updatedInstance;
+  }
+
+  /**
+   * Delete an object (DELETE /:id/)
+   */
+  async destroy(context: ViewSetContext): Promise<Response> {
+    let instance: Model;
+    try {
+      instance = await this.getObject(context);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        return Response.json({ error: error.message }, { status: 404 });
+      }
+      throw error;
+    }
+
+    await this.performDestroy(instance);
+
+    return new Response(null, { status: 204 });
+  }
+
+  /**
+   * Perform the delete operation
+   *
+   * Override this to customize deletion logic.
+   */
+  protected async performDestroy(instance: Model): Promise<void> {
+    // Use explicit backend or fall back to global backend
+    const backend = this.backend ?? (isInitialized() ? getBackend() : null);
+    if (backend) {
+      await backend.delete(instance);
+    } else {
+      throw new Error("Cannot delete without a database backend");
+    }
+  }
+}
+
+// ============================================================================
+// Errors
+// ============================================================================
+
+/**
+ * Error thrown when an object is not found
+ */
+export class NotFoundError extends Error {
+  constructor(message = "Not found") {
+    super(message);
+    this.name = "NotFoundError";
+  }
+}
+
+// ============================================================================
+// Mixins
+// ============================================================================
+
+/**
+ * Mixin that provides list functionality
+ */
+export const ListModelMixin = {
+  async list(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
+    return ModelViewSet.prototype.list.call(this, context);
+  },
+};
+
+/**
+ * Mixin that provides create functionality
+ */
+export const CreateModelMixin = {
+  async create(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
+    return ModelViewSet.prototype.create.call(this, context);
+  },
+};
+
+/**
+ * Mixin that provides retrieve functionality
+ */
+export const RetrieveModelMixin = {
+  async retrieve(
+    this: ModelViewSet,
+    context: ViewSetContext,
+  ): Promise<Response> {
+    return ModelViewSet.prototype.retrieve.call(this, context);
+  },
+};
+
+/**
+ * Mixin that provides update functionality
+ */
+export const UpdateModelMixin = {
+  async update(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
+    return ModelViewSet.prototype.update.call(this, context);
+  },
+  async partial_update(
+    this: ModelViewSet,
+    context: ViewSetContext,
+  ): Promise<Response> {
+    return ModelViewSet.prototype.partial_update.call(this, context);
+  },
+};
+
+/**
+ * Mixin that provides destroy functionality
+ */
+export const DestroyModelMixin = {
+  async destroy(
+    this: ModelViewSet,
+    context: ViewSetContext,
+  ): Promise<Response> {
+    return ModelViewSet.prototype.destroy.call(this, context);
+  },
+};
+
+/**
+ * Read-only ViewSet (list + retrieve)
+ */
+export abstract class ReadOnlyModelViewSet extends ModelViewSet {
+  // Only list and retrieve are enabled
+  async list(context: ViewSetContext): Promise<Response> {
+    return super.list(context);
+  }
+
+  async retrieve(context: ViewSetContext): Promise<Response> {
+    return super.retrieve(context);
+  }
+}

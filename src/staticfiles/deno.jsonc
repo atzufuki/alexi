@@ -1,0 +1,11 @@
+{
+  "name": "@alexi/staticfiles",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./commands": "./commands/mod.ts",
+    "./finders": "./finders.ts",
+    "./storage": "./storage.ts",
+    "./middleware": "./middleware.ts",
+  },
+}

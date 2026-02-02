@@ -1,0 +1,17 @@
+{
+  "name": "@alexi/http",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./application": "./application.ts",
+    "./types": "./types.ts",
+    "./middleware": "./middleware/mod.ts"
+  },
+  "imports": {
+    "@alexi/urls": "../alexi_urls/mod.ts"
+  },
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"],
+    "strict": true
+  }
+}

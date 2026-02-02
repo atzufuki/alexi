@@ -1,0 +1,10 @@
+{
+  "name": "@alexi/webui",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./launcher": "./launcher.ts",
+    "./bindings": "./bindings.ts",
+    "./commands": "./commands/mod.ts"
+  }
+}

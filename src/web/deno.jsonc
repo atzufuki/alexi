@@ -1,29 +1,8 @@
 {
   "name": "@alexi/web",
-  "version": "0.4.2",
-  "imports": {
-    "@std/fs": "jsr:@std/fs@^1.0.5",
-    "@alexi/web/": "./",
-    "@luca/esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
-    "@open-wc/dedupe-mixin": "npm:@open-wc/dedupe-mixin@1.4.0",
-    "esbuild": "npm:esbuild@^0.24.2",
-    "esbuild-plugin-svg": "npm:esbuild-plugin-svg@^0.1.0",
-    "nunjucks": "npm:nunjucks@^3.2.4",
-    "chokidar": "npm:chokidar@^4.0.3"
-  },
+  "version": "0.6.0",
   "exports": {
     ".": "./mod.ts",
-    "./app": "./app.ts",
-    "./base_command": "./base_command.ts",
-    "./config": "./config.ts",
-    "./execute": "./execute.ts",
-    "./setup": "./setup.ts",
-    "./templates": "./templates.ts",
-    "./types": "./types.ts",
-    "./urls": "./urls.ts",
-    "./views": "./views.ts",
     "./commands": "./commands/mod.ts",
-    "./commands/collectstatic": "./commands/collectstatic.ts",
-    "./commands/runserver": "./commands/runserver.ts"
-  }
+  },
 }
