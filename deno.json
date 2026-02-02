@@ -20,7 +20,8 @@
     "./webui/launcher": "./src/webui/launcher.ts",
     "./webui/bindings": "./src/webui/bindings.ts",
     "./capacitor": "./src/capacitor/mod.ts",
-    "./types": "./src/types/mod.ts"
+    "./types": "./src/types/mod.ts",
+    "./create": "./src/create/mod.ts"
   },
   "tasks": {
     "test": "deno test -A --unstable-kv --no-check",
