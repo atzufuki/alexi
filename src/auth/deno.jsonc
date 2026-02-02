@@ -1,0 +1,8 @@
+{
+  "name": "@alexi/auth",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./commands": "./commands/mod.ts",
+  },
+}

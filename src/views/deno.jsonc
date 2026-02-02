@@ -1,0 +1,8 @@
+{
+  "name": "@alexi/views",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./template": "./template.ts"
+  }
+}

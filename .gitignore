@@ -1,1 +1,42 @@
-default*
+# Dependencies
+node_modules/
+
+# Deno
+.deno/
+
+# Build outputs
+dist/
+build/
+.bundle/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test
+coverage/
+.playwright/
+
+# Lock file (optional - uncomment if you want to ignore)
+# deno.lock
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.dylib

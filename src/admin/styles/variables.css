@@ -1,0 +1,165 @@
+/**
+ * Alexi Admin CSS Variables
+ *
+ * Django Admin-inspired color scheme and design tokens.
+ */
+
+:root {
+  /* =========================================================================
+   * Colors - Django Admin Inspired
+   * ========================================================================= */
+
+  /* Primary colors */
+  --admin-primary: #417690;
+  --admin-primary-dark: #205067;
+  --admin-primary-light: #79aec8;
+  --admin-secondary: #79aec8;
+  --admin-accent: #609ab6;
+
+  /* Background colors */
+  --admin-bg: #ffffff;
+  --admin-bg-alt: #f8f8f8;
+  --admin-bg-dark: #417690;
+  --admin-bg-darker: #205067;
+  --admin-bg-hover: #f0f0f0;
+  --admin-bg-selected: #e8f4f8;
+
+  /* Text colors */
+  --admin-text: #333333;
+  --admin-text-light: #666666;
+  --admin-text-muted: #999999;
+  --admin-text-inverse: #ffffff;
+  --admin-text-link: #417690;
+  --admin-text-link-hover: #205067;
+
+  /* Border colors */
+  --admin-border: #cccccc;
+  --admin-border-light: #eeeeee;
+  --admin-border-dark: #999999;
+  --admin-border-focus: #417690;
+
+  /* Status colors */
+  --admin-success: #44aa00;
+  --admin-success-bg: #e6f4e1;
+  --admin-error: #ba2121;
+  --admin-error-bg: #fde8e8;
+  --admin-warning: #cc9900;
+  --admin-warning-bg: #fff8e1;
+  --admin-info: #417690;
+  --admin-info-bg: #e8f4f8;
+
+  /* =========================================================================
+   * Typography
+   * ========================================================================= */
+
+  --admin-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol";
+
+  --admin-font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo,
+    Consolas, "DejaVu Sans Mono", monospace;
+
+  /* Font sizes */
+  --admin-font-size-xs: 11px;
+  --admin-font-size-sm: 12px;
+  --admin-font-size-base: 14px;
+  --admin-font-size-md: 16px;
+  --admin-font-size-lg: 18px;
+  --admin-font-size-xl: 20px;
+  --admin-font-size-2xl: 24px;
+  --admin-font-size-3xl: 30px;
+
+  /* Font weights */
+  --admin-font-weight-normal: 400;
+  --admin-font-weight-medium: 500;
+  --admin-font-weight-semibold: 600;
+  --admin-font-weight-bold: 700;
+
+  /* Line heights */
+  --admin-line-height-tight: 1.25;
+  --admin-line-height-normal: 1.5;
+  --admin-line-height-relaxed: 1.75;
+
+  /* =========================================================================
+   * Spacing
+   * ========================================================================= */
+
+  --admin-spacing-xs: 4px;
+  --admin-spacing-sm: 8px;
+  --admin-spacing-md: 12px;
+  --admin-spacing-base: 16px;
+  --admin-spacing-lg: 20px;
+  --admin-spacing-xl: 24px;
+  --admin-spacing-2xl: 32px;
+  --admin-spacing-3xl: 48px;
+
+  /* =========================================================================
+   * Layout
+   * ========================================================================= */
+
+  --admin-header-height: 48px;
+  --admin-sidebar-width: 220px;
+  --admin-sidebar-collapsed-width: 60px;
+  --admin-content-max-width: 1200px;
+  --admin-form-max-width: 800px;
+
+  /* =========================================================================
+   * Borders & Shadows
+   * ========================================================================= */
+
+  --admin-radius-sm: 2px;
+  --admin-radius: 4px;
+  --admin-radius-md: 6px;
+  --admin-radius-lg: 8px;
+  --admin-radius-full: 9999px;
+
+  --admin-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --admin-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  --admin-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --admin-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1);
+
+  /* =========================================================================
+   * Transitions
+   * ========================================================================= */
+
+  --admin-transition-fast: 0.1s ease;
+  --admin-transition-base: 0.15s ease;
+  --admin-transition-slow: 0.3s ease;
+
+  /* =========================================================================
+   * Z-index layers
+   * ========================================================================= */
+
+  --admin-z-dropdown: 100;
+  --admin-z-sticky: 200;
+  --admin-z-fixed: 300;
+  --admin-z-modal-backdrop: 400;
+  --admin-z-modal: 500;
+  --admin-z-popover: 600;
+  --admin-z-tooltip: 700;
+  --admin-z-toast: 800;
+}
+
+/* =========================================================================
+ * Dark mode (optional - for future use)
+ * ========================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  :root.admin-dark-mode {
+    --admin-bg: #1a1a1a;
+    --admin-bg-alt: #2a2a2a;
+    --admin-bg-hover: #333333;
+    --admin-bg-selected: #2d3e4a;
+
+    --admin-text: #e0e0e0;
+    --admin-text-light: #b0b0b0;
+    --admin-text-muted: #808080;
+
+    --admin-border: #404040;
+    --admin-border-light: #333333;
+    --admin-border-dark: #555555;
+  }
+}

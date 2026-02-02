@@ -1,0 +1,14 @@
+{
+  "name": "@alexi/admin",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./introspection": "./introspection.ts",
+    "./urls": "./urls.ts",
+    "./options": "./options.ts",
+    "./components": "./components/mod.ts",
+    "./views": "./views/admin_views.ts",
+    "./app": "./app/app.ts",
+  },
+  "tasks": {},
+}

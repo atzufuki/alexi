@@ -1,0 +1,14 @@
+{
+  "name": "@alexi/urls",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts",
+    "./types": "./types.ts",
+    "./path": "./path.ts",
+    "./resolver": "./resolver.ts"
+  },
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"],
+    "strict": true
+  }
+}
