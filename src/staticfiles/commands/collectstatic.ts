@@ -8,11 +8,7 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/core";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/core";
+import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
 import type { AppConfig } from "@alexi/types";
 
 // =============================================================================
@@ -58,8 +54,7 @@ interface CollectResult {
 export class CollectStaticCommand extends BaseCommand {
   readonly name = "collectstatic";
   readonly help = "Collect static files to STATIC_ROOT directory";
-  readonly description =
-    "Reads INSTALLED_APPS and copies each app's static directory " +
+  readonly description = "Reads INSTALLED_APPS and copies each app's static directory " +
     "contents to the STATIC_ROOT directory. This is intended for production use.";
 
   readonly examples = [
@@ -82,8 +77,7 @@ export class CollectStaticCommand extends BaseCommand {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",
-      help:
-        "Settings module to use (e.g., 'web', 'desktop'). Loads project/<name>.settings.ts",
+      help: "Settings module to use (e.g., 'web', 'desktop'). Loads project/<name>.settings.ts",
       default: "web",
     });
 
@@ -232,8 +226,7 @@ export class CollectStaticCommand extends BaseCommand {
   > {
     try {
       // Load deployment-specific settings (e.g., web.settings.ts, desktop.settings.ts)
-      const settingsPath =
-        `${this.projectRoot}/project/${settingsName}.settings.ts`;
+      const settingsPath = `${this.projectRoot}/project/${settingsName}.settings.ts`;
       const settings = await import(`file://${settingsPath}`);
 
       return {
@@ -418,9 +411,7 @@ export class CollectStaticCommand extends BaseCommand {
             }
             result.filesCopied++;
           } catch (error) {
-            const message = error instanceof Error
-              ? error.message
-              : String(error);
+            const message = error instanceof Error ? error.message : String(error);
             result.errors.push(`${entry.name}: ${message}`);
           }
         }

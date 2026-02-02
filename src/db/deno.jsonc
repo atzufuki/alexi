@@ -7,10 +7,10 @@
     "./fields": "./fields/mod.ts",
     "./query": "./query/mod.ts",
     "./backends/denokv": "./backends/denokv/mod.ts",
-    "./backends/indexeddb": "./backends/indexeddb/mod.ts",
+    "./backends/indexeddb": "./backends/indexeddb/mod.ts"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext", "deno.ns", "deno.unstable"],
-    "strict": true,
-  },
+    "strict": true
+  }
 }

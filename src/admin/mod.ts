@@ -63,10 +63,7 @@ export type {
   ModelClass,
 } from "./options.ts";
 
-export {
-  DEFAULT_ADMIN_SITE_OPTIONS,
-  DEFAULT_MODEL_ADMIN_OPTIONS,
-} from "./options.ts";
+export { DEFAULT_ADMIN_SITE_OPTIONS, DEFAULT_MODEL_ADMIN_OPTIONS } from "./options.ts";
 
 // =============================================================================
 // Introspection
@@ -82,11 +79,7 @@ export {
   getWidgetForField,
 } from "./introspection.ts";
 
-export type {
-  FieldInfo,
-  FieldInfoOptions,
-  ModelMeta,
-} from "./introspection.ts";
+export type { FieldInfo, FieldInfoOptions, ModelMeta } from "./introspection.ts";
 
 // =============================================================================
 // URL Routing
@@ -133,11 +126,7 @@ export {
   isRelationField,
 } from "./relations.ts";
 
-export type {
-  RelatedModelInfo,
-  RelationFieldInfo,
-  RelationType,
-} from "./relations.ts";
+export type { RelatedModelInfo, RelationFieldInfo, RelationType } from "./relations.ts";
 
 // =============================================================================
 // Actions

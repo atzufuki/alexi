@@ -6,11 +6,7 @@
  * @module @alexi/restframework/serializers/serializer
  */
 
-import type {
-  BaseFieldOptions,
-  FieldValidationResult,
-  SerializerField,
-} from "./fields.ts";
+import type { BaseFieldOptions, FieldValidationResult, SerializerField } from "./fields.ts";
 
 // ============================================================================
 // Types
@@ -296,9 +292,10 @@ export abstract class Serializer {
    */
   get data(): Record<string, unknown> {
     if (this.many && Array.isArray(this.instance)) {
-      return this.instance.map((item) =>
-        this.serializeInstance(item)
-      ) as unknown as Record<string, unknown>;
+      return this.instance.map((item) => this.serializeInstance(item)) as unknown as Record<
+        string,
+        unknown
+      >;
     }
 
     if (this.instance) {

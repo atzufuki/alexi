@@ -15,11 +15,7 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/core";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/core";
+import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
 
 // =============================================================================
 // RunServerCommand

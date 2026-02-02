@@ -445,9 +445,7 @@ export class AdminManyToManySelect extends HTMLPropsMixin(HTMLElement, {
 
     // Options container
     const optionsContainer = document.createElement("div");
-    optionsContainer.className = `admin-m2m-options has-search${
-      this.error ? " error" : ""
-    }`;
+    optionsContainer.className = `admin-m2m-options has-search${this.error ? " error" : ""}`;
 
     // Bulk actions
     const bulkActions = document.createElement("div");
@@ -478,9 +476,7 @@ export class AdminManyToManySelect extends HTMLPropsMixin(HTMLElement, {
     if (filteredOptions.length === 0) {
       const noOptions = document.createElement("div");
       noOptions.className = "admin-m2m-no-options";
-      noOptions.textContent = this.searchQuery
-        ? "No matching options"
-        : "No options available";
+      noOptions.textContent = this.searchQuery ? "No matching options" : "No options available";
       optionsContainer.appendChild(noOptions);
     } else {
       for (const opt of filteredOptions) {
@@ -488,9 +484,9 @@ export class AdminManyToManySelect extends HTMLPropsMixin(HTMLElement, {
           this.value.includes(String(opt.id));
 
         const optionDiv = document.createElement("div");
-        optionDiv.className = `admin-m2m-option${
-          isSelected ? " selected" : ""
-        }${this.disabled || this.readonly ? " disabled" : ""}`;
+        optionDiv.className = `admin-m2m-option${isSelected ? " selected" : ""}${
+          this.disabled || this.readonly ? " disabled" : ""
+        }`;
         optionDiv.dataset.key = `option-${opt.id}`;
 
         const checkbox = document.createElement("input");
@@ -540,8 +536,7 @@ export class AdminManyToManySelect extends HTMLPropsMixin(HTMLElement, {
     availableList.className = "admin-m2m-list";
 
     const availableOptions = this.options.filter(
-      (opt) =>
-        !this.value.includes(opt.id) && !this.value.includes(String(opt.id)),
+      (opt) => !this.value.includes(opt.id) && !this.value.includes(String(opt.id)),
     );
 
     if (availableOptions.length === 0) {
@@ -632,8 +627,7 @@ export class AdminManyToManySelect extends HTMLPropsMixin(HTMLElement, {
     selectedList.className = "admin-m2m-list";
 
     const selectedOptions = this.options.filter(
-      (opt) =>
-        this.value.includes(opt.id) || this.value.includes(String(opt.id)),
+      (opt) => this.value.includes(opt.id) || this.value.includes(String(opt.id)),
     );
 
     if (selectedOptions.length === 0) {
@@ -674,9 +668,7 @@ export class AdminManyToManySelect extends HTMLPropsMixin(HTMLElement, {
     }
 
     const query = this.searchQuery.toLowerCase();
-    return this.options.filter((opt) =>
-      opt.label.toLowerCase().includes(query)
-    );
+    return this.options.filter((opt) => opt.label.toLowerCase().includes(query));
   }
 
   private _toggleOption(id: string | number): void {

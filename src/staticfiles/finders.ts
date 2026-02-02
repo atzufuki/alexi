@@ -226,9 +226,7 @@ export class AppDirectoriesFinder implements StaticFileFinder {
 
     try {
       for await (const entry of Deno.readDir(currentDir)) {
-        const entryRelativePath = relativePath
-          ? `${relativePath}/${entry.name}`
-          : entry.name;
+        const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
         if (entry.isFile) {
           yield [entryRelativePath, `${currentDir}/${entry.name}`];
@@ -353,9 +351,7 @@ export class FileSystemFinder implements StaticFileFinder {
 
     try {
       for await (const entry of Deno.readDir(currentDir)) {
-        const entryRelativePath = relativePath
-          ? `${relativePath}/${entry.name}`
-          : entry.name;
+        const entryRelativePath = relativePath ? `${relativePath}/${entry.name}` : entry.name;
 
         if (entry.isFile) {
           yield [entryRelativePath, `${currentDir}/${entry.name}`];

@@ -295,8 +295,7 @@ export class AdminConfirmDialog extends HTMLPropsMixin(HTMLElement, {
     }
   `;
 
-  private _resolvePromise: ((result: ConfirmDialogResult) => void) | null =
-    null;
+  private _resolvePromise: ((result: ConfirmDialogResult) => void) | null = null;
   private _previouslyFocusedElement: HTMLElement | null = null;
 
   constructor() {
@@ -401,8 +400,7 @@ export class AdminConfirmDialog extends HTMLPropsMixin(HTMLElement, {
 
     const confirmBtn = document.createElement("button");
     confirmBtn.type = "button";
-    confirmBtn.className =
-      `admin-confirm-btn admin-confirm-btn-confirm ${this.type}`;
+    confirmBtn.className = `admin-confirm-btn admin-confirm-btn-confirm ${this.type}`;
     confirmBtn.disabled = this.loading;
 
     if (this.loading) {

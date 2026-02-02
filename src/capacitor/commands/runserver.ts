@@ -8,11 +8,7 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/management";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/management";
+import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/management";
 
 // =============================================================================
 // Types
@@ -123,9 +119,7 @@ export class RunServerCommand extends BaseCommand {
       this.info("The run process would:");
       this.info("  1. Ensure the web bundle is synced (sync command)");
       this.info(
-        `  2. Launch ${
-          target === "ios" ? "iOS Simulator" : "Android Emulator"
-        }`,
+        `  2. Launch ${target === "ios" ? "iOS Simulator" : "Android Emulator"}`,
       );
       this.info("  3. Install and run the app on the device");
       if (liveReload) {

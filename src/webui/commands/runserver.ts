@@ -8,11 +8,7 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/management";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/management";
+import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/management";
 import { WebUILauncher } from "../launcher.ts";
 import { createDefaultBindings } from "../bindings.ts";
 

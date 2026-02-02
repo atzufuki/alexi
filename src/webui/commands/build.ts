@@ -8,11 +8,7 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/management";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/management";
+import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/management";
 
 // =============================================================================
 // Types
@@ -41,8 +37,7 @@ type BuildTarget = "windows" | "macos" | "linux";
 export class BuildCommand extends BaseCommand {
   readonly name = "build";
   readonly help = "Package desktop application for distribution";
-  readonly description =
-    "Builds a standalone desktop application executable. " +
+  readonly description = "Builds a standalone desktop application executable. " +
     "Bundles the UI, WebUI runtime, and creates a native binary.";
 
   readonly examples = [

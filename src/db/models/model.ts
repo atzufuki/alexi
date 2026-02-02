@@ -5,11 +5,7 @@
 
 import { Field } from "../fields/field.ts";
 import { AutoField, DateField, DateTimeField } from "../fields/types.ts";
-import {
-  ForeignKey,
-  ManyToManyField,
-  ManyToManyManager,
-} from "../fields/relations.ts";
+import { ForeignKey, ManyToManyField, ManyToManyManager } from "../fields/relations.ts";
 
 // ============================================================================
 // Types
@@ -51,8 +47,8 @@ export interface ModelMeta {
  * Type for model data (plain object representation)
  */
 export type ModelData<T extends Model> = {
-  [K in keyof T as T[K] extends Field<unknown> ? K : never]: T[K] extends
-    Field<infer V> ? V | null : never;
+  [K in keyof T as T[K] extends Field<unknown> ? K : never]: T[K] extends Field<infer V> ? V | null
+    : never;
 };
 
 /**

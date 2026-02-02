@@ -7,12 +7,7 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { ManagementUtility } from "../management.ts";
 import { BaseCommand, success } from "../base_command.ts";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-  IConsole,
-} from "../types.ts";
+import type { CommandOptions, CommandResult, IArgumentParser, IConsole } from "../types.ts";
 
 // =============================================================================
 // Mock Console for Testing

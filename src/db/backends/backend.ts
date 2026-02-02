@@ -7,12 +7,7 @@
  */
 
 import type { Model } from "../models/model.ts";
-import type {
-  Aggregations,
-  CompiledQuery,
-  ParsedFilter,
-  QueryState,
-} from "../query/types.ts";
+import type { Aggregations, CompiledQuery, ParsedFilter, QueryState } from "../query/types.ts";
 
 // ============================================================================
 // Types

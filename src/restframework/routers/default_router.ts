@@ -7,12 +7,7 @@
  */
 
 import { path, type URLPattern } from "@alexi/urls";
-import {
-  type ActionMetadata,
-  getActions,
-  type HttpMethod,
-  ViewSet,
-} from "../viewsets/viewset.ts";
+import { type ActionMetadata, getActions, type HttpMethod, ViewSet } from "../viewsets/viewset.ts";
 
 // ============================================================================
 // Types
