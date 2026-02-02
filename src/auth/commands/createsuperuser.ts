@@ -8,11 +8,7 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/core";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/core";
+import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
 import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { hashPassword, UserModel } from "@comachine-web/models";
@@ -43,8 +39,7 @@ import { hashPassword, UserModel } from "@comachine-web/models";
 export class CreateSuperuserCommand extends BaseCommand {
   readonly name = "createsuperuser";
   readonly help = "Create superuser (admin) account";
-  readonly description =
-    "Creates a new user account with admin privileges (isAdmin: true). " +
+  readonly description = "Creates a new user account with admin privileges (isAdmin: true). " +
     "This user can be used to log in to the admin panel at /admin/.";
 
   readonly examples = [
@@ -91,8 +86,7 @@ export class CreateSuperuserCommand extends BaseCommand {
     parser.addArgument("--database", {
       type: "string",
       required: false,
-      help:
-        "Database path (DenoKV). Defaults to DENO_KV_PATH or default location.",
+      help: "Database path (DenoKV). Defaults to DENO_KV_PATH or default location.",
     });
   }
 
@@ -188,9 +182,7 @@ export class CreateSuperuserCommand extends BaseCommand {
       return success();
     } catch (error) {
       this.error(
-        `User creation failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        `User creation failed: ${error instanceof Error ? error.message : String(error)}`,
       );
       return failure("User creation failed");
     } finally {

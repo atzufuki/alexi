@@ -10,11 +10,7 @@
 import { HTMLPropsMixin, prop } from "@html-props/core";
 import { Anchor, Div, Heading2, Span } from "@html-props/built-ins";
 import { Column, Container } from "@html-props/layout";
-import {
-  type AdminConfig,
-  fetchAdminConfig,
-  type ModelConfig,
-} from "../services/admin_config.ts";
+import { type AdminConfig, fetchAdminConfig, type ModelConfig } from "../services/admin_config.ts";
 import { navigateTo } from "../navigation.ts";
 
 // =============================================================================
@@ -197,8 +193,7 @@ export default class AdminDashboard extends HTMLPropsMixin(HTMLElement, {
                     textContent: "📋",
                   }),
                   new Div({
-                    textContent:
-                      `View all ${model.verboseNamePlural.toLowerCase()}`,
+                    textContent: `View all ${model.verboseNamePlural.toLowerCase()}`,
                   }),
                 ],
               }),

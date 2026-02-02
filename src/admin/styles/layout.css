@@ -193,8 +193,7 @@
   color: var(--admin-text);
   text-decoration: none;
   font-size: var(--admin-font-size-base);
-  transition: background-color var(--admin-transition-fast),
-    color var(--admin-transition-fast);
+  transition: background-color var(--admin-transition-fast), color var(--admin-transition-fast);
 }
 
 .admin-sidebar-item:hover {

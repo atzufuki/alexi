@@ -8,7 +8,7 @@
     "./options": "./options.ts",
     "./components": "./components/mod.ts",
     "./views": "./views/admin_views.ts",
-    "./app": "./app/app.ts",
+    "./app": "./app/app.ts"
   },
-  "tasks": {},
+  "tasks": {}
 }

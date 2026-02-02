@@ -8,11 +8,7 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/management";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/management";
+import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/management";
 
 // =============================================================================
 // SyncCommand
@@ -31,8 +27,7 @@ import type {
 export class SyncCommand extends BaseCommand {
   readonly name = "sync";
   readonly help = "Sync web bundle to native projects";
-  readonly description =
-    "Copies the bundled web application to iOS and Android native projects. " +
+  readonly description = "Copies the bundled web application to iOS and Android native projects. " +
     "Also updates native plugins and dependencies.";
 
   readonly examples = [

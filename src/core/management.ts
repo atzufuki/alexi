@@ -10,11 +10,7 @@ import { BaseCommand } from "./base_command.ts";
 import { CommandRegistry, globalRegistry } from "./registry.ts";
 import { HelpCommand } from "./commands/help.ts";
 import { TestCommand } from "./commands/test.ts";
-import type {
-  CommandConstructor,
-  IConsole,
-  ManagementConfig,
-} from "./types.ts";
+import type { CommandConstructor, IConsole, ManagementConfig } from "./types.ts";
 import type { AppConfig } from "@alexi/types";
 
 // =============================================================================
@@ -280,14 +276,11 @@ export class ManagementUtility {
       // Load commands from each unique app
       for (const [appName, appPath] of allApps) {
         // Normalize app path - remove leading ./
-        const normalizedAppPath = appPath.startsWith("./")
-          ? appPath.slice(2)
-          : appPath;
+        const normalizedAppPath = appPath.startsWith("./") ? appPath.slice(2) : appPath;
 
         // Try to load app.ts
         try {
-          const appConfigPath =
-            `${this.projectRoot}/${normalizedAppPath}/app.ts`;
+          const appConfigPath = `${this.projectRoot}/${normalizedAppPath}/app.ts`;
           const appConfigUrl = pathToFileUrl(appConfigPath);
           if (this.debug) {
             console.log(`Loading app config from: ${appConfigUrl}`);
@@ -304,8 +297,7 @@ export class ManagementUtility {
           }
 
           // Load commands module
-          const commandsPath =
-            `${this.projectRoot}/${normalizedAppPath}/${config.commandsModule}`;
+          const commandsPath = `${this.projectRoot}/${normalizedAppPath}/${config.commandsModule}`;
           const commandsUrl = pathToFileUrl(commandsPath);
           if (this.debug) {
             console.log(`  Loading commands from: ${commandsUrl}`);

@@ -253,8 +253,7 @@ export class TextField extends CharField {
  * Email field with email validation
  */
 export class EmailField extends CharField {
-  private static readonly EMAIL_REGEX =
-    /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  private static readonly EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
   protected validateType(value: unknown): FieldValidationResult {
     const result = super.validateType(value);
@@ -350,9 +349,7 @@ export class IntegerField extends SerializerField<number> {
     const errors: string[] = [];
 
     // Parse as integer
-    const numValue = typeof value === "number"
-      ? value
-      : parseInt(String(value), 10);
+    const numValue = typeof value === "number" ? value : parseInt(String(value), 10);
 
     if (isNaN(numValue)) {
       errors.push(
@@ -421,9 +418,7 @@ export class FloatField extends SerializerField<number> {
     const errors: string[] = [];
 
     // Parse as float
-    const numValue = typeof value === "number"
-      ? value
-      : parseFloat(String(value));
+    const numValue = typeof value === "number" ? value : parseFloat(String(value));
 
     if (isNaN(numValue)) {
       errors.push(
@@ -635,9 +630,7 @@ export class ChoiceField extends SerializerField<string | number> {
         errors: [
           this.getErrorMessage(
             "invalid",
-            `"${val}" is not a valid choice. Valid choices: ${
-              this.choices.join(", ")
-            }.`,
+            `"${val}" is not a valid choice. Valid choices: ${this.choices.join(", ")}.`,
           ),
         ],
       };

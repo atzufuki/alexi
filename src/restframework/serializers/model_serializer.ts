@@ -267,10 +267,9 @@ export abstract class ModelSerializer extends Serializer {
     const ModelClass = meta.model;
 
     // Get the manager from the model class
-    const manager =
-      (ModelClass as unknown as {
-        objects: { create: (data: Record<string, unknown>) => Promise<Model> };
-      }).objects;
+    const manager = (ModelClass as unknown as {
+      objects: { create: (data: Record<string, unknown>) => Promise<Model> };
+    }).objects;
 
     if (!manager || typeof manager.create !== "function") {
       throw new Error(

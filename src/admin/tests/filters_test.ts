@@ -7,14 +7,7 @@
  */
 
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
-import {
-  AutoField,
-  BooleanField,
-  CharField,
-  DateTimeField,
-  Manager,
-  Model,
-} from "@alexi/db";
+import { AutoField, BooleanField, CharField, DateTimeField, Manager, Model } from "@alexi/db";
 
 // =============================================================================
 // Test Model

@@ -8,12 +8,7 @@
  */
 
 import type { Model } from "../../models/model.ts";
-import type {
-  Aggregations,
-  CompiledQuery,
-  QueryOperation,
-  QueryState,
-} from "../../query/types.ts";
+import type { Aggregations, CompiledQuery, QueryOperation, QueryState } from "../../query/types.ts";
 import {
   DatabaseBackend,
   type DatabaseConfig,

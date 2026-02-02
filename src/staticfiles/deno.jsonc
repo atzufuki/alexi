@@ -6,6 +6,6 @@
     "./commands": "./commands/mod.ts",
     "./finders": "./finders.ts",
     "./storage": "./storage.ts",
-    "./middleware": "./middleware.ts",
-  },
+    "./middleware": "./middleware.ts"
+  }
 }

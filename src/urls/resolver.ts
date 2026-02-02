@@ -6,12 +6,7 @@
  * @module @alexi/urls/resolver
  */
 
-import type {
-  CompiledPattern,
-  CompiledSegment,
-  ResolveResult,
-  URLPattern,
-} from "./types.ts";
+import type { CompiledPattern, CompiledSegment, ResolveResult, URLPattern } from "./types.ts";
 
 // ============================================================================
 // Pattern Compilation

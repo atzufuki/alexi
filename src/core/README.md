@@ -2,14 +2,15 @@
 
 Django-tyylinen management commands -järjestelmä Denolle.
 
-Tarjoaa CLI-kehyksen, jolla voit luoda ja ajaa hallintakomentoja projektissasi, samaan tapaan kuin Djangon `manage.py`.
+Tarjoaa CLI-kehyksen, jolla voit luoda ja ajaa hallintakomentoja projektissasi, samaan tapaan kuin
+Djangon `manage.py`.
 
 ## Asennus
 
 Moduuli on osa Alexi-ekosysteemiä. Importtaa se käyttämällä:
 
 ```typescript
-import { ManagementUtility, BaseCommand } from "@alexi/core";
+import { BaseCommand, ManagementUtility } from "@alexi/core";
 ```
 
 ## Peruskäyttö
@@ -67,6 +68,7 @@ deno run -A manage.ts runserver --host 127.0.0.1 --port 3000
 ```
 
 Argumentit:
+
 - `--port, -p` - Portti (oletus: 8000)
 - `--host, -H` - Osoite (oletus: 0.0.0.0)
 - `--no-reload` - Poista automaattinen uudelleenlataus käytöstä
@@ -76,19 +78,19 @@ Argumentit:
 ### Perusesimerkki
 
 ```typescript
-import { BaseCommand, success, failure } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core";
 import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
 
 class GreetCommand extends BaseCommand {
   // Komennon nimi (mitä käyttäjä kirjoittaa)
   readonly name = "greet";
-  
+
   // Lyhyt kuvaus help-listassa
   readonly help = "Tervehdi käyttäjää";
-  
+
   // Pidempi kuvaus (valinnainen)
   readonly description = "Tulostaa tervehdyksen annetulla nimellä.";
-  
+
   // Esimerkkejä (valinnainen)
   readonly examples = [
     "manage.ts greet --name Matti",
@@ -107,9 +109,9 @@ class GreetCommand extends BaseCommand {
   // Komennon suoritus
   async handle(options: CommandOptions): Promise<CommandResult> {
     const name = options.args.name as string;
-    
+
     this.success(`Hei, ${name}!`);
-    
+
     return success();
   }
 }
@@ -138,33 +140,33 @@ const cli = new ManagementUtility({
 ArgumentParser tukee seuraavia tyyppejä:
 
 ```typescript
-parser.addArgument("--port", { 
-  type: "number",      // Numero
+parser.addArgument("--port", {
+  type: "number", // Numero
   default: 8000,
 });
 
-parser.addArgument("--name", { 
-  type: "string",      // Merkkijono (oletus)
-  required: true,      // Pakollinen
+parser.addArgument("--name", {
+  type: "string", // Merkkijono (oletus)
+  required: true, // Pakollinen
 });
 
-parser.addArgument("--debug", { 
-  type: "boolean",     // Boolean-lippu
+parser.addArgument("--debug", {
+  type: "boolean", // Boolean-lippu
   default: false,
 });
 
-parser.addArgument("--origins", { 
-  type: "array",       // Pilkulla erotettu lista
+parser.addArgument("--origins", {
+  type: "array", // Pilkulla erotettu lista
   // --origins=a,b,c => ["a", "b", "c"]
 });
 
 parser.addArgument("--level", {
   type: "string",
-  choices: ["debug", "info", "error"],  // Rajoitetut vaihtoehdot
+  choices: ["debug", "info", "error"], // Rajoitetut vaihtoehdot
 });
 
 parser.addArgument("command", {
-  required: true,      // Positionaalinen argumentti
+  required: true, // Positionaalinen argumentti
   help: "Suoritettava komento",
 });
 ```
@@ -174,7 +176,7 @@ parser.addArgument("command", {
 ```typescript
 parser.addArgument("--port", {
   type: "number",
-  alias: "-p",         // Lyhyt muoto
+  alias: "-p", // Lyhyt muoto
 });
 
 // Molemmat toimivat:
@@ -197,12 +199,12 @@ const cli = new ManagementUtility();
 
 cli.setServerFactory(async (config) => {
   console.log(`Käynnistetään palvelin: http://${config.host}:${config.port}/`);
-  
+
   const app = new Application({
     urls: urlpatterns,
     debug: config.debug,
   });
-  
+
   await app.serve({
     port: config.port,
     hostname: config.host,
@@ -218,19 +220,19 @@ await cli.execute(Deno.args);
 class MyCommand extends BaseCommand {
   async handle(options: CommandOptions): Promise<CommandResult> {
     // Tulostukset
-    this.success("Onnistui!");      // ✓ Onnistui!
-    this.error("Virhe!");           // ✗ Virhe!
-    this.warn("Varoitus!");         // ⚠ Varoitus!
-    this.info("Tiedoksi!");         // ℹ Tiedoksi!
-    this.debug("Debug", options.debug);  // [DEBUG] Debug (vain debug-moodissa)
-    
+    this.success("Onnistui!"); // ✓ Onnistui!
+    this.error("Virhe!"); // ✗ Virhe!
+    this.warn("Varoitus!"); // ⚠ Varoitus!
+    this.info("Tiedoksi!"); // ℹ Tiedoksi!
+    this.debug("Debug", options.debug); // [DEBUG] Debug (vain debug-moodissa)
+
     // Suora console-käyttö
     this.stdout.log("Normaali tulostus");
     this.stderr.error("Virhetulostus");
-    
+
     // Paluuarvot
-    return success("Viesti");           // { exitCode: 0, message: "Viesti" }
-    return failure("Virhe", 2);         // { exitCode: 2, message: "Virhe" }
+    return success("Viesti"); // { exitCode: 0, message: "Viesti" }
+    return failure("Virhe", 2); // { exitCode: 2, message: "Virhe" }
   }
 }
 ```
@@ -245,7 +247,7 @@ import { assertEquals } from "https://deno.land/std/assert/mod.ts";
 class MockConsole {
   logs: string[] = [];
   errors: string[] = [];
-  
+
   log(...args: unknown[]): void {
     this.logs.push(args.map(String).join(" "));
   }
@@ -260,9 +262,9 @@ Deno.test("MyCommand toimii", async () => {
   const command = new MyCommand();
   const mockConsole = new MockConsole();
   command.setConsole(mockConsole);
-  
+
   const result = await command.run(["--arg", "value"]);
-  
+
   assertEquals(result.exitCode, 0);
   assertEquals(mockConsole.logs.includes("Odotettu tulos"), true);
 });
@@ -300,14 +302,14 @@ abstract class BaseCommand {
   abstract readonly help: string;
   description?: string;
   examples?: string[];
-  
+
   addArguments(parser: IArgumentParser): void;
   abstract handle(options: CommandOptions): Promise<CommandResult>;
-  
+
   run(args: string[], debug?: boolean): Promise<CommandResult>;
   printHelp(parser?: IArgumentParser): void;
   setConsole(stdout, stderr?): void;
-  
+
   protected success(message: string): void;
   protected error(message: string): void;
   protected warn(message: string): void;

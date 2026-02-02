@@ -45,7 +45,8 @@ body {
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   color: var(--admin-text);
@@ -70,10 +71,18 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--admin-text);
 }
 
-h1 { font-size: 28px; }
-h2 { font-size: 24px; }
-h3 { font-size: 20px; }
-h4 { font-size: 16px; }
+h1 {
+  font-size: 28px;
+}
+h2 {
+  font-size: 24px;
+}
+h3 {
+  font-size: 20px;
+}
+h4 {
+  font-size: 16px;
+}
 
 p {
   margin-bottom: 1em;
@@ -398,23 +407,53 @@ label {
   text-align: right;
 }
 
-.admin-mb-0 { margin-bottom: 0; }
-.admin-mb-1 { margin-bottom: 8px; }
-.admin-mb-2 { margin-bottom: 16px; }
-.admin-mb-3 { margin-bottom: 24px; }
-.admin-mb-4 { margin-bottom: 32px; }
+.admin-mb-0 {
+  margin-bottom: 0;
+}
+.admin-mb-1 {
+  margin-bottom: 8px;
+}
+.admin-mb-2 {
+  margin-bottom: 16px;
+}
+.admin-mb-3 {
+  margin-bottom: 24px;
+}
+.admin-mb-4 {
+  margin-bottom: 32px;
+}
 
-.admin-mt-0 { margin-top: 0; }
-.admin-mt-1 { margin-top: 8px; }
-.admin-mt-2 { margin-top: 16px; }
-.admin-mt-3 { margin-top: 24px; }
-.admin-mt-4 { margin-top: 32px; }
+.admin-mt-0 {
+  margin-top: 0;
+}
+.admin-mt-1 {
+  margin-top: 8px;
+}
+.admin-mt-2 {
+  margin-top: 16px;
+}
+.admin-mt-3 {
+  margin-top: 24px;
+}
+.admin-mt-4 {
+  margin-top: 32px;
+}
 
-.admin-p-0 { padding: 0; }
-.admin-p-1 { padding: 8px; }
-.admin-p-2 { padding: 16px; }
-.admin-p-3 { padding: 24px; }
-.admin-p-4 { padding: 32px; }
+.admin-p-0 {
+  padding: 0;
+}
+.admin-p-1 {
+  padding: 8px;
+}
+.admin-p-2 {
+  padding: 16px;
+}
+.admin-p-3 {
+  padding: 24px;
+}
+.admin-p-4 {
+  padding: 32px;
+}
 
 /* =============================================================================
    Responsive
@@ -425,9 +464,15 @@ label {
     font-size: 13px;
   }
 
-  h1 { font-size: 24px; }
-  h2 { font-size: 20px; }
-  h3 { font-size: 18px; }
+  h1 {
+    font-size: 24px;
+  }
+  h2 {
+    font-size: 20px;
+  }
+  h3 {
+    font-size: 18px;
+  }
 
   .admin-card {
     border-radius: 0;

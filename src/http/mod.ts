@@ -67,11 +67,7 @@ export type {
 // Re-exports from @alexi/views (for backward compatibility)
 // ============================================================================
 
-export {
-  clearTemplateCache,
-  invalidateTemplate,
-  templateView,
-} from "@alexi/views";
+export { clearTemplateCache, invalidateTemplate, templateView } from "@alexi/views";
 
 export type { TemplateViewOptions } from "@alexi/views";
 
@@ -79,10 +75,6 @@ export type { TemplateViewOptions } from "@alexi/views";
 // Re-exports from @alexi/staticfiles (for backward compatibility)
 // ============================================================================
 
-export {
-  serveBundleMiddleware,
-  staticFilesMiddleware,
-  staticServe,
-} from "@alexi/staticfiles";
+export { serveBundleMiddleware, staticFilesMiddleware, staticServe } from "@alexi/staticfiles";
 
 export type { StaticServeOptions } from "@alexi/staticfiles";

@@ -11,11 +11,7 @@
 // Finders
 // =============================================================================
 
-export {
-  AppDirectoriesFinder,
-  FileSystemFinder,
-  StaticFileFinders,
-} from "./finders.ts";
+export { AppDirectoriesFinder, FileSystemFinder, StaticFileFinders } from "./finders.ts";
 
 export type {
   AppDirectoriesFinderOptions,
@@ -36,20 +32,12 @@ export {
   StaticFilesStorage,
 } from "./storage.ts";
 
-export type {
-  StaticFile,
-  StaticFileStorage,
-  StorageOptions,
-} from "./storage.ts";
+export type { StaticFile, StaticFileStorage, StorageOptions } from "./storage.ts";
 
 // =============================================================================
 // Middleware
 // =============================================================================
 
-export {
-  serveBundleMiddleware,
-  staticFilesMiddleware,
-  staticServe,
-} from "./middleware.ts";
+export { serveBundleMiddleware, staticFilesMiddleware, staticServe } from "./middleware.ts";
 
 export type { StaticServeOptions } from "./middleware.ts";

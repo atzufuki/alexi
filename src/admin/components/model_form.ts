@@ -515,9 +515,7 @@ export class AdminModelForm extends HTMLPropsMixin(HTMLElement, {
       const content = document.createElement("div");
       content.className = "admin-fieldset-content";
 
-      const fieldsetFields = this.fields.filter((f) =>
-        fieldset.fields.includes(f.name)
-      );
+      const fieldsetFields = this.fields.filter((f) => fieldset.fields.includes(f.name));
       for (const field of fieldsetFields) {
         content.appendChild(this._renderField(field));
       }

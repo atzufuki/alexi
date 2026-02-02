@@ -8,12 +8,7 @@
 
 // Model base class and types
 export { Model, ModelRegistry } from "./model.ts";
-export type {
-  IndexDefinition,
-  ModelData,
-  ModelMeta,
-  PartialModelData,
-} from "./model.ts";
+export type { IndexDefinition, ModelData, ModelMeta, PartialModelData } from "./model.ts";
 
 // Manager class and exceptions
 export { DoesNotExist, Manager, MultipleObjectsReturned } from "./manager.ts";

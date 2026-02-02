@@ -17,11 +17,7 @@ export { AdminDataTable } from "./data_table.ts";
 export type { DataTableColumn, SortConfig } from "./data_table.ts";
 
 export { AdminModelForm } from "./model_form.ts";
-export type {
-  FormField,
-  FormFieldset,
-  FormValidationResult,
-} from "./model_form.ts";
+export type { FormField, FormFieldset, FormValidationResult } from "./model_form.ts";
 
 export { AdminPagination } from "./pagination.ts";
 export type { PageInfo } from "./pagination.ts";
@@ -65,7 +61,4 @@ export { AdminToast } from "./toast.ts";
 export type { ToastMessage, ToastType } from "./toast.ts";
 
 export { AdminConfirmDialog } from "./confirm_dialog.ts";
-export type {
-  ConfirmDialogResult,
-  ConfirmDialogType,
-} from "./confirm_dialog.ts";
+export type { ConfirmDialogResult, ConfirmDialogType } from "./confirm_dialog.ts";

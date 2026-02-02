@@ -1,11 +1,13 @@
 var __defProp = Object.defineProperty;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-};
+var __esm = (fn, res) =>
+  function __init() {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  };
 var __export = (target, all) => {
-  for (var name in all)
+  for (var name in all) {
     __defProp(target, name, { get: all[name], enumerable: true });
+  }
 };
 
 // src/alexi_db/backends/backend.ts
@@ -35,7 +37,9 @@ var init_backend = __esm({
        */
       ensureConnected() {
         if (!this._connected) {
-          throw new Error(`Database backend '${this._config.engine}' is not connected. Call connect() first.`);
+          throw new Error(
+            `Database backend '${this._config.engine}' is not connected. Call connect() first.`,
+          );
         }
       }
       /**
@@ -136,7 +140,9 @@ var init_backend = __esm({
           case "week": {
             if (!(fieldValue instanceof Date)) return false;
             const startOfYear = new Date(fieldValue.getFullYear(), 0, 1);
-            const days = Math.floor((fieldValue.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1e3));
+            const days = Math.floor(
+              (fieldValue.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1e3),
+            );
             const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
             return weekNumber === compareValue;
           }
@@ -155,7 +161,7 @@ var init_backend = __esm({
           return records;
         }
         return [
-          ...records
+          ...records,
         ].sort((a, b) => {
           for (const { field, direction } of ordering) {
             const aValue = this.getNestedValue(a, field);
@@ -195,7 +201,7 @@ var init_backend = __esm({
         return result;
       }
     };
-  }
+  },
 });
 
 // src/alexi_db/backends/indexeddb/backend.ts
@@ -221,7 +227,7 @@ var init_backend2 = __esm({
           type: "put",
           storeName,
           value,
-          key
+          key,
         });
       }
       /**
@@ -231,7 +237,7 @@ var init_backend2 = __esm({
         this._operations.push({
           type: "delete",
           storeName,
-          key
+          key,
         });
       }
       async commit() {
@@ -239,7 +245,7 @@ var init_backend2 = __esm({
           throw new Error("Transaction is no longer active");
         }
         const storeNames = [
-          ...new Set(this._operations.map((op) => op.storeName))
+          ...new Set(this._operations.map((op) => op.storeName)),
         ];
         if (storeNames.length === 0) {
           this._active = false;
@@ -289,7 +295,7 @@ var init_backend2 = __esm({
        */
       getPendingChanges() {
         return [
-          ...this._pendingChanges
+          ...this._pendingChanges,
         ];
       }
       async createTable(model) {
@@ -299,7 +305,7 @@ var init_backend2 = __esm({
         }
         this._pendingChanges.push({
           type: "createStore",
-          storeName: tableName
+          storeName: tableName,
         });
       }
       async dropTable(model) {
@@ -309,7 +315,7 @@ var init_backend2 = __esm({
         }
         this._pendingChanges.push({
           type: "deleteStore",
-          storeName: tableName
+          storeName: tableName,
         });
       }
       async addField(_model, _fieldName) {
@@ -324,7 +330,7 @@ var init_backend2 = __esm({
           storeName: tableName,
           indexName,
           fields,
-          unique: options?.unique ?? false
+          unique: options?.unique ?? false,
         });
       }
       async dropIndex(model, indexName) {
@@ -332,7 +338,7 @@ var init_backend2 = __esm({
         this._pendingChanges.push({
           type: "deleteIndex",
           storeName: tableName,
-          indexName
+          indexName,
         });
       }
       /**
@@ -350,7 +356,7 @@ var init_backend2 = __esm({
         super({
           engine: "indexeddb",
           name: config11.name,
-          options: {}
+          options: {},
         });
       }
       /**
@@ -395,7 +401,7 @@ var init_backend2 = __esm({
             const db = event.target.result;
             if (!db.objectStoreNames.contains("_meta")) {
               db.createObjectStore("_meta", {
-                keyPath: "key"
+                keyPath: "key",
               });
             }
           };
@@ -451,12 +457,12 @@ var init_backend2 = __esm({
             if (!db.objectStoreNames.contains(storeName)) {
               db.createObjectStore(storeName, {
                 keyPath: "id",
-                autoIncrement: true
+                autoIncrement: true,
               });
             }
             if (!db.objectStoreNames.contains("_meta")) {
               db.createObjectStore("_meta", {
-                keyPath: "key"
+                keyPath: "key",
               });
             }
           };
@@ -491,7 +497,9 @@ var init_backend2 = __esm({
         return limited;
       }
       async executeRaw(_query, _params) {
-        throw new Error("IndexedDB backend does not support raw SQL queries. Use execute() instead.");
+        throw new Error(
+          "IndexedDB backend does not support raw SQL queries. Use execute() instead.",
+        );
       }
       // ============================================================================
       // CRUD Operations
@@ -510,7 +518,7 @@ var init_backend2 = __esm({
             request = store.put(data);
           } else {
             const insertData = {
-              ...data
+              ...data,
             };
             delete insertData.id;
             request = store.add(insertData);
@@ -591,7 +599,7 @@ var init_backend2 = __esm({
               request = store.put(data);
             } else {
               const insertData = {
-                ...data
+                ...data,
               };
               delete insertData.id;
               request = store.add(insertData);
@@ -666,7 +674,7 @@ var init_backend2 = __esm({
           for (const record of records) {
             const updated = {
               ...record,
-              ...values
+              ...values,
             };
             const request = store.put(updated);
             request.onsuccess = () => {
@@ -741,7 +749,9 @@ var init_backend2 = __esm({
           switch (agg.func) {
             case "COUNT":
               if (agg.distinct && agg.field !== "*") {
-                const uniqueValues = new Set(records.map((r) => r[agg.field]).filter((v) => v !== null));
+                const uniqueValues = new Set(
+                  records.map((r) => r[agg.field]).filter((v) => v !== null),
+                );
                 results[alias] = uniqueValues.size;
               } else if (agg.field === "*") {
                 results[alias] = records.length;
@@ -759,7 +769,9 @@ var init_backend2 = __esm({
             }
             case "AVG": {
               const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
-              results[alias] = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+              results[alias] = values.length > 0
+                ? values.reduce((a, b) => a + b, 0) / values.length
+                : 0;
               break;
             }
             case "MIN": {
@@ -807,11 +819,11 @@ var init_backend2 = __esm({
           ordering: state.ordering,
           fields: state.selectFields,
           limit: state.limit,
-          offset: state.offset
+          offset: state.offset,
         };
         return {
           operation,
-          params: []
+          params: [],
         };
       }
       // ============================================================================
@@ -901,18 +913,18 @@ var init_backend2 = __esm({
         });
       }
     };
-  }
+  },
 });
 
 // src/alexi_db/backends/indexeddb/mod.ts
 var mod_exports = {};
 __export(mod_exports, {
-  IndexedDBBackend: () => IndexedDBBackend
+  IndexedDBBackend: () => IndexedDBBackend,
 });
 var init_mod = __esm({
   "src/alexi_db/backends/indexeddb/mod.ts"() {
     init_backend2();
-  }
+  },
 });
 
 // src/alexi_db/backends/denokv/backend.ts
@@ -937,7 +949,7 @@ var init_backend3 = __esm({
         this._operations.push({
           type: "set",
           key,
-          value
+          value,
         });
       }
       /**
@@ -946,7 +958,7 @@ var init_backend3 = __esm({
       queueDelete(key) {
         this._operations.push({
           type: "delete",
-          key
+          key,
         });
       }
       async commit() {
@@ -982,18 +994,18 @@ var init_backend3 = __esm({
         await this._kv.set([
           "_meta",
           "tables",
-          tableName
+          tableName,
         ], {
           name: tableName,
-          createdAt: (/* @__PURE__ */ new Date()).toISOString()
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
         });
       }
       async dropTable(model) {
         const tableName = model.getTableName();
         const iter = this._kv.list({
           prefix: [
-            tableName
-          ]
+            tableName,
+          ],
         });
         const atomic = this._kv.atomic();
         let count = 0;
@@ -1011,7 +1023,7 @@ var init_backend3 = __esm({
         await this._kv.delete([
           "_meta",
           "tables",
-          tableName
+          tableName,
         ]);
       }
       async addField(_model, _fieldName) {
@@ -1025,11 +1037,11 @@ var init_backend3 = __esm({
           "_meta",
           "indexes",
           tableName,
-          indexName
+          indexName,
         ], {
           fields,
           unique: options?.unique ?? false,
-          createdAt: (/* @__PURE__ */ new Date()).toISOString()
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
         });
       }
       async dropIndex(model, indexName) {
@@ -1038,7 +1050,7 @@ var init_backend3 = __esm({
           "_meta",
           "indexes",
           tableName,
-          indexName
+          indexName,
         ]);
       }
     };
@@ -1050,8 +1062,8 @@ var init_backend3 = __esm({
           engine: "denokv",
           name: config11.name,
           options: {
-            path: config11.path
-          }
+            path: config11.path,
+          },
         });
       }
       /**
@@ -1091,8 +1103,8 @@ var init_backend3 = __esm({
         const results = [];
         const iter = this._kv.list({
           prefix: [
-            tableName
-          ]
+            tableName,
+          ],
         });
         for await (const entry of iter) {
           const record = entry.value;
@@ -1128,7 +1140,7 @@ var init_backend3 = __esm({
         }
         const key = [
           tableName,
-          data.id
+          data.id,
         ];
         await this._kv.set(key, data);
         return data;
@@ -1143,7 +1155,7 @@ var init_backend3 = __esm({
         }
         const key = [
           tableName,
-          id
+          id,
         ];
         await this._kv.set(key, data);
       }
@@ -1156,7 +1168,7 @@ var init_backend3 = __esm({
         }
         const key = [
           tableName,
-          id
+          id,
         ];
         await this._kv.delete(key);
       }
@@ -1175,7 +1187,7 @@ var init_backend3 = __esm({
           }
           const key = [
             tableName,
-            data.id
+            data.id,
           ];
           atomic.set(key, data);
           results.push(data);
@@ -1196,7 +1208,7 @@ var init_backend3 = __esm({
           if (id !== null && id !== void 0) {
             const key = [
               tableName,
-              id
+              id,
             ];
             atomic.set(key, data);
           }
@@ -1216,11 +1228,11 @@ var init_backend3 = __esm({
         for (const record of records) {
           const updated = {
             ...record,
-            ...values
+            ...values,
           };
           const key = [
             tableName,
-            record.id
+            record.id,
           ];
           atomic.set(key, updated);
         }
@@ -1239,7 +1251,7 @@ var init_backend3 = __esm({
         for (const record of records) {
           const key = [
             tableName,
-            record.id
+            record.id,
           ];
           atomic.delete(key);
         }
@@ -1259,8 +1271,8 @@ var init_backend3 = __esm({
         let count = 0;
         const iter = this._kv.list({
           prefix: [
-            tableName
-          ]
+            tableName,
+          ],
         });
         for await (const entry of iter) {
           if (this.matchesFilters(entry.value, state.filters)) {
@@ -1277,7 +1289,9 @@ var init_backend3 = __esm({
           switch (agg.func) {
             case "COUNT":
               if (agg.distinct && agg.field !== "*") {
-                const uniqueValues = new Set(records.map((r) => r[agg.field]).filter((v) => v !== null));
+                const uniqueValues = new Set(
+                  records.map((r) => r[agg.field]).filter((v) => v !== null),
+                );
                 results[alias] = uniqueValues.size;
               } else if (agg.field === "*") {
                 results[alias] = records.length;
@@ -1295,7 +1309,9 @@ var init_backend3 = __esm({
             }
             case "AVG": {
               const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
-              results[alias] = values.length > 0 ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+              results[alias] = values.length > 0
+                ? values.reduce((a, b) => a + b, 0) / values.length
+                : 0;
               break;
             }
             case "MIN": {
@@ -1331,7 +1347,7 @@ var init_backend3 = __esm({
         const meta = await this._kv.get([
           "_meta",
           "tables",
-          tableName
+          tableName,
         ]);
         return meta.value !== null;
       }
@@ -1348,11 +1364,11 @@ var init_backend3 = __esm({
           ordering: state.ordering,
           fields: state.selectFields,
           limit: state.limit,
-          offset: state.offset
+          offset: state.offset,
         };
         return {
           operation,
-          params: []
+          params: [],
         };
       }
       // ============================================================================
@@ -1365,7 +1381,7 @@ var init_backend3 = __esm({
         const counterKey = [
           "_meta",
           "counters",
-          tableName
+          tableName,
         ];
         let newId;
         while (true) {
@@ -1387,7 +1403,7 @@ var init_backend3 = __esm({
         const tableName = instance.getTableName();
         const key = [
           tableName,
-          id
+          id,
         ];
         const entry = await this._kv.get(key);
         return entry.value;
@@ -1400,18 +1416,18 @@ var init_backend3 = __esm({
         return record !== null;
       }
     };
-  }
+  },
 });
 
 // src/alexi_db/backends/denokv/mod.ts
 var mod_exports2 = {};
 __export(mod_exports2, {
-  DenoKVBackend: () => DenoKVBackend
+  DenoKVBackend: () => DenoKVBackend,
 });
 var init_mod2 = __esm({
   "src/alexi_db/backends/denokv/mod.ts"() {
     init_backend3();
-  }
+  },
 });
 
 // src/alexi_db/setup.ts
@@ -1448,22 +1464,28 @@ async function setup(settings) {
 async function createBackend(dbSettings) {
   switch (dbSettings.engine) {
     case "indexeddb": {
-      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve().then(() => (init_mod(), mod_exports));
+      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve().then(
+        () => (init_mod(), mod_exports),
+      );
       return new IndexedDBBackend2({
-        name: dbSettings.name
+        name: dbSettings.name,
       });
     }
     case "denokv": {
-      const { DenoKVBackend: DenoKVBackend2 } = await Promise.resolve().then(() => (init_mod2(), mod_exports2));
+      const { DenoKVBackend: DenoKVBackend2 } = await Promise.resolve().then(
+        () => (init_mod2(), mod_exports2),
+      );
       return new DenoKVBackend2({
         name: dbSettings.name,
-        path: dbSettings.path
+        path: dbSettings.path,
       });
     }
     case "memory": {
-      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve().then(() => (init_mod(), mod_exports));
+      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve().then(
+        () => (init_mod(), mod_exports),
+      );
       return new IndexedDBBackend2({
-        name: `test-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        name: `test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       });
     }
     default:
@@ -1481,7 +1503,9 @@ function isInitialized() {
 }
 function setBackend(backend) {
   if (!_initialized) {
-    throw new Error("Alexi ORM is not configured. Call setup() first before setting a new backend.");
+    throw new Error(
+      "Alexi ORM is not configured. Call setup() first before setting a new backend.",
+    );
   }
   _backend = backend;
 }
@@ -1553,7 +1577,7 @@ var Q = class _Q {
     combined._connector = "AND";
     combined._children = [
       this._clone(),
-      other._clone()
+      other._clone(),
     ];
     return combined;
   }
@@ -1570,7 +1594,7 @@ var Q = class _Q {
     combined._connector = "OR";
     combined._children = [
       this._clone(),
-      other._clone()
+      other._clone(),
     ];
     return combined;
   }
@@ -1592,7 +1616,7 @@ var Q = class _Q {
    */
   _clone() {
     const cloned = new _Q({
-      ...this._conditions
+      ...this._conditions,
     });
     cloned._connector = this._connector;
     cloned._negated = this._negated;
@@ -1636,7 +1660,7 @@ var Q = class _Q {
       field,
       lookup,
       value,
-      negated: false
+      negated: false,
     };
   }
   /**
@@ -1666,7 +1690,7 @@ var Q = class _Q {
       "month",
       "day",
       "week",
-      "weekday"
+      "weekday",
     ];
     return validLookups.includes(lookup);
   }
@@ -1679,7 +1703,7 @@ var Q = class _Q {
       conditions: this.toParsedFilters(),
       connector: this._connector,
       negated: this._negated,
-      children: this._children.map((child) => child.resolve())
+      children: this._children.map((child) => child.resolve()),
     };
   }
   /**
@@ -1691,11 +1715,14 @@ var Q = class _Q {
       parts.push("NOT");
     }
     if (this.hasConditions) {
-      const condStr = Object.entries(this._conditions).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(", ");
+      const condStr = Object.entries(this._conditions).map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+        .join(", ");
       parts.push(`(${condStr})`);
     }
     if (this.hasChildren) {
-      const childrenStr = this._children.map((child) => child.toString()).join(` ${this._connector} `);
+      const childrenStr = this._children.map((child) => child.toString()).join(
+        ` ${this._connector} `,
+      );
       parts.push(`(${childrenStr})`);
     }
     return parts.join(" ") || "(empty)";
@@ -1716,39 +1743,39 @@ function createQueryState(model) {
     distinctFields: [],
     limit: null,
     offset: null,
-    reversed: false
+    reversed: false,
   };
 }
 function cloneQueryState(state) {
   return {
     model: state.model,
     filters: [
-      ...state.filters
+      ...state.filters,
     ],
     ordering: [
-      ...state.ordering
+      ...state.ordering,
     ],
     selectFields: [
-      ...state.selectFields
+      ...state.selectFields,
     ],
     deferFields: [
-      ...state.deferFields
+      ...state.deferFields,
     ],
     selectRelated: [
-      ...state.selectRelated
+      ...state.selectRelated,
     ],
     prefetchRelated: [
-      ...state.prefetchRelated
+      ...state.prefetchRelated,
     ],
     annotations: {
-      ...state.annotations
+      ...state.annotations,
     },
     distinctFields: [
-      ...state.distinctFields
+      ...state.distinctFields,
     ],
     limit: state.limit,
     offset: state.offset,
-    reversed: state.reversed
+    reversed: state.reversed,
   };
 }
 
@@ -1874,7 +1901,7 @@ var QuerySet = class _QuerySet {
       field,
       lookup,
       value,
-      negated: false
+      negated: false,
     };
   }
   /**
@@ -1904,7 +1931,7 @@ var QuerySet = class _QuerySet {
       "month",
       "day",
       "week",
-      "weekday"
+      "weekday",
     ];
     return validLookups.includes(lookup);
   }
@@ -1933,12 +1960,12 @@ var QuerySet = class _QuerySet {
     if (field.startsWith("-")) {
       return {
         field: field.slice(1),
-        direction: "DESC"
+        direction: "DESC",
       };
     }
     return {
       field,
-      direction: "ASC"
+      direction: "ASC",
     };
   }
   /**
@@ -1949,7 +1976,7 @@ var QuerySet = class _QuerySet {
       state.reversed = !state.reversed;
       state.ordering = state.ordering.map((o) => ({
         field: o.field,
-        direction: o.direction === "ASC" ? "DESC" : "ASC"
+        direction: o.direction === "ASC" ? "DESC" : "ASC",
       }));
     });
   }
@@ -2074,7 +2101,7 @@ var QuerySet = class _QuerySet {
     return this._clone((state) => {
       state.annotations = {
         ...state.annotations,
-        ...annotations
+        ...annotations,
       };
     });
   }
@@ -2254,7 +2281,9 @@ var QuerySet = class _QuerySet {
     if (isInitialized()) {
       return getBackend();
     }
-    throw new Error(`No database backend configured for ${this._state.model.name}. Use .using(backend) or call setup() to configure a default backend.`);
+    throw new Error(
+      `No database backend configured for ${this._state.model.name}. Use .using(backend) or call setup() to configure a default backend.`,
+    );
   }
   /**
    * Hydrate database data into a model instance
@@ -2287,13 +2316,17 @@ var QuerySet = class _QuerySet {
    */
   toString() {
     const parts = [
-      `QuerySet<${this._state.model.name}>`
+      `QuerySet<${this._state.model.name}>`,
     ];
     if (this._state.filters.length > 0) {
       parts.push(`filters: ${this._state.filters.length}`);
     }
     if (this._state.ordering.length > 0) {
-      parts.push(`ordering: ${this._state.ordering.map((o) => (o.direction === "DESC" ? "-" : "") + o.field).join(", ")}`);
+      parts.push(
+        `ordering: ${
+          this._state.ordering.map((o) => (o.direction === "DESC" ? "-" : "") + o.field).join(", ")
+        }`,
+      );
     }
     if (this._state.limit !== null) {
       parts.push(`limit: ${this._state.limit}`);
@@ -2409,7 +2442,7 @@ var MODEL_ENDPOINT_MAP = {
   TicketAttachmentModel: "ticket-attachments",
   ServiceModel: "services",
   ProductModel: "products",
-  ProductDocumentModel: "product-documents"
+  ProductDocumentModel: "product-documents",
 };
 function getEndpointForModel(modelOrName) {
   if (typeof modelOrName !== "string") {
@@ -2431,7 +2464,7 @@ var RestBackend = class extends DatabaseBackend {
     super({
       engine: "rest",
       name: "comachine-api",
-      options: config11
+      options: config11,
     });
     this._apiUrl = config11.apiUrl.replace(/\/$/, "");
     this._debug = config11.debug ?? false;
@@ -2482,7 +2515,7 @@ var RestBackend = class extends DatabaseBackend {
         const parsed = JSON.parse(stored);
         this._tokens = {
           ...parsed,
-          expiresAt: new Date(parsed.expiresAt)
+          expiresAt: new Date(parsed.expiresAt),
         };
         this._log(`Tokens loaded, expires: ${this._tokens.expiresAt}`);
       } else {
@@ -2550,11 +2583,11 @@ var RestBackend = class extends DatabaseBackend {
       const response = await fetch(`${this._apiUrl}/auth/refresh/`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          refreshToken: this._tokens.refreshToken
-        })
+          refreshToken: this._tokens.refreshToken,
+        }),
       });
       if (!response.ok) {
         this._log("Token refresh failed:", response.status);
@@ -2565,7 +2598,7 @@ var RestBackend = class extends DatabaseBackend {
       const newTokens = {
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
-        expiresAt: new Date(Date.now() + data.expiresIn * 1e3)
+        expiresAt: new Date(Date.now() + data.expiresIn * 1e3),
       };
       this._saveTokens(newTokens);
       return newTokens;
@@ -2588,7 +2621,7 @@ var RestBackend = class extends DatabaseBackend {
       }
     }
     return {
-      Authorization: `Bearer ${this._tokens.accessToken}`
+      Authorization: `Bearer ${this._tokens.accessToken}`,
     };
   }
   // ===========================================================================
@@ -2604,8 +2637,8 @@ var RestBackend = class extends DatabaseBackend {
       headers: {
         "Content-Type": "application/json",
         ...authHeaders,
-        ...options.headers
-      }
+        ...options.headers,
+      },
     });
     if (!response.ok) {
       const errorBody = await response.text();
@@ -2613,7 +2646,7 @@ var RestBackend = class extends DatabaseBackend {
       throw new RestApiError({
         status: response.status,
         message: `API request failed: ${response.statusText}`,
-        body: errorBody
+        body: errorBody,
       });
     }
     const text = await response.text();
@@ -2633,9 +2666,9 @@ var RestBackend = class extends DatabaseBackend {
     const response = await fetch(`${this._apiUrl}/auth/login/`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify(credentials)
+      body: JSON.stringify(credentials),
     });
     if (!response.ok) {
       const errorBody = await response.text();
@@ -2643,14 +2676,14 @@ var RestBackend = class extends DatabaseBackend {
       throw new RestApiError({
         status: response.status,
         message: "Login failed",
-        body: errorBody
+        body: errorBody,
       });
     }
     const data = await response.json();
     const tokens = {
       accessToken: data.tokens.accessToken,
       refreshToken: data.tokens.refreshToken,
-      expiresAt: new Date(Date.now() + data.tokens.expiresIn * 1e3)
+      expiresAt: new Date(Date.now() + data.tokens.expiresIn * 1e3),
     };
     this._saveTokens(tokens);
     this._log("Login successful");
@@ -2664,14 +2697,14 @@ var RestBackend = class extends DatabaseBackend {
     const response = await fetch(`${this._apiUrl}/auth/register/`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         email: data.email,
         password: data.password,
         firstName: data.firstName,
-        lastName: data.lastName
-      })
+        lastName: data.lastName,
+      }),
     });
     if (!response.ok) {
       const errorBody = await response.text();
@@ -2679,14 +2712,14 @@ var RestBackend = class extends DatabaseBackend {
       throw new RestApiError({
         status: response.status,
         message: "Registration failed",
-        body: errorBody
+        body: errorBody,
       });
     }
     const responseData = await response.json();
     const tokens = {
       accessToken: responseData.tokens.accessToken,
       refreshToken: responseData.tokens.refreshToken,
-      expiresAt: new Date(Date.now() + responseData.tokens.expiresIn * 1e3)
+      expiresAt: new Date(Date.now() + responseData.tokens.expiresIn * 1e3),
     };
     this._saveTokens(tokens);
     this._log("Registration successful");
@@ -2703,8 +2736,8 @@ var RestBackend = class extends DatabaseBackend {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${this._tokens.accessToken}`
-          }
+            Authorization: `Bearer ${this._tokens.accessToken}`,
+          },
         });
       } catch (error) {
         this._log("Logout request failed (ignored):", error);
@@ -2741,11 +2774,15 @@ var RestBackend = class extends DatabaseBackend {
     const endpoint = modelClass.meta?.dbTable || getEndpointForModel(modelClass.name);
     const params = new URLSearchParams();
     for (const filter of state.filters) {
-      const paramName = filter.lookup === "exact" ? filter.field : `${filter.field}__${filter.lookup}`;
+      const paramName = filter.lookup === "exact"
+        ? filter.field
+        : `${filter.field}__${filter.lookup}`;
       params.set(paramName, String(filter.value));
     }
     if (state.ordering.length > 0) {
-      const orderingStr = state.ordering.map((o) => o.direction === "DESC" ? `-${o.field}` : o.field).join(",");
+      const orderingStr = state.ordering.map((o) =>
+        o.direction === "DESC" ? `-${o.field}` : o.field
+      ).join(",");
       params.set("ordering", orderingStr);
     }
     if (state.limit !== null) {
@@ -2774,7 +2811,7 @@ var RestBackend = class extends DatabaseBackend {
     this._log(`POST /${endpoint}/`, data);
     const result = await this._request(`/${endpoint}/`, {
       method: "POST",
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
     return result;
   }
@@ -2788,7 +2825,7 @@ var RestBackend = class extends DatabaseBackend {
     this._log(`PUT /${endpoint}/${id}/`, data);
     await this._request(`/${endpoint}/${id}/`, {
       method: "PUT",
-      body: JSON.stringify(data)
+      body: JSON.stringify(data),
     });
   }
   /**
@@ -2799,7 +2836,7 @@ var RestBackend = class extends DatabaseBackend {
     const id = this._getRecordId(instance);
     this._log(`DELETE /${endpoint}/${id}/`);
     await this._request(`/${endpoint}/${id}/`, {
-      method: "DELETE"
+      method: "DELETE",
     });
   }
   // ===========================================================================
@@ -2871,9 +2908,9 @@ var RestBackend = class extends DatabaseBackend {
         ordering: state.ordering,
         fields: state.selectedFields,
         limit: state.limit,
-        offset: state.offset
+        offset: state.offset,
       },
-      params: []
+      params: [],
     };
   }
   // ===========================================================================
@@ -2955,7 +2992,7 @@ var SyncBackend = class extends DatabaseBackend {
   constructor(localBackend, restBackend, config11 = {}) {
     super({
       engine: "sync",
-      name: localBackend.config.name
+      name: localBackend.config.name,
     });
     this._localBackend = localBackend;
     this._restBackend = restBackend;
@@ -3257,7 +3294,7 @@ var DEFAULT_SETTINGS = {
   apiUrl: "http://localhost:8000/api",
   databaseName: "comachine",
   debug: false,
-  failSilently: true
+  failSilently: true,
 };
 var _syncBackend = null;
 var _restBackend = null;
@@ -3271,7 +3308,7 @@ async function setupBackend(settings = {}) {
   _settings2 = {
     ...DEFAULT_SETTINGS,
     ...getEnvConfig(),
-    ...settings.backendConfig || {}
+    ...settings.backendConfig || {},
   };
   const debug = _settings2.debug ?? false;
   if (debug) {
@@ -3300,20 +3337,20 @@ async function initializeSyncBackend(backendSettings, alexiSettings, debug) {
     ...alexiSettings,
     database: {
       engine: "indexeddb",
-      name: databaseName
+      name: databaseName,
     },
-    debug
+    debug,
   });
   const localBackend = getBackend();
   const restConfig = {
     apiUrl,
-    debug
+    debug,
   };
   _restBackend = new RestBackend(restConfig);
   await _restBackend.connect();
   const syncConfig = {
     debug,
-    failSilently: backendSettings.failSilently ?? true
+    failSilently: backendSettings.failSilently ?? true,
   };
   _syncBackend = new SyncBackend(localBackend, _restBackend, syncConfig);
   await _syncBackend.connect();
@@ -3332,9 +3369,9 @@ async function initializeIndexedDBBackend(backendSettings, alexiSettings, debug)
     ...alexiSettings,
     database: {
       engine: "indexeddb",
-      name: databaseName
+      name: databaseName,
     },
-    debug
+    debug,
   });
   if (debug) {
     console.log("[Backend] IndexedDB backend initialized");
@@ -3398,9 +3435,11 @@ function signal(initialValue) {
   const notify = () => {
     notifyDepth++;
     try {
-      for (const sub of [
-        ...subscriptions
-      ]) {
+      for (
+        const sub of [
+          ...subscriptions,
+        ]
+      ) {
         if (!runEffects.has(sub)) {
           runEffects.add(sub);
           pendingEffects.add(sub);
@@ -3472,7 +3511,7 @@ function effect(fn, options) {
     dependencies: /* @__PURE__ */ new Set(),
     cleanup: void 0,
     disposed: false,
-    executing: false
+    executing: false,
   };
   const dispose = () => {
     if (!running.disposed) {
@@ -3486,7 +3525,7 @@ function effect(fn, options) {
   }
   if (options?.signal) {
     options.signal.addEventListener("abort", dispose, {
-      once: true
+      once: true,
     });
   }
   try {
@@ -3547,14 +3586,16 @@ var PropsController = class _PropsController {
             if (oldValue !== v) {
               this.customProps[key].set(v);
               if (value.event && typeof v !== "function") {
-                host.dispatchEvent(new CustomEvent(value.event, {
-                  detail: v
-                }));
+                host.dispatchEvent(
+                  new CustomEvent(value.event, {
+                    detail: v,
+                  }),
+                );
               }
             }
           },
           enumerable: true,
-          configurable: true
+          configurable: true,
         });
       } else {
         this.defaultProps[key] = value;
@@ -3577,7 +3618,10 @@ var PropsController = class _PropsController {
       Object.keys(current).forEach((key) => {
         const item = current[key];
         const existing = result[key];
-        if (typeof item === "object" && item !== null && !Array.isArray(item) && typeof existing === "object" && existing !== null && !Array.isArray(existing)) {
+        if (
+          typeof item === "object" && item !== null && !Array.isArray(item) &&
+          typeof existing === "object" && existing !== null && !Array.isArray(existing)
+        ) {
           result[key] = this.merge(existing, item);
         } else {
           result[key] = item;
@@ -3588,7 +3632,8 @@ var PropsController = class _PropsController {
   }
   isCustomProp(key) {
     const cfg = this.propsConfig ? this.propsConfig[key] : null;
-    return cfg && typeof cfg === "object" && (typeof cfg.type === "function" || "default" in cfg || "attribute" in cfg);
+    return cfg && typeof cfg === "object" &&
+      (typeof cfg.type === "function" || "default" in cfg || "attribute" in cfg);
   }
   /**
    * Check if this controller has any custom props defined.
@@ -3647,14 +3692,17 @@ var PropsController = class _PropsController {
     const hostWithRender = this.host;
     if (hostWithRender.render) {
       const renderResult = hostWithRender.render();
-      const isTemplateResult = renderResult && typeof renderResult === "object" && ("_$litType$" in renderResult || // Lit template result
-      "create" in renderResult || // FAST template result
-      "strings" in renderResult);
+      const isTemplateResult = renderResult && typeof renderResult === "object" &&
+        ("_$litType$" in renderResult || // Lit template result
+          "create" in renderResult || // FAST template result
+          "strings" in renderResult);
       if (!isTemplateResult && renderResult != null) {
         this.currentRender = renderResult;
-        const nodes2 = this.normalizeChildren(Array.isArray(renderResult) ? renderResult : [
-          renderResult
-        ]);
+        const nodes2 = this.normalizeChildren(
+          Array.isArray(renderResult) ? renderResult : [
+            renderResult,
+          ],
+        );
         target.replaceChildren(...nodes2);
         return;
       }
@@ -3670,9 +3718,11 @@ var PropsController = class _PropsController {
     }
     const nodeContent = content ?? children;
     if (nodeContent === void 0) return;
-    const nodes = this.normalizeChildren(Array.isArray(nodeContent) ? nodeContent : [
-      nodeContent
-    ]);
+    const nodes = this.normalizeChildren(
+      Array.isArray(nodeContent) ? nodeContent : [
+        nodeContent,
+      ],
+    );
     target.replaceChildren(...nodes);
   }
   // ============================================
@@ -3693,7 +3743,7 @@ var PropsController = class _PropsController {
     const defaultStyle = targetController?.defaultProps?.style;
     const mergedStyle = {
       ...defaultStyle && typeof defaultStyle === "object" ? defaultStyle : {},
-      ...style && typeof style === "object" ? style : {}
+      ...style && typeof style === "object" ? style : {},
     };
     const newKeys = new Set(Object.keys(mergedStyle));
     for (const key of trackedKeys) {
@@ -3738,7 +3788,7 @@ var PropsController = class _PropsController {
       "innerHTML",
       "textContent",
       "children",
-      "content"
+      "content",
     ]);
     for (const [key, value] of Object.entries(props)) {
       if (reserved.has(key)) continue;
@@ -3796,9 +3846,11 @@ var PropsController = class _PropsController {
         const nextRender = hostWithRender.render();
         if (nextRender) {
           const prevChildren = Array.from(target.childNodes);
-          const nextChildren = this.normalizeChildren(Array.isArray(nextRender) ? nextRender : [
-            nextRender
-          ]);
+          const nextChildren = this.normalizeChildren(
+            Array.isArray(nextRender) ? nextRender : [
+              nextRender,
+            ],
+          );
           this.reconcile(prevChildren, nextChildren, target);
           this.currentRender = Array.from(target.childNodes);
         }
@@ -4067,9 +4119,11 @@ var PropsController = class _PropsController {
         const nextContent = props.content || props.children;
         if (nextContent) {
           const prevChildren = Array.from(from.childNodes);
-          const nextChildren = fromController.normalizeChildren(Array.isArray(nextContent) ? nextContent : [
-            nextContent
-          ]);
+          const nextChildren = fromController.normalizeChildren(
+            Array.isArray(nextContent) ? nextContent : [
+              nextContent,
+            ],
+          );
           fromController.reconcile(prevChildren, nextChildren, from);
         }
       } else {
@@ -4128,13 +4182,16 @@ var PropsController = class _PropsController {
     const props = this.propsConfig;
     if (!props) return;
     Object.entries(props).forEach(([key, config11]) => {
-      const isPropConfig = config11 && typeof config11 === "object" && (typeof config11.type === "function" || "default" in config11 || "attribute" in config11);
+      const isPropConfig = config11 && typeof config11 === "object" &&
+        (typeof config11.type === "function" || "default" in config11 || "attribute" in config11);
       if (!isPropConfig) return;
       if (config11.attribute) {
         const s = this.customProps[key];
         if (!s) return;
         const val = s();
-        const attrName = typeof config11.attribute === "string" ? config11.attribute : key.toLowerCase();
+        const attrName = typeof config11.attribute === "string"
+          ? config11.attribute
+          : key.toLowerCase();
         const isBoolean = config11.type === Boolean || typeof config11.default === "boolean";
         if (isBoolean) {
           if (val) {
@@ -4246,9 +4303,11 @@ var PropsController = class _PropsController {
     }
     const nodeContent = content ?? children;
     if (nodeContent === void 0) return;
-    const nodes = this.normalizeChildren(Array.isArray(nodeContent) ? nodeContent : [
-      nodeContent
-    ]);
+    const nodes = this.normalizeChildren(
+      Array.isArray(nodeContent) ? nodeContent : [
+        nodeContent,
+      ],
+    );
     target.replaceChildren(...nodes);
   }
   onDisconnected() {
@@ -4363,16 +4422,19 @@ function HTMLPropsMixin(Base, config11) {
   if (config11 && typeof config11 === "object") {
     const parentConfig = Base.__propsConfig || {};
     const mergedConfig = {
-      ...parentConfig
+      ...parentConfig,
     };
     for (const [key, value] of Object.entries(config11)) {
       const parentValue = parentConfig[key];
-      const isParentPropConfig = parentValue && typeof parentValue === "object" && (typeof parentValue.type === "function" || "default" in parentValue || "attribute" in parentValue);
-      const isChildPropConfig = value && typeof value === "object" && (typeof value.type === "function" || "default" in value || "attribute" in value);
+      const isParentPropConfig = parentValue && typeof parentValue === "object" &&
+        (typeof parentValue.type === "function" || "default" in parentValue ||
+          "attribute" in parentValue);
+      const isChildPropConfig = value && typeof value === "object" &&
+        (typeof value.type === "function" || "default" in value || "attribute" in value);
       if (isParentPropConfig && !isChildPropConfig) {
         mergedConfig[key] = {
           ...parentValue,
-          default: value
+          default: value,
         };
       } else {
         mergedConfig[key] = value;
@@ -4387,313 +4449,313 @@ function HTMLPropsMixin(Base, config11) {
 function prop(defaultValue, config11 = {}) {
   return {
     default: defaultValue,
-    ...config11
+    ...config11,
   };
 }
 
 // deno:https://jsr.io/@html-props/built-ins/1.0.0-beta.5/mod.ts
 var Div = HTMLPropsMixin(HTMLDivElement).define("html-div", {
-  extends: "div"
+  extends: "div",
 });
 var Section = HTMLPropsMixin(HTMLElement).define("html-section", {
-  extends: "section"
+  extends: "section",
 });
 var Article = HTMLPropsMixin(HTMLElement).define("html-article", {
-  extends: "article"
+  extends: "article",
 });
 var Aside = HTMLPropsMixin(HTMLElement).define("html-aside", {
-  extends: "aside"
+  extends: "aside",
 });
 var Header = HTMLPropsMixin(HTMLElement).define("html-header", {
-  extends: "header"
+  extends: "header",
 });
 var Footer = HTMLPropsMixin(HTMLElement).define("html-footer", {
-  extends: "footer"
+  extends: "footer",
 });
 var Nav = HTMLPropsMixin(HTMLElement).define("html-nav", {
-  extends: "nav"
+  extends: "nav",
 });
 var Main = HTMLPropsMixin(HTMLElement).define("html-main", {
-  extends: "main"
+  extends: "main",
 });
 var Address = HTMLPropsMixin(HTMLElement).define("html-address", {
-  extends: "address"
+  extends: "address",
 });
 var Heading1 = HTMLPropsMixin(HTMLHeadingElement).define("html-h1", {
-  extends: "h1"
+  extends: "h1",
 });
 var Heading2 = HTMLPropsMixin(HTMLHeadingElement).define("html-h2", {
-  extends: "h2"
+  extends: "h2",
 });
 var Heading3 = HTMLPropsMixin(HTMLHeadingElement).define("html-h3", {
-  extends: "h3"
+  extends: "h3",
 });
 var Heading4 = HTMLPropsMixin(HTMLHeadingElement).define("html-h4", {
-  extends: "h4"
+  extends: "h4",
 });
 var Heading5 = HTMLPropsMixin(HTMLHeadingElement).define("html-h5", {
-  extends: "h5"
+  extends: "h5",
 });
 var Heading6 = HTMLPropsMixin(HTMLHeadingElement).define("html-h6", {
-  extends: "h6"
+  extends: "h6",
 });
 var Paragraph = HTMLPropsMixin(HTMLParagraphElement).define("html-p", {
-  extends: "p"
+  extends: "p",
 });
 var HorizontalRule = HTMLPropsMixin(HTMLHRElement).define("html-hr", {
-  extends: "hr"
+  extends: "hr",
 });
 var Preformatted = HTMLPropsMixin(HTMLPreElement).define("html-pre", {
-  extends: "pre"
+  extends: "pre",
 });
 var Blockquote = HTMLPropsMixin(HTMLQuoteElement).define("html-blockquote", {
-  extends: "blockquote"
+  extends: "blockquote",
 });
 var OrderedList = HTMLPropsMixin(HTMLOListElement).define("html-ol", {
-  extends: "ol"
+  extends: "ol",
 });
 var UnorderedList = HTMLPropsMixin(HTMLUListElement).define("html-ul", {
-  extends: "ul"
+  extends: "ul",
 });
 var ListItem = HTMLPropsMixin(HTMLLIElement).define("html-li", {
-  extends: "li"
+  extends: "li",
 });
 var DescriptionList = HTMLPropsMixin(HTMLDListElement).define("html-dl", {
-  extends: "dl"
+  extends: "dl",
 });
 var DescriptionTerm = HTMLPropsMixin(HTMLElement).define("html-dt", {
-  extends: "dt"
+  extends: "dt",
 });
 var DescriptionDetails = HTMLPropsMixin(HTMLElement).define("html-dd", {
-  extends: "dd"
+  extends: "dd",
 });
 var Figure = HTMLPropsMixin(HTMLElement).define("html-figure", {
-  extends: "figure"
+  extends: "figure",
 });
 var Figcaption = HTMLPropsMixin(HTMLElement).define("html-figcaption", {
-  extends: "figcaption"
+  extends: "figcaption",
 });
 var Anchor = HTMLPropsMixin(HTMLAnchorElement).define("html-a", {
-  extends: "a"
+  extends: "a",
 });
 var Emphasis = HTMLPropsMixin(HTMLElement).define("html-em", {
-  extends: "em"
+  extends: "em",
 });
 var Strong = HTMLPropsMixin(HTMLElement).define("html-strong", {
-  extends: "strong"
+  extends: "strong",
 });
 var Small = HTMLPropsMixin(HTMLElement).define("html-small", {
-  extends: "small"
+  extends: "small",
 });
 var Strikethrough = HTMLPropsMixin(HTMLElement).define("html-s", {
-  extends: "s"
+  extends: "s",
 });
 var Cite = HTMLPropsMixin(HTMLElement).define("html-cite", {
-  extends: "cite"
+  extends: "cite",
 });
 var Quote = HTMLPropsMixin(HTMLQuoteElement).define("html-q", {
-  extends: "q"
+  extends: "q",
 });
 var Code = HTMLPropsMixin(HTMLElement).define("html-code", {
-  extends: "code"
+  extends: "code",
 });
 var Data = HTMLPropsMixin(HTMLDataElement).define("html-data", {
-  extends: "data"
+  extends: "data",
 });
 var Time = HTMLPropsMixin(HTMLTimeElement).define("html-time", {
-  extends: "time"
+  extends: "time",
 });
 var Variable = HTMLPropsMixin(HTMLElement).define("html-var", {
-  extends: "var"
+  extends: "var",
 });
 var Sample = HTMLPropsMixin(HTMLElement).define("html-samp", {
-  extends: "samp"
+  extends: "samp",
 });
 var Keyboard = HTMLPropsMixin(HTMLElement).define("html-kbd", {
-  extends: "kbd"
+  extends: "kbd",
 });
 var Subscript = HTMLPropsMixin(HTMLElement).define("html-sub", {
-  extends: "sub"
+  extends: "sub",
 });
 var Superscript = HTMLPropsMixin(HTMLElement).define("html-sup", {
-  extends: "sup"
+  extends: "sup",
 });
 var Italic = HTMLPropsMixin(HTMLElement).define("html-i", {
-  extends: "i"
+  extends: "i",
 });
 var Bold = HTMLPropsMixin(HTMLElement).define("html-b", {
-  extends: "b"
+  extends: "b",
 });
 var Underline = HTMLPropsMixin(HTMLElement).define("html-u", {
-  extends: "u"
+  extends: "u",
 });
 var Mark = HTMLPropsMixin(HTMLElement).define("html-mark", {
-  extends: "mark"
+  extends: "mark",
 });
 var Ruby = HTMLPropsMixin(HTMLElement).define("html-ruby", {
-  extends: "ruby"
+  extends: "ruby",
 });
 var RubyText = HTMLPropsMixin(HTMLElement).define("html-rt", {
-  extends: "rt"
+  extends: "rt",
 });
 var RubyParenthesis = HTMLPropsMixin(HTMLElement).define("html-rp", {
-  extends: "rp"
+  extends: "rp",
 });
 var BidirectionalIsolate = HTMLPropsMixin(HTMLElement).define("html-bdi", {
-  extends: "bdi"
+  extends: "bdi",
 });
 var BidirectionalOverride = HTMLPropsMixin(HTMLElement).define("html-bdo", {
-  extends: "bdo"
+  extends: "bdo",
 });
 var Span = HTMLPropsMixin(HTMLSpanElement).define("html-span", {
-  extends: "span"
+  extends: "span",
 });
 var LineBreak = HTMLPropsMixin(HTMLBRElement).define("html-br", {
-  extends: "br"
+  extends: "br",
 });
 var WordBreak = HTMLPropsMixin(HTMLElement).define("html-wbr", {
-  extends: "wbr"
+  extends: "wbr",
 });
 var Image = HTMLPropsMixin(HTMLImageElement).define("html-img", {
-  extends: "img"
+  extends: "img",
 });
 var Audio = HTMLPropsMixin(HTMLAudioElement).define("html-audio", {
-  extends: "audio"
+  extends: "audio",
 });
 var Video = HTMLPropsMixin(HTMLVideoElement).define("html-video", {
-  extends: "video"
+  extends: "video",
 });
 var Source = HTMLPropsMixin(HTMLSourceElement).define("html-source", {
-  extends: "source"
+  extends: "source",
 });
 var Track = HTMLPropsMixin(HTMLTrackElement).define("html-track", {
-  extends: "track"
+  extends: "track",
 });
 var Map2 = HTMLPropsMixin(HTMLMapElement).define("html-map", {
-  extends: "map"
+  extends: "map",
 });
 var Area = HTMLPropsMixin(HTMLAreaElement).define("html-area", {
-  extends: "area"
+  extends: "area",
 });
 var IFrame = HTMLPropsMixin(HTMLIFrameElement).define("html-iframe", {
-  extends: "iframe"
+  extends: "iframe",
 });
 var Embed = HTMLPropsMixin(HTMLEmbedElement).define("html-embed", {
-  extends: "embed"
+  extends: "embed",
 });
 var Object2 = HTMLPropsMixin(HTMLObjectElement).define("html-object", {
-  extends: "object"
+  extends: "object",
 });
 var Param = HTMLPropsMixin(HTMLParamElement).define("html-param", {
-  extends: "param"
+  extends: "param",
 });
 var Picture = HTMLPropsMixin(HTMLPictureElement).define("html-picture", {
-  extends: "picture"
+  extends: "picture",
 });
 var Canvas = HTMLPropsMixin(HTMLCanvasElement).define("html-canvas", {
-  extends: "canvas"
+  extends: "canvas",
 });
 var NoScript = HTMLPropsMixin(HTMLElement).define("html-noscript", {
-  extends: "noscript"
+  extends: "noscript",
 });
 var Script = HTMLPropsMixin(HTMLScriptElement).define("html-script", {
-  extends: "script"
+  extends: "script",
 });
 var Del = HTMLPropsMixin(HTMLModElement).define("html-del", {
-  extends: "del"
+  extends: "del",
 });
 var Ins = HTMLPropsMixin(HTMLModElement).define("html-ins", {
-  extends: "ins"
+  extends: "ins",
 });
 var Table = HTMLPropsMixin(HTMLTableElement).define("html-table", {
-  extends: "table"
+  extends: "table",
 });
 var Caption = HTMLPropsMixin(HTMLTableCaptionElement).define("html-caption", {
-  extends: "caption"
+  extends: "caption",
 });
 var TableHead = HTMLPropsMixin(HTMLTableSectionElement).define("html-thead", {
-  extends: "thead"
+  extends: "thead",
 });
 var TableBody = HTMLPropsMixin(HTMLTableSectionElement).define("html-tbody", {
-  extends: "tbody"
+  extends: "tbody",
 });
 var TableFoot = HTMLPropsMixin(HTMLTableSectionElement).define("html-tfoot", {
-  extends: "tfoot"
+  extends: "tfoot",
 });
 var TableRow = HTMLPropsMixin(HTMLTableRowElement).define("html-tr", {
-  extends: "tr"
+  extends: "tr",
 });
 var TableHeader = HTMLPropsMixin(HTMLTableCellElement).define("html-th", {
-  extends: "th"
+  extends: "th",
 });
 var TableData = HTMLPropsMixin(HTMLTableCellElement).define("html-td", {
-  extends: "td"
+  extends: "td",
 });
 var Col = HTMLPropsMixin(HTMLTableColElement).define("html-col", {
-  extends: "col"
+  extends: "col",
 });
 var ColGroup = HTMLPropsMixin(HTMLTableColElement).define("html-colgroup", {
-  extends: "colgroup"
+  extends: "colgroup",
 });
 var Button = HTMLPropsMixin(HTMLButtonElement).define("html-button", {
-  extends: "button"
+  extends: "button",
 });
 var DataList = HTMLPropsMixin(HTMLDataListElement).define("html-datalist", {
-  extends: "datalist"
+  extends: "datalist",
 });
 var FieldSet = HTMLPropsMixin(HTMLFieldSetElement).define("html-fieldset", {
-  extends: "fieldset"
+  extends: "fieldset",
 });
 var Form = HTMLPropsMixin(HTMLFormElement).define("html-form", {
-  extends: "form"
+  extends: "form",
 });
 var Input = HTMLPropsMixin(HTMLInputElement).define("html-input", {
-  extends: "input"
+  extends: "input",
 });
 var Label = HTMLPropsMixin(HTMLLabelElement).define("html-label", {
-  extends: "label"
+  extends: "label",
 });
 var Legend = HTMLPropsMixin(HTMLLegendElement).define("html-legend", {
-  extends: "legend"
+  extends: "legend",
 });
 var Meter = HTMLPropsMixin(HTMLMeterElement).define("html-meter", {
-  extends: "meter"
+  extends: "meter",
 });
 var OptGroup = HTMLPropsMixin(HTMLOptGroupElement).define("html-optgroup", {
-  extends: "optgroup"
+  extends: "optgroup",
 });
 var Option = HTMLPropsMixin(HTMLOptionElement).define("html-option", {
-  extends: "option"
+  extends: "option",
 });
 var Output = HTMLPropsMixin(HTMLOutputElement).define("html-output", {
-  extends: "output"
+  extends: "output",
 });
 var Progress = HTMLPropsMixin(HTMLProgressElement).define("html-progress", {
-  extends: "progress"
+  extends: "progress",
 });
 var Select = HTMLPropsMixin(HTMLSelectElement).define("html-select", {
-  extends: "select"
+  extends: "select",
 });
 var TextArea = HTMLPropsMixin(HTMLTextAreaElement).define("html-textarea", {
-  extends: "textarea"
+  extends: "textarea",
 });
 var Details = HTMLPropsMixin(HTMLDetailsElement).define("html-details", {
-  extends: "details"
+  extends: "details",
 });
 var Dialog = HTMLPropsMixin(HTMLDialogElement).define("html-dialog", {
-  extends: "dialog"
+  extends: "dialog",
 });
 var Menu = HTMLPropsMixin(HTMLMenuElement).define("html-menu", {
-  extends: "menu"
+  extends: "menu",
 });
 var Summary = HTMLPropsMixin(HTMLElement).define("html-summary", {
-  extends: "summary"
+  extends: "summary",
 });
 var Slot = HTMLPropsMixin(HTMLSlotElement).define("html-slot", {
-  extends: "slot"
+  extends: "slot",
 });
 var Template = HTMLPropsMixin(HTMLTemplateElement).define("html-template", {
-  extends: "template"
+  extends: "template",
 });
 var Thead = TableHead;
 var Tbody = TableBody;
@@ -4709,14 +4771,14 @@ var MainAxisAlignment = {
   center: "center",
   spaceBetween: "space-between",
   spaceAround: "space-around",
-  spaceEvenly: "space-evenly"
+  spaceEvenly: "space-evenly",
 };
 var CrossAxisAlignment = {
   start: "flex-start",
   end: "flex-end",
   center: "center",
   stretch: "stretch",
-  baseline: "baseline"
+  baseline: "baseline",
 };
 
 // src/layout/row.ts
@@ -4727,8 +4789,8 @@ var config = {
   wrap: prop("nowrap"),
   style: {
     display: "flex",
-    flexDirection: "row"
-  }
+    flexDirection: "row",
+  },
 };
 var RowBase = HTMLPropsMixin(HTMLElement, config);
 var Row = class extends RowBase {
@@ -4753,14 +4815,14 @@ var Alignment = {
   centerRight: "center end",
   bottomLeft: "end start",
   bottomCenter: "end center",
-  bottomRight: "end end"
+  bottomRight: "end end",
 };
 var config2 = {
   alignment: prop("topLeft"),
   style: {
     display: "grid",
-    gridTemplateAreas: '"stack"'
-  }
+    gridTemplateAreas: '"stack"',
+  },
 };
 var StackBase = HTMLPropsMixin(HTMLElement, config2);
 var Stack = class extends StackBase {
@@ -4770,7 +4832,7 @@ var Stack = class extends StackBase {
     this.updateChildren();
     this._observer = new MutationObserver(() => this.updateChildren());
     this._observer.observe(this, {
-      childList: true
+      childList: true,
     });
   }
   disconnectedCallback() {
@@ -4798,8 +4860,8 @@ var config3 = {
     justifyContent: "center",
     alignItems: "center",
     width: "100%",
-    height: "100%"
-  }
+    height: "100%",
+  },
 };
 var CenterBase = HTMLPropsMixin(HTMLElement, config3);
 var Center = class extends CenterBase {
@@ -4810,8 +4872,8 @@ Center.define("layout-center");
 var config4 = {
   padding: prop("0"),
   style: {
-    display: "block"
-  }
+    display: "block",
+  },
 };
 var PaddingBase = HTMLPropsMixin(HTMLElement, config4);
 var Padding = class extends PaddingBase {
@@ -4829,8 +4891,8 @@ var config5 = {
   wrap: prop("nowrap"),
   style: {
     display: "flex",
-    flexDirection: "column"
-  }
+    flexDirection: "column",
+  },
 };
 var ColumnBase = HTMLPropsMixin(HTMLElement, config5);
 var Column = class extends ColumnBase {
@@ -4858,8 +4920,8 @@ var config6 = {
   shadow: prop(""),
   style: {
     display: "block",
-    boxSizing: "border-box"
-  }
+    boxSizing: "border-box",
+  },
 };
 var ContainerBase = HTMLPropsMixin(HTMLElement, config6);
 var Container = class extends ContainerBase {
@@ -4903,8 +4965,8 @@ var config7 = {
   width: prop(""),
   height: prop(""),
   style: {
-    display: "block"
-  }
+    display: "block",
+  },
 };
 var SizedBoxBase = HTMLPropsMixin(HTMLElement, config7);
 var SizedBox = class extends SizedBoxBase {
@@ -4923,8 +4985,8 @@ var config8 = {
   rows: prop("auto"),
   gap: prop("0"),
   style: {
-    display: "grid"
-  }
+    display: "grid",
+  },
 };
 var GridBase = HTMLPropsMixin(HTMLElement, config8);
 var Grid = class extends GridBase {
@@ -4961,7 +5023,7 @@ var MediaQuery = new MediaQueryService();
 var config9 = {
   mobile: prop(null),
   tablet: prop(null),
-  desktop: prop(null)
+  desktop: prop(null),
 };
 var ResponsiveBase = HTMLPropsMixin(HTMLElement, config9);
 var Responsive = class extends ResponsiveBase {
@@ -4980,8 +5042,8 @@ Responsive.define("layout-responsive");
 // src/layout/layout_builder.ts
 var config10 = {
   builder: {
-    type: Function
-  }
+    type: Function,
+  },
 };
 var LayoutBuilderBase = HTMLPropsMixin(HTMLElement, config10);
 var LayoutBuilder = class extends LayoutBuilderBase {
@@ -5014,7 +5076,7 @@ var LayoutBuilder = class extends LayoutBuilderBase {
     if (this.builder) {
       return this.builder({
         width: this._width(),
-        height: this._height()
+        height: this._height(),
       });
     }
     return null;
@@ -5034,9 +5096,9 @@ async function fetchAdminConfig() {
   }
   const response = await fetch(`${getApiUrl()}/admin/api/config/`, {
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    credentials: "include"
+    credentials: "include",
   });
   if (!response.ok) {
     throw new Error(`Failed to fetch admin config: ${response.status}`);
@@ -5063,9 +5125,9 @@ async function fetchModelConfig(modelName) {
   }
   const response = await fetch(`${getApiUrl()}/admin/api/config/models/${modelName}/`, {
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    credentials: "include"
+    credentials: "include",
   });
   if (response.status === 404) {
     return null;
@@ -5090,8 +5152,8 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
   // Styling
   style: {
     display: "block",
-    flex: "1"
-  }
+    flex: "1",
+  },
 }) {
   // ===========================================================================
   // Lifecycle
@@ -5113,7 +5175,9 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminDashboard] Failed to load config:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to load admin configuration";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to load admin configuration";
     } finally {
       this.isLoading = false;
     }
@@ -5144,87 +5208,87 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
     }
     return new Container({
       dataset: {
-        key: "dashboard"
+        key: "dashboard",
       },
       padding: "24px",
       style: {
         maxWidth: "1400px",
-        margin: "0 auto"
+        margin: "0 auto",
       },
       content: new Column({
         gap: "24px",
         content: [
           new Heading2({
             dataset: {
-              key: "title"
+              key: "title",
             },
             textContent: "Site Administration",
             style: {
               fontSize: "24px",
               fontWeight: "600",
               margin: "0",
-              color: "#333333"
-            }
+              color: "#333333",
+            },
           }),
-          this.renderModelGrid()
-        ]
-      })
+          this.renderModelGrid(),
+        ],
+      }),
     });
   }
   renderModelGrid() {
     const models = this.config?.models ?? [];
     return new Div({
       dataset: {
-        key: "model-grid"
+        key: "model-grid",
       },
       style: {
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
-        gap: "24px"
+        gap: "24px",
       },
-      content: models.map((model) => this.renderModelCard(model))
+      content: models.map((model) => this.renderModelCard(model)),
     });
   }
   renderModelCard(model) {
     return new Container({
       dataset: {
-        key: `model-${model.name}`
+        key: `model-${model.name}`,
       },
       style: {
         backgroundColor: "#ffffff",
         border: "1px solid #cccccc",
         borderRadius: "8px",
-        overflow: "hidden"
+        overflow: "hidden",
       },
       content: new Column({
         content: [
           // Header
           new Div({
             dataset: {
-              key: `header-${model.name}`
+              key: `header-${model.name}`,
             },
             style: {
               backgroundColor: "#417690",
               color: "#ffffff",
               padding: "12px 16px",
               fontWeight: "600",
-              fontSize: "16px"
+              fontSize: "16px",
             },
-            textContent: model.verboseNamePlural
+            textContent: model.verboseNamePlural,
           }),
           // Body with links
           new Div({
             dataset: {
-              key: `body-${model.name}`
+              key: `body-${model.name}`,
             },
             style: {
-              padding: "16px"
+              padding: "16px",
             },
             content: [
               // View all link
               new Anchor({
                 dataset: {
-                  key: `view-${model.name}`
+                  key: `view-${model.name}`,
                 },
                 href: `/admin/${model.name}/`,
                 onclick: (e) => {
@@ -5238,26 +5302,26 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
                   margin: "4px 0",
                   borderRadius: "4px",
                   color: "#333333",
-                  textDecoration: "none"
+                  textDecoration: "none",
                 },
                 content: [
                   new Div({
                     style: {
                       width: "24px",
                       marginRight: "12px",
-                      color: "#666666"
+                      color: "#666666",
                     },
-                    textContent: "\u{1F4CB}"
+                    textContent: "\u{1F4CB}",
                   }),
                   new Div({
-                    textContent: `View all ${model.verboseNamePlural.toLowerCase()}`
-                  })
-                ]
+                    textContent: `View all ${model.verboseNamePlural.toLowerCase()}`,
+                  }),
+                ],
               }),
               // Add new link
               new Anchor({
                 dataset: {
-                  key: `add-${model.name}`
+                  key: `add-${model.name}`,
                 },
                 href: `/admin/${model.name}/add/`,
                 onclick: (e) => {
@@ -5270,39 +5334,39 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
                   margin: "4px 0",
                   borderRadius: "4px",
                   color: "#333333",
-                  textDecoration: "none"
+                  textDecoration: "none",
                 },
                 content: [
                   new Div({
                     style: {
                       width: "24px",
                       marginRight: "12px",
-                      color: "#666666"
+                      color: "#666666",
                     },
-                    textContent: "\u2795"
+                    textContent: "\u2795",
                   }),
                   new Div({
-                    textContent: `Add new ${model.verboseName.toLowerCase()}`
-                  })
-                ]
-              })
-            ]
-          })
-        ]
-      })
+                    textContent: `Add new ${model.verboseName.toLowerCase()}`,
+                  }),
+                ],
+              }),
+            ],
+          }),
+        ],
+      }),
     });
   }
   renderLoading() {
     return new Container({
       dataset: {
-        key: "loading"
+        key: "loading",
       },
       padding: "48px",
       style: {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        flex: "1"
+        flex: "1",
       },
       content: new Column({
         gap: "16px",
@@ -5310,7 +5374,7 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Div({
             dataset: {
-              key: "spinner"
+              key: "spinner",
             },
             style: {
               width: "32px",
@@ -5318,34 +5382,34 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
               border: "3px solid #eeeeee",
               borderTopColor: "#417690",
               borderRadius: "50%",
-              animation: "admin-spin 0.8s linear infinite"
-            }
+              animation: "admin-spin 0.8s linear infinite",
+            },
           }),
           new Span({
             dataset: {
-              key: "loading-text"
+              key: "loading-text",
             },
             style: {
               color: "#666666",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: "Loading..."
-          })
-        ]
-      })
+            textContent: "Loading...",
+          }),
+        ],
+      }),
     });
   }
   renderError() {
     return new Container({
       dataset: {
-        key: "error"
+        key: "error",
       },
       padding: "48px",
       style: {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        flex: "1"
+        flex: "1",
       },
       content: new Column({
         gap: "16px",
@@ -5353,27 +5417,27 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Span({
             dataset: {
-              key: "error-icon"
+              key: "error-icon",
             },
             style: {
-              fontSize: "48px"
+              fontSize: "48px",
             },
-            textContent: "\u26A0\uFE0F"
+            textContent: "\u26A0\uFE0F",
           }),
           new Span({
             dataset: {
-              key: "error-message"
+              key: "error-message",
             },
             style: {
               color: "#ba2121",
               fontSize: "14px",
-              textAlign: "center"
+              textAlign: "center",
             },
-            textContent: this.errorMessage
+            textContent: this.errorMessage,
           }),
           new Anchor({
             dataset: {
-              key: "retry-link"
+              key: "retry-link",
             },
             href: "#",
             onclick: (e) => {
@@ -5382,25 +5446,25 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
             },
             style: {
               color: "#417690",
-              textDecoration: "none"
+              textDecoration: "none",
             },
-            textContent: "Try again"
-          })
-        ]
-      })
+            textContent: "Try again",
+          }),
+        ],
+      }),
     });
   }
   renderEmpty() {
     return new Container({
       dataset: {
-        key: "empty"
+        key: "empty",
       },
       padding: "48px",
       style: {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        flex: "1"
+        flex: "1",
       },
       content: new Column({
         gap: "16px",
@@ -5408,25 +5472,25 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Span({
             dataset: {
-              key: "empty-icon"
+              key: "empty-icon",
             },
             style: {
-              fontSize: "48px"
+              fontSize: "48px",
             },
-            textContent: "\u{1F4ED}"
+            textContent: "\u{1F4ED}",
           }),
           new Span({
             dataset: {
-              key: "empty-message"
+              key: "empty-message",
             },
             style: {
               color: "#666666",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: "No models registered"
-          })
-        ]
-      })
+            textContent: "No models registered",
+          }),
+        ],
+      }),
     });
   }
 };
@@ -5506,9 +5570,9 @@ async function login(credentials) {
   const response = await fetch(`${getApiUrl2()}/api/auth/login/`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(credentials)
+    body: JSON.stringify(credentials),
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
@@ -5520,7 +5584,7 @@ async function login(credentials) {
     email: data.user.email,
     firstName: data.user.first_name || data.user.firstName || "",
     lastName: data.user.last_name || data.user.lastName || "",
-    isAdmin: data.user.is_admin ?? data.user.isAdmin ?? false
+    isAdmin: data.user.is_admin ?? data.user.isAdmin ?? false,
   };
   if (!user.isAdmin) {
     throw new Error("Access denied. Admin privileges required.");
@@ -5528,13 +5592,13 @@ async function login(credentials) {
   const tokens = {
     accessToken: data.tokens.accessToken,
     refreshToken: data.tokens.refreshToken,
-    expiresAt: calculateExpiresAt(data.tokens.expiresIn)
+    expiresAt: calculateExpiresAt(data.tokens.expiresIn),
   };
   saveTokens(tokens);
   saveUser(user);
   return {
     user,
-    tokens: data.tokens
+    tokens: data.tokens,
   };
 }
 async function logout() {
@@ -5545,8 +5609,8 @@ async function logout() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${tokens.accessToken}`
-        }
+          "Authorization": `Bearer ${tokens.accessToken}`,
+        },
       });
     } catch (error) {
       console.warn("[AdminAuth] Logout request failed:", error);
@@ -5563,14 +5627,14 @@ function getAuthState() {
       isAuthenticated: false,
       isAdmin: false,
       user: null,
-      tokens: null
+      tokens: null,
     };
   }
   return {
     isAuthenticated: true,
     isAdmin: user.isAdmin,
     user,
-    tokens
+    tokens,
   };
 }
 function getAccessToken() {
@@ -5586,11 +5650,11 @@ async function refreshToken() {
     const response = await fetch(`${getApiUrl2()}/api/auth/refresh/`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        refreshToken: currentTokens.refreshToken
-      })
+        refreshToken: currentTokens.refreshToken,
+      }),
     });
     if (!response.ok) {
       clearTokens();
@@ -5601,7 +5665,7 @@ async function refreshToken() {
     const tokens = {
       accessToken: data.accessToken,
       refreshToken: data.refreshToken || currentTokens.refreshToken,
-      expiresAt: calculateExpiresAt(data.expiresIn || 3600)
+      expiresAt: calculateExpiresAt(data.expiresIn || 3600),
     };
     saveTokens(tokens);
     return tokens;
@@ -5625,7 +5689,7 @@ async function authenticatedFetch(url, options = {}) {
   headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(url, {
     ...options,
-    headers
+    headers,
   });
   if (response.status === 401) {
     const newTokens = await refreshToken();
@@ -5633,7 +5697,7 @@ async function authenticatedFetch(url, options = {}) {
       headers.set("Authorization", `Bearer ${newTokens.accessToken}`);
       return fetch(url, {
         ...options,
-        headers
+        headers,
       });
     }
   }
@@ -5654,8 +5718,8 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
   // Styling
   style: {
     display: "block",
-    flex: "1"
-  }
+    flex: "1",
+  },
 }) {
   // ===========================================================================
   // Lifecycle
@@ -5680,8 +5744,8 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
       const url = new URL(config11.apiEndpoint, globalThis.location.origin);
       const response = await authenticatedFetch(url.toString(), {
         headers: {
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+        },
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -5726,46 +5790,46 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
     }
     return new Container({
       dataset: {
-        key: "model-list"
+        key: "model-list",
       },
       padding: "24px",
       style: {
         maxWidth: "1400px",
-        margin: "0 auto"
+        margin: "0 auto",
       },
       content: new Column({
         gap: "24px",
         content: [
           this.renderHeader(),
-          this.renderContent()
-        ]
-      })
+          this.renderContent(),
+        ],
+      }),
     });
   }
   renderHeader() {
     const config11 = this.config;
     return new Row({
       dataset: {
-        key: "header"
+        key: "header",
       },
       mainAxisAlignment: "spaceBetween",
       crossAxisAlignment: "center",
       content: [
         new Heading2({
           dataset: {
-            key: "title"
+            key: "title",
           },
           textContent: `Select ${config11.verboseName.toLowerCase()} to change`,
           style: {
             fontSize: "24px",
             fontWeight: "600",
             margin: "0",
-            color: "#333333"
-          }
+            color: "#333333",
+          },
         }),
         new Anchor({
           dataset: {
-            key: "add-button"
+            key: "add-button",
           },
           href: `/admin/${this.modelName}/add/`,
           onclick: this.handleAddClick,
@@ -5778,11 +5842,11 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
             color: "#ffffff",
             textDecoration: "none",
             fontSize: "14px",
-            fontWeight: "500"
+            fontWeight: "500",
           },
-          textContent: `+ Add ${config11.verboseName.toLowerCase()}`
-        })
-      ]
+          textContent: `+ Add ${config11.verboseName.toLowerCase()}`,
+        }),
+      ],
     });
   }
   renderContent() {
@@ -5799,61 +5863,63 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
     const config11 = this.config;
     return new Container({
       dataset: {
-        key: "table-container"
+        key: "table-container",
       },
       style: {
         backgroundColor: "#ffffff",
         border: "1px solid #cccccc",
         borderRadius: "8px",
-        overflow: "hidden"
+        overflow: "hidden",
       },
       content: new Table({
         dataset: {
-          key: "table"
+          key: "table",
         },
         style: {
           width: "100%",
-          borderCollapse: "collapse"
+          borderCollapse: "collapse",
         },
         content: [
           // Table header
           new Thead({
             dataset: {
-              key: "thead"
+              key: "thead",
             },
             style: {
-              backgroundColor: "#f8f8f8"
+              backgroundColor: "#f8f8f8",
             },
             content: new Tr({
               dataset: {
-                key: "header-row"
+                key: "header-row",
               },
-              content: config11.columns.map((col) => new Th({
-                dataset: {
-                  key: `th-${col.field}`
-                },
-                style: {
-                  padding: "12px 16px",
-                  textAlign: "left",
-                  fontWeight: "600",
-                  fontSize: "12px",
-                  textTransform: "uppercase",
-                  color: "#333333",
-                  borderBottom: "2px solid #cccccc"
-                },
-                textContent: col.label
-              }))
-            })
+              content: config11.columns.map((col) =>
+                new Th({
+                  dataset: {
+                    key: `th-${col.field}`,
+                  },
+                  style: {
+                    padding: "12px 16px",
+                    textAlign: "left",
+                    fontWeight: "600",
+                    fontSize: "12px",
+                    textTransform: "uppercase",
+                    color: "#333333",
+                    borderBottom: "2px solid #cccccc",
+                  },
+                  textContent: col.label,
+                })
+              ),
+            }),
           }),
           // Table body
           new Tbody({
             dataset: {
-              key: "tbody"
+              key: "tbody",
             },
-            content: this.data.map((row) => this.renderRow(row))
-          })
-        ]
-      })
+            content: this.data.map((row) => this.renderRow(row)),
+          }),
+        ],
+      }),
     });
   }
   renderRow(row) {
@@ -5861,10 +5927,10 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
     const id = String(row.id ?? "");
     return new Tr({
       dataset: {
-        key: `row-${id}`
+        key: `row-${id}`,
       },
       style: {
-        cursor: "pointer"
+        cursor: "pointer",
       },
       onclick: () => this.handleRowClick(id),
       content: config11.columns.map((col) => {
@@ -5872,37 +5938,39 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
         const displayValue = this.formatValue(value);
         return new Td({
           dataset: {
-            key: `td-${col.field}`
+            key: `td-${col.field}`,
           },
           style: {
             padding: "12px 16px",
             borderBottom: "1px solid #eeeeee",
-            color: "#333333"
+            color: "#333333",
           },
-          content: col.isLink ? new Anchor({
-            href: `/admin/${this.modelName}/${id}/`,
-            onclick: (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              this.handleRowClick(id);
-            },
-            style: {
-              color: "#417690",
-              fontWeight: "500",
-              textDecoration: "none"
-            },
-            textContent: displayValue
-          }) : new Span({
-            textContent: displayValue
-          })
+          content: col.isLink
+            ? new Anchor({
+              href: `/admin/${this.modelName}/${id}/`,
+              onclick: (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.handleRowClick(id);
+              },
+              style: {
+                color: "#417690",
+                fontWeight: "500",
+                textDecoration: "none",
+              },
+              textContent: displayValue,
+            })
+            : new Span({
+              textContent: displayValue,
+            }),
         });
-      })
+      }),
     });
   }
   renderLoading() {
     return new Container({
       dataset: {
-        key: "loading"
+        key: "loading",
       },
       padding: "48px",
       style: {
@@ -5911,7 +5979,7 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
         justifyContent: "center",
         backgroundColor: "#ffffff",
         borderRadius: "8px",
-        border: "1px solid #cccccc"
+        border: "1px solid #cccccc",
       },
       content: new Column({
         gap: "16px",
@@ -5919,7 +5987,7 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Div({
             dataset: {
-              key: "spinner"
+              key: "spinner",
             },
             style: {
               width: "32px",
@@ -5927,28 +5995,28 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
               border: "3px solid #eeeeee",
               borderTopColor: "#417690",
               borderRadius: "50%",
-              animation: "admin-spin 0.8s linear infinite"
-            }
+              animation: "admin-spin 0.8s linear infinite",
+            },
           }),
           new Span({
             dataset: {
-              key: "loading-text"
+              key: "loading-text",
             },
             style: {
               color: "#666666",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: "Loading..."
-          })
-        ]
-      })
+            textContent: "Loading...",
+          }),
+        ],
+      }),
     });
   }
   renderEmpty() {
     const config11 = this.config;
     return new Container({
       dataset: {
-        key: "empty"
+        key: "empty",
       },
       padding: "48px",
       style: {
@@ -5957,7 +6025,7 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
         justifyContent: "center",
         backgroundColor: "#ffffff",
         borderRadius: "8px",
-        border: "1px solid #cccccc"
+        border: "1px solid #cccccc",
       },
       content: new Column({
         gap: "16px",
@@ -5965,31 +6033,31 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Span({
             dataset: {
-              key: "empty-icon"
+              key: "empty-icon",
             },
             style: {
-              fontSize: "48px"
+              fontSize: "48px",
             },
-            textContent: "\u{1F4CB}"
+            textContent: "\u{1F4CB}",
           }),
           new Span({
             dataset: {
-              key: "empty-message"
+              key: "empty-message",
             },
             style: {
               color: "#666666",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: `No ${config11.verboseNamePlural.toLowerCase()} found`
-          })
-        ]
-      })
+            textContent: `No ${config11.verboseNamePlural.toLowerCase()} found`,
+          }),
+        ],
+      }),
     });
   }
   renderError(message) {
     return new Container({
       dataset: {
-        key: "error"
+        key: "error",
       },
       padding: "48px",
       style: {
@@ -5998,7 +6066,7 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
         justifyContent: "center",
         backgroundColor: "#fff5f5",
         borderRadius: "8px",
-        border: "1px solid #ffcccc"
+        border: "1px solid #ffcccc",
       },
       content: new Column({
         gap: "16px",
@@ -6006,25 +6074,25 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Span({
             dataset: {
-              key: "error-icon"
+              key: "error-icon",
             },
             style: {
-              fontSize: "48px"
+              fontSize: "48px",
             },
-            textContent: "\u26A0\uFE0F"
+            textContent: "\u26A0\uFE0F",
           }),
           new Span({
             dataset: {
-              key: "error-message"
+              key: "error-message",
             },
             style: {
               color: "#ba2121",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: message
-          })
-        ]
-      })
+            textContent: message,
+          }),
+        ],
+      }),
     });
   }
   // ===========================================================================
@@ -6065,8 +6133,8 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
   // Styling
   style: {
     display: "block",
-    flex: "1"
-  }
+    flex: "1",
+  },
 }) {
   // ===========================================================================
   // Computed
@@ -6113,8 +6181,8 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       const url = `${config11.apiEndpoint}${this.objectId}/`;
       const response = await authenticatedFetch(url, {
         headers: {
-          "Content-Type": "application/json"
-        }
+          "Content-Type": "application/json",
+        },
       });
       if (!response.ok) {
         if (response.status === 404) {
@@ -6136,7 +6204,7 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
   handleFieldChange = (fieldName, value) => {
     this.formData = {
       ...this.formData,
-      [fieldName]: value
+      [fieldName]: value,
     };
   };
   handleSubmit = async (event) => {
@@ -6153,17 +6221,22 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
           data[field.name] = this.formData[field.name];
         }
       }
-      const url = this.isAddMode ? config11.apiEndpoint : `${config11.apiEndpoint}${this.objectId}/`;
+      const url = this.isAddMode
+        ? config11.apiEndpoint
+        : `${config11.apiEndpoint}${this.objectId}/`;
       const response = await authenticatedFetch(url, {
         method: this.isAddMode ? "POST" : "PUT",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify(data),
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+        throw new Error(
+          errorData.detail || errorData.message ||
+            `HTTP ${response.status}: ${response.statusText}`,
+        );
       }
       const result = await response.json();
       if (this.isAddMode) {
@@ -6191,7 +6264,7 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
     try {
       const url = `${config11.apiEndpoint}${this.objectId}/`;
       const response = await authenticatedFetch(url, {
-        method: "DELETE"
+        method: "DELETE",
       });
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -6222,102 +6295,108 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
     }
     return new Container({
       dataset: {
-        key: "model-detail"
+        key: "model-detail",
       },
       padding: "24px",
       style: {
         maxWidth: "800px",
-        margin: "0 auto"
+        margin: "0 auto",
       },
       content: new Column({
         gap: "24px",
         content: [
           this.renderHeader(),
           this.renderMessages(),
-          this.renderForm()
-        ]
-      })
+          this.renderForm(),
+        ],
+      }),
     });
   }
   renderHeader() {
     const config11 = this.config;
-    const title = this.isAddMode ? `Add ${config11.verboseName.toLowerCase()}` : `Change ${config11.verboseName.toLowerCase()}`;
+    const title = this.isAddMode
+      ? `Add ${config11.verboseName.toLowerCase()}`
+      : `Change ${config11.verboseName.toLowerCase()}`;
     return new Heading2({
       dataset: {
-        key: "title"
+        key: "title",
       },
       textContent: title,
       style: {
         fontSize: "24px",
         fontWeight: "600",
         margin: "0",
-        color: "#333333"
-      }
+        color: "#333333",
+      },
     });
   }
   renderMessages() {
     const messages = [];
     if (this.errorMessage) {
-      messages.push(new Container({
-        dataset: {
-          key: "error-message"
-        },
-        padding: "12px 16px",
-        radius: "4px",
-        style: {
-          backgroundColor: "#fff5f5",
-          border: "1px solid #ffcccc"
-        },
-        content: new Span({
-          style: {
-            color: "#ba2121"
+      messages.push(
+        new Container({
+          dataset: {
+            key: "error-message",
           },
-          textContent: this.errorMessage
-        })
-      }));
+          padding: "12px 16px",
+          radius: "4px",
+          style: {
+            backgroundColor: "#fff5f5",
+            border: "1px solid #ffcccc",
+          },
+          content: new Span({
+            style: {
+              color: "#ba2121",
+            },
+            textContent: this.errorMessage,
+          }),
+        }),
+      );
     }
     if (this.successMessage) {
-      messages.push(new Container({
-        dataset: {
-          key: "success-message"
-        },
-        padding: "12px 16px",
-        radius: "4px",
-        style: {
-          backgroundColor: "#f0fff0",
-          border: "1px solid #99cc99"
-        },
-        content: new Span({
-          style: {
-            color: "#006600"
+      messages.push(
+        new Container({
+          dataset: {
+            key: "success-message",
           },
-          textContent: this.successMessage
-        })
-      }));
+          padding: "12px 16px",
+          radius: "4px",
+          style: {
+            backgroundColor: "#f0fff0",
+            border: "1px solid #99cc99",
+          },
+          content: new Span({
+            style: {
+              color: "#006600",
+            },
+            textContent: this.successMessage,
+          }),
+        }),
+      );
     }
     return new Column({
       dataset: {
-        key: "messages"
+        key: "messages",
       },
       gap: "8px",
-      content: messages
+      content: messages,
     });
   }
   renderForm() {
     const config11 = this.config;
     return new Container({
       dataset: {
-        key: "form-container"
+        key: "form-container",
       },
       padding: "24px",
       radius: "8px",
       color: "#ffffff",
       style: {
-        border: "1px solid #cccccc"
+        border: "1px solid #cccccc",
       },
       content: new Form({
         dataset: {
-          key: "form"
+          key: "form",
         },
         onsubmit: this.handleSubmit,
         content: new Column({
@@ -6326,10 +6405,10 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
             // Fields
             ...config11.fields.map((field) => this.renderField(field)),
             // Actions
-            this.renderActions()
-          ]
-        })
-      })
+            this.renderActions(),
+          ],
+        }),
+      }),
     });
   }
   renderField(field) {
@@ -6337,7 +6416,7 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
     const isReadonly = field.readOnly || field.type === "readonly";
     return new Column({
       dataset: {
-        key: `field-${field.name}`
+        key: `field-${field.name}`,
       },
       gap: "6px",
       content: [
@@ -6347,13 +6426,13 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
           style: {
             fontSize: "13px",
             fontWeight: "600",
-            color: "#333333"
+            color: "#333333",
           },
-          textContent: field.label + (field.required ? " *" : "")
+          textContent: field.label + (field.required ? " *" : ""),
         }),
         // Input based on type
-        this.renderFieldInput(field, value, isReadonly)
-      ]
+        this.renderFieldInput(field, value, isReadonly),
+      ],
     });
   }
   renderFieldInput(field, value, isReadonly) {
@@ -6363,44 +6442,44 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       fontSize: "14px",
       border: "1px solid #cccccc",
       borderRadius: "4px",
-      backgroundColor: isReadonly ? "#f5f5f5" : "#ffffff"
+      backgroundColor: isReadonly ? "#f5f5f5" : "#ffffff",
     };
     const fieldType = field.type.toLowerCase();
     if (fieldType === "readonly" || isReadonly) {
       return new Div({
         dataset: {
-          key: `input-${field.name}`
+          key: `input-${field.name}`,
         },
         style: {
           ...commonStyle,
-          color: "#666666"
+          color: "#666666",
         },
-        textContent: this.formatValue(value)
+        textContent: this.formatValue(value),
       });
     }
     if (fieldType === "textarea") {
       return new Textarea({
         id: `field-${field.name}`,
         dataset: {
-          key: `input-${field.name}`
+          key: `input-${field.name}`,
         },
         value: String(value ?? ""),
         disabled: this.isSaving,
         rows: 4,
         style: {
           ...commonStyle,
-          resize: "vertical"
+          resize: "vertical",
         },
         oninput: (e) => {
           const target = e.target;
           this.handleFieldChange(field.name, target.value);
-        }
+        },
       });
     }
     if (fieldType === "boolean") {
       return new Row({
         dataset: {
-          key: `input-${field.name}`
+          key: `input-${field.name}`,
         },
         gap: "8px",
         crossAxisAlignment: "center",
@@ -6413,21 +6492,21 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
             style: {
               width: "18px",
               height: "18px",
-              accentColor: "#417690"
+              accentColor: "#417690",
             },
             onchange: (e) => {
               const target = e.target;
               this.handleFieldChange(field.name, target.checked);
-            }
+            },
           }),
           new Span({
             style: {
               color: "#666666",
-              fontSize: "13px"
+              fontSize: "13px",
             },
-            textContent: value ? "Yes" : "No"
-          })
-        ]
+            textContent: value ? "Yes" : "No",
+          }),
+        ],
       });
     }
     if (fieldType === "select" && field.choices) {
@@ -6455,7 +6534,7 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       return new Input({
         id: `field-${field.name}`,
         dataset: {
-          key: `input-${field.name}`
+          key: `input-${field.name}`,
         },
         type: fieldType === "datetime" ? "datetime-local" : "date",
         value: value ? String(value).slice(0, fieldType === "datetime" ? 16 : 10) : "",
@@ -6463,15 +6542,18 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         style: commonStyle,
         oninput: (e) => {
           const target = e.target;
-          this.handleFieldChange(field.name, target.value ? new Date(target.value).toISOString() : null);
-        }
+          this.handleFieldChange(
+            field.name,
+            target.value ? new Date(target.value).toISOString() : null,
+          );
+        },
       });
     }
     if (fieldType === "number") {
       return new Input({
         id: `field-${field.name}`,
         dataset: {
-          key: `input-${field.name}`
+          key: `input-${field.name}`,
         },
         type: "number",
         value: value !== void 0 && value !== null ? String(value) : "",
@@ -6480,14 +6562,14 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         oninput: (e) => {
           const target = e.target;
           this.handleFieldChange(field.name, target.value ? Number(target.value) : null);
-        }
+        },
       });
     }
     if (fieldType === "email") {
       return new Input({
         id: `field-${field.name}`,
         dataset: {
-          key: `input-${field.name}`
+          key: `input-${field.name}`,
         },
         type: "email",
         value: String(value ?? ""),
@@ -6497,13 +6579,13 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         oninput: (e) => {
           const target = e.target;
           this.handleFieldChange(field.name, target.value);
-        }
+        },
       });
     }
     return new Input({
       id: `field-${field.name}`,
       dataset: {
-        key: `input-${field.name}`
+        key: `input-${field.name}`,
       },
       type: "text",
       value: String(value ?? ""),
@@ -6513,56 +6595,58 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       oninput: (e) => {
         const target = e.target;
         this.handleFieldChange(field.name, target.value);
-      }
+      },
     });
   }
   renderActions() {
     return new Row({
       dataset: {
-        key: "actions"
+        key: "actions",
       },
       mainAxisAlignment: "spaceBetween",
       crossAxisAlignment: "center",
       style: {
         marginTop: "16px",
         paddingTop: "16px",
-        borderTop: "1px solid #eeeeee"
+        borderTop: "1px solid #eeeeee",
       },
       content: [
         // Delete button (only for existing records)
-        this.isAddMode ? new Div({
-          dataset: {
-            key: "delete-spacer"
-          }
-        }) : new Button({
-          dataset: {
-            key: "delete-button"
-          },
-          type: "button",
-          onclick: this.handleDelete,
-          disabled: this.isSaving,
-          style: {
-            padding: "8px 16px",
-            borderRadius: "4px",
-            border: "none",
-            backgroundColor: "#ba2121",
-            color: "#ffffff",
-            fontSize: "14px",
-            fontWeight: "500",
-            cursor: "pointer"
-          },
-          textContent: "Delete"
-        }),
+        this.isAddMode
+          ? new Div({
+            dataset: {
+              key: "delete-spacer",
+            },
+          })
+          : new Button({
+            dataset: {
+              key: "delete-button",
+            },
+            type: "button",
+            onclick: this.handleDelete,
+            disabled: this.isSaving,
+            style: {
+              padding: "8px 16px",
+              borderRadius: "4px",
+              border: "none",
+              backgroundColor: "#ba2121",
+              color: "#ffffff",
+              fontSize: "14px",
+              fontWeight: "500",
+              cursor: "pointer",
+            },
+            textContent: "Delete",
+          }),
         // Save/Cancel buttons
         new Row({
           dataset: {
-            key: "save-cancel"
+            key: "save-cancel",
           },
           gap: "12px",
           content: [
             new Anchor({
               dataset: {
-                key: "cancel-button"
+                key: "cancel-button",
               },
               href: `/admin/${this.modelName}/`,
               onclick: this.handleCancel,
@@ -6575,13 +6659,13 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
                 color: "#333333",
                 textDecoration: "none",
                 fontSize: "14px",
-                fontWeight: "500"
+                fontWeight: "500",
               },
-              textContent: "Cancel"
+              textContent: "Cancel",
             }),
             new Button({
               dataset: {
-                key: "save-button"
+                key: "save-button",
               },
               type: "submit",
               disabled: this.isSaving,
@@ -6593,19 +6677,19 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
                 color: "#ffffff",
                 fontSize: "14px",
                 fontWeight: "500",
-                cursor: "pointer"
+                cursor: "pointer",
               },
-              textContent: this.isSaving ? "Saving..." : "Save"
-            })
-          ]
-        })
-      ]
+              textContent: this.isSaving ? "Saving..." : "Save",
+            }),
+          ],
+        }),
+      ],
     });
   }
   renderLoading() {
     return new Container({
       dataset: {
-        key: "loading"
+        key: "loading",
       },
       padding: "48px",
       style: {
@@ -6616,7 +6700,7 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         borderRadius: "8px",
         border: "1px solid #cccccc",
         maxWidth: "800px",
-        margin: "24px auto"
+        margin: "24px auto",
       },
       content: new Column({
         gap: "16px",
@@ -6624,7 +6708,7 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Div({
             dataset: {
-              key: "spinner"
+              key: "spinner",
             },
             style: {
               width: "32px",
@@ -6632,27 +6716,27 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
               border: "3px solid #eeeeee",
               borderTopColor: "#417690",
               borderRadius: "50%",
-              animation: "admin-spin 0.8s linear infinite"
-            }
+              animation: "admin-spin 0.8s linear infinite",
+            },
           }),
           new Span({
             dataset: {
-              key: "loading-text"
+              key: "loading-text",
             },
             style: {
               color: "#666666",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: "Loading..."
-          })
-        ]
-      })
+            textContent: "Loading...",
+          }),
+        ],
+      }),
     });
   }
   renderError(message) {
     return new Container({
       dataset: {
-        key: "error"
+        key: "error",
       },
       padding: "48px",
       style: {
@@ -6663,7 +6747,7 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         borderRadius: "8px",
         border: "1px solid #ffcccc",
         maxWidth: "800px",
-        margin: "24px auto"
+        margin: "24px auto",
       },
       content: new Column({
         gap: "16px",
@@ -6671,37 +6755,37 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Span({
             dataset: {
-              key: "error-icon"
+              key: "error-icon",
             },
             style: {
-              fontSize: "48px"
+              fontSize: "48px",
             },
-            textContent: "\u26A0\uFE0F"
+            textContent: "\u26A0\uFE0F",
           }),
           new Span({
             dataset: {
-              key: "error-message"
+              key: "error-message",
             },
             style: {
               color: "#ba2121",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: message
+            textContent: message,
           }),
           new Anchor({
             dataset: {
-              key: "back-link"
+              key: "back-link",
             },
             href: `/admin/${this.modelName}/`,
             onclick: this.handleCancel,
             style: {
               color: "#417690",
-              textDecoration: "none"
+              textDecoration: "none",
             },
-            textContent: "\u2190 Back to list"
-          })
-        ]
-      })
+            textContent: "\u2190 Back to list",
+          }),
+        ],
+      }),
     });
   }
   // ===========================================================================
@@ -6742,8 +6826,9 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
     justifyContent: "center",
     minHeight: "100vh",
     backgroundColor: "#417690",
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-  }
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  },
 }) {
   // ===========================================================================
   // Event Handlers
@@ -6769,7 +6854,7 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
     try {
       await login({
         email: this.email,
-        password: this.password
+        password: this.password,
       });
       this.email = "";
       this.password = "";
@@ -6778,7 +6863,9 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminLogin] Login failed:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Login failed. Please try again.";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Login failed. Please try again.";
     } finally {
       this.isLoading = false;
     }
@@ -6794,13 +6881,13 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
   render() {
     return new Container({
       dataset: {
-        key: "login-container"
+        key: "login-container",
       },
       style: {
         width: "100%",
         maxWidth: "400px",
         margin: "0 auto",
-        padding: "20px"
+        padding: "20px",
       },
       content: new Column({
         gap: "0",
@@ -6810,21 +6897,21 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
           // Login form
           this.renderForm(),
           // Footer
-          this.renderFooter()
-        ]
-      })
+          this.renderFooter(),
+        ],
+      }),
     });
   }
   renderHeader() {
     return new Container({
       dataset: {
-        key: "login-header"
+        key: "login-header",
       },
       style: {
         backgroundColor: "#205067",
         padding: "20px 30px",
         borderRadius: "8px 8px 0 0",
-        textAlign: "center"
+        textAlign: "center",
       },
       content: new Column({
         gap: "8px",
@@ -6832,44 +6919,44 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Heading1({
             dataset: {
-              key: "title"
+              key: "title",
             },
             textContent: "CoMachine Admin",
             style: {
               color: "#ffffff",
               fontSize: "24px",
               fontWeight: "600",
-              margin: "0"
-            }
+              margin: "0",
+            },
           }),
           new Paragraph({
             dataset: {
-              key: "subtitle"
+              key: "subtitle",
             },
             textContent: "Sign in to manage your site",
             style: {
               color: "#79aec8",
               fontSize: "14px",
-              margin: "0"
-            }
-          })
-        ]
-      })
+              margin: "0",
+            },
+          }),
+        ],
+      }),
     });
   }
   renderForm() {
     return new Container({
       dataset: {
-        key: "login-form"
+        key: "login-form",
       },
       style: {
         backgroundColor: "#ffffff",
         padding: "30px",
-        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)"
+        boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
       },
       content: new Form({
         dataset: {
-          key: "form"
+          key: "form",
         },
         onsubmit: this.handleSubmit,
         content: new Column({
@@ -6882,57 +6969,57 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
             // Password field
             this.renderPasswordField(),
             // Submit button
-            this.renderSubmitButton()
-          ].filter(Boolean)
-        })
-      })
+            this.renderSubmitButton(),
+          ].filter(Boolean),
+        }),
+      }),
     });
   }
   renderError() {
     return new Container({
       dataset: {
-        key: "error"
+        key: "error",
       },
       style: {
         backgroundColor: "#ffebee",
         border: "1px solid #ef5350",
         borderRadius: "4px",
-        padding: "12px 16px"
+        padding: "12px 16px",
       },
       content: new Span({
         dataset: {
-          key: "error-text"
+          key: "error-text",
         },
         textContent: this.errorMessage,
         style: {
           color: "#c62828",
-          fontSize: "14px"
-        }
-      })
+          fontSize: "14px",
+        },
+      }),
     });
   }
   renderEmailField() {
     return new Column({
       dataset: {
-        key: "email-field"
+        key: "email-field",
       },
       gap: "6px",
       content: [
         new Label({
           dataset: {
-            key: "email-label"
+            key: "email-label",
           },
           htmlFor: "admin-email",
           textContent: "Email address",
           style: {
             color: "#333333",
             fontSize: "14px",
-            fontWeight: "500"
-          }
+            fontWeight: "500",
+          },
         }),
         new Input({
           dataset: {
-            key: "email-input"
+            key: "email-input",
           },
           id: "admin-email",
           type: "email",
@@ -6952,34 +7039,34 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
             borderRadius: "4px",
             boxSizing: "border-box",
             outline: "none",
-            transition: "border-color 0.2s, box-shadow 0.2s"
-          }
-        })
-      ]
+            transition: "border-color 0.2s, box-shadow 0.2s",
+          },
+        }),
+      ],
     });
   }
   renderPasswordField() {
     return new Column({
       dataset: {
-        key: "password-field"
+        key: "password-field",
       },
       gap: "6px",
       content: [
         new Label({
           dataset: {
-            key: "password-label"
+            key: "password-label",
           },
           htmlFor: "admin-password",
           textContent: "Password",
           style: {
             color: "#333333",
             fontSize: "14px",
-            fontWeight: "500"
-          }
+            fontWeight: "500",
+          },
         }),
         new Input({
           dataset: {
-            key: "password-input"
+            key: "password-input",
           },
           id: "admin-password",
           type: "password",
@@ -6999,16 +7086,16 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
             borderRadius: "4px",
             boxSizing: "border-box",
             outline: "none",
-            transition: "border-color 0.2s, box-shadow 0.2s"
-          }
-        })
-      ]
+            transition: "border-color 0.2s, box-shadow 0.2s",
+          },
+        }),
+      ],
     });
   }
   renderSubmitButton() {
     return new Button({
       dataset: {
-        key: "submit-button"
+        key: "submit-button",
       },
       type: "submit",
       disabled: this.isLoading,
@@ -7023,35 +7110,35 @@ var AdminLogin = class extends HTMLPropsMixin(HTMLElement, {
         borderRadius: "4px",
         cursor: this.isLoading ? "not-allowed" : "pointer",
         transition: "background-color 0.2s",
-        marginTop: "8px"
+        marginTop: "8px",
       },
-      textContent: this.isLoading ? "Signing in..." : "Sign in"
+      textContent: this.isLoading ? "Signing in..." : "Sign in",
     });
   }
   renderFooter() {
     return new Container({
       dataset: {
-        key: "login-footer"
+        key: "login-footer",
       },
       style: {
         backgroundColor: "#f5f5f5",
         padding: "16px 30px",
         borderRadius: "0 0 8px 8px",
         textAlign: "center",
-        borderTop: "1px solid #eeeeee"
+        borderTop: "1px solid #eeeeee",
       },
       content: new Anchor({
         dataset: {
-          key: "back-link"
+          key: "back-link",
         },
         href: "/",
         textContent: "\u2190 Back to site",
         style: {
           color: "#417690",
           textDecoration: "none",
-          fontSize: "14px"
-        }
-      })
+          fontSize: "14px",
+        },
+      }),
     });
   }
 };
@@ -7062,41 +7149,41 @@ function parseRoute(path, authenticated) {
   const routePath = path.replace(/^\/admin\/?/, "").replace(/\/$/, "");
   if (routePath === "login") {
     return {
-      type: "login"
+      type: "login",
     };
   }
   if (!authenticated) {
     return {
-      type: "login"
+      type: "login",
     };
   }
   if (!routePath) {
     return {
-      type: "dashboard"
+      type: "dashboard",
     };
   }
   const segments = routePath.split("/").filter(Boolean);
   if (segments.length === 1) {
     return {
       type: "model_list",
-      modelName: segments[0]
+      modelName: segments[0],
     };
   }
   if (segments.length === 2 && segments[1] === "add") {
     return {
       type: "model_add",
-      modelName: segments[0]
+      modelName: segments[0],
     };
   }
   if (segments.length === 2) {
     return {
       type: "model_detail",
       modelName: segments[0],
-      objectId: segments[1]
+      objectId: segments[1],
     };
   }
   return {
-    type: "dashboard"
+    type: "dashboard",
   };
 }
 function navigateTo(path) {
@@ -7107,7 +7194,7 @@ function navigateTo(path) {
 var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
   // Current route
   route: prop({
-    type: "login"
+    type: "login",
   }),
   // Auth state
   isAuthenticated: prop(false),
@@ -7125,8 +7212,9 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
     height: "100%",
     minHeight: "100vh",
     backgroundColor: "#f5f5f5",
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-  }
+    fontFamily:
+      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  },
 }) {
   // ===========================================================================
   // Lifecycle
@@ -7183,7 +7271,9 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
   // Helpers
   // ===========================================================================
   humanize(str) {
-    return str.replace(/([A-Z])/g, " $1").replace(/[-_]/g, " ").replace(/\s+/g, " ").trim().split(" ").map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ");
+    return str.replace(/([A-Z])/g, " $1").replace(/[-_]/g, " ").replace(/\s+/g, " ").trim().split(
+      " ",
+    ).map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ");
   }
   // ===========================================================================
   // Render
@@ -7194,24 +7284,24 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
     }
     return new Column({
       style: {
-        minHeight: "100vh"
+        minHeight: "100vh",
       },
       content: [
         this.renderHeader(),
         this.renderBreadcrumb(),
-        this.renderContent()
-      ]
+        this.renderContent(),
+      ],
     });
   }
   renderHeader() {
     return new Container({
       dataset: {
-        key: "header"
+        key: "header",
       },
       style: {
         background: "linear-gradient(to bottom, #417690 0%, #205067 100%)",
         color: "#ffffff",
-        padding: "12px 24px"
+        padding: "12px 24px",
       },
       content: new Row({
         mainAxisAlignment: "spaceBetween",
@@ -7220,7 +7310,7 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
           // Site title (link to dashboard)
           new Anchor({
             dataset: {
-              key: "site-title"
+              key: "site-title",
             },
             href: "/admin/",
             onclick: (e) => this.handleNavClick("/admin/", e),
@@ -7228,88 +7318,92 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
               color: "#ffffff",
               textDecoration: "none",
               fontSize: "20px",
-              fontWeight: "600"
+              fontWeight: "600",
             },
-            textContent: this.siteTitle
+            textContent: this.siteTitle,
           }),
           // Right side: user info and links
           new Row({
             dataset: {
-              key: "header-right"
+              key: "header-right",
             },
             gap: "16px",
             crossAxisAlignment: "center",
             content: [
               // User info (if logged in)
-              this.currentUser ? new Span({
-                dataset: {
-                  key: "user-info"
-                },
-                textContent: `Welcome, ${this.currentUser.firstName || this.currentUser.email}`,
-                style: {
-                  color: "#79aec8",
-                  fontSize: "14px"
-                }
-              }) : null,
+              this.currentUser
+                ? new Span({
+                  dataset: {
+                    key: "user-info",
+                  },
+                  textContent: `Welcome, ${this.currentUser.firstName || this.currentUser.email}`,
+                  style: {
+                    color: "#79aec8",
+                    fontSize: "14px",
+                  },
+                })
+                : null,
               // Logout link (if logged in)
-              this.isAuthenticated ? new Anchor({
-                dataset: {
-                  key: "logout-link"
-                },
-                href: "#",
-                onclick: this.handleLogout,
-                style: {
-                  color: "#79aec8",
-                  textDecoration: "none",
-                  fontSize: "14px"
-                },
-                textContent: "Log out"
-              }) : null,
+              this.isAuthenticated
+                ? new Anchor({
+                  dataset: {
+                    key: "logout-link",
+                  },
+                  href: "#",
+                  onclick: this.handleLogout,
+                  style: {
+                    color: "#79aec8",
+                    textDecoration: "none",
+                    fontSize: "14px",
+                  },
+                  textContent: "Log out",
+                })
+                : null,
               // Back to site link
               new Anchor({
                 dataset: {
-                  key: "back-link"
+                  key: "back-link",
                 },
                 href: "/",
                 onclick: this.handleBackToSite,
                 style: {
                   color: "#79aec8",
                   textDecoration: "none",
-                  fontSize: "14px"
+                  fontSize: "14px",
                 },
-                textContent: "\u2190 Back to Site"
-              })
-            ].filter(Boolean)
-          })
-        ]
-      })
+                textContent: "\u2190 Back to Site",
+              }),
+            ].filter(Boolean),
+          }),
+        ],
+      }),
     });
   }
   renderBreadcrumb() {
     const breadcrumbs = [
       {
         label: "Home",
-        href: "/admin/"
-      }
+        href: "/admin/",
+      },
     ];
     if (this.route.modelName) {
       const modelLabel = this.humanize(this.route.modelName);
       if (this.route.type === "model_list") {
         breadcrumbs.push({
-          label: modelLabel
+          label: modelLabel,
         });
       } else {
         breadcrumbs.push({
           label: modelLabel,
-          href: `/admin/${this.route.modelName}/`
+          href: `/admin/${this.route.modelName}/`,
         });
         if (this.route.type === "model_detail" && this.route.objectId) {
           breadcrumbs.push({
-            label: `#${this.route.objectId}`
+            label: `#${this.route.objectId}`,
           });
         } else if (this.route.type === "model_add") {
           breadcrumbs.push({
-            label: "Add"
+            label: "Add",
           });
         }
       }
@@ -7317,62 +7411,68 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
     const crumbNodes = [];
     breadcrumbs.forEach((crumb, index) => {
       if (index > 0) {
-        crumbNodes.push(new Span({
-          dataset: {
-            key: `sep-${index}`
-          },
-          style: {
-            color: "#666666",
-            margin: "0 8px"
-          },
-          textContent: "\u203A"
-        }));
+        crumbNodes.push(
+          new Span({
+            dataset: {
+              key: `sep-${index}`,
+            },
+            style: {
+              color: "#666666",
+              margin: "0 8px",
+            },
+            textContent: "\u203A",
+          }),
+        );
       }
       if (crumb.href && index < breadcrumbs.length - 1) {
-        crumbNodes.push(new Anchor({
-          dataset: {
-            key: `crumb-${index}`
-          },
-          href: crumb.href,
-          onclick: (e) => this.handleNavClick(crumb.href, e),
-          style: {
-            color: "#666666",
-            textDecoration: "none"
-          },
-          textContent: crumb.label
-        }));
+        crumbNodes.push(
+          new Anchor({
+            dataset: {
+              key: `crumb-${index}`,
+            },
+            href: crumb.href,
+            onclick: (e) => this.handleNavClick(crumb.href, e),
+            style: {
+              color: "#666666",
+              textDecoration: "none",
+            },
+            textContent: crumb.label,
+          }),
+        );
       } else {
-        crumbNodes.push(new Span({
-          dataset: {
-            key: `crumb-${index}`
-          },
-          style: {
-            color: "#333333"
-          },
-          textContent: crumb.label
-        }));
+        crumbNodes.push(
+          new Span({
+            dataset: {
+              key: `crumb-${index}`,
+            },
+            style: {
+              color: "#333333",
+            },
+            textContent: crumb.label,
+          }),
+        );
       }
     });
     return new Nav({
       dataset: {
-        key: "breadcrumb"
+        key: "breadcrumb",
       },
       style: {
         backgroundColor: "#ffffff",
         padding: "12px 24px",
         borderBottom: "1px solid #cccccc",
-        fontSize: "13px"
+        fontSize: "13px",
       },
-      content: crumbNodes
+      content: crumbNodes,
     });
   }
   renderContent() {
     if (this.route.type === "login") {
       return new AdminLogin({
         dataset: {
-          key: "login"
+          key: "login",
         },
-        onLoginSuccess: this.handleLoginSuccess
+        onLoginSuccess: this.handleLoginSuccess,
       });
     }
     if (this.isLoading) {
@@ -7385,35 +7485,35 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
       case "dashboard":
         return new AdminDashboard({
           dataset: {
-            key: "dashboard"
+            key: "dashboard",
           },
-          app: this
+          app: this,
         });
       case "model_list":
         return new AdminModelList({
           dataset: {
-            key: "model-list"
+            key: "model-list",
           },
           app: this,
-          modelName: this.route.modelName ?? ""
+          modelName: this.route.modelName ?? "",
         });
       case "model_detail":
         return new AdminModelDetail({
           dataset: {
-            key: "model-detail"
+            key: "model-detail",
           },
           app: this,
           modelName: this.route.modelName ?? "",
-          objectId: this.route.objectId ?? ""
+          objectId: this.route.objectId ?? "",
         });
       case "model_add":
         return new AdminModelDetail({
           dataset: {
-            key: "model-add"
+            key: "model-add",
           },
           app: this,
           modelName: this.route.modelName ?? "",
-          objectId: ""
+          objectId: "",
         });
       default:
         return this.renderNotFound();
@@ -7422,14 +7522,14 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
   renderLoading() {
     return new Container({
       dataset: {
-        key: "loading"
+        key: "loading",
       },
       padding: "48px",
       style: {
         flex: "1",
         display: "flex",
         alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
       },
       content: new Column({
         gap: "16px",
@@ -7437,7 +7537,7 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Div({
             dataset: {
-              key: "spinner"
+              key: "spinner",
             },
             style: {
               width: "32px",
@@ -7445,34 +7545,34 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
               border: "3px solid #eeeeee",
               borderTopColor: "#417690",
               borderRadius: "50%",
-              animation: "admin-spin 0.8s linear infinite"
-            }
+              animation: "admin-spin 0.8s linear infinite",
+            },
           }),
           new Span({
             dataset: {
-              key: "loading-text"
+              key: "loading-text",
             },
             style: {
               color: "#666666",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: "Loading..."
-          })
-        ]
-      })
+            textContent: "Loading...",
+          }),
+        ],
+      }),
     });
   }
   renderError() {
     return new Container({
       dataset: {
-        key: "error"
+        key: "error",
       },
       padding: "48px",
       style: {
         flex: "1",
         display: "flex",
         alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
       },
       content: new Column({
         gap: "16px",
@@ -7480,38 +7580,38 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Span({
             dataset: {
-              key: "error-icon"
+              key: "error-icon",
             },
             style: {
-              fontSize: "48px"
+              fontSize: "48px",
             },
-            textContent: "\u26A0\uFE0F"
+            textContent: "\u26A0\uFE0F",
           }),
           new Span({
             dataset: {
-              key: "error-message"
+              key: "error-message",
             },
             style: {
               color: "#ba2121",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: this.errorMessage
-          })
-        ]
-      })
+            textContent: this.errorMessage,
+          }),
+        ],
+      }),
     });
   }
   renderNotFound() {
     return new Container({
       dataset: {
-        key: "not-found"
+        key: "not-found",
       },
       padding: "48px",
       style: {
         flex: "1",
         display: "flex",
         alignItems: "center",
-        justifyContent: "center"
+        justifyContent: "center",
       },
       content: new Column({
         gap: "16px",
@@ -7519,26 +7619,26 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
         content: [
           new Span({
             dataset: {
-              key: "404-code"
+              key: "404-code",
             },
             style: {
               color: "#999999",
-              fontSize: "48px"
+              fontSize: "48px",
             },
-            textContent: "404"
+            textContent: "404",
           }),
           new Span({
             dataset: {
-              key: "404-message"
+              key: "404-message",
             },
             style: {
               color: "#666666",
-              fontSize: "14px"
+              fontSize: "14px",
             },
-            textContent: "Page not found"
-          })
-        ]
-      })
+            textContent: "Page not found",
+          }),
+        ],
+      }),
     });
   }
 };
@@ -7559,9 +7659,9 @@ async function main() {
       apiUrl,
       databaseName: "alexi_admin",
       debug,
-      failSilently: true
+      failSilently: true,
     },
-    debug
+    debug,
   });
   if (debug) {
     console.log("[AdminApp] Backend initialized");

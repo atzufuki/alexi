@@ -234,9 +234,7 @@ function humanizeActionName(actionName: string): string {
  */
 function isDangerousAction(actionName: string): boolean {
   const lowerName = actionName.toLowerCase();
-  return DANGEROUS_ACTION_PATTERNS.some((pattern) =>
-    lowerName.includes(pattern)
-  );
+  return DANGEROUS_ACTION_PATTERNS.some((pattern) => lowerName.includes(pattern));
 }
 
 /**
@@ -282,9 +280,7 @@ function buildConfirmMessage(
   itemCount: number,
   modelName: string,
 ): string {
-  const itemText = itemCount === 1
-    ? `1 ${modelName}`
-    : `${itemCount} ${pluralize(modelName)}`;
+  const itemText = itemCount === 1 ? `1 ${modelName}` : `${itemCount} ${pluralize(modelName)}`;
 
   if (actionName.includes("delete")) {
     return `Are you sure you want to delete ${itemText}? This action cannot be undone.`;

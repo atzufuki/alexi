@@ -15,11 +15,7 @@ import {
   TextField,
 } from "@alexi/db";
 
-import {
-  getEditableFields,
-  getModelFields,
-  getWidgetForField,
-} from "../introspection.ts";
+import { getEditableFields, getModelFields, getWidgetForField } from "../introspection.ts";
 import { AdminSite, ModelAdmin } from "../mod.ts";
 
 // =============================================================================

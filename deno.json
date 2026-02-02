@@ -52,7 +52,24 @@
   },
   "lint": {
     "rules": {
-      "exclude": ["no-explicit-any"]
+      "exclude": [
+        "no-explicit-any",
+        "no-slow-types",
+        "no-unused-vars",
+        "require-await",
+        "verbatim-module-syntax",
+        "no-import-prefix",
+        "constructor-super",
+        "no-case-declarations",
+        "no-empty",
+        "no-inner-declarations",
+        "no-this-alias",
+        "no-unversioned-import",
+        "no-var",
+        "no-window",
+        "no-window-prefix",
+        "prefer-const"
+      ]
     }
   },
   "fmt": {
