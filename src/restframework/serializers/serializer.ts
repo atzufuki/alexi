@@ -6,7 +6,12 @@
  * @module @alexi/restframework/serializers/serializer
  */
 
-import type { BaseFieldOptions, FieldValidationResult, SerializerField } from "./fields.ts";
+import {
+  type BaseFieldOptions,
+  type FieldValidationResult,
+  type SerializerField,
+  SerializerMethodField,
+} from "./fields.ts";
 
 // ============================================================================
 // Types
@@ -53,6 +58,22 @@ export interface FieldDefinition {
  * Base Serializer class
  *
  * Provides a framework for validating input data and serializing output data.
+ * Supports both declarative field definitions (as class properties) and
+ * the getFieldDefinitions() method.
+ *
+ * @example Declarative serializer (recommended)
+ * ```ts
+ * class AssetSerializer extends Serializer {
+ *   id = new IntegerField({ readOnly: true });
+ *   name = new CharField({ maxLength: 200 });
+ *   description = new TextField({ required: false });
+ *   ownerName = new SerializerMethodField();
+ *
+ *   getOwnerName(asset: Asset): string {
+ *     return asset.owner?.name ?? "Unknown";
+ *   }
+ * }
+ * ```
  *
  * @example Manual serializer
  * ```ts
@@ -65,21 +86,9 @@ export interface FieldDefinition {
  *     };
  *   }
  * }
- *
- * // Validate input
- * const serializer = new AssetSerializer({ data: requestData });
- * if (serializer.isValid()) {
- *   const validatedData = serializer.validatedData;
- * } else {
- *   const errors = serializer.errors;
- * }
- *
- * // Serialize output
- * const serializer = new AssetSerializer({ instance: asset });
- * const output = serializer.data;
  * ```
  */
-export abstract class Serializer {
+export class Serializer {
   protected readonly initialData?: Record<string, unknown>;
   protected readonly instance?: unknown;
   protected readonly partial: boolean;
@@ -100,15 +109,42 @@ export abstract class Serializer {
   }
 
   // ==========================================================================
-  // Abstract Methods
+  // Field Definition Methods
   // ==========================================================================
 
   /**
    * Define the fields for this serializer
    *
-   * Override this method to define fields declaratively.
+   * Override this method to define fields programmatically.
+   * If not overridden, fields are collected from class properties.
    */
-  protected abstract getFieldDefinitions(): Record<string, SerializerField>;
+  protected getFieldDefinitions(): Record<string, SerializerField> {
+    return {};
+  }
+
+  /**
+   * Collect fields defined as class properties
+   */
+  private collectDeclarativeFields(): Record<string, SerializerField> {
+    const fields: Record<string, SerializerField> = {};
+
+    // Get all property names from the instance
+    const propertyNames = Object.getOwnPropertyNames(this);
+
+    for (const name of propertyNames) {
+      const value = (this as Record<string, unknown>)[name];
+
+      // Check if it's a SerializerField instance
+      if (
+        value && typeof value === "object" && "validate" in value &&
+        "toRepresentation" in value
+      ) {
+        fields[name] = value as SerializerField;
+      }
+    }
+
+    return fields;
+  }
 
   // ==========================================================================
   // Field Access
@@ -116,10 +152,19 @@ export abstract class Serializer {
 
   /**
    * Get the fields for this serializer
+   *
+   * Combines fields from getFieldDefinitions() and declarative class properties.
    */
   get fields(): Record<string, SerializerField> {
     if (!this._fields) {
-      this._fields = this.getFieldDefinitions();
+      // First get fields from getFieldDefinitions (for backwards compatibility)
+      const definedFields = this.getFieldDefinitions();
+
+      // Then collect declarative fields from class properties
+      const declarativeFields = this.collectDeclarativeFields();
+
+      // Merge them (declarative fields take precedence)
+      this._fields = { ...definedFields, ...declarativeFields };
     }
     return this._fields;
   }
@@ -286,20 +331,24 @@ export abstract class Serializer {
   // ==========================================================================
 
   /**
-   * Get serialized data for output
+   * Get serialized data for output (sync version for simple cases)
    *
-   * Serializes the instance using the field definitions.
+   * Note: For SerializerMethodField support, use toRepresentation() instead.
+   * This getter is kept for backwards compatibility but may not work
+   * correctly with async SerializerMethodField methods.
    */
   get data(): Record<string, unknown> {
     if (this.many && Array.isArray(this.instance)) {
-      return this.instance.map((item) => this.serializeInstance(item)) as unknown as Record<
+      return this.instance.map((item) =>
+        this.serializeInstanceSync(item)
+      ) as unknown as Record<
         string,
         unknown
       >;
     }
 
     if (this.instance) {
-      return this.serializeInstance(this.instance);
+      return this.serializeInstanceSync(this.instance);
     }
 
     // If no instance, return validated data
@@ -311,9 +360,11 @@ export abstract class Serializer {
   }
 
   /**
-   * Serialize a single instance
+   * Serialize a single instance (sync version - for backwards compatibility)
+   *
+   * Note: Does not support async SerializerMethodField methods.
    */
-  protected serializeInstance(instance: unknown): Record<string, unknown> {
+  protected serializeInstanceSync(instance: unknown): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     const obj = instance as Record<string, unknown>;
 
@@ -323,12 +374,27 @@ export abstract class Serializer {
         continue;
       }
 
-      // Get value from instance
-      let value = this.getAttributeValue(obj, fieldName);
+      let value: unknown;
 
-      // Transform for output
-      if (value !== undefined && value !== null) {
-        value = field.toRepresentation(value);
+      // Handle SerializerMethodField (sync only - will not work with async methods)
+      if (field instanceof SerializerMethodField) {
+        const defaultMethodName = `get${fieldName.charAt(0).toUpperCase()}${
+          fieldName.slice(1)
+        }`;
+        const methodName = field.methodName ?? defaultMethodName;
+        const method = (this as unknown as Record<string, unknown>)[methodName];
+        if (typeof method === "function") {
+          value = method.call(this, instance);
+        }
+      } else {
+        // Get source attribute name
+        const sourceName = field.source ?? fieldName;
+        value = this.getAttributeValue(obj, sourceName);
+
+        // Transform for output
+        if (value !== undefined && value !== null) {
+          value = field.toRepresentation(value);
+        }
       }
 
       result[fieldName] = value ?? null;
@@ -338,17 +404,122 @@ export abstract class Serializer {
   }
 
   /**
+   * Serialize an instance to a representation (output format)
+   *
+   * This method can be called directly with an instance to serialize it.
+   *
+   * @param instance - The instance to serialize
+   * @returns Serialized data as a plain object
+   */
+  async toRepresentation(instance: unknown): Promise<Record<string, unknown>> {
+    return this.serializeInstanceAsync(instance);
+  }
+
+  /**
+   * Serialize a single instance (async version)
+   */
+  protected async serializeInstanceAsync(
+    instance: unknown,
+  ): Promise<Record<string, unknown>> {
+    const result: Record<string, unknown> = {};
+    const obj = instance as Record<string, unknown>;
+
+    for (const [fieldName, field] of Object.entries(this.fields)) {
+      // Skip write-only fields during serialization
+      if (field.writeOnly) {
+        continue;
+      }
+
+      let value: unknown;
+
+      // Handle SerializerMethodField
+      if (field instanceof SerializerMethodField) {
+        value = await this.getMethodFieldValueAsync(fieldName, field, instance);
+      } else {
+        // Get source attribute name (supports field aliasing via 'source' option)
+        const sourceName = field.source ?? fieldName;
+
+        // Get value from instance
+        value = this.getAttributeValue(obj, sourceName);
+
+        // Transform for output
+        if (value !== undefined && value !== null) {
+          value = field.toRepresentation(value);
+        }
+      }
+
+      result[fieldName] = value ?? null;
+    }
+
+    return result;
+  }
+
+  /**
+   * Get value for a SerializerMethodField (async version)
+   *
+   * Supports both sync and async methods on the serializer.
+   */
+  private async getMethodFieldValueAsync(
+    fieldName: string,
+    field: SerializerMethodField,
+    instance: unknown,
+  ): Promise<unknown> {
+    // Determine method name: use field.methodName or default to get{FieldName}
+    const defaultMethodName = `get${fieldName.charAt(0).toUpperCase()}${
+      fieldName.slice(1)
+    }`;
+    const methodName = field.methodName ?? defaultMethodName;
+
+    const method = (this as unknown as Record<string, unknown>)[methodName];
+
+    if (typeof method !== "function") {
+      throw new Error(
+        `SerializerMethodField "${fieldName}" requires method "${methodName}" on the serializer.`,
+      );
+    }
+
+    // Call the method and await if it returns a promise
+    const result = method.call(this, instance);
+    return result instanceof Promise ? await result : result;
+  }
+
+  /**
    * Get an attribute value from an object
    *
-   * Handles nested attributes and special cases.
+   * Handles nested attributes (dot notation), alexi/db Fields, and special cases.
    */
   protected getAttributeValue(
     obj: Record<string, unknown>,
-    fieldName: string,
+    attrName: string,
   ): unknown {
-    // Check if it's a Field instance (from alexi/db Model)
-    const value = obj[fieldName];
+    // Handle nested attributes (e.g., "user.email")
+    if (attrName.includes(".")) {
+      const parts = attrName.split(".");
+      let current: unknown = obj;
 
+      for (const part of parts) {
+        if (current === null || current === undefined) {
+          return undefined;
+        }
+
+        const currentObj = current as Record<string, unknown>;
+        let value = currentObj[part];
+
+        // Handle alexi/db Field
+        if (value && typeof value === "object" && "get" in value) {
+          value = (value as { get: () => unknown }).get();
+        }
+
+        current = value;
+      }
+
+      return current;
+    }
+
+    // Simple attribute access
+    const value = obj[attrName];
+
+    // Check if it's a Field instance (from alexi/db Model)
     if (value && typeof value === "object" && "get" in value) {
       // It's an alexi/db Field, get its value
       return (value as { get: () => unknown }).get();

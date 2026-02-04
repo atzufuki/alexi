@@ -4,7 +4,10 @@
  * @module @alexi/management/tests/argument_parser
  */
 
-import { assertEquals, assertThrows } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import {
+  assertEquals,
+  assertThrows,
+} from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { ArgumentParser } from "../argument_parser.ts";
 
 // =============================================================================

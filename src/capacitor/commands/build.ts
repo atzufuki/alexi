@@ -7,8 +7,12 @@
  * @module alexi_capacitor/commands/build
  */
 
-import { BaseCommand, failure, success } from "@alexi/management";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/management";
+import { BaseCommand, failure, success } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 
 // =============================================================================
 // Types
@@ -34,7 +38,8 @@ type MobileTarget = "ios" | "android";
 export class BuildCommand extends BaseCommand {
   readonly name = "build";
   readonly help = "Build mobile app for distribution";
-  readonly description = "Creates production builds for iOS App Store (.ipa) or " +
+  readonly description =
+    "Creates production builds for iOS App Store (.ipa) or " +
     "Google Play Store (.apk/.aab). Requires Xcode (iOS) or " +
     "Android Studio (Android) to be installed.";
 
@@ -76,7 +81,8 @@ export class BuildCommand extends BaseCommand {
 
     parser.addArgument("--signing", {
       type: "string",
-      help: "Path to signing configuration (keystore for Android, provisioning profile for iOS)",
+      help:
+        "Path to signing configuration (keystore for Android, provisioning profile for iOS)",
     });
   }
 

@@ -8,7 +8,11 @@
  */
 
 import { BaseCommand, success } from "@alexi/core";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 
 // =============================================================================
 // FlushCommand Class
@@ -38,7 +42,8 @@ import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core
 export class FlushCommand extends BaseCommand {
   readonly name = "flush";
   readonly help = "Clear database by removing all data";
-  readonly description = "Removes all data from the database. This action is irreversible. " +
+  readonly description =
+    "Removes all data from the database. This action is irreversible. " +
     "Use --no-input to skip the confirmation prompt.";
 
   readonly examples = [
@@ -68,7 +73,8 @@ export class FlushCommand extends BaseCommand {
     parser.addArgument("--database", {
       type: "string",
       required: false,
-      help: "Database path (DenoKV). Defaults to DENO_KV_PATH or default location.",
+      help:
+        "Database path (DenoKV). Defaults to DENO_KV_PATH or default location.",
     });
   }
 
@@ -113,7 +119,9 @@ export class FlushCommand extends BaseCommand {
       return success();
     } catch (error) {
       this.error(
-        `Failed to clear database: ${error instanceof Error ? error.message : String(error)}`,
+        `Failed to clear database: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       return { exitCode: 1 };
     }

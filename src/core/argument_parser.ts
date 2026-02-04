@@ -6,7 +6,12 @@
  * @module @alexi/management/argument_parser
  */
 
-import type { ArgumentConfig, ArgumentType, IArgumentParser, ParsedArguments } from "./types.ts";
+import type {
+  ArgumentConfig,
+  ArgumentType,
+  IArgumentParser,
+  ParsedArguments,
+} from "./types.ts";
 
 // =============================================================================
 // Argument Definition
@@ -387,7 +392,9 @@ export class ArgumentParser implements IArgumentParser {
       lines.push("Options:");
       for (const def of named) {
         const alias = def.alias ? `, ${def.alias}` : "";
-        const defaultVal = def.default !== undefined ? ` (default: ${def.default})` : "";
+        const defaultVal = def.default !== undefined
+          ? ` (default: ${def.default})`
+          : "";
         const typeStr = def.type !== "string" ? ` [${def.type}]` : "";
 
         lines.push(`  --${def.name}${alias}${typeStr}${defaultVal}`);

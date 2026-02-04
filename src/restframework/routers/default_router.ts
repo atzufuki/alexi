@@ -7,7 +7,12 @@
  */
 
 import { path, type URLPattern } from "@alexi/urls";
-import { type ActionMetadata, getActions, type HttpMethod, ViewSet } from "../viewsets/viewset.ts";
+import {
+  type ActionMetadata,
+  getActions,
+  type HttpMethod,
+  ViewSet,
+} from "../viewsets/viewset.ts";
 
 // ============================================================================
 // Types
@@ -136,7 +141,8 @@ export class DefaultRouter {
     // Check which actions are implemented
     const instance = new viewset();
     const hasAction = (name: string): boolean => {
-      return typeof (instance as Record<string, unknown>)[name] === "function";
+      return typeof (instance as unknown as Record<string, unknown>)[name] ===
+        "function";
     };
 
     // List route (GET /)

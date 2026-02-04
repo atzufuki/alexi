@@ -9,7 +9,10 @@
 import type { DatabaseBackend, Model, QuerySet } from "@alexi/db";
 import { getBackend, isInitialized } from "@alexi/db";
 import type { ModelSerializer } from "../serializers/model_serializer.ts";
-import { SerializerValidationError } from "../serializers/serializer.ts";
+import {
+  Serializer,
+  SerializerValidationError,
+} from "../serializers/serializer.ts";
 import { type HttpMethod, ViewSet, type ViewSetContext } from "./viewset.ts";
 
 // ============================================================================
@@ -33,14 +36,18 @@ export interface ModelWithManager<T extends Model = Model> {
 
 /**
  * Serializer class constructor
+ *
+ * Accepts both ModelSerializer and base Serializer classes.
+ * This allows ViewSets to use simpler Serializers that don't
+ * need full ModelSerializer features (like SerializerMethodField-based serializers).
  */
-export type SerializerClass = new (options: {
+export type SerializerClass = new (options?: {
   data?: Record<string, unknown>;
   instance?: unknown;
   partial?: boolean;
   context?: Record<string, unknown>;
   many?: boolean;
-}) => ModelSerializer;
+}) => Serializer | ModelSerializer;
 
 // ============================================================================
 // ModelViewSet Class
@@ -174,7 +181,7 @@ export abstract class ModelViewSet extends ViewSet {
     instance?: unknown;
     partial?: boolean;
     many?: boolean;
-  }): ModelSerializer {
+  }): Serializer | ModelSerializer {
     const SerializerClass = this.getSerializerClass();
     return new SerializerClass({
       ...options,
@@ -193,7 +200,7 @@ export abstract class ModelViewSet extends ViewSet {
   /**
    * List all objects (GET /)
    */
-  async list(context: ViewSetContext): Promise<Response> {
+  override async list(context: ViewSetContext): Promise<Response> {
     const queryset = this.getQueryset(context);
     const instances = await queryset.fetch();
 
@@ -202,13 +209,17 @@ export abstract class ModelViewSet extends ViewSet {
       many: true,
     });
 
-    return Response.json(serializer.data);
+    // Use toRepresentation for async SerializerMethodField support
+    const data = await Promise.all(
+      (instances as unknown[]).map((inst) => serializer.toRepresentation(inst)),
+    );
+    return Response.json(data);
   }
 
   /**
    * Create a new object (POST /)
    */
-  async create(context: ViewSetContext): Promise<Response> {
+  override async create(context: ViewSetContext): Promise<Response> {
     let data: Record<string, unknown>;
 
     try {
@@ -232,9 +243,10 @@ export abstract class ModelViewSet extends ViewSet {
     try {
       const instance = await this.performCreate(serializer);
 
-      // Serialize the created instance for response
+      // Serialize the created instance for response (use toRepresentation for async support)
       const responseSerializer = this.getSerializer({ instance });
-      return Response.json(responseSerializer.data, { status: 201 });
+      const data = await responseSerializer.toRepresentation(instance);
+      return Response.json(data, { status: 201 });
     } catch (error) {
       if (error instanceof SerializerValidationError) {
         return Response.json({ errors: error.errors }, { status: 400 });
@@ -248,7 +260,9 @@ export abstract class ModelViewSet extends ViewSet {
    *
    * Override this to customize creation logic.
    */
-  protected async performCreate(serializer: ModelSerializer): Promise<Model> {
+  protected async performCreate(
+    serializer: Serializer | ModelSerializer,
+  ): Promise<Model> {
     // Use explicit backend or fall back to global backend
     const backend = this.backend ?? (isInitialized() ? getBackend() : null);
     if (backend) {
@@ -262,11 +276,13 @@ export abstract class ModelViewSet extends ViewSet {
   /**
    * Retrieve a single object (GET /:id/)
    */
-  async retrieve(context: ViewSetContext): Promise<Response> {
+  override async retrieve(context: ViewSetContext): Promise<Response> {
     try {
       const instance = await this.getObject(context);
       const serializer = this.getSerializer({ instance });
-      return Response.json(serializer.data);
+      // Use toRepresentation for async SerializerMethodField support
+      const data = await serializer.toRepresentation(instance);
+      return Response.json(data);
     } catch (error) {
       if (error instanceof NotFoundError) {
         return Response.json({ error: error.message }, { status: 404 });
@@ -278,14 +294,14 @@ export abstract class ModelViewSet extends ViewSet {
   /**
    * Update an object completely (PUT /:id/)
    */
-  async update(context: ViewSetContext): Promise<Response> {
+  override async update(context: ViewSetContext): Promise<Response> {
     return this.performUpdateAction(context, false);
   }
 
   /**
    * Partially update an object (PATCH /:id/)
    */
-  async partial_update(context: ViewSetContext): Promise<Response> {
+  override async partial_update(context: ViewSetContext): Promise<Response> {
     return this.performUpdateAction(context, true);
   }
 
@@ -332,11 +348,12 @@ export abstract class ModelViewSet extends ViewSet {
     try {
       const updatedInstance = await this.performUpdate(serializer, instance);
 
-      // Serialize the updated instance for response
+      // Serialize the updated instance for response (use toRepresentation for async support)
       const responseSerializer = this.getSerializer({
         instance: updatedInstance,
       });
-      return Response.json(responseSerializer.data);
+      const data = await responseSerializer.toRepresentation(updatedInstance);
+      return Response.json(data);
     } catch (error) {
       if (error instanceof SerializerValidationError) {
         return Response.json({ errors: error.errors }, { status: 400 });
@@ -351,14 +368,14 @@ export abstract class ModelViewSet extends ViewSet {
    * Override this to customize update logic.
    */
   protected async performUpdate(
-    serializer: ModelSerializer,
+    serializer: Serializer | ModelSerializer,
     instance: Model,
   ): Promise<Model> {
     // Update the instance fields
     const updatedInstance = await serializer.update(
       instance,
       serializer.validatedData,
-    );
+    ) as Model;
 
     // Save to database if backend is available
     const backend = this.backend ?? (isInitialized() ? getBackend() : null);
@@ -372,7 +389,7 @@ export abstract class ModelViewSet extends ViewSet {
   /**
    * Delete an object (DELETE /:id/)
    */
-  async destroy(context: ViewSetContext): Promise<Response> {
+  override async destroy(context: ViewSetContext): Promise<Response> {
     let instance: Model;
     try {
       instance = await this.getObject(context);
@@ -484,11 +501,11 @@ export const DestroyModelMixin = {
  */
 export abstract class ReadOnlyModelViewSet extends ModelViewSet {
   // Only list and retrieve are enabled
-  async list(context: ViewSetContext): Promise<Response> {
+  override async list(context: ViewSetContext): Promise<Response> {
     return super.list(context);
   }
 
-  async retrieve(context: ViewSetContext): Promise<Response> {
+  override async retrieve(context: ViewSetContext): Promise<Response> {
     return super.retrieve(context);
   }
 }

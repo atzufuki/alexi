@@ -9,7 +9,11 @@
 
 import type { Model } from "@alexi/db";
 import { ModelAdmin } from "./model_admin.ts";
-import type { AdminSiteOptions, ModelAdminClass, ModelClass } from "./options.ts";
+import type {
+  AdminSiteOptions,
+  ModelAdminClass,
+  ModelClass,
+} from "./options.ts";
 import { DEFAULT_ADMIN_SITE_OPTIONS } from "./options.ts";
 
 // =============================================================================
@@ -278,7 +282,9 @@ export class AdminSite {
     // Ensure leading slash
     let normalized = prefix.startsWith("/") ? prefix : `/${prefix}`;
     // Remove trailing slash
-    normalized = normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+    normalized = normalized.endsWith("/")
+      ? normalized.slice(0, -1)
+      : normalized;
     return normalized;
   }
 

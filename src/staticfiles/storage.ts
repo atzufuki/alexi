@@ -217,7 +217,9 @@ export class FileSystemStorage implements StaticFileStorage {
    * Get the URL for a static file
    */
   url(path: string): string {
-    const prefix = this.urlPrefix.endsWith("/") ? this.urlPrefix : `${this.urlPrefix}/`;
+    const prefix = this.urlPrefix.endsWith("/")
+      ? this.urlPrefix
+      : `${this.urlPrefix}/`;
     return `${prefix}${path}`;
   }
 

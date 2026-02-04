@@ -177,7 +177,9 @@ export default class AdminApp extends HTMLPropsMixin(HTMLElement, {
       this.viewContent = content;
     } catch (error) {
       console.error(`[AdminApp] Error rendering view:`, error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to render view";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to render view";
       this.viewContent = this.renderError();
     } finally {
       this.isLoading = false;
@@ -309,7 +311,9 @@ export default class AdminApp extends HTMLPropsMixin(HTMLElement, {
               this.currentUser
                 ? new Span({
                   dataset: { key: "user-info" },
-                  textContent: `Welcome, ${this.currentUser.firstName || this.currentUser.email}`,
+                  textContent: `Welcome, ${
+                    this.currentUser.firstName || this.currentUser.email
+                  }`,
                   style: {
                     color: "#79aec8",
                     fontSize: "14px",

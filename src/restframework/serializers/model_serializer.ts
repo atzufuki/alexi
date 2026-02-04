@@ -123,7 +123,7 @@ export abstract class ModelSerializer extends Serializer {
   /**
    * Generate field definitions from the Model
    */
-  protected getFieldDefinitions(): Record<string, SerializerField> {
+  protected override getFieldDefinitions(): Record<string, SerializerField> {
     const meta = this.getMeta();
     const modelInstance = new meta.model();
     const modelFields = modelInstance.getFields();
@@ -262,7 +262,9 @@ export abstract class ModelSerializer extends Serializer {
   /**
    * Create a new model instance from validated data
    */
-  async create(validatedData: Record<string, unknown>): Promise<Model> {
+  override async create(
+    validatedData: Record<string, unknown>,
+  ): Promise<Model> {
     const meta = this.getMeta();
     const ModelClass = meta.model;
 
@@ -285,7 +287,7 @@ export abstract class ModelSerializer extends Serializer {
   /**
    * Update an existing model instance
    */
-  async update(
+  override async update(
     instance: unknown,
     validatedData: Record<string, unknown>,
   ): Promise<Model> {
@@ -293,7 +295,7 @@ export abstract class ModelSerializer extends Serializer {
 
     // Update fields on the instance
     for (const [key, value] of Object.entries(validatedData)) {
-      const field = (modelInstance as Record<string, unknown>)[key];
+      const field = (modelInstance as unknown as Record<string, unknown>)[key];
       if (field && typeof field === "object" && "set" in field) {
         (field as { set: (v: unknown) => void }).set(value);
         modelInstance.markDirty(key);
@@ -335,7 +337,7 @@ export function createModelSerializer(
   meta: ModelSerializerMeta,
 ): typeof ModelSerializer {
   class DynamicModelSerializer extends ModelSerializer {
-    static Meta = meta;
+    static override Meta = meta;
   }
   return DynamicModelSerializer;
 }

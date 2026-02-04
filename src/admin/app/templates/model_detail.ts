@@ -21,7 +21,11 @@ import {
   Textarea,
 } from "@html-props/built-ins";
 import { Column, Container, Row } from "@html-props/layout";
-import { fetchModelConfig, type FieldConfig, type ModelConfig } from "../services/admin_config.ts";
+import {
+  fetchModelConfig,
+  type FieldConfig,
+  type ModelConfig,
+} from "../services/admin_config.ts";
 import { authenticatedFetch } from "../services/auth.ts";
 import { navigateTo } from "../navigation.ts";
 
@@ -100,7 +104,9 @@ export default class AdminModelDetail extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminModelDetail] Failed to load config:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to load configuration";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to load configuration";
       this.isLoading = false;
     }
   }
@@ -128,7 +134,9 @@ export default class AdminModelDetail extends HTMLPropsMixin(HTMLElement, {
       this.formData = await response.json();
     } catch (error) {
       console.error("[AdminModelDetail] Failed to load data:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to load data";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to load data";
     } finally {
       this.isLoading = false;
     }
@@ -164,7 +172,9 @@ export default class AdminModelDetail extends HTMLPropsMixin(HTMLElement, {
         }
       }
 
-      const url = this.isAddMode ? config.apiEndpoint : `${config.apiEndpoint}${this.objectId}/`;
+      const url = this.isAddMode
+        ? config.apiEndpoint
+        : `${config.apiEndpoint}${this.objectId}/`;
 
       const response = await authenticatedFetch(url, {
         method: this.isAddMode ? "POST" : "PUT",
@@ -195,7 +205,9 @@ export default class AdminModelDetail extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminModelDetail] Failed to save:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to save";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to save";
     } finally {
       this.isSaving = false;
     }
@@ -231,7 +243,9 @@ export default class AdminModelDetail extends HTMLPropsMixin(HTMLElement, {
       navigateTo(`/admin/${this.modelName}/`);
     } catch (error) {
       console.error("[AdminModelDetail] Failed to delete:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to delete";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to delete";
       this.isSaving = false;
     }
   };
@@ -499,7 +513,9 @@ export default class AdminModelDetail extends HTMLPropsMixin(HTMLElement, {
         id: `field-${field.name}`,
         dataset: { key: `input-${field.name}` },
         type: fieldType === "datetime" ? "datetime-local" : "date",
-        value: value ? String(value).slice(0, fieldType === "datetime" ? 16 : 10) : "",
+        value: value
+          ? String(value).slice(0, fieldType === "datetime" ? 16 : 10)
+          : "",
         disabled: this.isSaving,
         style: commonStyle,
         oninput: (e: Event) => {
@@ -574,23 +590,25 @@ export default class AdminModelDetail extends HTMLPropsMixin(HTMLElement, {
       },
       content: [
         // Delete button (only for existing records)
-        this.isAddMode ? new Div({ dataset: { key: "delete-spacer" } }) : new Button({
-          dataset: { key: "delete-button" },
-          type: "button",
-          onclick: this.handleDelete,
-          disabled: this.isSaving,
-          style: {
-            padding: "8px 16px",
-            borderRadius: "4px",
-            border: "none",
-            backgroundColor: "#ba2121",
-            color: "#ffffff",
-            fontSize: "14px",
-            fontWeight: "500",
-            cursor: "pointer",
-          },
-          textContent: "Delete",
-        } as Record<string, unknown>),
+        this.isAddMode
+          ? new Div({ dataset: { key: "delete-spacer" } })
+          : new Button({
+            dataset: { key: "delete-button" },
+            type: "button",
+            onclick: this.handleDelete,
+            disabled: this.isSaving,
+            style: {
+              padding: "8px 16px",
+              borderRadius: "4px",
+              border: "none",
+              backgroundColor: "#ba2121",
+              color: "#ffffff",
+              fontSize: "14px",
+              fontWeight: "500",
+              cursor: "pointer",
+            },
+            textContent: "Delete",
+          } as Record<string, unknown>),
         // Save/Cancel buttons
         new Row({
           dataset: { key: "save-cancel" },

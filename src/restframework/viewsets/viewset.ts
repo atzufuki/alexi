@@ -74,6 +74,14 @@ export interface ViewSetContext {
   /** The current action being performed */
   action: ActionType;
 
+  /** The authenticated user (if any) */
+  user?: {
+    id: number | string;
+    email?: string;
+    isAdmin?: boolean;
+    [key: string]: unknown;
+  };
+
   /** Additional context data */
   [key: string]: unknown;
 }
@@ -218,7 +226,8 @@ export class ViewSet {
       });
 
       // Get the action method
-      const actionMethod = (viewset as Record<string, unknown>)[actionName];
+      const actionMethod =
+        (viewset as unknown as Record<string, unknown>)[actionName];
       if (typeof actionMethod !== "function") {
         return Response.json(
           { error: `Action '${actionName}' not implemented` },

@@ -26,6 +26,10 @@
 // Template Views
 // ============================================================================
 
-export { clearTemplateCache, invalidateTemplate, templateView } from "./template.ts";
+export {
+  clearTemplateCache,
+  invalidateTemplate,
+  templateView,
+} from "./template.ts";
 
 export type { TemplateViewOptions } from "./template.ts";

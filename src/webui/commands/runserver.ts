@@ -7,8 +7,12 @@
  * @module alexi_webui/commands/runserver
  */
 
-import { BaseCommand, failure, success } from "@alexi/management";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/management";
+import { BaseCommand, failure, success } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 import { WebUILauncher } from "../launcher.ts";
 import { createDefaultBindings } from "../bindings.ts";
 

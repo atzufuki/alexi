@@ -8,7 +8,11 @@
  */
 
 import { BaseCommand, failure, success } from "../base_command.ts";
-import type { CommandOptions, CommandResult, IArgumentParser } from "../types.ts";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "../types.ts";
 
 // =============================================================================
 // Types
@@ -327,7 +331,9 @@ export class TestCommand extends BaseCommand {
     }
 
     throw new Error(
-      `Test server did not start within ${maxAttempts * delayMs / 1000} seconds`,
+      `Test server did not start within ${
+        maxAttempts * delayMs / 1000
+      } seconds`,
     );
   }
 

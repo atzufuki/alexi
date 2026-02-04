@@ -7,7 +7,15 @@
  */
 
 // Query types and interfaces
-export { Avg, cloneQueryState, Count, createQueryState, Max, Min, Sum } from "./types.ts";
+export {
+  Avg,
+  cloneQueryState,
+  Count,
+  createQueryState,
+  Max,
+  Min,
+  Sum,
+} from "./types.ts";
 
 export type {
   Aggregation,

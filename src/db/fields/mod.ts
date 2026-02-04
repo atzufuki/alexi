@@ -26,7 +26,11 @@ export {
   UUIDField,
 } from "./types.ts";
 
-export type { CharFieldOptions, DateFieldOptions, DecimalFieldOptions } from "./types.ts";
+export type {
+  CharFieldOptions,
+  DateFieldOptions,
+  DecimalFieldOptions,
+} from "./types.ts";
 
 // Relation fields
 export {

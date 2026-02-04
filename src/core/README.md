@@ -2,8 +2,8 @@
 
 Django-tyylinen management commands -järjestelmä Denolle.
 
-Tarjoaa CLI-kehyksen, jolla voit luoda ja ajaa hallintakomentoja projektissasi, samaan tapaan kuin
-Djangon `manage.py`.
+Tarjoaa CLI-kehyksen, jolla voit luoda ja ajaa hallintakomentoja projektissasi,
+samaan tapaan kuin Djangon `manage.py`.
 
 ## Asennus
 
@@ -79,7 +79,11 @@ Argumentit:
 
 ```typescript
 import { BaseCommand, failure, success } from "@alexi/core";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 
 class GreetCommand extends BaseCommand {
   // Komennon nimi (mitä käyttäjä kirjoittaa)

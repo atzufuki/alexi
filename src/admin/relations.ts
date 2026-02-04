@@ -99,7 +99,9 @@ export function getRelationFieldInfo(
 
   // ManyToMany fields are never required
   // ForeignKey/OneToOne are required unless null/blank is set
-  const isRequired = isMultiple ? false : !fieldInfo.options.null && !fieldInfo.options.blank;
+  const isRequired = isMultiple
+    ? false
+    : !fieldInfo.options.null && !fieldInfo.options.blank;
 
   // Get label from verboseName or humanize field name
   const label = fieldInfo.options.verboseName ?? humanize(fieldInfo.name);

@@ -6,7 +6,11 @@
  * @module @alexi/management/registry
  */
 
-import type { CommandConstructor, ICommand, ICommandRegistry } from "./types.ts";
+import type {
+  CommandConstructor,
+  ICommand,
+  ICommandRegistry,
+} from "./types.ts";
 
 // =============================================================================
 // CommandRegistry Class

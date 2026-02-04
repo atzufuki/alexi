@@ -448,7 +448,9 @@ export class AdminForeignKeySelect extends HTMLPropsMixin(HTMLElement, {
     const selectedOption = this.options.find(
       (o) => String(o.id) === String(this.value),
     );
-    input.value = this._isOpen ? this.searchQuery : (selectedOption?.label ?? "");
+    input.value = this._isOpen
+      ? this.searchQuery
+      : (selectedOption?.label ?? "");
 
     input.addEventListener("focus", () => {
       this._isOpen = true;
@@ -515,7 +517,9 @@ export class AdminForeignKeySelect extends HTMLPropsMixin(HTMLElement, {
     if (this._filteredOptions.length === 0) {
       const noResults = document.createElement("div");
       noResults.className = "admin-fk-no-results";
-      noResults.textContent = this.searchQuery.length > 0 ? "No results found" : "No options";
+      noResults.textContent = this.searchQuery.length > 0
+        ? "No results found"
+        : "No options";
       dropdown.appendChild(noResults);
     } else {
       for (let i = 0; i < this._filteredOptions.length; i++) {
@@ -551,7 +555,9 @@ export class AdminForeignKeySelect extends HTMLPropsMixin(HTMLElement, {
     }
 
     const query = this.searchQuery.toLowerCase();
-    this._filteredOptions = this.options.filter((opt) => opt.label.toLowerCase().includes(query));
+    this._filteredOptions = this.options.filter((opt) =>
+      opt.label.toLowerCase().includes(query)
+    );
   }
 
   private _handleKeydown(e: KeyboardEvent): void {

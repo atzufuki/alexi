@@ -8,7 +8,12 @@
  */
 
 import type { Model } from "../../models/model.ts";
-import type { Aggregations, CompiledQuery, QueryOperation, QueryState } from "../../query/types.ts";
+import type {
+  Aggregations,
+  CompiledQuery,
+  QueryOperation,
+  QueryState,
+} from "../../query/types.ts";
 import {
   DatabaseBackend,
   type DatabaseConfig,
@@ -343,6 +348,17 @@ export class DenoKVBackend extends DatabaseBackend {
 
     const tableName = instance.getTableName();
     const id = instance.pk;
+
+    if (id === null || id === undefined) {
+      throw new Error("Cannot delete a record without an ID");
+    }
+
+    const key: Deno.KvKey = [tableName, id as Deno.KvKeyPart];
+    await this._kv!.delete(key);
+  }
+
+  async deleteById(tableName: string, id: unknown): Promise<void> {
+    this.ensureConnected();
 
     if (id === null || id === undefined) {
       throw new Error("Cannot delete a record without an ID");

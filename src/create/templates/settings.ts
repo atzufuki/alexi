@@ -9,7 +9,10 @@ import type { ProjectOptions } from "../project.ts";
 /**
  * Generate settings.ts content for a new project
  */
-export function generateSettings(name: string, options: ProjectOptions): string {
+export function generateSettings(
+  name: string,
+  options: ProjectOptions,
+): string {
   const installedApps: string[] = [];
   const appPaths: Record<string, string> = {};
 

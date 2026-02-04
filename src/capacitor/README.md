@@ -4,13 +4,14 @@ Mobile application support using [Capacitor](https://capacitorjs.com/).
 
 ## Status
 
-⚠️ **This module is a placeholder.** Full implementation is planned for a future release.
+⚠️ **This module is a placeholder.** Full implementation is planned for a future
+release.
 
 ## Overview
 
-Alexi Capacitor provides native iOS and Android containers for web applications. It wraps your Alexi
-SPA in a native mobile app, giving you access to device features like camera, GPS, push
-notifications, and more.
+Alexi Capacitor provides native iOS and Android containers for web applications.
+It wraps your Alexi SPA in a native mobile app, giving you access to device
+features like camera, GPS, push notifications, and more.
 
 ## Planned Features
 

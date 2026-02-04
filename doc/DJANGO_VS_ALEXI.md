@@ -1,7 +1,7 @@
 # Django vs Alexi - Feature Comparison
 
-This document compares Django (Python) with Alexi (Deno/TypeScript) frameworks, highlighting what's
-implemented, partially implemented, and what's missing.
+This document compares Django (Python) with Alexi (Deno/TypeScript) frameworks,
+highlighting what's implemented, partially implemented, and what's missing.
 
 ---
 

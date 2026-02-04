@@ -42,6 +42,8 @@ export type View = (
 export interface URLPatternOptions {
   /** Named route for reverse URL lookup */
   name?: string;
+  /** HTTP methods allowed for this pattern */
+  methods?: string[];
 }
 
 /**

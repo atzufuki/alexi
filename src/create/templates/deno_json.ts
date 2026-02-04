@@ -9,7 +9,10 @@ import type { ProjectOptions } from "../project.ts";
 /**
  * Generate deno.json content for a new project
  */
-export function generateDenoJson(name: string, options: ProjectOptions): string {
+export function generateDenoJson(
+  name: string,
+  options: ProjectOptions,
+): string {
   const imports: Record<string, string> = {
     "@alexi/core": "jsr:@alexi/core@^0.6.0",
     "@alexi/db": "jsr:@alexi/db@^0.6.0",
@@ -46,7 +49,8 @@ export function generateDenoJson(name: string, options: ProjectOptions): string 
       dev: "deno run -A --unstable-kv manage.ts runserver --settings web",
       test: "deno run -A --unstable-kv manage.ts test --settings web",
       bundle: "deno run -A --unstable-kv manage.ts bundle",
-      collectstatic: "deno run -A --unstable-kv manage.ts collectstatic --no-input",
+      collectstatic:
+        "deno run -A --unstable-kv manage.ts collectstatic --no-input",
     },
     imports,
     compilerOptions: {
