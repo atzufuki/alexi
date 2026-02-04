@@ -58,6 +58,9 @@ export interface AlexiSettings {
   // Auth
   AUTH_EXCLUDE_PATHS?: string[];
 
+  // Testing
+  TEST_PATTERN?: string;
+
   // URL Configuration (Django-style ROOT_URLCONF)
   ROOT_URLCONF?: string;
 
@@ -174,6 +177,9 @@ export async function loadSettings(
 
       // Auth
       AUTH_EXCLUDE_PATHS: module.AUTH_EXCLUDE_PATHS,
+
+      // Testing
+      TEST_PATTERN: module.TEST_PATTERN,
 
       // URL Configuration
       ROOT_URLCONF: module.ROOT_URLCONF,
