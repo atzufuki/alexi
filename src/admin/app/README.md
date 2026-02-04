@@ -1,11 +1,13 @@
 # Alexi Admin SPA
 
-A Django-style admin interface built as a Single Page Application using HTML Props components.
+A Django-style admin interface built as a Single Page Application using HTML
+Props components.
 
 ## Overview
 
-This admin application provides a web-based interface for managing models registered with
-`alexi_admin`. It follows the same patterns as the main `comachine` frontend application.
+This admin application provides a web-based interface for managing models
+registered with `alexi_admin`. It follows the same patterns as the main
+`comachine` frontend application.
 
 ## Structure
 
@@ -55,15 +57,16 @@ The dev server will:
 deno task admin:bundle
 ```
 
-This creates the bundled files in `public/` which are then served by the API server's admin
-middleware.
+This creates the bundled files in `public/` which are then served by the API
+server's admin middleware.
 
 ## Integration with API Server
 
-The admin SPA is served by the `adminMiddleware` in `comachine-web`. When a request comes to
-`/admin/*`:
+The admin SPA is served by the `adminMiddleware` in `comachine-web`. When a
+request comes to `/admin/*`:
 
-1. Static assets (`/admin/bundle.js`, `/admin/bundle.css`) are served from `alexi_admin/public/`
+1. Static assets (`/admin/bundle.js`, `/admin/bundle.css`) are served from
+   `alexi_admin/public/`
 2. All other `/admin/*` routes return the SPA HTML shell
 3. Client-side routing handles navigation within the app
 

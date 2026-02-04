@@ -7,7 +7,11 @@
  */
 
 import { HTMLPropsMixin, prop } from "@html-props/core";
-import type { DateRangeValue, FilterConfig, FilterValues } from "../../filters.ts";
+import type {
+  DateRangeValue,
+  FilterConfig,
+  FilterValues,
+} from "../../filters.ts";
 import { AdminBooleanFilter } from "./admin_boolean_filter.ts";
 import { AdminChoiceFilter } from "./admin_choice_filter.ts";
 import { AdminDateRangeFilter } from "./admin_date_range_filter.ts";
@@ -225,7 +229,9 @@ export class AdminFilterSidebar extends HTMLPropsMixin(HTMLElement, {
     if (this.collapsible) {
       const toggle = document.createElement("button");
       toggle.type = "button";
-      toggle.className = `admin-filter-sidebar-toggle${this.collapsed ? " collapsed" : ""}`;
+      toggle.className = `admin-filter-sidebar-toggle${
+        this.collapsed ? " collapsed" : ""
+      }`;
       toggle.textContent = "▼";
       toggle.title = this.collapsed ? "Expand filters" : "Collapse filters";
 
@@ -241,7 +247,9 @@ export class AdminFilterSidebar extends HTMLPropsMixin(HTMLElement, {
 
   private _renderContent(): HTMLElement {
     const content = document.createElement("div");
-    content.className = `admin-filter-sidebar-content${this.collapsed ? " collapsed" : ""}`;
+    content.className = `admin-filter-sidebar-content${
+      this.collapsed ? " collapsed" : ""
+    }`;
     content.dataset.key = "sidebar-content";
 
     if (this.filters.length === 0) {
@@ -314,7 +322,9 @@ export class AdminFilterSidebar extends HTMLPropsMixin(HTMLElement, {
 
   private _renderActions(): HTMLElement {
     const actions = document.createElement("div");
-    actions.className = `admin-filter-sidebar-actions${this.collapsed ? " collapsed" : ""}`;
+    actions.className = `admin-filter-sidebar-actions${
+      this.collapsed ? " collapsed" : ""
+    }`;
     actions.dataset.key = "sidebar-actions";
 
     const clearAllBtn = document.createElement("button");

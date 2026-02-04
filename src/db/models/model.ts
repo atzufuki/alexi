@@ -5,7 +5,11 @@
 
 import { Field } from "../fields/field.ts";
 import { AutoField, DateField, DateTimeField } from "../fields/types.ts";
-import { ForeignKey, ManyToManyField, ManyToManyManager } from "../fields/relations.ts";
+import {
+  ForeignKey,
+  ManyToManyField,
+  ManyToManyManager,
+} from "../fields/relations.ts";
 
 // ============================================================================
 // Types
@@ -47,7 +51,8 @@ export interface ModelMeta {
  * Type for model data (plain object representation)
  */
 export type ModelData<T extends Model> = {
-  [K in keyof T as T[K] extends Field<unknown> ? K : never]: T[K] extends Field<infer V> ? V | null
+  [K in keyof T as T[K] extends Field<unknown> ? K : never]: T[K] extends
+    Field<infer V> ? V | null
     : never;
 };
 
@@ -519,5 +524,115 @@ export abstract class Model {
    */
   toJSON(): Record<string, unknown> {
     return this.toObject();
+  }
+
+  /**
+   * Save this model instance to the database
+   *
+   * Creates a new record if the instance has no primary key,
+   * otherwise updates the existing record.
+   *
+   * @example
+   * ```ts
+   * const article = new Article();
+   * article.title.set('Hello World');
+   * await article.save();
+   * ```
+   */
+  async save(): Promise<this> {
+    this._ensureFieldsInitialized();
+
+    // Import dynamically to avoid circular dependency
+    const { getBackend, isInitialized } = await import("../setup.ts");
+
+    if (!isInitialized()) {
+      throw new Error(
+        "Database not initialized. Call setup() before saving models.",
+      );
+    }
+
+    const backend = getBackend();
+    const pk = this.pk;
+
+    if (pk === null || pk === undefined) {
+      // Create new record
+      const savedData = await backend.insert(this);
+      this.fromDB(savedData);
+    } else {
+      // Update existing record
+      await backend.update(this);
+    }
+
+    this.clearDirty();
+    return this;
+  }
+
+  /**
+   * Delete this model instance from the database
+   *
+   * @example
+   * ```ts
+   * await article.delete();
+   * ```
+   */
+  async delete(): Promise<void> {
+    this._ensureFieldsInitialized();
+
+    const pk = this.pk;
+    if (pk === null || pk === undefined) {
+      throw new Error("Cannot delete an instance without a primary key");
+    }
+
+    // Import dynamically to avoid circular dependency
+    const { getBackend, isInitialized } = await import("../setup.ts");
+
+    if (!isInitialized()) {
+      throw new Error(
+        "Database not initialized. Call setup() before deleting models.",
+      );
+    }
+
+    const backend = getBackend();
+    await backend.delete(this);
+  }
+
+  /**
+   * Refresh this instance from the database
+   *
+   * Reloads all field values from the database, discarding any local changes.
+   *
+   * @example
+   * ```ts
+   * await article.refresh();
+   * ```
+   */
+  async refresh(): Promise<this> {
+    this._ensureFieldsInitialized();
+
+    const pk = this.pk;
+    if (pk === null || pk === undefined) {
+      throw new Error("Cannot refresh an instance without a primary key");
+    }
+
+    // Import dynamically to avoid circular dependency
+    const { getBackend, isInitialized } = await import("../setup.ts");
+
+    if (!isInitialized()) {
+      throw new Error(
+        "Database not initialized. Call setup() before refreshing models.",
+      );
+    }
+
+    const backend = getBackend();
+    const ModelClass = this.constructor as new () => this;
+    const data = await backend.getById(ModelClass, pk);
+
+    if (!data) {
+      throw new Error(`${this.constructor.name} with pk=${pk} does not exist`);
+    }
+
+    this.fromDB(data);
+    this.clearDirty();
+    return this;
   }
 }

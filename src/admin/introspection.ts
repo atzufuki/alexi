@@ -316,7 +316,9 @@ export function getDisplayValue(
   // Handle date/datetime
   if (fieldInfo.type === "DateField" || fieldInfo.type === "DateTimeField") {
     if (value instanceof Date) {
-      return fieldInfo.type === "DateField" ? value.toLocaleDateString() : value.toLocaleString();
+      return fieldInfo.type === "DateField"
+        ? value.toLocaleDateString()
+        : value.toLocaleString();
     }
     return String(value);
   }

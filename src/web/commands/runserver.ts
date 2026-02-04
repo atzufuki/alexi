@@ -16,7 +16,11 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/core";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 import { Application } from "@alexi/core";
 import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
@@ -45,7 +49,8 @@ interface ServerConfig {
 export class RunServerCommand extends BaseCommand {
   readonly name = "runserver";
   readonly help = "Start web server (API + Admin)";
-  readonly description = "Starts a Django-style web server that provides REST API, " +
+  readonly description =
+    "Starts a Django-style web server that provides REST API, " +
     "admin panel, static file serving, and SPA fallback. " +
     "Automatically bundles TypeScript frontends and supports HMR.";
 
@@ -111,7 +116,8 @@ export class RunServerCommand extends BaseCommand {
     try {
       // Load settings
       this.info(`Loading settings: ${settingsArg}.settings.ts`);
-      const settingsPath = `${this.projectRoot}/project/${settingsArg}.settings.ts`;
+      const settingsPath =
+        `${this.projectRoot}/project/${settingsArg}.settings.ts`;
       const settings = await import(`file://${settingsPath}`);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 8000;
@@ -304,7 +310,9 @@ export class RunServerCommand extends BaseCommand {
       const appPath = appPaths[appName];
       if (!appPath) continue;
 
-      const appDir = appPath.startsWith("./") ? `${this.projectRoot}/${appPath.slice(2)}` : appPath;
+      const appDir = appPath.startsWith("./")
+        ? `${this.projectRoot}/${appPath.slice(2)}`
+        : appPath;
 
       try {
         const stat = Deno.statSync(appDir);

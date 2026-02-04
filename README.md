@@ -2,8 +2,8 @@
 
 A Django-inspired full-stack framework for Deno, written in TypeScript.
 
-Alexi brings Django's developer-friendly patterns to the Deno ecosystem: management commands, ORM,
-REST framework, admin panel, desktop apps, and more.
+Alexi brings Django's developer-friendly patterns to the Deno ecosystem:
+management commands, ORM, REST framework, admin panel, desktop apps, and more.
 
 ## Features
 

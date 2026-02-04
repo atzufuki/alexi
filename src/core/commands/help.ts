@@ -7,7 +7,11 @@
  */
 
 import { BaseCommand, success } from "../base_command.ts";
-import type { CommandOptions, CommandResult, IArgumentParser } from "../types.ts";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "../types.ts";
 import type { CommandRegistry } from "../registry.ts";
 
 // =============================================================================

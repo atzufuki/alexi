@@ -39,16 +39,29 @@
 // ============================================================================
 
 export { Model, ModelRegistry } from "./models/mod.ts";
-export type { IndexDefinition, ModelData, ModelMeta, PartialModelData } from "./models/mod.ts";
+export type {
+  IndexDefinition,
+  ModelData,
+  ModelMeta,
+  PartialModelData,
+} from "./models/mod.ts";
 
-export { DoesNotExist, Manager, MultipleObjectsReturned } from "./models/mod.ts";
+export {
+  DoesNotExist,
+  Manager,
+  MultipleObjectsReturned,
+} from "./models/mod.ts";
 
 // ============================================================================
 // Fields
 // ============================================================================
 
 export { Field } from "./fields/mod.ts";
-export type { FieldOptions, ValidationResult, Validator } from "./fields/mod.ts";
+export type {
+  FieldOptions,
+  ValidationResult,
+  Validator,
+} from "./fields/mod.ts";
 
 // Concrete field types
 export {
@@ -66,7 +79,11 @@ export {
   UUIDField,
 } from "./fields/mod.ts";
 
-export type { CharFieldOptions, DateFieldOptions, DecimalFieldOptions } from "./fields/mod.ts";
+export type {
+  CharFieldOptions,
+  DateFieldOptions,
+  DecimalFieldOptions,
+} from "./fields/mod.ts";
 
 // Relation fields
 export {
@@ -115,7 +132,11 @@ export type {
 // ============================================================================
 
 export { DatabaseBackend } from "./backends/backend.ts";
-export type { DatabaseConfig, SchemaEditor, Transaction } from "./backends/backend.ts";
+export type {
+  DatabaseConfig,
+  SchemaEditor,
+  Transaction,
+} from "./backends/backend.ts";
 
 // ============================================================================
 // Setup & Configuration
@@ -131,4 +152,8 @@ export {
   shutdown,
 } from "./setup.ts";
 
-export type { AlexiSettings, DatabaseEngine, DatabaseSettings } from "./setup.ts";
+export type {
+  AlexiSettings,
+  DatabaseEngine,
+  DatabaseSettings,
+} from "./setup.ts";

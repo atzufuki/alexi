@@ -60,14 +60,22 @@
 export { execute, ManagementUtility } from "./management.ts";
 export { BaseCommand, failure, success } from "./base_command.ts";
 export { ArgumentParser } from "./argument_parser.ts";
-export { CommandRegistry, globalRegistry, registerCommand } from "./registry.ts";
+export {
+  CommandRegistry,
+  globalRegistry,
+  registerCommand,
+} from "./registry.ts";
 
 // =============================================================================
 // Application (HTTP Application Handler)
 // =============================================================================
 
 export { Application } from "./application.ts";
-export type { ApplicationOptions, Handler, ServeOptions } from "./application.ts";
+export type {
+  ApplicationOptions,
+  Handler,
+  ServeOptions,
+} from "./application.ts";
 
 // =============================================================================
 // Configuration

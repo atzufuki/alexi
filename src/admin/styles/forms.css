@@ -113,7 +113,9 @@
   line-height: var(--admin-line-height-normal);
   color: var(--admin-text);
   background-color: var(--admin-bg);
-  transition: border-color var(--admin-transition-fast), box-shadow var(--admin-transition-fast);
+  transition:
+    border-color var(--admin-transition-fast),
+    box-shadow var(--admin-transition-fast);
 }
 
 .admin-input::placeholder {
@@ -176,7 +178,9 @@
   color: var(--admin-text);
   background-color: var(--admin-bg);
   resize: vertical;
-  transition: border-color var(--admin-transition-fast), box-shadow var(--admin-transition-fast);
+  transition:
+    border-color var(--admin-transition-fast),
+    box-shadow var(--admin-transition-fast);
 }
 
 .admin-textarea::placeholder {
@@ -223,7 +227,9 @@
   background-position: right 12px center;
   appearance: none;
   cursor: pointer;
-  transition: border-color var(--admin-transition-fast), box-shadow var(--admin-transition-fast);
+  transition:
+    border-color var(--admin-transition-fast),
+    box-shadow var(--admin-transition-fast);
 }
 
 .admin-select:hover:not(:disabled):not(:focus) {

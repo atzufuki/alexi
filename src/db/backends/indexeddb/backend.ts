@@ -8,7 +8,12 @@
  */
 
 import type { Model } from "../../models/model.ts";
-import type { Aggregations, CompiledQuery, QueryOperation, QueryState } from "../../query/types.ts";
+import type {
+  Aggregations,
+  CompiledQuery,
+  QueryOperation,
+  QueryState,
+} from "../../query/types.ts";
 import {
   DatabaseBackend,
   type DatabaseConfig,
@@ -559,6 +564,68 @@ export class IndexedDBBackend extends DatabaseBackend {
     });
   }
 
+  async deleteById(tableName: string, id: unknown): Promise<void> {
+    this.ensureConnected();
+
+    if (id === null || id === undefined) {
+      throw new Error("Cannot delete a record without an ID");
+    }
+
+    if (!this._storeNames.has(tableName)) {
+      return;
+    }
+
+    return new Promise((resolve, reject) => {
+      const tx = this._db!.transaction(tableName, "readwrite");
+      const store = tx.objectStore(tableName);
+      const request = store.delete(id as IDBValidKey);
+
+      request.onsuccess = () => {
+        resolve();
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+
+  async getById<T extends Model>(
+    model: new () => T,
+    id: unknown,
+  ): Promise<Record<string, unknown> | null> {
+    this.ensureConnected();
+
+    const instance = new model();
+    const tableName = instance.getTableName();
+
+    if (!this._storeNames.has(tableName)) {
+      return null;
+    }
+
+    return new Promise((resolve, reject) => {
+      const tx = this._db!.transaction(tableName, "readonly");
+      const store = tx.objectStore(tableName);
+      const request = store.get(id as IDBValidKey);
+
+      request.onsuccess = () => {
+        resolve(request.result ?? null);
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+
+  async existsById<T extends Model>(
+    model: new () => T,
+    id: unknown,
+  ): Promise<boolean> {
+    const record = await this.getById(model, id);
+    return record !== null;
+  }
+
   // ============================================================================
   // Bulk Operations
   // ============================================================================
@@ -915,48 +982,6 @@ export class IndexedDBBackend extends DatabaseBackend {
         reject(request.error);
       };
     });
-  }
-
-  /**
-   * Get a record by ID directly
-   */
-  async getById<T extends Model>(
-    model: new () => T,
-    id: unknown,
-  ): Promise<Record<string, unknown> | null> {
-    this.ensureConnected();
-
-    const instance = new model();
-    const tableName = instance.getTableName();
-
-    if (!this._storeNames.has(tableName)) {
-      return null;
-    }
-
-    return new Promise((resolve, reject) => {
-      const tx = this._db!.transaction(tableName, "readonly");
-      const store = tx.objectStore(tableName);
-      const request = store.get(id as IDBValidKey);
-
-      request.onsuccess = () => {
-        resolve(request.result ?? null);
-      };
-
-      request.onerror = () => {
-        reject(request.error);
-      };
-    });
-  }
-
-  /**
-   * Check if a record exists by ID
-   */
-  async existsById<T extends Model>(
-    model: new () => T,
-    id: unknown,
-  ): Promise<boolean> {
-    const record = await this.getById(model, id);
-    return record !== null;
   }
 
   /**

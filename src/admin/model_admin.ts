@@ -164,7 +164,9 @@ export class ModelAdmin implements ModelAdminBase {
   protected _buildUrl(suffix: string): string {
     const urlPrefix = this._site?.urlPrefix ?? "/admin";
     const modelName = this._getModelName();
-    const normalizedPrefix = urlPrefix.startsWith("/") ? urlPrefix : `/${urlPrefix}`;
+    const normalizedPrefix = urlPrefix.startsWith("/")
+      ? urlPrefix
+      : `/${urlPrefix}`;
     const trimmedPrefix = normalizedPrefix.endsWith("/")
       ? normalizedPrefix.slice(0, -1)
       : normalizedPrefix;
@@ -188,8 +190,9 @@ export class ModelAdmin implements ModelAdminBase {
    * Get the verbose name of the model.
    */
   getVerboseName(): string {
-    const modelMeta = (this.model as unknown as { meta?: { verboseName?: string } })
-      ?.meta;
+    const modelMeta =
+      (this.model as unknown as { meta?: { verboseName?: string } })
+        ?.meta;
     return modelMeta?.verboseName ?? this._humanize(this.model?.name ?? "");
   }
 

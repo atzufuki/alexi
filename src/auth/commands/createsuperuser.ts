@@ -4,14 +4,55 @@
  * Django-style command that creates a superuser (admin) account.
  * Similar to Django's `manage.py createsuperuser` command.
  *
+ * Requires AUTH_USER_MODEL setting in project settings that points to
+ * a module exporting UserModel and hashPassword.
+ *
  * @module @alexi/auth/commands/createsuperuser
  */
 
 import { BaseCommand, failure, success } from "@alexi/core";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
-import { hashPassword, UserModel } from "@comachine-web/models";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * Interface for the UserModel class
+ * Projects must export a UserModel that conforms to this interface
+ */
+interface UserModelInterface {
+  // deno-lint-ignore no-explicit-any
+  objects: {
+    filter(criteria: Record<string, unknown>): { first(): Promise<unknown> };
+    create(data: Record<string, unknown>): Promise<{ id: { get(): unknown } }>;
+  };
+}
+
+/**
+ * Interface for user creation data
+ * Projects can extend this with additional fields
+ */
+interface UserCreateData {
+  email: string;
+  passwordHash: string;
+  firstName?: string;
+  lastName?: string;
+  isAdmin: boolean;
+  isActive: boolean;
+  [key: string]: unknown;
+}
+
+/**
+ * Function signature for password hashing
+ */
+type HashPasswordFn = (password: string) => Promise<string>;
 
 // =============================================================================
 // CreateSuperuserCommand Class
@@ -22,14 +63,41 @@ import { hashPassword, UserModel } from "@comachine-web/models";
  *
  * Creates a new user with admin privileges that can access the admin panel.
  *
+ * Requires the following settings in project settings.ts:
+ * - AUTH_USER_MODEL: Path to module exporting UserModel and hashPassword
+ *
+ * @example Project settings.ts
+ * ```typescript
+ * export const AUTH_USER_MODEL = "./src/my-app/models/user.ts";
+ * ```
+ *
+ * @example User model module
+ * ```typescript
+ * // ./src/my-app/models/user.ts
+ * export class UserModel extends Model {
+ *   id = new AutoField({ primaryKey: true });
+ *   email = new CharField({ maxLength: 200 });
+ *   passwordHash = new CharField({ maxLength: 500 });
+ *   firstName = new CharField({ maxLength: 100 });
+ *   lastName = new CharField({ maxLength: 100 });
+ *   isAdmin = new BooleanField({ default: false });
+ *   isActive = new BooleanField({ default: true });
+ *   static objects = new Manager(UserModel);
+ * }
+ *
+ * export async function hashPassword(password: string): Promise<string> {
+ *   // Your password hashing implementation
+ * }
+ * ```
+ *
  * @example Interactive usage
  * ```bash
- * deno run -A --unstable-kv manage.ts createsuperuser
+ * deno run -A --unstable-kv manage.ts createsuperuser --settings web
  * ```
  *
  * @example Non-interactive usage
  * ```bash
- * deno run -A --unstable-kv manage.ts createsuperuser \
+ * deno run -A --unstable-kv manage.ts createsuperuser --settings web \
  *   --email admin@example.com \
  *   --password secretpassword \
  *   --first-name Admin \
@@ -39,13 +107,15 @@ import { hashPassword, UserModel } from "@comachine-web/models";
 export class CreateSuperuserCommand extends BaseCommand {
   readonly name = "createsuperuser";
   readonly help = "Create superuser (admin) account";
-  readonly description = "Creates a new user account with admin privileges (isAdmin: true). " +
-    "This user can be used to log in to the admin panel at /admin/.";
+  readonly description =
+    "Creates a new user account with admin privileges (isAdmin: true). " +
+    "This user can be used to log in to the admin panel at /admin/. " +
+    "Requires AUTH_USER_MODEL setting in project settings.";
 
   readonly examples = [
-    "manage.ts createsuperuser                           - Interactive creation",
-    "manage.ts createsuperuser --email admin@example.com - Specify email",
-    "manage.ts createsuperuser --no-input --email admin@example.com --password secret",
+    "manage.ts createsuperuser --settings web                    - Interactive creation",
+    "manage.ts createsuperuser --settings web --email admin@example.com - Specify email",
+    "manage.ts createsuperuser --settings web --no-input --email admin@example.com --password secret",
   ];
 
   // ===========================================================================
@@ -86,7 +156,8 @@ export class CreateSuperuserCommand extends BaseCommand {
     parser.addArgument("--database", {
       type: "string",
       required: false,
-      help: "Database path (DenoKV). Defaults to DENO_KV_PATH or default location.",
+      help:
+        "Database path (DenoKV). Defaults to DENO_KV_PATH or default location.",
     });
   }
 
@@ -97,6 +168,7 @@ export class CreateSuperuserCommand extends BaseCommand {
   async handle(options: CommandOptions): Promise<CommandResult> {
     const noInput = options.args["no-input"] as boolean;
     const databasePath = options.args.database as string | undefined;
+    const settingsName = options.args.settings as string | undefined;
 
     this.stdout.log("");
     this.stdout.log("┌─────────────────────────────────────────────┐");
@@ -104,8 +176,48 @@ export class CreateSuperuserCommand extends BaseCommand {
     this.stdout.log("└─────────────────────────────────────────────┘");
     this.stdout.log("");
 
+    // Load settings
+    if (!settingsName) {
+      this.error("--settings is required (e.g., --settings web)");
+      this.info("The settings module must export AUTH_USER_MODEL.");
+      return failure("Settings not specified");
+    }
+
+    const settings = await this.loadSettings(settingsName);
+    if (!settings) {
+      return failure("Failed to load settings");
+    }
+
+    // Check for AUTH_USER_MODEL
+    const authUserModelPath = settings.AUTH_USER_MODEL as string | undefined;
+    if (!authUserModelPath) {
+      this.error("AUTH_USER_MODEL is not defined in settings.");
+      this.info("");
+      this.info("Add the following to your settings file:");
+      this.info(
+        '  export const AUTH_USER_MODEL = "./src/my-app/models/user.ts";',
+      );
+      this.info("");
+      this.info("The module must export:");
+      this.info(
+        "  - UserModel: A Model class with email, passwordHash, isAdmin, isActive fields",
+      );
+      this.info("  - hashPassword: async function to hash passwords");
+      return failure("AUTH_USER_MODEL not configured");
+    }
+
+    // Load user model and hashPassword function
+    const { UserModel, hashPassword } = await this.loadUserModel(
+      authUserModelPath,
+    );
+    if (!UserModel || !hashPassword) {
+      return failure("Failed to load user model");
+    }
+
     // Initialize database
-    const kvPath = databasePath ?? Deno.env.get("DENO_KV_PATH");
+    const kvPath = databasePath ??
+      (settings.DATABASE as { path?: string })?.path ??
+      Deno.env.get("DENO_KV_PATH");
     const backend = new DenoKVBackend({ name: "default", path: kvPath });
     await backend.connect();
     setup({ backend });
@@ -153,16 +265,24 @@ export class CreateSuperuserCommand extends BaseCommand {
       // Create the superuser
       const passwordHash = await hashPassword(password);
 
-      const user = await UserModel.objects.create({
+      const userData: UserCreateData = {
         email,
         passwordHash,
         firstName: firstName || "",
         lastName: lastName || "",
         isAdmin: true,
         isActive: true,
-        subscriptionPlan: "premium",
-        allowedUnits: 100,
-      });
+      };
+
+      // Add extra fields from settings if defined
+      const extraFields = settings.AUTH_USER_EXTRA_FIELDS as
+        | Record<string, unknown>
+        | undefined;
+      if (extraFields) {
+        Object.assign(userData, extraFields);
+      }
+
+      const user = await UserModel.objects.create(userData);
 
       this.stdout.log("");
       this.success("Superuser account created successfully!");
@@ -182,12 +302,127 @@ export class CreateSuperuserCommand extends BaseCommand {
       return success();
     } catch (error) {
       this.error(
-        `User creation failed: ${error instanceof Error ? error.message : String(error)}`,
+        `User creation failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
       return failure("User creation failed");
     } finally {
       await backend.disconnect();
     }
+  }
+
+  // ===========================================================================
+  // Settings and Model Loading
+  // ===========================================================================
+
+  /**
+   * Load project settings
+   */
+  private async loadSettings(
+    settingsName: string,
+  ): Promise<Record<string, unknown> | null> {
+    const projectDir = Deno.cwd();
+    const settingsPath = `${projectDir}/project/${settingsName}.settings.ts`;
+
+    try {
+      const settingsUrl = this.pathToFileUrl(settingsPath);
+      const settings = await import(settingsUrl);
+      return settings;
+    } catch (error) {
+      this.error(`Failed to load settings from: ${settingsPath}`);
+      this.error(error instanceof Error ? error.message : String(error));
+      return null;
+    }
+  }
+
+  /**
+   * Load UserModel and hashPassword from the configured module
+   */
+  private async loadUserModel(
+    modulePath: string,
+  ): Promise<
+    {
+      UserModel: UserModelInterface | null;
+      hashPassword: HashPasswordFn | null;
+    }
+  > {
+    const projectDir = Deno.cwd();
+
+    // Resolve relative path
+    let fullPath = modulePath;
+    if (modulePath.startsWith("./") || modulePath.startsWith("../")) {
+      fullPath = `${projectDir}/${modulePath}`;
+    }
+
+    try {
+      const moduleUrl = this.pathToFileUrl(fullPath);
+      const module = await import(moduleUrl);
+
+      const UserModel = module.UserModel as UserModelInterface | undefined;
+      const hashPassword = module.hashPassword as HashPasswordFn | undefined;
+
+      if (!UserModel) {
+        this.error("UserModel not found in AUTH_USER_MODEL module.");
+        this.info("The module must export a UserModel class.");
+        return { UserModel: null, hashPassword: null };
+      }
+
+      if (!hashPassword) {
+        this.error(
+          "hashPassword function not found in AUTH_USER_MODEL module.",
+        );
+        this.info(
+          "The module must export an async hashPassword(password: string) function.",
+        );
+        return { UserModel: null, hashPassword: null };
+      }
+
+      if (typeof hashPassword !== "function") {
+        this.error("hashPassword must be a function.");
+        return { UserModel: null, hashPassword: null };
+      }
+
+      return { UserModel, hashPassword };
+    } catch (error) {
+      this.error(`Failed to load user model from: ${modulePath}`);
+      this.error(error instanceof Error ? error.message : String(error));
+      return { UserModel: null, hashPassword: null };
+    }
+  }
+
+  /**
+   * Convert a file path to a file:// URL
+   * Handles Windows and Unix paths
+   */
+  private pathToFileUrl(path: string): string {
+    // Already a URL
+    if (path.startsWith("file://")) {
+      return path;
+    }
+
+    // Normalize path separators
+    const normalized = path.replace(/\\/g, "/");
+
+    // Windows absolute path (C:/...)
+    if (/^[A-Za-z]:\//.test(normalized)) {
+      return `file:///${normalized}`;
+    }
+
+    // Unix absolute path
+    if (normalized.startsWith("/")) {
+      return `file://${normalized}`;
+    }
+
+    // Relative path - make absolute
+    const cwd = Deno.cwd().replace(/\\/g, "/");
+    const absolute = `${cwd}/${normalized}`;
+
+    if (/^[A-Za-z]:\//.test(absolute)) {
+      return `file:///${absolute}`;
+    }
+
+    return `file://${absolute}`;
   }
 
   // ===========================================================================

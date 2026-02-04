@@ -250,6 +250,8 @@ export class WebUILauncher {
     // @ts-ignore - Setting global flag for backwards compatibility
     globalThis.__COMACHINE_DESKTOP__ = true;
 
+    this.logger.info(`Checking if ${this.url} is available...`);
+
     // Wait for the target URL to be available (server might still be starting)
     const urlReady = await waitForUrl(this.url, {
       maxRetries: 30,
@@ -336,17 +338,27 @@ export class WebUILauncher {
 
     // Register closeWindow binding
     this.window.bind("closeWindow", () => {
-      this.logger.info("Window closing...");
+      this.logger.info("Window closed by application");
+      this.onClose?.();
       this.close();
       Deno.exit(0);
     });
 
     // Register custom bindings
+    const bindingNames: string[] = [];
     for (const [name, fn] of Object.entries(this.bindings)) {
       if (typeof fn === "function") {
         this.window.bind(name, fn);
-        this.logger.info(`   Binding: ${name}`);
+        bindingNames.push(name);
       }
+    }
+
+    if (bindingNames.length > 0) {
+      this.logger.info(
+        `Registered ${bindingNames.length} native bindings: ${
+          bindingNames.join(", ")
+        }`,
+      );
     }
   }
 
@@ -370,7 +382,7 @@ export class WebUILauncher {
       throw new Error("Window not created");
     }
 
-    this.logger.info(`🖥️  Opening ${this.config.title}...`);
+    this.logger.info(`Opening ${this.config.title}...`);
 
     try {
       await this.window.show(this.url);
@@ -382,25 +394,34 @@ export class WebUILauncher {
       }
     }
 
-    // Only log URL here, let onOpen callback handle the "opened" message
-    this.logger.info(`   URL: ${this.url}`);
-
     this.onOpen?.();
+
+    this.logger.info("");
+    this.logger.success(`Desktop app running at ${this.url}`);
+    this.logger.info("Press Ctrl+C to close the application.");
+    this.logger.info("");
   }
 
   private async waitForClose(): Promise<void> {
     if (!this.WebUI) return;
 
-    this.logger.info("Waiting for window to close...");
+    // On Windows, WebUI.wait() may return immediately even when the window is still open.
+    // Use a polling approach instead to check if the process should continue.
+    if (Deno.build.os === "windows") {
+      // Keep the process alive until Ctrl+C or window close binding is called
+      await new Promise<void>(() => {
+        // This promise never resolves - we exit via signal handlers or closeWindow binding
+      });
+    } else {
+      // On other platforms, use the standard WebUI wait
+      try {
+        await this.WebUI.wait();
+      } catch (error) {
+        // Log the error for debugging
+        this.logger.warn(`WebUI.wait() error: ${error}`);
+      }
 
-    try {
-      await this.WebUI.wait();
-    } catch (error) {
-      // Log the error for debugging
-      this.logger.warn(`WebUI.wait() error: ${error}`);
+      this.onClose?.();
     }
-
-    // Only call onClose callback, let it handle the message
-    this.onClose?.();
   }
 }

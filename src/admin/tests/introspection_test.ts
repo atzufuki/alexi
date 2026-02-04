@@ -19,7 +19,12 @@ import {
 } from "@alexi/db";
 
 // Import introspection utilities (to be implemented)
-import { getFieldInfo, getModelFields, getModelMeta, getWidgetForField } from "../introspection.ts";
+import {
+  getFieldInfo,
+  getModelFields,
+  getModelMeta,
+  getWidgetForField,
+} from "../introspection.ts";
 
 // =============================================================================
 // Test Models

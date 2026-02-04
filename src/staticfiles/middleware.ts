@@ -205,7 +205,10 @@ export function staticServe(
       return new Response(null, { status: 304, headers });
     }
 
-    return new Response(content, { status: 200, headers });
+    return new Response(content as unknown as BodyInit, {
+      status: 200,
+      headers,
+    });
   };
 }
 

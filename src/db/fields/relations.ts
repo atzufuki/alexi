@@ -97,7 +97,7 @@ export class ForeignKey<T> extends Field<T> {
    * Get the column name for the foreign key
    * By convention, FK columns are named `{fieldName}_id`
    */
-  getColumnName(): string {
+  override getColumnName(): string {
     return this.options.dbColumn ?? `${this.name}_id`;
   }
 
@@ -142,7 +142,7 @@ export class ForeignKey<T> extends Field<T> {
     } as ForeignKeyOptions<T>);
   }
 
-  serialize(): Record<string, unknown> {
+  override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
       relatedModel: typeof this.relatedModel === "string"
@@ -170,7 +170,7 @@ export class OneToOneField<T> extends ForeignKey<T> {
     });
   }
 
-  clone(options?: Partial<ForeignKeyOptions<T>>): OneToOneField<T> {
+  override clone(options?: Partial<ForeignKeyOptions<T>>): OneToOneField<T> {
     return new OneToOneField<T>(this.relatedModel, {
       ...this.options,
       onDelete: this.onDelete,
@@ -265,7 +265,7 @@ export class ManyToManyField<T> extends Field<T[]> {
   /**
    * ManyToMany fields don't create columns on the model's table
    */
-  contributesToColumns(): boolean {
+  override contributesToColumns(): boolean {
     return false;
   }
 
@@ -294,7 +294,7 @@ export class ManyToManyField<T> extends Field<T[]> {
     });
   }
 
-  serialize(): Record<string, unknown> {
+  override serialize(): Record<string, unknown> {
     const throughName = this.through
       ? typeof this.through === "string" ? this.through : this.through.name
       : undefined;

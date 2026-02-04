@@ -57,7 +57,9 @@ export {
   IntegerField,
   JSONField,
   ListField,
+  PrimaryKeyRelatedField,
   SerializerField,
+  SerializerMethodField,
   TextField,
   URLField,
   UUIDField,
@@ -84,6 +86,8 @@ export type {
   ListFieldOptions,
   ModelClass,
   ModelSerializerMeta,
+  PrimaryKeyRelatedFieldOptions,
+  SerializerMethodFieldOptions,
   SerializerOptions,
   ValidationErrors,
 } from "./serializers/mod.ts";

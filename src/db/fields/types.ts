@@ -28,7 +28,7 @@ export class CharField extends Field<string> {
     this.maxLength = options.maxLength;
   }
 
-  validate(value: string | null): ValidationResult {
+  override validate(value: string | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
 
@@ -62,7 +62,7 @@ export class CharField extends Field<string> {
     } as CharFieldOptions);
   }
 
-  serialize(): Record<string, unknown> {
+  override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
       maxLength: this.maxLength,
@@ -108,7 +108,7 @@ export class IntegerField extends Field<number> {
     super(options);
   }
 
-  validate(value: number | null): ValidationResult {
+  override validate(value: number | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
 
@@ -188,7 +188,7 @@ export class DecimalField extends Field<string> {
     this.decimalPlaces = options.decimalPlaces;
   }
 
-  validate(value: string | null): ValidationResult {
+  override validate(value: string | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
 
@@ -239,7 +239,7 @@ export class DecimalField extends Field<string> {
     } as DecimalFieldOptions);
   }
 
-  serialize(): Record<string, unknown> {
+  override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
       maxDigits: this.maxDigits,
@@ -339,7 +339,7 @@ export class DateField extends Field<Date> {
     });
   }
 
-  serialize(): Record<string, unknown> {
+  override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
       autoNow: this.autoNow,
@@ -390,7 +390,7 @@ export class DateTimeField extends Field<Date> {
     });
   }
 
-  serialize(): Record<string, unknown> {
+  override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
       autoNow: this.autoNow,
@@ -442,7 +442,7 @@ export class UUIDField extends Field<string> {
     super(options);
   }
 
-  validate(value: string | null): ValidationResult {
+  override validate(value: string | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
 

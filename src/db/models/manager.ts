@@ -373,6 +373,44 @@ export class Manager<T extends Model> {
   }
 
   // ============================================================================
+  // Single Object Update/Delete Methods
+  // ============================================================================
+
+  /**
+   * Update an existing model instance in the database
+   *
+   * @example
+   * ```ts
+   * article.title.set('New Title');
+   * article.markDirty('title');
+   * await Article.objects.update(article);
+   * ```
+   */
+  async update(instance: T): Promise<T> {
+    const backend = this._getBackend();
+    await backend.update(instance);
+    instance.clearDirty();
+    return instance;
+  }
+
+  /**
+   * Delete a model instance from the database
+   *
+   * @example
+   * ```ts
+   * await Article.objects.delete(article);
+   * ```
+   */
+  async delete(instance: T): Promise<void> {
+    const backend = this._getBackend();
+    const pk = instance.pk;
+    if (pk === null || pk === undefined) {
+      throw new Error("Cannot delete an instance without a primary key");
+    }
+    await backend.delete(instance);
+  }
+
+  // ============================================================================
   // Bulk Operations
   // ============================================================================
 

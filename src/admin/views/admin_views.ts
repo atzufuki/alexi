@@ -510,7 +510,9 @@ export async function renderModelList(
         </table>
         <div class="admin-pagination">
           <span class="admin-pagination-info">${data.length} ${
-      data.length === 1 ? meta.verboseName.toLowerCase() : meta.verboseNamePlural.toLowerCase()
+      data.length === 1
+        ? meta.verboseName.toLowerCase()
+        : meta.verboseNamePlural.toLowerCase()
     }</span>
         </div>
       </div>
@@ -649,7 +651,9 @@ export async function renderModelDetail(
 
       return `
         <tr>
-          <th style="width: 200px; background-color: #f8f8f8;">${escapeHtml(label)}</th>
+          <th style="width: 200px; background-color: #f8f8f8;">${
+        escapeHtml(label)
+      }</th>
           <td>${escapeHtml(displayValue)}</td>
         </tr>
       `;
@@ -670,7 +674,9 @@ export async function renderModelDetail(
     </nav>
     <main class="admin-main">
       <div class="admin-actions">
-        <h2 class="admin-page-title" style="margin-bottom: 0;">${escapeHtml(displayName)}</h2>
+        <h2 class="admin-page-title" style="margin-bottom: 0;">${
+    escapeHtml(displayName)
+  }</h2>
         <div>
           <a href="/admin/${modelName.toLowerCase()}/" class="admin-btn admin-btn-secondary">← Back to list</a>
         </div>

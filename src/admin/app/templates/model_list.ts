@@ -21,7 +21,10 @@ import {
   Tr,
 } from "@html-props/built-ins";
 import { Column, Container, Row } from "@html-props/layout";
-import { fetchModelConfig, type ModelConfig } from "../services/admin_config.ts";
+import {
+  fetchModelConfig,
+  type ModelConfig,
+} from "../services/admin_config.ts";
 import { authenticatedFetch } from "../services/auth.ts";
 import { navigateTo } from "../navigation.ts";
 
@@ -104,7 +107,9 @@ export default class AdminModelList extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminModelList] Failed to load data:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to load data";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to load data";
     } finally {
       this.isLoading = false;
     }

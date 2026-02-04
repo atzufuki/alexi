@@ -680,7 +680,9 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     if (this._state.ordering.length > 0) {
       parts.push(
         `ordering: ${
-          this._state.ordering.map((o) => (o.direction === "DESC" ? "-" : "") + o.field).join(", ")
+          this._state.ordering.map((o) =>
+            (o.direction === "DESC" ? "-" : "") + o.field
+          ).join(", ")
         }`,
       );
     }

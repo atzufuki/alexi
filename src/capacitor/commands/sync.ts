@@ -7,8 +7,12 @@
  * @module alexi_capacitor/commands/sync
  */
 
-import { BaseCommand, failure, success } from "@alexi/management";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/management";
+import { BaseCommand, failure, success } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 
 // =============================================================================
 // SyncCommand
@@ -27,7 +31,8 @@ import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/mana
 export class SyncCommand extends BaseCommand {
   readonly name = "sync";
   readonly help = "Sync web bundle to native projects";
-  readonly description = "Copies the bundled web application to iOS and Android native projects. " +
+  readonly description =
+    "Copies the bundled web application to iOS and Android native projects. " +
     "Also updates native plugins and dependencies.";
 
   readonly examples = [

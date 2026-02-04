@@ -56,8 +56,12 @@ export {
   JSONField,
   // Composite fields
   ListField,
+  // Related fields
+  PrimaryKeyRelatedField,
   // Base class
   SerializerField,
+  // Method field
+  SerializerMethodField,
   TextField,
   URLField,
   UUIDField,
@@ -71,6 +75,8 @@ export type {
   FloatFieldOptions,
   IntegerFieldOptions,
   ListFieldOptions,
+  PrimaryKeyRelatedFieldOptions,
+  SerializerMethodFieldOptions,
   ValidationError as FieldError,
 } from "./fields.ts";
 

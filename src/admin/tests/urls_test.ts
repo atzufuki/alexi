@@ -56,7 +56,9 @@ Deno.test("getAdminUrls: includes dashboard URL", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const dashboardUrl = urls.find((u: AdminUrlPattern) => u.name === "admin:index");
+  const dashboardUrl = urls.find((u: AdminUrlPattern) =>
+    u.name === "admin:index"
+  );
 
   assertExists(dashboardUrl);
   assertEquals(dashboardUrl.pattern, "/admin/");
@@ -80,7 +82,9 @@ Deno.test("getAdminUrls: includes model add URL", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const addUrl = urls.find((u: AdminUrlPattern) => u.name === "admin:testarticle_add");
+  const addUrl = urls.find((u: AdminUrlPattern) =>
+    u.name === "admin:testarticle_add"
+  );
 
   assertExists(addUrl);
   assertEquals(addUrl.pattern, "/admin/testarticle/add/");
@@ -184,7 +188,9 @@ Deno.test("getAdminUrls: handles URL prefix without leading slash", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const dashboardUrl = urls.find((u: AdminUrlPattern) => u.name === "admin:index");
+  const dashboardUrl = urls.find((u: AdminUrlPattern) =>
+    u.name === "admin:index"
+  );
 
   assertExists(dashboardUrl);
   assertEquals(dashboardUrl.pattern.startsWith("/"), true);
@@ -195,7 +201,9 @@ Deno.test("getAdminUrls: handles URL prefix with trailing slash", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const dashboardUrl = urls.find((u: AdminUrlPattern) => u.name === "admin:index");
+  const dashboardUrl = urls.find((u: AdminUrlPattern) =>
+    u.name === "admin:index"
+  );
 
   assertExists(dashboardUrl);
   // Should normalize to avoid double slashes
@@ -298,7 +306,9 @@ Deno.test("AdminUrlPattern: handler has correct view type", () => {
   );
   assertEquals(listUrl?.viewType, "list");
 
-  const addUrl = urls.find((u: AdminUrlPattern) => u.name === "admin:testarticle_add");
+  const addUrl = urls.find((u: AdminUrlPattern) =>
+    u.name === "admin:testarticle_add"
+  );
   assertEquals(addUrl?.viewType, "add");
 
   const detailUrl = urls.find(

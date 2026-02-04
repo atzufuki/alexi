@@ -34,7 +34,9 @@ async function main(): Promise<number> {
   if (!args.projectName) {
     console.error("Error: Project name is required.");
     console.error("");
-    console.error("Usage: deno run -A jsr:@alexi/create <project-name> [options]");
+    console.error(
+      "Usage: deno run -A jsr:@alexi/create <project-name> [options]",
+    );
     console.error("");
     console.error("Run with --help for more options.");
     return 1;

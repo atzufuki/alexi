@@ -10,7 +10,11 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/core";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 import type { AppConfig, BundleConfig } from "@alexi/types";
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
@@ -66,7 +70,8 @@ type HmrClient = ReadableStreamDefaultController<Uint8Array>;
 export class BundleCommand extends BaseCommand {
   readonly name = "bundle";
   readonly help = "Bundle TypeScript frontends to JavaScript";
-  readonly description = "Reads INSTALLED_APPS and bundles the frontend for each app " +
+  readonly description =
+    "Reads INSTALLED_APPS and bundles the frontend for each app " +
     "that has a bundle configuration in app.ts. Output goes to the app's " +
     "static directory, from where collectstatic can collect it.";
 

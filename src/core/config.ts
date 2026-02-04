@@ -11,6 +11,8 @@ import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { Application } from "./application.ts";
 import { path } from "@alexi/urls";
+import type { URLPattern } from "@alexi/urls";
+import type { Middleware } from "@alexi/middleware";
 
 // =============================================================================
 // Types
@@ -392,8 +394,8 @@ export async function createApplication(
 
   // Create application
   const app = new Application({
-    urls: urlpatterns,
-    middleware,
+    urls: urlpatterns as URLPattern[],
+    middleware: middleware as Middleware[],
     debug: serverConfig.debug,
   });
 

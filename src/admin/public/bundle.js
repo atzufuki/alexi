@@ -67,7 +67,11 @@ var init_backend = __esm({
       matchesFilters(record, filters) {
         for (const filter of filters) {
           const fieldValue = this.getNestedValue(record, filter.field);
-          const matches = this.evaluateLookup(fieldValue, filter.lookup, filter.value);
+          const matches = this.evaluateLookup(
+            fieldValue,
+            filter.lookup,
+            filter.value,
+          );
           const result = filter.negated ? !matches : matches;
           if (!result) {
             return false;
@@ -97,21 +101,29 @@ var init_backend = __esm({
           case "exact":
             return fieldValue === compareValue;
           case "iexact":
-            return String(fieldValue).toLowerCase() === String(compareValue).toLowerCase();
+            return String(fieldValue).toLowerCase() ===
+              String(compareValue).toLowerCase();
           case "contains":
             return String(fieldValue).includes(String(compareValue));
           case "icontains":
-            return String(fieldValue).toLowerCase().includes(String(compareValue).toLowerCase());
+            return String(fieldValue).toLowerCase().includes(
+              String(compareValue).toLowerCase(),
+            );
           case "startswith":
             return String(fieldValue).startsWith(String(compareValue));
           case "istartswith":
-            return String(fieldValue).toLowerCase().startsWith(String(compareValue).toLowerCase());
+            return String(fieldValue).toLowerCase().startsWith(
+              String(compareValue).toLowerCase(),
+            );
           case "endswith":
             return String(fieldValue).endsWith(String(compareValue));
           case "iendswith":
-            return String(fieldValue).toLowerCase().endsWith(String(compareValue).toLowerCase());
+            return String(fieldValue).toLowerCase().endsWith(
+              String(compareValue).toLowerCase(),
+            );
           case "in":
-            return Array.isArray(compareValue) && compareValue.includes(fieldValue);
+            return Array.isArray(compareValue) &&
+              compareValue.includes(fieldValue);
           case "gt":
             return fieldValue > compareValue;
           case "gte":
@@ -126,28 +138,36 @@ var init_backend = __esm({
             return val >= min && val <= max;
           }
           case "isnull":
-            return (fieldValue === null || fieldValue === void 0) === compareValue;
+            return (fieldValue === null || fieldValue === void 0) ===
+              compareValue;
           case "regex":
             return new RegExp(String(compareValue)).test(String(fieldValue));
           case "iregex":
-            return new RegExp(String(compareValue), "i").test(String(fieldValue));
+            return new RegExp(String(compareValue), "i").test(
+              String(fieldValue),
+            );
           case "year":
-            return fieldValue instanceof Date && fieldValue.getFullYear() === compareValue;
+            return fieldValue instanceof Date &&
+              fieldValue.getFullYear() === compareValue;
           case "month":
-            return fieldValue instanceof Date && fieldValue.getMonth() + 1 === compareValue;
+            return fieldValue instanceof Date &&
+              fieldValue.getMonth() + 1 === compareValue;
           case "day":
-            return fieldValue instanceof Date && fieldValue.getDate() === compareValue;
+            return fieldValue instanceof Date &&
+              fieldValue.getDate() === compareValue;
           case "week": {
             if (!(fieldValue instanceof Date)) return false;
             const startOfYear = new Date(fieldValue.getFullYear(), 0, 1);
             const days = Math.floor(
-              (fieldValue.getTime() - startOfYear.getTime()) / (24 * 60 * 60 * 1e3),
+              (fieldValue.getTime() - startOfYear.getTime()) /
+                (24 * 60 * 60 * 1e3),
             );
             const weekNumber = Math.ceil((days + startOfYear.getDay() + 1) / 7);
             return weekNumber === compareValue;
           }
           case "weekday":
-            return fieldValue instanceof Date && fieldValue.getDay() === compareValue;
+            return fieldValue instanceof Date &&
+              fieldValue.getDay() === compareValue;
           default:
             console.warn(`Unknown lookup type: ${lookup}`);
             return false;
@@ -173,7 +193,9 @@ var init_backend = __esm({
               comparison = 1;
             } else if (bValue === null || bValue === void 0) {
               comparison = -1;
-            } else if (typeof aValue === "string" && typeof bValue === "string") {
+            } else if (
+              typeof aValue === "string" && typeof bValue === "string"
+            ) {
               comparison = aValue.localeCompare(bValue);
             } else if (aValue instanceof Date && bValue instanceof Date) {
               comparison = aValue.getTime() - bValue.getTime();
@@ -324,7 +346,8 @@ var init_backend2 = __esm({
       }
       async createIndex(model, fields, options) {
         const tableName = model.getTableName();
-        const indexName = options?.name ?? `${tableName}_${fields.join("_")}_idx`;
+        const indexName = options?.name ??
+          `${tableName}_${fields.join("_")}_idx`;
         this._pendingChanges.push({
           type: "createIndex",
           storeName: tableName,
@@ -484,7 +507,11 @@ var init_backend2 = __esm({
           }
         }
         const sorted = this.sortRecords(results, state.ordering);
-        const limited = this.applyLimitOffset(sorted, state.limit, state.offset);
+        const limited = this.applyLimitOffset(
+          sorted,
+          state.limit,
+          state.offset,
+        );
         if (state.selectFields.length > 0) {
           return limited.map((record) => {
             const selected = {};
@@ -756,7 +783,9 @@ var init_backend2 = __esm({
               } else if (agg.field === "*") {
                 results[alias] = records.length;
               } else {
-                results[alias] = records.filter((r) => r[agg.field] !== null).length;
+                results[alias] = records.filter((r) =>
+                  r[agg.field] !== null
+                ).length;
               }
               break;
             case "SUM": {
@@ -768,19 +797,25 @@ var init_backend2 = __esm({
               break;
             }
             case "AVG": {
-              const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
+              const values = records.map((r) => r[agg.field]).filter((v) =>
+                typeof v === "number"
+              );
               results[alias] = values.length > 0
                 ? values.reduce((a, b) => a + b, 0) / values.length
                 : 0;
               break;
             }
             case "MIN": {
-              const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
+              const values = records.map((r) => r[agg.field]).filter((v) =>
+                typeof v === "number"
+              );
               results[alias] = values.length > 0 ? Math.min(...values) : 0;
               break;
             }
             case "MAX": {
-              const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
+              const values = records.map((r) => r[agg.field]).filter((v) =>
+                typeof v === "number"
+              );
               results[alias] = values.length > 0 ? Math.max(...values) : 0;
               break;
             }
@@ -908,7 +943,9 @@ var init_backend2 = __esm({
             reject(request.error);
           };
           request.onblocked = () => {
-            reject(new Error("Database deletion blocked - close all connections"));
+            reject(
+              new Error("Database deletion blocked - close all connections"),
+            );
           };
         });
       }
@@ -1032,7 +1069,8 @@ var init_backend3 = __esm({
       }
       async createIndex(model, fields, options) {
         const tableName = model.getTableName();
-        const indexName = options?.name ?? `${tableName}_${fields.join("_")}_idx`;
+        const indexName = options?.name ??
+          `${tableName}_${fields.join("_")}_idx`;
         await this._kv.set([
           "_meta",
           "indexes",
@@ -1113,7 +1151,11 @@ var init_backend3 = __esm({
           }
         }
         const sorted = this.sortRecords(results, state.ordering);
-        const limited = this.applyLimitOffset(sorted, state.limit, state.offset);
+        const limited = this.applyLimitOffset(
+          sorted,
+          state.limit,
+          state.offset,
+        );
         if (state.selectFields.length > 0) {
           return limited.map((record) => {
             const selected = {};
@@ -1126,7 +1168,9 @@ var init_backend3 = __esm({
         return limited;
       }
       async executeRaw(_query, _params) {
-        throw new Error("DenoKV backend does not support raw SQL queries. Use execute() instead.");
+        throw new Error(
+          "DenoKV backend does not support raw SQL queries. Use execute() instead.",
+        );
       }
       // ============================================================================
       // CRUD Operations
@@ -1296,7 +1340,9 @@ var init_backend3 = __esm({
               } else if (agg.field === "*") {
                 results[alias] = records.length;
               } else {
-                results[alias] = records.filter((r) => r[agg.field] !== null).length;
+                results[alias] = records.filter((r) =>
+                  r[agg.field] !== null
+                ).length;
               }
               break;
             case "SUM": {
@@ -1308,19 +1354,25 @@ var init_backend3 = __esm({
               break;
             }
             case "AVG": {
-              const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
+              const values = records.map((r) => r[agg.field]).filter((v) =>
+                typeof v === "number"
+              );
               results[alias] = values.length > 0
                 ? values.reduce((a, b) => a + b, 0) / values.length
                 : 0;
               break;
             }
             case "MIN": {
-              const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
+              const values = records.map((r) => r[agg.field]).filter((v) =>
+                typeof v === "number"
+              );
               results[alias] = values.length > 0 ? Math.min(...values) : 0;
               break;
             }
             case "MAX": {
-              const values = records.map((r) => r[agg.field]).filter((v) => typeof v === "number");
+              const values = records.map((r) => r[agg.field]).filter((v) =>
+                typeof v === "number"
+              );
               results[alias] = values.length > 0 ? Math.max(...values) : 0;
               break;
             }
@@ -1387,7 +1439,10 @@ var init_backend3 = __esm({
         while (true) {
           const current = await this._kv.get(counterKey);
           newId = (current.value ?? 0) + 1;
-          const result = await this._kv.atomic().check(current).set(counterKey, newId).commit();
+          const result = await this._kv.atomic().check(current).set(
+            counterKey,
+            newId,
+          ).commit();
           if (result.ok) {
             break;
           }
@@ -1454,7 +1509,9 @@ async function setup(settings) {
     _backend = await createBackend(settings.database);
     await _backend.connect();
   } else {
-    throw new Error("Alexi ORM setup requires either 'backend' or 'database' configuration.");
+    throw new Error(
+      "Alexi ORM setup requires either 'backend' or 'database' configuration.",
+    );
   }
   _initialized = true;
   if (settings.debug) {
@@ -1464,9 +1521,10 @@ async function setup(settings) {
 async function createBackend(dbSettings) {
   switch (dbSettings.engine) {
     case "indexeddb": {
-      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve().then(
-        () => (init_mod(), mod_exports),
-      );
+      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve()
+        .then(
+          () => (init_mod(), mod_exports),
+        );
       return new IndexedDBBackend2({
         name: dbSettings.name,
       });
@@ -1481,9 +1539,10 @@ async function createBackend(dbSettings) {
       });
     }
     case "memory": {
-      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve().then(
-        () => (init_mod(), mod_exports),
-      );
+      const { IndexedDBBackend: IndexedDBBackend2 } = await Promise.resolve()
+        .then(
+          () => (init_mod(), mod_exports),
+        );
       return new IndexedDBBackend2({
         name: `test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       });
@@ -1715,7 +1774,9 @@ var Q = class _Q {
       parts.push("NOT");
     }
     if (this.hasConditions) {
-      const condStr = Object.entries(this._conditions).map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+      const condStr = Object.entries(this._conditions).map(([k, v]) =>
+        `${k}=${JSON.stringify(v)}`
+      )
         .join(", ");
       parts.push(`(${condStr})`);
     }
@@ -2184,10 +2245,14 @@ var QuerySet = class _QuerySet {
     }
     const results = await qs.limit(2).fetch();
     if (results.length === 0) {
-      throw new DoesNotExist(`${this._state.model.name} matching query does not exist.`);
+      throw new DoesNotExist(
+        `${this._state.model.name} matching query does not exist.`,
+      );
     }
     if (results.length > 1) {
-      throw new MultipleObjectsReturned(`get() returned more than one ${this._state.model.name}.`);
+      throw new MultipleObjectsReturned(
+        `get() returned more than one ${this._state.model.name}.`,
+      );
     }
     return results[0];
   }
@@ -2324,7 +2389,9 @@ var QuerySet = class _QuerySet {
     if (this._state.ordering.length > 0) {
       parts.push(
         `ordering: ${
-          this._state.ordering.map((o) => (o.direction === "DESC" ? "-" : "") + o.field).join(", ")
+          this._state.ordering.map((o) =>
+            (o.direction === "DESC" ? "-" : "") + o.field
+          ).join(", ")
         }`,
       );
     }
@@ -2453,7 +2520,8 @@ function getEndpointForModel(modelOrName) {
     const name = modelClass.name;
     return MODEL_ENDPOINT_MAP[name] || name.toLowerCase().replace("model", "s");
   }
-  return MODEL_ENDPOINT_MAP[modelOrName] || modelOrName.toLowerCase().replace("model", "s");
+  return MODEL_ENDPOINT_MAP[modelOrName] ||
+    modelOrName.toLowerCase().replace("model", "s");
 }
 var RestBackend = class extends DatabaseBackend {
   _apiUrl;
@@ -2510,7 +2578,9 @@ var RestBackend = class extends DatabaseBackend {
     }
     try {
       const stored = localStorage.getItem(TOKEN_STORAGE_KEY);
-      this._log(`Loading tokens from storage: ${stored ? "found" : "not found"}`);
+      this._log(
+        `Loading tokens from storage: ${stored ? "found" : "not found"}`,
+      );
       if (stored) {
         const parsed = JSON.parse(stored);
         this._tokens = {
@@ -2771,7 +2841,8 @@ var RestBackend = class extends DatabaseBackend {
    */
   async execute(state) {
     const modelClass = state.model;
-    const endpoint = modelClass.meta?.dbTable || getEndpointForModel(modelClass.name);
+    const endpoint = modelClass.meta?.dbTable ||
+      getEndpointForModel(modelClass.name);
     const params = new URLSearchParams();
     for (const filter of state.filters) {
       const paramName = filter.lookup === "exact"
@@ -2938,7 +3009,9 @@ var RestBackend = class extends DatabaseBackend {
     const fields = instance;
     for (const key of Object.keys(fields)) {
       const field = fields[key];
-      if (field && typeof field === "object" && typeof field.get === "function") {
+      if (
+        field && typeof field === "object" && typeof field.get === "function"
+      ) {
         if (key === "objects" || key === "meta") continue;
         try {
           const value = field.get();
@@ -3088,7 +3161,9 @@ var SyncBackend = class extends DatabaseBackend {
         const remoteResult = await this._restBackend.insert(instance);
         const remoteId = String(remoteResult.id);
         this._log(`Synced to remote: ${instance.constructor.name}/${remoteId}`);
-        if (localId !== remoteId || this._hasNewData(localResult, remoteResult)) {
+        if (
+          localId !== remoteId || this._hasNewData(localResult, remoteResult)
+        ) {
           await this._reconcileRecord(instance, localId, remoteResult);
           this._log(`Reconciled local record: ${localId} -> ${remoteId}`);
           return remoteResult;
@@ -3326,7 +3401,8 @@ async function setupBackend(settings = {}) {
   }
 }
 async function initializeSyncBackend(backendSettings, alexiSettings, debug) {
-  const databaseName = backendSettings.databaseName ?? DEFAULT_SETTINGS.databaseName;
+  const databaseName = backendSettings.databaseName ??
+    DEFAULT_SETTINGS.databaseName;
   const apiUrl = backendSettings.apiUrl ?? DEFAULT_SETTINGS.apiUrl;
   if (debug) {
     console.log("[Backend] Creating SyncBackend with:");
@@ -3359,8 +3435,13 @@ async function initializeSyncBackend(backendSettings, alexiSettings, debug) {
     console.log("[Backend] SyncBackend initialized");
   }
 }
-async function initializeIndexedDBBackend(backendSettings, alexiSettings, debug) {
-  const databaseName = backendSettings.databaseName ?? DEFAULT_SETTINGS.databaseName;
+async function initializeIndexedDBBackend(
+  backendSettings,
+  alexiSettings,
+  debug,
+) {
+  const databaseName = backendSettings.databaseName ??
+    DEFAULT_SETTINGS.databaseName;
   if (debug) {
     console.log("[Backend] Creating IndexedDB-only backend");
     console.log("  - Database:", databaseName);
@@ -3620,7 +3701,8 @@ var PropsController = class _PropsController {
         const existing = result[key];
         if (
           typeof item === "object" && item !== null && !Array.isArray(item) &&
-          typeof existing === "object" && existing !== null && !Array.isArray(existing)
+          typeof existing === "object" && existing !== null &&
+          !Array.isArray(existing)
         ) {
           result[key] = this.merge(existing, item);
         } else {
@@ -3633,7 +3715,8 @@ var PropsController = class _PropsController {
   isCustomProp(key) {
     const cfg = this.propsConfig ? this.propsConfig[key] : null;
     return cfg && typeof cfg === "object" &&
-      (typeof cfg.type === "function" || "default" in cfg || "attribute" in cfg);
+      (typeof cfg.type === "function" || "default" in cfg ||
+        "attribute" in cfg);
   }
   /**
    * Check if this controller has any custom props defined.
@@ -3692,7 +3775,8 @@ var PropsController = class _PropsController {
     const hostWithRender = this.host;
     if (hostWithRender.render) {
       const renderResult = hostWithRender.render();
-      const isTemplateResult = renderResult && typeof renderResult === "object" &&
+      const isTemplateResult = renderResult &&
+        typeof renderResult === "object" &&
         ("_$litType$" in renderResult || // Lit template result
           "create" in renderResult || // FAST template result
           "strings" in renderResult);
@@ -3734,7 +3818,8 @@ var PropsController = class _PropsController {
   applyStyle(target, style) {
     if (!target.style) return;
     const targetController = target[PROPS_CONTROLLER];
-    const trackedKeys = targetController?.appliedStyleKeys ?? this.appliedStyleKeys;
+    const trackedKeys = targetController?.appliedStyleKeys ??
+      this.appliedStyleKeys;
     if (typeof style === "string") {
       trackedKeys.clear();
       target.setAttribute("style", style);
@@ -3998,7 +4083,9 @@ var PropsController = class _PropsController {
     for (let toIdx = 0; toIdx < toChildren.length; toIdx++) {
       if (matches[toIdx] !== void 0) continue;
       const toNode = toChildren[toIdx];
-      if (!toNode || toNode.nodeType !== _PropsController.ELEMENT_NODE) continue;
+      if (!toNode || toNode.nodeType !== _PropsController.ELEMENT_NODE) {
+        continue;
+      }
       const toIdArray = this.getIdArray(toNode);
       if (toIdArray.length === 0) continue;
       for (const fromIdx of unmatchedFrom) {
@@ -4183,7 +4270,8 @@ var PropsController = class _PropsController {
     if (!props) return;
     Object.entries(props).forEach(([key, config11]) => {
       const isPropConfig = config11 && typeof config11 === "object" &&
-        (typeof config11.type === "function" || "default" in config11 || "attribute" in config11);
+        (typeof config11.type === "function" || "default" in config11 ||
+          "attribute" in config11);
       if (!isPropConfig) return;
       if (config11.attribute) {
         const s = this.customProps[key];
@@ -4192,7 +4280,8 @@ var PropsController = class _PropsController {
         const attrName = typeof config11.attribute === "string"
           ? config11.attribute
           : key.toLowerCase();
-        const isBoolean = config11.type === Boolean || typeof config11.default === "boolean";
+        const isBoolean = config11.type === Boolean ||
+          typeof config11.default === "boolean";
         if (isBoolean) {
           if (val) {
             if (!host.hasAttribute(attrName)) {
@@ -4323,7 +4412,9 @@ var PropsController = class _PropsController {
     const props = this.propsConfig;
     if (!props) return;
     const entry = Object.entries(props).find(([key, config11]) => {
-      const attr = typeof config11.attribute === "string" ? config11.attribute : key.toLowerCase();
+      const attr = typeof config11.attribute === "string"
+        ? config11.attribute
+        : key.toLowerCase();
       return attr === name;
     });
     if (entry) {
@@ -4331,7 +4422,9 @@ var PropsController = class _PropsController {
       let val = newVal;
       if (config11.type === Boolean || typeof config11.default === "boolean") {
         val = newVal !== null;
-      } else if (config11.type === Number || typeof config11.default === "number") {
+      } else if (
+        config11.type === Number || typeof config11.default === "number"
+      ) {
         val = newVal === null ? null : Number(newVal);
       }
       this.host[key] = val;
@@ -4353,10 +4446,11 @@ function HTMLPropsMixin(Base, config11) {
     static get observedAttributes() {
       const propsConfig = this.__propsConfig;
       if (!propsConfig) return [];
-      return Object.entries(propsConfig).filter(([_, cfg]) => cfg.attribute).map(([key, cfg]) => {
-        if (typeof cfg.attribute === "string") return cfg.attribute;
-        return key.toLowerCase();
-      });
+      return Object.entries(propsConfig).filter(([_, cfg]) => cfg.attribute)
+        .map(([key, cfg]) => {
+          if (typeof cfg.attribute === "string") return cfg.attribute;
+          return key.toLowerCase();
+        });
     }
     constructor(...args) {
       if ("props" in Base) {
@@ -4426,11 +4520,13 @@ function HTMLPropsMixin(Base, config11) {
     };
     for (const [key, value] of Object.entries(config11)) {
       const parentValue = parentConfig[key];
-      const isParentPropConfig = parentValue && typeof parentValue === "object" &&
+      const isParentPropConfig = parentValue &&
+        typeof parentValue === "object" &&
         (typeof parentValue.type === "function" || "default" in parentValue ||
           "attribute" in parentValue);
       const isChildPropConfig = value && typeof value === "object" &&
-        (typeof value.type === "function" || "default" in value || "attribute" in value);
+        (typeof value.type === "function" || "default" in value ||
+          "attribute" in value);
       if (isParentPropConfig && !isChildPropConfig) {
         mergedConfig[key] = {
           ...parentValue,
@@ -5116,19 +5212,24 @@ async function fetchModelConfig(modelName) {
     return _cachedModels.get(lowerName);
   }
   if (_cachedConfig) {
-    const model2 = _cachedConfig.models.find((m) => m.name.toLowerCase() === lowerName);
+    const model2 = _cachedConfig.models.find((m) =>
+      m.name.toLowerCase() === lowerName
+    );
     if (model2) {
       _cachedModels.set(lowerName, model2);
       return model2;
     }
     return null;
   }
-  const response = await fetch(`${getApiUrl()}/admin/api/config/models/${modelName}/`, {
-    headers: {
-      "Content-Type": "application/json",
+  const response = await fetch(
+    `${getApiUrl()}/admin/api/config/models/${modelName}/`,
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
     },
-    credentials: "include",
-  });
+  );
   if (response.status === 404) {
     return null;
   }
@@ -5314,7 +5415,8 @@ var AdminDashboard = class extends HTMLPropsMixin(HTMLElement, {
                     textContent: "\u{1F4CB}",
                   }),
                   new Div({
-                    textContent: `View all ${model.verboseNamePlural.toLowerCase()}`,
+                    textContent:
+                      `View all ${model.verboseNamePlural.toLowerCase()}`,
                   }),
                 ],
               }),
@@ -5576,7 +5678,9 @@ async function login(credentials) {
   });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || error.message || `Login failed: ${response.status}`);
+    throw new Error(
+      error.detail || error.message || `Login failed: ${response.status}`,
+    );
   }
   const data = await response.json();
   const user = {
@@ -5760,7 +5864,9 @@ var AdminModelList = class extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminModelList] Failed to load data:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to load data";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to load data";
     } finally {
       this.isLoading = false;
     }
@@ -6170,7 +6276,9 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminModelDetail] Failed to load config:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to load configuration";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to load configuration";
       this.isLoading = false;
     }
   }
@@ -6193,7 +6301,9 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       this.formData = await response.json();
     } catch (error) {
       console.error("[AdminModelDetail] Failed to load data:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to load data";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to load data";
     } finally {
       this.isLoading = false;
     }
@@ -6248,7 +6358,9 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       }
     } catch (error) {
       console.error("[AdminModelDetail] Failed to save:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to save";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to save";
     } finally {
       this.isSaving = false;
     }
@@ -6256,7 +6368,11 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
   handleDelete = async () => {
     const config11 = this.config;
     if (!config11 || this.isAddMode) return;
-    if (!confirm(`Are you sure you want to delete this ${config11.verboseName.toLowerCase()}?`)) {
+    if (
+      !confirm(
+        `Are you sure you want to delete this ${config11.verboseName.toLowerCase()}?`,
+      )
+    ) {
       return;
     }
     this.isSaving = true;
@@ -6272,7 +6388,9 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
       navigateTo(`/admin/${this.modelName}/`);
     } catch (error) {
       console.error("[AdminModelDetail] Failed to delete:", error);
-      this.errorMessage = error instanceof Error ? error.message : "Failed to delete";
+      this.errorMessage = error instanceof Error
+        ? error.message
+        : "Failed to delete";
       this.isSaving = false;
     }
   };
@@ -6537,7 +6655,9 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
           key: `input-${field.name}`,
         },
         type: fieldType === "datetime" ? "datetime-local" : "date",
-        value: value ? String(value).slice(0, fieldType === "datetime" ? 16 : 10) : "",
+        value: value
+          ? String(value).slice(0, fieldType === "datetime" ? 16 : 10)
+          : "",
         disabled: this.isSaving,
         style: commonStyle,
         oninput: (e) => {
@@ -6561,7 +6681,10 @@ var AdminModelDetail = class extends HTMLPropsMixin(HTMLElement, {
         style: commonStyle,
         oninput: (e) => {
           const target = e.target;
-          this.handleFieldChange(field.name, target.value ? Number(target.value) : null);
+          this.handleFieldChange(
+            field.name,
+            target.value ? Number(target.value) : null,
+          );
         },
       });
     }
@@ -7271,9 +7394,13 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
   // Helpers
   // ===========================================================================
   humanize(str) {
-    return str.replace(/([A-Z])/g, " $1").replace(/[-_]/g, " ").replace(/\s+/g, " ").trim().split(
+    return str.replace(/([A-Z])/g, " $1").replace(/[-_]/g, " ").replace(
+      /\s+/g,
       " ",
-    ).map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ");
+    ).trim().split(
+      " ",
+    ).map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(" ");
   }
   // ===========================================================================
   // Render
@@ -7336,7 +7463,9 @@ var AdminApp = class extends HTMLPropsMixin(HTMLElement, {
                   dataset: {
                     key: "user-info",
                   },
-                  textContent: `Welcome, ${this.currentUser.firstName || this.currentUser.email}`,
+                  textContent: `Welcome, ${
+                    this.currentUser.firstName || this.currentUser.email
+                  }`,
                   style: {
                     color: "#79aec8",
                     fontSize: "14px",

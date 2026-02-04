@@ -7,7 +7,12 @@
  */
 
 import type { Model } from "../models/model.ts";
-import type { Aggregations, CompiledQuery, ParsedFilter, QueryState } from "../query/types.ts";
+import type {
+  Aggregations,
+  CompiledQuery,
+  ParsedFilter,
+  QueryState,
+} from "../query/types.ts";
 
 // ============================================================================
 // Types
@@ -173,6 +178,35 @@ export abstract class DatabaseBackend {
    * Delete a record
    */
   abstract delete<T extends Model>(instance: T): Promise<void>;
+
+  /**
+   * Delete a record by table name and primary key
+   */
+  abstract deleteById(tableName: string, id: unknown): Promise<void>;
+
+  /**
+   * Get a record by ID directly
+   *
+   * @param model - The model class
+   * @param id - The primary key value
+   * @returns The record data or null if not found
+   */
+  abstract getById<T extends Model>(
+    model: new () => T,
+    id: unknown,
+  ): Promise<Record<string, unknown> | null>;
+
+  /**
+   * Check if a record exists by ID
+   *
+   * @param model - The model class
+   * @param id - The primary key value
+   * @returns True if the record exists
+   */
+  abstract existsById<T extends Model>(
+    model: new () => T,
+    id: unknown,
+  ): Promise<boolean>;
 
   // ============================================================================
   // Bulk Operations

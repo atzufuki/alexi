@@ -15,7 +15,11 @@
  */
 
 import { BaseCommand, failure, success } from "@alexi/core";
-import type { CommandOptions, CommandResult, IArgumentParser } from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  IArgumentParser,
+} from "@alexi/core";
 
 // =============================================================================
 // RunServerCommand
@@ -92,9 +96,17 @@ export class RunServerCommand extends BaseCommand {
     const noReload = options.args["no-reload"] as boolean;
     const debug = options.debug;
 
+    // Get settings name from --settings argument
+    const settingsName = options.args.settings as string | undefined;
+    if (!settingsName) {
+      this.error("--settings is required (e.g., --settings ui)");
+      return failure("Settings not specified");
+    }
+
     try {
-      // Load UI settings
-      const settingsPath = `${this.projectRoot}/project/ui.settings.ts`;
+      // Load settings from the specified settings file
+      const settingsPath =
+        `${this.projectRoot}/project/${settingsName}.settings.ts`;
       const settings = await import(`file://${settingsPath}`);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 5173;
@@ -107,7 +119,7 @@ export class RunServerCommand extends BaseCommand {
       let createHmrResponse: (() => Response) | undefined;
       if (!noBundle) {
         try {
-          const { BundleCommand } = await import("@alexi/staticfiles/commands");
+          const { BundleCommand } = await import("./bundle.ts");
           this.bundler = new BundleCommand();
           (this.bundler as BaseCommand).setConsole(this.stdout, this.stderr);
 
