@@ -1,7 +1,7 @@
 /**
- * URL pattern creation functions
+ * Alexi URLs - Path and Include Functions
  *
- * Provides Django-style path() and include() functions for defining URL routes.
+ * Provides Django-style path() and include() functions for URL routing.
  *
  * @module @alexi/urls/path
  */
@@ -20,18 +20,35 @@ type PathTarget = View | URLPattern[];
 /**
  * Create a URL pattern that maps a route to a view function
  *
- * @param route - URL pattern string (e.g., "assets/", ":id/", "users/:userId/")
- * @param view - View function to handle requests
+ * This is similar to Django's path() function.
+ * Generic version supports both backend (Request/Response) and SPA (ViewContext/Node) views.
+ *
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
+ *
+ * @param route - URL pattern string (e.g., "assets/", ":id/")
+ * @param view - View function or nested patterns from include()
  * @param options - Optional configuration (name for reverse lookup)
  * @returns URLPattern object
  *
- * @example Basic routes
+ * @example Backend routes
  * ```ts
- * import { path } from "@alexi/urls";
+ * import { path } from '@alexi/urls';
  *
  * const urlpatterns = [
  *   path("", home_view, { name: "home" }),
  *   path("about/", about_view, { name: "about" }),
+ * ];
+ * ```
+ *
+ * @example SPA routes
+ * ```ts
+ * import { path } from '@alexi/urls';
+ * import type { ViewContext } from './app.ts';
+ *
+ * const urlpatterns = [
+ *   path<ViewContext, Node>("", home_view, { name: "home" }),
+ *   path<ViewContext, Node>("about/", about_view, { name: "about" }),
  * ];
  * ```
  *
@@ -40,13 +57,12 @@ type PathTarget = View | URLPattern[];
  * const urlpatterns = [
  *   path("assets/", list_assets, { name: "asset-list" }),
  *   path("assets/:id/", get_asset, { name: "asset-detail" }),
- *   path("users/:userId/posts/:postId/", get_post, { name: "user-post" }),
  * ];
  * ```
  *
  * @example With include()
  * ```ts
- * import { path, include } from "@alexi/urls";
+ * import { path, include } from '@alexi/urls';
  * import { urlpatterns as assetUrls } from "./assets/urls.ts";
  *
  * const urlpatterns = [
@@ -54,24 +70,24 @@ type PathTarget = View | URLPattern[];
  * ];
  * ```
  */
-export function path(
+export function path<TContext = Request, TReturn = Response>(
   route: string,
-  target: PathTarget,
+  view: View<TContext, TReturn> | URLPattern<TContext, TReturn>[],
   options?: URLPatternOptions,
-): URLPattern {
-  // Check if target is an array of URLPatterns (from include())
-  if (Array.isArray(target)) {
+): URLPattern<TContext, TReturn> {
+  // Check if view is an array of URLPatterns (from include())
+  if (Array.isArray(view)) {
     return {
       pattern: route,
-      children: target,
+      children: view,
       name: options?.name,
     };
   }
 
-  // Target is a View function
+  // view is a View function
   return {
     pattern: route,
-    view: target,
+    view: view as View<TContext, TReturn>,
     name: options?.name,
   };
 }
@@ -167,28 +183,41 @@ export function include(
  * Convenience function to create a path that includes nested patterns
  *
  * This is equivalent to using path() with include() but with a cleaner syntax.
+ * Convenience function that creates a path with include in one step
  *
- * @param route - URL prefix for nested patterns
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
+ *
+ * @param route - URL pattern string
  * @param patterns - Array of URL patterns to include
  * @param options - Optional configuration
- * @returns URLPattern object with nested children
+ * @returns URLPattern object
  *
- * @example
+ * @example Backend usage
  * ```ts
- * import { pathInclude } from "@alexi/urls";
+ * import { pathInclude } from '@alexi/urls';
  * import { urlpatterns as assetUrls } from "./assets/urls.ts";
  *
  * export const urlpatterns = [
  *   pathInclude("api/assets/", assetUrls),
- *   pathInclude("api/tasks/", taskUrls),
+ * ];
+ * ```
+ *
+ * @example SPA usage
+ * ```ts
+ * import { pathInclude } from '@alexi/urls';
+ * import { urlpatterns as homeUrls } from "./templates/home/urls.ts";
+ *
+ * export const urlpatterns = [
+ *   pathInclude<ViewContext, Node>("", homeUrls),
  * ];
  * ```
  */
-export function pathInclude(
+export function pathInclude<TContext = Request, TReturn = Response>(
   route: string,
-  patterns: URLPattern[],
+  patterns: URLPattern<TContext, TReturn>[],
   options?: URLPatternOptions,
-): URLPattern {
+): URLPattern<TContext, TReturn> {
   return {
     pattern: route,
     children: patterns,

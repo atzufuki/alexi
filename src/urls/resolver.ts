@@ -1,7 +1,8 @@
 /**
  * URL resolver functions
  *
- * Provides resolve() for matching URLs to views and reverse() for generating URLs.
+ * Provides Django-style URL resolution and reverse lookup.
+ * Generic version supports both backend (Request/Response) and SPA (ViewContext/Node).
  *
  * @module @alexi/urls/resolver
  */
@@ -50,8 +51,14 @@ function compilePattern(pattern: string): CompiledSegment[] {
  *
  * @param patterns - Array of URL patterns
  * @returns Array of compiled patterns
- */
-function compilePatterns(patterns: URLPattern[]): CompiledPattern[] {
+ /**
+  * Compile URL patterns for matching
+  * @template TContext - The context type (default: Request for backend)
+  * @template TReturn - The return type (default: Response for backend)
+  */
+function compilePatterns<TContext = Request, TReturn = Response>(
+  patterns: URLPattern<TContext, TReturn>[],
+): CompiledPattern<TContext, TReturn>[] {
   return patterns.map((pattern) => ({
     original: pattern.pattern,
     segments: compilePattern(pattern.pattern),
@@ -68,16 +75,18 @@ function compilePatterns(patterns: URLPattern[]): CompiledPattern[] {
 /**
  * Try to match URL segments against a compiled pattern
  *
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
  * @param urlSegments - Remaining URL segments to match
  * @param pattern - Compiled pattern to match against
  * @param params - Accumulated URL parameters
  * @returns ResolveResult if matched, null otherwise
  */
-function matchPattern(
+function matchPattern<TContext = Request, TReturn = Response>(
   urlSegments: string[],
-  pattern: CompiledPattern,
+  pattern: CompiledPattern<TContext, TReturn>,
   params: Record<string, string>,
-): ResolveResult | null {
+): ResolveResult<TContext, TReturn> | null {
   const patternSegments = pattern.segments;
 
   // Check if pattern segments match the beginning of URL segments
@@ -137,11 +146,15 @@ function matchPattern(
 /**
  * Resolve a URL path to a view and parameters
  *
+ * Generic version supports both backend (Request/Response) and SPA (ViewContext/Node).
+ *
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
  * @param url - URL path to resolve (e.g., "/api/assets/123/")
  * @param urlpatterns - Array of URL patterns to match against
  * @returns ResolveResult if a match is found, null otherwise
  *
- * @example
+ * @example Backend usage
  * ```ts
  * import { resolve, path } from "@alexi/urls";
  *
@@ -157,11 +170,26 @@ function matchPattern(
  *   const response = await result.view(request, result.params);
  * }
  * ```
+ *
+ * @example SPA usage
+ * ```ts
+ * import { resolve, path } from "@alexi/urls";
+ * import type { ViewContext } from "./app.ts";
+ *
+ * const urlpatterns = [
+ *   path<ViewContext, Node>("", home_view, { name: "home" }),
+ * ];
+ *
+ * const result = resolve<ViewContext, Node>("/", urlpatterns);
+ * if (result) {
+ *   const node = await result.view(ctx, result.params);
+ * }
+ * ```
  */
-export function resolve(
+export function resolve<TContext = Request, TReturn = Response>(
   url: string,
-  urlpatterns: URLPattern[],
-): ResolveResult | null {
+  urlpatterns: URLPattern<TContext, TReturn>[],
+): ResolveResult<TContext, TReturn> | null {
   // Normalize URL: remove leading/trailing slashes and split
   const normalized = url.replace(/^\/+|\/+$/g, "");
   const urlSegments = normalized === "" ? [] : normalized.split("/");
@@ -170,8 +198,9 @@ export function resolve(
   const compiled = compilePatterns(urlpatterns);
 
   // Try each pattern
+  // Try to match against each pattern
   for (const pattern of compiled) {
-    const result = matchPattern(urlSegments, pattern, {});
+    const result = matchPattern<TContext, TReturn>(urlSegments, pattern, {});
     if (result) {
       return result;
     }
@@ -197,12 +226,14 @@ interface RouteRegistry {
 /**
  * Build a flat registry of all named routes
  *
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
  * @param patterns - Array of URL patterns
  * @param prefix - Current URL prefix
  * @returns Route registry
  */
-function buildRouteRegistry(
-  patterns: URLPattern[],
+function buildRouteRegistry<TContext = Request, TReturn = Response>(
+  patterns: URLPattern<TContext, TReturn>[],
   prefix: string = "",
 ): RouteRegistry {
   const registry: RouteRegistry = {};
@@ -231,12 +262,16 @@ function buildRouteRegistry(
 
 // Cached registry for performance
 let cachedRegistry: RouteRegistry | null = null;
-let cachedPatterns: URLPattern[] | null = null;
+let cachedPatterns: unknown | null = null;
 
 /**
  * Get or build the route registry
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
  */
-function getRegistry(urlpatterns: URLPattern[]): RouteRegistry {
+function getRegistry<TContext = Request, TReturn = Response>(
+  urlpatterns: URLPattern<TContext, TReturn>[],
+): RouteRegistry {
   // Check if we can use cached registry
   if (cachedPatterns === urlpatterns && cachedRegistry) {
     return cachedRegistry;
@@ -244,7 +279,7 @@ function getRegistry(urlpatterns: URLPattern[]): RouteRegistry {
 
   // Build new registry
   cachedPatterns = urlpatterns;
-  cachedRegistry = buildRouteRegistry(urlpatterns);
+  cachedRegistry = buildRouteRegistry<TContext, TReturn>(urlpatterns);
   return cachedRegistry;
 }
 
@@ -261,20 +296,23 @@ export function clearRegistryCache(): void {
 /**
  * Generate a URL from a named route and parameters
  *
+ * Generic version supports both backend and SPA URL patterns.
+ *
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
  * @param name - Name of the route
  * @param params - URL parameters to substitute
  * @param urlpatterns - Array of URL patterns (used to build registry)
  * @returns Generated URL path
  * @throws Error if route name is not found or required parameter is missing
  *
- * @example
+ * @example Backend usage
  * ```ts
  * import { reverse, path } from "@alexi/urls";
  *
  * const urlpatterns = [
  *   path("assets/", list_assets, { name: "asset-list" }),
  *   path("assets/:id/", get_asset, { name: "asset-detail" }),
- *   path("users/:userId/posts/:postId/", get_post, { name: "user-post" }),
  * ];
  *
  * reverse("asset-list", {}, urlpatterns);
@@ -282,17 +320,27 @@ export function clearRegistryCache(): void {
  *
  * reverse("asset-detail", { id: "123" }, urlpatterns);
  * // => "/assets/123/"
+ * ```
  *
- * reverse("user-post", { userId: "5", postId: "42" }, urlpatterns);
- * // => "/users/5/posts/42/"
+ * @example SPA usage
+ * ```ts
+ * import { reverse, path } from "@alexi/urls";
+ * import type { ViewContext } from "./app.ts";
+ *
+ * const urlpatterns = [
+ *   path<ViewContext, Node>("", home_view, { name: "home" }),
+ * ];
+ *
+ * reverse<ViewContext, Node>("home", {}, urlpatterns);
+ * // => "/"
  * ```
  */
-export function reverse(
+export function reverse<TContext = Request, TReturn = Response>(
   name: string,
   params: Record<string, string>,
-  urlpatterns: URLPattern[],
+  urlpatterns: URLPattern<TContext, TReturn>[],
 ): string {
-  const registry = getRegistry(urlpatterns);
+  const registry = getRegistry<TContext, TReturn>(urlpatterns);
   const route = registry[name];
 
   if (!route) {

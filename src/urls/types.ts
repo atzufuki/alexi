@@ -9,11 +9,14 @@
 // ============================================================================
 
 /**
- * A view function that handles HTTP requests
+ * A view function that handles requests
  *
- * Views receive a Request and URL parameters, and return a Response.
+ * Generic view function that can be used for backend (Request/Response) or SPA (ViewContext/Node).
  *
- * @example
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
+ *
+ * @example Backend usage
  * ```ts
  * const list_assets: View = async (request, params) => {
  *   const assets = await AssetModel.objects.all().fetch();
@@ -26,11 +29,18 @@
  *   return Response.json(asset);
  * };
  * ```
+ *
+ * @example SPA usage
+ * ```ts
+ * const home_view: View<ViewContext, Node> = async (ctx, params) => {
+ *   return new Div({ textContent: "Home" });
+ * };
+ * ```
  */
-export type View = (
-  request: Request,
+export type View<TContext = Request, TReturn = Response> = (
+  context: TContext,
   params: Record<string, string>,
-) => Response | Promise<Response>;
+) => TReturn | Promise<TReturn>;
 
 // ============================================================================
 // URL Pattern Types
@@ -49,7 +59,10 @@ export interface URLPatternOptions {
 /**
  * A URL pattern that maps a route to a view or nested patterns
  *
- * @example
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
+ *
+ * @example Backend usage
  * ```ts
  * // Simple pattern with view
  * const pattern: URLPattern = {
@@ -67,16 +80,25 @@ export interface URLPatternOptions {
  *   ],
  * };
  * ```
+ *
+ * @example SPA usage
+ * ```ts
+ * const pattern: URLPattern<ViewContext, Node> = {
+ *   pattern: "",
+ *   view: home_view,
+ *   name: "home",
+ * };
+ * ```
  */
-export interface URLPattern {
+export interface URLPattern<TContext = Request, TReturn = Response> {
   /** URL pattern string (e.g., "assets/", ":id/", "users/:userId/posts/") */
   pattern: string;
 
   /** View function to handle requests (mutually exclusive with children) */
-  view?: View;
+  view?: View<TContext, TReturn>;
 
   /** Nested URL patterns from include() (mutually exclusive with view) */
-  children?: URLPattern[];
+  children?: URLPattern<TContext, TReturn>[];
 
   /** Named route for reverse URL lookup */
   name?: string;
@@ -89,7 +111,10 @@ export interface URLPattern {
 /**
  * Result of resolving a URL to a view
  *
- * @example
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
+ *
+ * @example Backend usage
  * ```ts
  * const result = resolve("/assets/123/", urlpatterns);
  * if (result) {
@@ -99,10 +124,18 @@ export interface URLPattern {
  *   const response = await result.view(request, result.params);
  * }
  * ```
+ *
+ * @example SPA usage
+ * ```ts
+ * const result = resolve<ViewContext, Node>("/", urlpatterns);
+ * if (result) {
+ *   const node = await result.view(ctx, result.params);
+ * }
+ * ```
  */
-export interface ResolveResult {
+export interface ResolveResult<TContext = Request, TReturn = Response> {
   /** The matched view function */
-  view: View;
+  view: View<TContext, TReturn>;
 
   /** URL parameters extracted from the path (e.g., { id: "123" }) */
   params: Record<string, string>;
@@ -129,9 +162,11 @@ export interface CompiledSegment {
 
 /**
  * A compiled URL pattern for efficient matching
+ * @template TContext - The context type (default: Request for backend)
+ * @template TReturn - The return type (default: Response for backend)
  * @internal
  */
-export interface CompiledPattern {
+export interface CompiledPattern<TContext = Request, TReturn = Response> {
   /** Original pattern string */
   original: string;
 
@@ -139,10 +174,10 @@ export interface CompiledPattern {
   segments: CompiledSegment[];
 
   /** View function (if leaf pattern) */
-  view?: View;
+  view?: View<TContext, TReturn>;
 
   /** Nested compiled patterns (if branch pattern) */
-  children?: CompiledPattern[];
+  children?: CompiledPattern<TContext, TReturn>[];
 
   /** Named route */
   name?: string;
