@@ -13,6 +13,7 @@ import type {
   CommandResult,
   IArgumentParser,
 } from "../types.ts";
+import { loadSettings } from "../config.ts";
 
 // =============================================================================
 // Types
@@ -100,8 +101,9 @@ export class TestCommand extends BaseCommand {
 
     parser.addArgument("--pattern", {
       type: "string",
-      default: "src/comachine-web/tests/*_test.ts",
-      help: "Glob pattern for test files",
+      default: "",
+      help:
+        "Glob pattern for test files (defaults to TEST_PATTERN from settings)",
     });
 
     parser.addArgument("--keepdb", {
@@ -128,14 +130,36 @@ export class TestCommand extends BaseCommand {
   // ===========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
-    const settings = options.args.settings as string;
+    const settingsName = options.args.settings as string;
     const port = options.args.port as number;
     const host = options.args.host as string;
-    const pattern = options.args.pattern as string;
+    const patternArg = options.args.pattern as string;
     const keepDb = options.args.keepdb as boolean;
     const failfast = options.args.failfast as boolean;
     const filter = options.args.filter as string;
     const debug = options.debug;
+
+    // Load settings to get TEST_PATTERN
+    let testPattern = patternArg;
+    if (!testPattern) {
+      try {
+        const settings = await loadSettings(settingsName);
+        testPattern = settings.TEST_PATTERN ?? "src/**/tests/*_test.ts";
+        if (debug) {
+          this.debug(`Loaded TEST_PATTERN from settings: ${testPattern}`, true);
+        }
+      } catch (error) {
+        // If settings fail to load, use a sensible default
+        testPattern = "src/**/tests/*_test.ts";
+        if (debug) {
+          this.debug(
+            `Failed to load settings, using default pattern: ${testPattern}`,
+            true,
+          );
+        }
+      }
+    }
+    const pattern = testPattern;
 
     // Validate port
     if (port < 1 || port > 65535) {
@@ -164,7 +188,7 @@ export class TestCommand extends BaseCommand {
       // Start test server in background
       this.info("Starting test server...");
       serverProcess = await this.startTestServer(
-        settings,
+        settingsName,
         port,
         host,
         testDbPath,
