@@ -10,21 +10,21 @@ It brings Django's developer-friendly patterns to the Deno ecosystem.
 Alexi follows Django's modular architecture. Each module provides specific
 functionality:
 
-| Module                 | Django Equivalent            | Description                              |
-| ---------------------- | ---------------------------- | ---------------------------------------- |
-| `@alexi/core`          | `django.core.management`     | Management commands, Application handler |
-| `@alexi/db`            | `django.db`                  | ORM with DenoKV and IndexedDB backends   |
-| `@alexi/urls`          | `django.urls`                | URL routing with `path()`, `include()`   |
-| `@alexi/middleware`    | `django.middleware.*`        | CORS, logging, error handling            |
-| `@alexi/views`         | `django.views`               | Template views                           |
-| `@alexi/web`           | `django.core.handlers.wsgi`  | Web server (HTTP API)                    |
-| `@alexi/staticfiles`   | `django.contrib.staticfiles` | Static file handling, bundling           |
-| `@alexi/restframework` | `djangorestframework`        | REST API: Serializers, ViewSets, Routers |
-| `@alexi/auth`          | `django.contrib.auth`        | Authentication (JWT-based)               |
-| `@alexi/admin`         | `django.contrib.admin`       | Auto-generated admin panel               |
-| `@alexi/webui`         | -                            | Desktop app support via WebUI            |
-| `@alexi/capacitor`     | -                            | Mobile app support (placeholder)         |
-| `@alexi/types`         | -                            | Shared TypeScript type definitions       |
+| Module                 | Django Equivalent            | Description                                         |
+| ---------------------- | ---------------------------- | --------------------------------------------------- |
+| `@alexi/core`          | `django.core.management`     | Management commands, Application handler            |
+| `@alexi/db`            | `django.db`                  | ORM with DenoKV, IndexedDB, REST, and Sync backends |
+| `@alexi/urls`          | `django.urls`                | URL routing with `path()`, `include()`              |
+| `@alexi/middleware`    | `django.middleware.*`        | CORS, logging, error handling                       |
+| `@alexi/views`         | `django.views`               | Template views                                      |
+| `@alexi/web`           | `django.core.handlers.wsgi`  | Web server (HTTP API)                               |
+| `@alexi/staticfiles`   | `django.contrib.staticfiles` | Static file handling, bundling                      |
+| `@alexi/restframework` | `djangorestframework`        | REST API: Serializers, ViewSets, Routers            |
+| `@alexi/auth`          | `django.contrib.auth`        | Authentication (JWT-based)                          |
+| `@alexi/admin`         | `django.contrib.admin`       | Auto-generated admin panel                          |
+| `@alexi/webui`         | -                            | Desktop app support via WebUI                       |
+| `@alexi/capacitor`     | -                            | Mobile app support (placeholder)                    |
+| `@alexi/types`         | -                            | Shared TypeScript type definitions                  |
 
 ---
 
@@ -46,7 +46,9 @@ alexi/
 │   │   ├── backends/    # Database backends
 │   │   │   ├── backend.ts      # Abstract base class
 │   │   │   ├── denokv/         # DenoKV backend (server)
-│   │   │   └── indexeddb/      # IndexedDB backend (browser)
+│   │   │   ├── indexeddb/      # IndexedDB backend (browser)
+│   │   │   ├── rest/           # REST API backend (browser, extensible)
+│   │   │   └── sync/           # Sync backend (local + remote orchestration)
 │   │   ├── fields/      # Field types (CharField, IntegerField, etc.)
 │   │   ├── models/      # Model, Manager classes
 │   │   ├── query/       # QuerySet, Q objects, aggregations
@@ -92,10 +94,24 @@ import type { CommandOptions, CommandResult } from "@alexi/core";
 
 // Database ORM
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
-import { getBackend, isInitialized, setup } from "@alexi/db";
+import { getBackend, isInitialized, setBackend, setup } from "@alexi/db";
 import { Count, Q, QuerySet, Sum } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
+import {
+  clearAuthTokens,
+  DetailAction,
+  ListAction,
+  ModelEndpoint,
+  RestApiError,
+  RestBackend,
+  SingletonQuery,
+} from "@alexi/db/backends/rest";
+import type {
+  RestBackendConfig,
+  SpecialQueryHandler,
+} from "@alexi/db/backends/rest";
+import { SyncBackend } from "@alexi/db/backends/sync";
 
 // URL Routing
 import { include, path } from "@alexi/urls";
@@ -264,6 +280,326 @@ const backend = new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" });
 await backend.connect();
 await setup({ backend });
 ```
+
+### REST Backend (Browser)
+
+The REST backend maps ORM operations to HTTP requests against a REST API. It
+includes built-in JWT authentication, token refresh, and is fully extensible via
+subclassing.
+
+```typescript
+import { RestBackend } from "@alexi/db/backends/rest";
+
+// Basic usage — works out of the box
+const backend = new RestBackend({
+  apiUrl: "https://api.example.com/api",
+});
+await backend.connect();
+
+// Use with ORM
+const tasks = await TaskModel.objects.using(backend).all().fetch();
+const task = await TaskModel.objects.using(backend).create({ title: "New" });
+
+// Authentication
+const { user } = await backend.login({
+  email: "user@example.com",
+  password: "secret",
+});
+const me = await backend.getMe();
+await backend.logout();
+
+// Model actions (e.g., POST /projects/42/publish/)
+await backend.callModelAction("projects", 42, "publish");
+```
+
+#### Subclassing RestBackend
+
+Subclass `RestBackend` to add app-specific behavior. Key extension points:
+
+- `getEndpointForModel()` — custom model → URL mapping
+- `getSpecialQueryHandlers()` — map ORM filters to custom endpoints
+- `extractData()` — customize how model data is serialized for the API
+- `formatDateForApi()` — change date serialization format
+- `request()` (protected) — make authenticated HTTP requests from subclass
+  methods
+
+```typescript
+import { RestBackend } from "@alexi/db/backends/rest";
+import type { SpecialQueryHandler } from "@alexi/db/backends/rest";
+
+class MyAppRestBackend extends RestBackend {
+  constructor(apiUrl: string) {
+    super({
+      apiUrl,
+      tokenStorageKey: "myapp_auth_tokens",
+      authEndpoints: {
+        login: "/auth/login/",
+        register: "/auth/register/",
+      },
+      endpointMap: {
+        TicketMessageModel: "ticket-messages",
+      },
+    });
+  }
+
+  // Map specific ORM filters to custom API endpoints
+  protected override getSpecialQueryHandlers(): Record<
+    string,
+    SpecialQueryHandler[]
+  > {
+    return {
+      organisations: [{
+        matches: (filters) =>
+          filters.length === 1 &&
+          filters[0].field === "current" &&
+          filters[0].value === true,
+        getEndpoint: () => "/organisations/current/",
+        returnsSingle: true,
+      }],
+    };
+  }
+
+  // App-specific methods using the protected request() helper
+  async publishProject(id: number) {
+    return this.request(`/projects/${id}/publish/`, { method: "POST" });
+  }
+}
+
+// Now in your components:
+// OrganisationModel.objects.using(backend).filter({ current: true }).first()
+// → GET /organisations/current/
+```
+
+#### RestBackend Configuration Reference
+
+| Option                         | Default                    | Description                            |
+| ------------------------------ | -------------------------- | -------------------------------------- |
+| `apiUrl`                       | (required)                 | API base URL                           |
+| `debug`                        | `false`                    | Enable console logging                 |
+| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens        |
+| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                         |
+| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint                  |
+| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint                 |
+| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                        |
+| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint          |
+| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint               |
+| `endpointMap`                  | `{}`                       | Fallback model name → endpoint mapping |
+
+#### Endpoint Resolution Order
+
+1. `Model.meta.dbTable` (recommended — set this on your models)
+2. `config.endpointMap[ModelConstructorName]`
+3. Auto-derived: strip `"Model"` suffix, lowercase (e.g., `TaskModel` → `tasks`)
+
+#### Declarative Endpoints (DRF-style)
+
+Instead of imperative `endpointMap` and `getSpecialQueryHandlers()` overrides,
+you can declare endpoint configuration using field-like descriptors — mirroring
+Django REST Framework's ViewSet and `@action` patterns.
+
+```typescript
+import {
+  DetailAction,
+  ListAction,
+  ModelEndpoint,
+  RestBackend,
+  SingletonQuery,
+} from "@alexi/db/backends/rest";
+```
+
+##### Descriptor Types
+
+| Descriptor       | DRF Equivalent           | Generates                                         |
+| ---------------- | ------------------------ | ------------------------------------------------- |
+| `DetailAction`   | `@action(detail=True)`   | `POST /endpoint/:id/action_name/`                 |
+| `ListAction`     | `@action(detail=False)`  | `GET\|POST /endpoint/action_name/`                |
+| `SingletonQuery` | Custom queryset / mixin  | `filter({field: true})` → `GET /endpoint/field/`  |
+
+##### Defining Endpoints
+
+```typescript
+class ProjectEndpoint extends ModelEndpoint {
+  model = ProjectModel;
+  // endpoint auto-derived from ProjectModel.meta.dbTable = "projects"
+
+  // POST /projects/:id/publish/
+  publish = new DetailAction();
+  unpublish = new DetailAction();
+
+  // DELETE /projects/:id/archive/
+  archive = new DetailAction({ method: "DELETE" });
+
+  // GET /projects/published/ → returns array
+  published = new ListAction({ method: "GET" });
+
+  // GET /projects/statistics/ → returns single object
+  statistics = new ListAction({ method: "GET", single: true });
+}
+
+class OrganisationEndpoint extends ModelEndpoint {
+  model = OrganisationModel;
+
+  // filter({current: true}) → GET /organisations/current/
+  current = new SingletonQuery();
+
+  // POST /organisations/:id/activate/
+  activate = new DetailAction();
+  deactivate = new DetailAction();
+}
+
+class ConnectionEndpoint extends ModelEndpoint {
+  model = ConnectionModel;
+
+  accept = new DetailAction();
+  decline = new DetailAction();
+  // camelCase → kebab-case: POST /connections/:id/share-project/
+  shareProject = new DetailAction();
+  shareEmployees = new DetailAction();
+}
+```
+
+##### Registering Endpoints
+
+Pass endpoint classes to RestBackend via the `endpoints` config option:
+
+```typescript
+const backend = new RestBackend({
+  apiUrl: "https://api.example.com/api",
+  tokenStorageKey: "myapp_auth_tokens",
+  endpoints: [
+    ProjectEndpoint,
+    OrganisationEndpoint,
+    ConnectionEndpoint,
+  ],
+  // endpointMap still works as fallback for models without ModelEndpoint
+  endpointMap: {
+    TicketMessageModel: "ticket-messages",
+  },
+});
+```
+
+##### Using Endpoints
+
+```typescript
+// ORM with auto-generated singleton query handler (unchanged)
+const org = await OrganisationModel.objects
+  .using(backend)
+  .filter({ current: true })
+  .first();
+// → GET /organisations/current/
+
+// Type-safe action calls (new)
+await backend.action(ProjectEndpoint, "publish", 42);
+// → POST /projects/42/publish/
+
+await backend.action(ConnectionEndpoint, "accept", 5, { note: "OK" });
+// → POST /connections/5/accept/
+
+// List actions
+const published = await backend.action(ProjectEndpoint, "published");
+// → GET /projects/published/
+
+// Old callModelAction still works (backwards compatible)
+await backend.callModelAction("projects", 42, "publish");
+```
+
+##### Naming Conventions
+
+camelCase property names are automatically converted to kebab-case URL segments:
+
+| Property Name    | URL Segment       | Full URL                                 |
+| ---------------- | ----------------- | ---------------------------------------- |
+| `publish`        | `publish`         | `POST /projects/:id/publish/`            |
+| `shareProject`   | `share-project`   | `POST /connections/:id/share-project/`   |
+| `shareEmployees` | `share-employees` | `POST /connections/:id/share-employees/` |
+
+##### Descriptor Options
+
+```typescript
+// DetailAction options
+new DetailAction()                              // POST (default)
+new DetailAction({ method: "DELETE" })          // DELETE
+new DetailAction({ method: "PUT" })             // PUT
+new DetailAction({ urlSegment: "do-something" }) // custom URL segment
+
+// ListAction options
+new ListAction()                                // POST (default)
+new ListAction({ method: "GET" })               // GET
+new ListAction({ method: "GET", single: true }) // GET, returns single object
+new ListAction({ urlSegment: "my-list" })       // custom URL segment
+
+// SingletonQuery options
+new SingletonQuery()                            // filter({field: true})
+new SingletonQuery({ urlSegment: "me" })        // custom URL: /endpoint/me/
+new SingletonQuery({ matchValue: "active" })    // filter({field: "active"})
+```
+
+##### Updated Configuration Reference
+
+| Option                         | Default                    | Description                              |
+| ------------------------------ | -------------------------- | ---------------------------------------- |
+| `apiUrl`                       | (required)                 | API base URL                             |
+| `debug`                        | `false`                    | Enable console logging                   |
+| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens          |
+| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes         |
+| `endpointMap`                  | `{}`                       | Fallback model name → endpoint mapping   |
+| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                           |
+| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint                    |
+| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint                   |
+| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                          |
+| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint            |
+| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint                 |
+
+### Sync Backend (Browser)
+
+The Sync backend orchestrates a local backend (typically IndexedDB) and a remote
+backend (typically RestBackend) for offline-first operation:
+
+- **Reads**: Try remote first, fall back to local
+- **Writes**: Write to local first, then sync to remote
+- **Reconciliation**: Server-generated IDs and timestamps are synced back to
+  local
+
+```typescript
+import { getBackend, setBackend, setup } from "@alexi/db";
+import { RestBackend } from "@alexi/db/backends/rest";
+import { SyncBackend } from "@alexi/db/backends/sync";
+
+// 1. Setup local backend (IndexedDB)
+await setup({
+  database: { engine: "indexeddb", name: "myapp" },
+});
+const localBackend = getBackend();
+
+// 2. Create REST backend
+const restBackend = new RestBackend({
+  apiUrl: "https://api.example.com/api",
+  tokenStorageKey: "myapp_auth_tokens",
+});
+await restBackend.connect();
+
+// 3. Create Sync backend and replace global
+const syncBackend = new SyncBackend(localBackend, restBackend, {
+  debug: false,
+  failSilently: true, // Swallow network errors (offline-friendly)
+});
+await syncBackend.connect();
+setBackend(syncBackend);
+
+// Now all ORM operations sync automatically
+const task = await TaskModel.objects.create({ title: "Works offline too" });
+
+// Auth operations go through RestBackend
+await restBackend.login({ email: "user@example.com", password: "secret" });
+```
+
+#### SyncBackend Error Handling
+
+| Error Type                     | `failSilently: true` (default)         | `failSilently: false`                 |
+| ------------------------------ | -------------------------------------- | ------------------------------------- |
+| Auth errors (401/403)          | **Always thrown** — user must re-login | **Always thrown**                     |
+| Network/server errors on write | Local write succeeds, remote deferred  | Local write rolled back, error thrown |
+| Network/server errors on read  | Falls back to local backend            | Error thrown                          |
 
 ---
 
@@ -718,6 +1054,15 @@ abstract class DatabaseBackend {
 }
 ```
 
+### Available Backends
+
+| Backend            | Import                         | Environment   | Use Case                                       |
+| ------------------ | ------------------------------ | ------------- | ---------------------------------------------- |
+| `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server (Deno) | Server-side apps with Deno's built-in KV store |
+| `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser       | Browser-only local storage                     |
+| `RestBackend`      | `@alexi/db/backends/rest`      | Browser       | Maps ORM operations to REST API calls          |
+| `SyncBackend`      | `@alexi/db/backends/sync`      | Browser       | Orchestrates local + remote for offline-first  |
+
 ---
 
 ## Required Deno Flags
@@ -767,6 +1112,19 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
 7. **IndexedDB requires DOM types**: The IndexedDB backend needs browser
    environment types. When running `deno check` on server code, you may see type
    errors for IndexedDB - these can be ignored if you're only using DenoKV.
+
+8. **RestBackend uses `meta.dbTable` for endpoints**: Set
+   `static meta = {
+   dbTable: "tasks" }` on your models so RestBackend knows
+   which API endpoint to call. If not set, it falls back to `config.endpointMap`
+   or auto-derives from the class name.
+
+9. **SyncBackend propagates auth errors**: Even in `failSilently` mode, 401/403
+   errors are always thrown so the UI can redirect to login.
+
+10. **RestBackend `request()` is protected**: Subclasses can use
+    `this.request<T>(path, options)` to make authenticated HTTP calls for
+    app-specific endpoints without reimplementing token management.
 
 ---
 
