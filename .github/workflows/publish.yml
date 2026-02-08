@@ -1,0 +1,81 @@
+name: Publish to JSR
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deno.json"
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write # Required for JSR publishing
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2 # Need previous commit to check version change
+
+      - name: Check if version changed
+        id: version-check
+        run: |
+          # Get current version
+          CURRENT_VERSION=$(jq -r '.version' deno.json)
+          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+          # Get previous version
+          git show HEAD~1:deno.json > /tmp/prev_deno.json 2>/dev/null || echo '{"version":"0.0.0"}' > /tmp/prev_deno.json
+          PREVIOUS_VERSION=$(jq -r '.version' /tmp/prev_deno.json)
+          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
+
+          # Check if version changed
+          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version unchanged ($CURRENT_VERSION)"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Deno
+        if: steps.version-check.outputs.changed == 'true'
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Verify formatting
+        if: steps.version-check.outputs.changed == 'true'
+        run: deno fmt --check
+
+      - name: Run linter
+        if: steps.version-check.outputs.changed == 'true'
+        run: deno lint
+
+      - name: Run tests
+        if: steps.version-check.outputs.changed == 'true'
+        run: deno task test
+
+      - name: Publish to JSR
+        if: steps.version-check.outputs.changed == 'true'
+        run: deno publish
+
+      - name: Summary
+        if: steps.version-check.outputs.changed == 'true'
+        run: |
+          echo "## 🚀 Published to JSR" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Package:** @atzufuki/alexi" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version-check.outputs.current_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View on JSR](https://jsr.io/@atzufuki/alexi)" >> $GITHUB_STEP_SUMMARY
+
+      - name: Skip summary
+        if: steps.version-check.outputs.changed == 'false'
+        run: |
+          echo "## ⏭️ Publish skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Version unchanged (${{ steps.version-check.outputs.current_version }})" >> $GITHUB_STEP_SUMMARY
