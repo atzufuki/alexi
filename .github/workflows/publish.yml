@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "deno.json"
+      - "src/**/deno.jsonc"
 
 jobs:
   publish:
@@ -23,7 +24,7 @@ jobs:
       - name: Check if version changed
         id: version-check
         run: |
-          # Get current version
+          # Get current version from root
           CURRENT_VERSION=$(jq -r '.version' deno.json)
           echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
@@ -59,19 +60,65 @@ jobs:
         if: steps.version-check.outputs.changed == 'true'
         run: deno task test
 
-      - name: Publish to JSR
+      - name: Find all packages
         if: steps.version-check.outputs.changed == 'true'
-        run: deno publish
+        id: find-packages
+        run: |
+          echo "Finding all subpackages..."
+          PACKAGES=$(find src -name "deno.jsonc" -type f | sort)
+          echo "Found packages:"
+          echo "$PACKAGES"
 
-      - name: Summary
+          # Save package list for next step
+          echo "$PACKAGES" > /tmp/packages.txt
+
+          PACKAGE_COUNT=$(echo "$PACKAGES" | wc -l)
+          echo "package_count=$PACKAGE_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Publish packages
         if: steps.version-check.outputs.changed == 'true'
         run: |
-          echo "## 🚀 Published to JSR" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Publishing to JSR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Package:** @atzufuki/alexi" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.version-check.outputs.current_version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[View on JSR](https://jsr.io/@atzufuki/alexi)" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Packages" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          SUCCESS_COUNT=0
+          FAIL_COUNT=0
+
+          # Read packages from temp file
+          while IFS= read -r PKG_PATH; do
+            # Get package directory
+            PKG_DIR=$(dirname "$PKG_PATH")
+
+            # Get package name
+            PKG_NAME=$(jq -r '.name' "$PKG_PATH")
+
+            echo "Publishing $PKG_NAME from $PKG_DIR..."
+
+            # Publish from package directory
+            if (cd "$PKG_DIR" && deno publish --allow-dirty); then
+              echo "  ✓ $PKG_NAME - published successfully" | tee -a $GITHUB_STEP_SUMMARY
+              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+            else
+              echo "  ✗ $PKG_NAME - failed to publish" | tee -a $GITHUB_STEP_SUMMARY
+              FAIL_COUNT=$((FAIL_COUNT + 1))
+            fi
+          done < /tmp/packages.txt
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Summary:** $SUCCESS_COUNT succeeded, $FAIL_COUNT failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "[View on JSR](https://jsr.io/@alexi)" >> $GITHUB_STEP_SUMMARY
+
+          # Exit with error if any failed
+          if [ $FAIL_COUNT -gt 0 ]; then
+            exit 1
+          fi
 
       - name: Skip summary
         if: steps.version-check.outputs.changed == 'false'

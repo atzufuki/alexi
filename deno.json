@@ -27,7 +27,8 @@
     "test": "deno test -A --unstable-kv --no-check",
     "check": "deno check src/**/mod.ts",
     "lint": "deno lint",
-    "fmt": "deno fmt"
+    "fmt": "deno fmt",
+    "version:sync": "deno run --allow-read --allow-write scripts/sync-versions.ts"
   },
   "imports": {
     "@alexi/types": "./src/types/mod.ts",
