@@ -4,7 +4,8 @@ This document describes how to release new versions of Alexi packages.
 
 ## Package Structure
 
-Alexi is a monorepo that publishes multiple packages to JSR under the `@alexi` scope:
+Alexi is a monorepo that publishes multiple packages to JSR under the `@alexi`
+scope:
 
 - `@alexi/core` - Core framework and management commands
 - `@alexi/db` - ORM with DenoKV and IndexedDB backends
@@ -24,7 +25,8 @@ Alexi is a monorepo that publishes multiple packages to JSR under the `@alexi` s
 
 ## Versioning Strategy
 
-All packages share the **same version number** (synchronized versioning). This simplifies dependency management and ensures compatibility across the framework.
+All packages share the **same version number** (synchronized versioning). This
+simplifies dependency management and ensures compatibility across the framework.
 
 **Version format:** Semantic Versioning (`MAJOR.MINOR.PATCH`)
 
@@ -83,7 +85,8 @@ Create a pull request to `main` branch.
 
 ### 6. Merge to Main
 
-Once the PR is approved and merged to `main`, the GitHub Actions workflow will automatically:
+Once the PR is approved and merged to `main`, the GitHub Actions workflow will
+automatically:
 
 1. Detect the version change in `deno.json`
 2. Run tests (`deno task test`)
@@ -152,7 +155,8 @@ Run `deno task version:sync` to synchronize all package versions.
 
 ## Notes
 
-- The root package `@atzufuki/alexi` is NOT published - only subpackages under `@alexi/*`
+- The root package `@atzufuki/alexi` is NOT published - only subpackages under
+  `@alexi/*`
 - All packages must be published from their respective directories (`src/*/`)
 - The workflow uses `--allow-dirty` flag to publish from CI
 - Version changes trigger the workflow only when pushed to `main` branch
