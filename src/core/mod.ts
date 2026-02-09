@@ -57,7 +57,13 @@
 // Core Classes
 // =============================================================================
 
-export { execute, ManagementUtility, pathToFileUrl } from "./management.ts";
+export { execute, ManagementUtility } from "./management.ts";
+
+/**
+ * @deprecated Use import functions in INSTALLED_APPS instead.
+ * This will be removed in v0.9.0.
+ */
+export { pathToFileUrl } from "./management.ts";
 export { BaseCommand, failure, success } from "./base_command.ts";
 export { ArgumentParser } from "./argument_parser.ts";
 export {
@@ -84,17 +90,26 @@ export type {
 export {
   configure,
   createApplication,
+  getLoadedApps,
   getSettings,
   getSettingsModuleName,
   getSettingsModulePath,
   initializeDatabase,
   isConfigured,
   isDatabaseInitialized,
+  loadInstalledApps,
   loadSettings,
   loadUrlPatterns,
   resetConfiguration,
 } from "./config.ts";
-export type { AlexiSettings, DatabaseConfig, ServerConfig } from "./config.ts";
+export type {
+  AlexiSettings,
+  AppImportFn,
+  DatabaseConfig,
+  LoadedApp,
+  ServerConfig,
+  UrlImportFn,
+} from "./config.ts";
 
 // =============================================================================
 // Built-in Commands (only core commands: help, test)

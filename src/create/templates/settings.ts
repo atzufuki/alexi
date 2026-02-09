@@ -8,44 +8,35 @@ import type { ProjectOptions } from "../project.ts";
 
 /**
  * Generate settings.ts content for a new project
+ *
+ * Uses import functions in INSTALLED_APPS for proper import context.
  */
 export function generateSettings(
   name: string,
   options: ProjectOptions,
 ): string {
+  // Build INSTALLED_APPS import functions
   const installedApps: string[] = [];
-  const appPaths: Record<string, string> = {};
 
-  // Add framework apps
-  installedApps.push("alexi_staticfiles");
-  appPaths["alexi_staticfiles"] = "jsr:@alexi/staticfiles";
-
-  installedApps.push("alexi_web");
-  appPaths["alexi_web"] = "jsr:@alexi/web";
+  installedApps.push('  () => import("@alexi/staticfiles")');
+  installedApps.push('  () => import("@alexi/web")');
 
   if (options.database !== "none") {
-    installedApps.push("alexi_db");
-    appPaths["alexi_db"] = "jsr:@alexi/db";
+    installedApps.push('  () => import("@alexi/db")');
   }
 
   if (options.withAuth) {
-    installedApps.push("alexi_auth");
-    appPaths["alexi_auth"] = "jsr:@alexi/auth";
+    installedApps.push('  () => import("@alexi/auth")');
   }
 
   if (options.withAdmin) {
-    installedApps.push("alexi_admin");
-    appPaths["alexi_admin"] = "jsr:@alexi/admin";
+    installedApps.push('  () => import("@alexi/admin")');
   }
 
   // Add project app
-  installedApps.push(name);
-  appPaths[name] = `./src/${name}`;
+  installedApps.push(`  () => import("@${name}/web")`);
 
-  const installedAppsStr = installedApps.map((app) => `  "${app}",`).join("\n");
-  const appPathsStr = Object.entries(appPaths)
-    .map(([key, value]) => `  "${key}": "${value}",`)
-    .join("\n");
+  const installedAppsStr = installedApps.join(",\n");
 
   const databaseConfig = options.database === "none" ? "" : `
 // =============================================================================
@@ -97,19 +88,26 @@ ${databaseConfig}
 // Installed Apps
 // =============================================================================
 
+/**
+ * INSTALLED_APPS contains import functions for each app.
+ *
+ * Using import functions ensures the import happens in this module's context,
+ * so import maps defined in deno.json work correctly.
+ */
 export const INSTALLED_APPS = [
-${installedAppsStr}
+${installedAppsStr},
 ];
-
-export const APP_PATHS: Record<string, string> = {
-${appPathsStr}
-};
 
 // =============================================================================
 // URL Configuration
 // =============================================================================
 
-export const ROOT_URLCONF = "${name}";
+/**
+ * ROOT_URLCONF is an import function that returns the URL patterns module.
+ *
+ * Using an import function ensures the import happens in this module's context.
+ */
+export const ROOT_URLCONF = () => import("@${name}/web/urls");
 
 // =============================================================================
 // Static Files

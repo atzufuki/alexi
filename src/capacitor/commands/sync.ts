@@ -7,12 +7,46 @@
  * @module alexi_capacitor/commands/sync
  */
 
-import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
 } from "@alexi/core";
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Convert a file path to a file:// URL string for dynamic import.
+ * Only used for loading settings files.
+ */
+function toImportUrl(filePath: string): string {
+  let normalized = filePath.replace(/\\/g, "/");
+
+  if (normalized.startsWith("./")) {
+    normalized = normalized.slice(2);
+  }
+
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (/^[a-zA-Z]:/.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (normalized.startsWith("/")) {
+    return `file://${normalized}`;
+  }
+
+  const cwd = Deno.cwd().replace(/\\/g, "/");
+  if (/^[a-zA-Z]:\//.test(cwd)) {
+    return `file:///${cwd}/${normalized}`;
+  }
+  return `file://${cwd}/${normalized}`;
+}
 
 // =============================================================================
 // SyncCommand
@@ -65,7 +99,7 @@ export class SyncCommand extends BaseCommand {
       let settings: Record<string, unknown>;
 
       try {
-        const settingsUrl = pathToFileUrl(settingsPath);
+        const settingsUrl = toImportUrl(settingsPath);
         settings = await import(settingsUrl);
       } catch (error) {
         this.error(`Could not load settings: ${settingsPath}`);

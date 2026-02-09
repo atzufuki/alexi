@@ -19,79 +19,25 @@ import type {
 import type { AppConfig } from "@alexi/types";
 
 // =============================================================================
-// Import Specifier Detection
-// =============================================================================
-
-/**
- * Check if a string is an import specifier (package name) vs a file path.
- *
- * Import specifiers:
- * - "@alexi/web" (scoped package)
- * - "jsr:@alexi/web" (explicit JSR)
- * - "npm:express" (explicit npm)
- * - "alexi" (bare specifier - less common)
- *
- * File paths:
- * - "./src/myapp" (relative)
- * - "../alexi/src/web" (relative parent)
- * - "/absolute/path" (absolute)
- * - "C:/windows/path" (Windows absolute)
- */
-function isImportSpecifier(value: string): boolean {
-  // Explicit protocol prefixes
-  if (
-    value.startsWith("jsr:") ||
-    value.startsWith("npm:") ||
-    value.startsWith("node:")
-  ) {
-    return true;
-  }
-
-  // Scoped packages (@org/package)
-  if (value.startsWith("@")) {
-    return true;
-  }
-
-  // Relative paths are NOT specifiers
-  if (value.startsWith("./") || value.startsWith("../")) {
-    return false;
-  }
-
-  // Absolute paths (Unix or Windows)
-  if (value.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(value)) {
-    return false;
-  }
-
-  // If it contains path separators but doesn't start with protocol, it's a path
-  if (value.includes("/") || value.includes("\\")) {
-    // Exception: scoped packages like @org/package/subpath
-    if (!value.startsWith("@")) {
-      return false;
-    }
-  }
-
-  // Bare specifiers (e.g., "lodash", "express")
-  // These are less common in Alexi but could be npm packages
-  return true;
-}
-
-// =============================================================================
 // Helper Functions
 // =============================================================================
 
 /**
- * Convert a file path to a file:// URL string
+ * Convert a file path to a file:// URL string for dynamic import.
  *
- * Handles Windows paths correctly by:
- * - Converting backslashes to forward slashes
- * - Adding the proper file:/// prefix for Windows absolute paths
+ * This is an internal helper for loading project-local settings files.
+ * It handles Windows paths correctly.
  *
- * @param path - File system path
+ * NOTE: This is only used for settings files (loaded via --settings CLI arg).
+ * App modules use import functions provided by the user in settings.
+ *
+ * @param filePath - File system path
  * @returns file:// URL string suitable for dynamic import
+ * @internal
  */
-export function pathToFileUrl(path: string): string {
+function toImportUrl(filePath: string): string {
   // Normalize backslashes to forward slashes
-  let normalized = path.replace(/\\/g, "/");
+  let normalized = filePath.replace(/\\/g, "/");
 
   // Remove leading ./ if present
   if (normalized.startsWith("./")) {
@@ -120,6 +66,27 @@ export function pathToFileUrl(path: string): string {
   }
   return `file://${cwd}/${normalized}`;
 }
+
+/**
+ * @deprecated This export will be removed in v0.9.0.
+ * Use import functions in INSTALLED_APPS instead.
+ */
+export function pathToFileUrl(path: string): string {
+  console.warn(
+    "⚠️  pathToFileUrl is deprecated and will be removed in v0.9.0. " +
+      "Use import functions in INSTALLED_APPS instead.",
+  );
+  return toImportUrl(path);
+}
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * Import function type for apps.
+ */
+type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
 
 // =============================================================================
 // ManagementUtility Class
@@ -200,11 +167,11 @@ export class ManagementUtility {
    * Register built-in commands (only core commands: help, test)
    *
    * Other commands are provided by their respective modules via INSTALLED_APPS:
-   * - bundle, collectstatic, runserver (static) → alexi_staticfiles
-   * - runserver (web) → alexi_web
-   * - runserver (desktop) → alexi_webui
-   * - createsuperuser → alexi_auth
-   * - flush → alexi_db
+   * - bundle, collectstatic, runserver (static) → @alexi/staticfiles
+   * - runserver (web) → @alexi/web
+   * - runserver (desktop) → @alexi/webui
+   * - createsuperuser → @alexi/auth
+   * - flush → @alexi/db
    */
   private registerBuiltinCommands(): void {
     // Register help command and set registry reference
@@ -233,13 +200,6 @@ export class ManagementUtility {
   }
 
   /**
-   * Load commands from INSTALLED_APPS
-   *
-   * Apps can provide custom commands by specifying a `commandsModule` in their app.ts.
-   * This enables Django-style app-specific commands that become available when the app
-   * is added to INSTALLED_APPS.
-   */
-  /**
    * Parse --settings argument from raw args before command execution.
    * This is needed to know which settings file to load commands from.
    */
@@ -263,6 +223,12 @@ export class ManagementUtility {
     return null;
   }
 
+  /**
+   * Load commands from INSTALLED_APPS.
+   *
+   * INSTALLED_APPS contains import functions that return app modules.
+   * We call each function to get the module, then load commands from it.
+   */
   private async loadAppCommands(args: string[] = []): Promise<void> {
     if (this.appCommandsLoaded) return;
     this.appCommandsLoaded = true;
@@ -270,90 +236,31 @@ export class ManagementUtility {
     try {
       const projectDir = `${this.projectRoot}/project`;
 
-      // Collect apps to load: either specifier (string) or {name, path} for file-based
-      const appsToLoad: Array<
-        { type: "specifier"; specifier: string } | {
-          type: "path";
-          name: string;
-          path: string;
-        }
-      > = [];
-      const seenApps = new Set<string>();
-
       // Check if --settings was specified
       const settingsArg = this.parseSettingsArg(args);
 
+      // Collect import functions from settings
+      const importFunctions: AppImportFn[] = [];
+
       if (settingsArg) {
-        // Load commands only from the specified settings file
+        // Load from specified settings file
         try {
-          // Support Django-style settings module paths:
-          // 1. Full path: ./project/test.settings.ts or project/test.settings.ts
-          // 2. Dotted module: project.test (becomes project/test.settings.ts)
-          // 3. Short name: test (becomes project/test.settings.ts) - legacy
-          let settingsPath: string;
+          const settingsPath = this.resolveSettingsPath(settingsArg, projectDir);
+          const settingsUrl = toImportUrl(settingsPath);
 
-          if (settingsArg.endsWith(".ts")) {
-            // Full path with .ts extension
-            if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
-              settingsPath = `${this.projectRoot}/${settingsArg.slice(2)}`;
-            } else {
-              settingsPath = `${this.projectRoot}/${settingsArg}`;
-            }
-          } else if (settingsArg.includes(".")) {
-            // Dotted module path like project.test or project.settings.production
-            const modulePath = settingsArg.replace(/\./g, "/");
-            settingsPath = `${this.projectRoot}/${modulePath}.ts`;
-          } else {
-            // Legacy short name: test -> project/test.settings.ts
-            settingsPath = `${projectDir}/${settingsArg}.settings.ts`;
-          }
-
-          const settingsUrl = pathToFileUrl(settingsPath);
           if (this.debug) {
             console.log(`Loading settings from: ${settingsUrl}`);
           }
+
           const settings = await import(settingsUrl);
+          const installedApps = settings.INSTALLED_APPS ?? [];
 
-          const installedApps: string[] = settings.INSTALLED_APPS ?? [];
-          const appPaths: Record<string, string> = settings.APP_PATHS ?? {};
-
-          // Warn if APP_PATHS is still being used (deprecation notice)
-          if (
-            Object.keys(appPaths).length > 0 && settings.APP_PATHS !== undefined
-          ) {
-            console.warn(
-              "⚠️  APP_PATHS is deprecated. Use import specifiers in INSTALLED_APPS instead.",
-            );
-            console.warn(
-              '   Example: "@alexi/web" instead of "alexi_web" + APP_PATHS mapping.',
-            );
-          }
-
-          for (const appEntry of installedApps) {
-            if (seenApps.has(appEntry)) continue;
-            seenApps.add(appEntry);
-
-            if (isImportSpecifier(appEntry)) {
-              // It's an import specifier like "@alexi/web"
-              appsToLoad.push({ type: "specifier", specifier: appEntry });
-            } else {
-              // Legacy: look up in APP_PATHS
-              const appPath = appPaths[appEntry];
-              if (appPath) {
-                appsToLoad.push({
-                  type: "path",
-                  name: appEntry,
-                  path: appPath,
-                });
-              } else if (this.debug) {
-                console.warn(
-                  `  App '${appEntry}' not found in APP_PATHS and is not an import specifier`,
-                );
-              }
+          for (const app of installedApps) {
+            if (typeof app === "function") {
+              importFunctions.push(app as AppImportFn);
             }
           }
         } catch (error) {
-          // Settings file doesn't exist or is invalid
           if (this.debug) {
             console.warn(`Could not load settings '${settingsArg}': ${error}`);
           }
@@ -365,27 +272,15 @@ export class ManagementUtility {
             if (entry.isFile && entry.name.endsWith(".settings.ts")) {
               try {
                 const settingsPath = `${projectDir}/${entry.name}`;
-                const settingsUrl = pathToFileUrl(settingsPath);
+                const settingsUrl = toImportUrl(settingsPath);
                 const settings = await import(settingsUrl);
+                const installedApps = settings.INSTALLED_APPS ?? [];
 
-                const installedApps: string[] = settings.INSTALLED_APPS ?? [];
-                const appPaths: Record<string, string> = settings.APP_PATHS ??
-                  {};
-
-                for (const appEntry of installedApps) {
-                  if (seenApps.has(appEntry)) continue;
-                  seenApps.add(appEntry);
-
-                  if (isImportSpecifier(appEntry)) {
-                    appsToLoad.push({ type: "specifier", specifier: appEntry });
-                  } else {
-                    const appPath = appPaths[appEntry];
-                    if (appPath) {
-                      appsToLoad.push({
-                        type: "path",
-                        name: appEntry,
-                        path: appPath,
-                      });
+                for (const app of installedApps) {
+                  if (typeof app === "function") {
+                    // Check if we already have this function (by reference)
+                    if (!importFunctions.includes(app as AppImportFn)) {
+                      importFunctions.push(app as AppImportFn);
                     }
                   }
                 }
@@ -400,16 +295,12 @@ export class ManagementUtility {
       }
 
       if (this.debug) {
-        console.log(`Found ${appsToLoad.length} apps to check for commands`);
+        console.log(`Found ${importFunctions.length} app import functions`);
       }
 
-      // Load commands from each app
-      for (const app of appsToLoad) {
-        if (app.type === "specifier") {
-          await this.loadCommandsFromSpecifier(app.specifier);
-        } else {
-          await this.loadCommandsFromPath(app.name, app.path);
-        }
+      // Load commands from each app by calling the import function
+      for (const importFn of importFunctions) {
+        await this.loadCommandsFromImportFn(importFn);
       }
     } catch (error) {
       if (this.debug) {
@@ -419,145 +310,79 @@ export class ManagementUtility {
   }
 
   /**
-   * Load commands from an import specifier (e.g., "@alexi/web")
-   *
-   * This handles apps installed as packages (JSR, npm).
-   * It imports the app's config module to find the commands module.
+   * Resolve settings path from argument.
    */
-  private async loadCommandsFromSpecifier(specifier: string): Promise<void> {
-    try {
-      // Try to import the app's config module
-      // Convention: @alexi/web/config exports AppConfig
-      const configSpecifier = `${specifier}/config`;
-
-      if (this.debug) {
-        console.log(`Loading app config from specifier: ${configSpecifier}`);
+  private resolveSettingsPath(settingsArg: string, projectDir: string): string {
+    if (settingsArg.endsWith(".ts")) {
+      // Full path with .ts extension
+      if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
+        return `${this.projectRoot}/${settingsArg.slice(2)}`;
       }
-
-      let config: AppConfig;
-      try {
-        const appModule = await import(configSpecifier);
-        config = appModule.default as AppConfig;
-      } catch {
-        // Fallback: some packages might not have /config export yet
-        // Try importing the main module and looking for appConfig export
-        if (this.debug) {
-          console.log(
-            `  ${specifier}: no /config export, trying main module`,
-          );
-        }
-        try {
-          const mainModule = await import(specifier);
-          if (mainModule.appConfig) {
-            config = mainModule.appConfig as AppConfig;
-          } else {
-            if (this.debug) {
-              console.log(`  ${specifier}: no appConfig in main module`);
-            }
-            return;
-          }
-        } catch {
-          if (this.debug) {
-            console.log(`  ${specifier}: could not import main module`);
-          }
-          return;
-        }
-      }
-
-      // Check if app has commands module
-      if (!config?.commandsModule) {
-        if (this.debug) {
-          console.log(`  ${specifier}: no commandsModule defined`);
-        }
-        return;
-      }
-
-      // Determine how to import the commands module
-      let commandsModule: Record<string, unknown>;
-      const cmdModulePath = config.commandsModule;
-
-      if (isImportSpecifier(cmdModulePath)) {
-        // commandsModule is already a full specifier
-        commandsModule = await import(cmdModulePath);
-      } else if (
-        cmdModulePath.startsWith("./") || cmdModulePath.startsWith("../")
-      ) {
-        // Relative path - construct specifier from package + relative path
-        // e.g., "@alexi/web" + "./commands/mod.ts" -> "@alexi/web/commands"
-        // Strip ./commands/mod.ts -> commands, then @alexi/web/commands
-        const subpath = cmdModulePath
-          .replace(/^\.\//, "")
-          .replace(/\/mod\.ts$/, "")
-          .replace(/\.ts$/, "");
-        const commandsSpecifier = `${specifier}/${subpath}`;
-
-        if (this.debug) {
-          console.log(`  Loading commands from: ${commandsSpecifier}`);
-        }
-
-        commandsModule = await import(commandsSpecifier);
-      } else {
-        // Assume it's a subpath export name
-        const commandsSpecifier = `${specifier}/${cmdModulePath}`;
-        commandsModule = await import(commandsSpecifier);
-      }
-
-      // Register all exported command classes
-      this.registerCommandsFromModule(commandsModule, specifier);
-    } catch (error) {
-      if (this.debug) {
-        console.warn(`  ${specifier}: could not load commands: ${error}`);
-      }
+      return `${this.projectRoot}/${settingsArg}`;
     }
+
+    if (settingsArg.includes(".")) {
+      // Dotted module path like project.test
+      const modulePath = settingsArg.replace(/\./g, "/");
+      return `${this.projectRoot}/${modulePath}.ts`;
+    }
+
+    // Short name: test -> project/test.settings.ts
+    return `${projectDir}/${settingsArg}.settings.ts`;
   }
 
   /**
-   * Load commands from a file path (legacy APP_PATHS approach)
+   * Load commands from an import function.
+   *
+   * The import function is called in user's context, so import maps work correctly.
    */
-  private async loadCommandsFromPath(
-    appName: string,
-    appPath: string,
-  ): Promise<void> {
-    // Normalize app path - remove leading ./
-    const normalizedAppPath = appPath.startsWith("./")
-      ? appPath.slice(2)
-      : appPath;
-
+  private async loadCommandsFromImportFn(importFn: AppImportFn): Promise<void> {
     try {
-      const appConfigPath = `${this.projectRoot}/${normalizedAppPath}/app.ts`;
-      const appConfigUrl = pathToFileUrl(appConfigPath);
+      // Call the user's import function
+      const module = await importFn();
 
-      if (this.debug) {
-        console.log(`Loading app config from: ${appConfigUrl}`);
-      }
-
-      const appModule = await import(appConfigUrl);
-      const config = appModule.default as AppConfig;
-
-      // Check if app has commands module
-      if (!config?.commandsModule) {
+      // Get AppConfig from default export
+      const config = module.default as AppConfig | undefined;
+      if (!config) {
         if (this.debug) {
-          console.log(`  ${appName}: no commandsModule defined`);
+          console.log("  App module has no default export (AppConfig)");
         }
         return;
       }
 
-      // Load commands module
-      const commandsPath =
-        `${this.projectRoot}/${normalizedAppPath}/${config.commandsModule}`;
-      const commandsUrl = pathToFileUrl(commandsPath);
-
       if (this.debug) {
-        console.log(`  Loading commands from: ${commandsUrl}`);
+        console.log(`Loading commands from app: ${config.name}`);
       }
 
-      const commandsModule = await import(commandsUrl);
+      // Check if app has commands
+      if (!config.commandsModule) {
+        if (this.debug) {
+          console.log(`  ${config.name}: no commandsModule defined`);
+        }
+        return;
+      }
 
-      // Register all exported command classes
-      this.registerCommandsFromModule(commandsModule, appName);
+      // Check if app provides a commandsImport function
+      if (config.commandsImport && typeof config.commandsImport === "function") {
+        // Use the provided import function for commands
+        const commandsModule = await config.commandsImport();
+        this.registerCommandsFromModule(
+          commandsModule as Record<string, unknown>,
+          config.name,
+        );
+        return;
+      }
+
+      // Fallback: commands might be exported from the main module
+      if (module.commands) {
+        this.registerCommandsFromModule(
+          module.commands as Record<string, unknown>,
+          config.name,
+        );
+      }
     } catch (error) {
       if (this.debug) {
-        console.warn(`  ${appName}: could not load commands: ${error}`);
+        console.warn(`  Could not load commands from app: ${error}`);
       }
     }
   }
@@ -570,24 +395,40 @@ export class ManagementUtility {
     sourceName: string,
   ): void {
     for (const [exportName, exportValue] of Object.entries(module)) {
-      // Check if it's a command class (has 'handle' in prototype)
+      // Skip non-command exports
+      if (typeof exportValue !== "function") continue;
+
+      // Check if it's a command class (has name property or extends BaseCommand)
+      const proto = exportValue.prototype;
+      if (!proto) continue;
+
+      // Check for BaseCommand characteristics
       if (
-        typeof exportValue === "function" &&
-        exportValue.prototype &&
-        typeof exportValue.prototype.handle === "function"
+        proto instanceof BaseCommand ||
+        ("name" in proto && "handle" in proto) ||
+        exportName.endsWith("Command")
       ) {
-        this.registry.register(exportValue as CommandConstructor);
-        if (this.debug) {
-          console.log(`✓ Loaded command '${exportName}' from ${sourceName}`);
+        try {
+          this.registry.register(exportValue as CommandConstructor);
+          if (this.debug) {
+            const cmdName = proto.name ?? exportName;
+            console.log(`    Registered command: ${cmdName} from ${sourceName}`);
+          }
+        } catch {
+          // Command might already be registered or invalid
         }
       }
     }
   }
 
+  // ===========================================================================
+  // Public API
+  // ===========================================================================
+
   /**
    * Register a custom command
    *
-   * @param CommandClass - Command constructor to register
+   * @param CommandClass - The command class to register
    */
   registerCommand(CommandClass: CommandConstructor): void {
     this.registry.register(CommandClass);
@@ -596,161 +437,151 @@ export class ManagementUtility {
   /**
    * Register multiple commands at once
    *
-   * @param commandClasses - Array of command constructors
+   * @param commands - Array of command classes to register
    */
-  registerCommands(commandClasses: CommandConstructor[]): void {
-    for (const CommandClass of commandClasses) {
-      this.registerCommand(CommandClass);
+  registerCommands(commands: CommandConstructor[]): void {
+    for (const CommandClass of commands) {
+      this.registry.register(CommandClass);
     }
   }
 
-  // ===========================================================================
-  // Console Configuration
-  // ===========================================================================
-
   /**
-   * Set custom console implementations (useful for testing)
+   * Set custom console for output
    *
-   * @param stdout - Standard output console
-   * @param stderr - Standard error console
+   * Useful for testing or redirecting output.
+   *
+   * @param stdout - Console for standard output
+   * @param stderr - Console for error output (optional, defaults to stdout)
    */
   setConsole(stdout: IConsole, stderr?: IConsole): void {
     this.stdout = stdout;
     this.stderr = stderr ?? stdout;
   }
 
-  // ===========================================================================
-  // Command Execution
-  // ===========================================================================
-
   /**
-   * Execute the CLI with the given arguments
+   * Execute commands from command line arguments
    *
-   * This is the main entry point. It parses arguments,
-   * finds the appropriate command, and executes it.
+   * This is the main entry point. It:
+   * 1. Loads app commands from INSTALLED_APPS
+   * 2. Parses the command name from args
+   * 3. Dispatches to the appropriate command
+   * 4. Returns exit code (0 for success, 1 for failure)
    *
    * @param args - Command line arguments (typically Deno.args)
-   * @returns Exit code (0 = success)
-   *
-   * @example
-   * ```ts
-   * const cli = new ManagementUtility();
-   * const exitCode = await cli.execute(Deno.args);
-   * Deno.exit(exitCode);
-   * ```
+   * @returns Exit code: 0 for success, 1 for failure
    */
   async execute(args: string[]): Promise<number> {
-    // Load commands from INSTALLED_APPS before execution
-    // Pass args so we can parse --settings to know which settings file to use
-    await this.loadAppCommands(args);
+    try {
+      // Load app commands first
+      await this.loadAppCommands(args);
 
-    // Handle empty arguments
-    if (args.length === 0) {
-      this.showUsage();
-      return 0;
+      // Get command name (first non-flag argument)
+      const commandName = args.find((arg) => !arg.startsWith("-"));
+
+      if (!commandName) {
+        this.showUsage();
+        return 0;
+      }
+
+      return await this.executeCommand(commandName, args);
+    } catch (error) {
+      this.stderr.error(
+        `Error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return 1;
     }
-
-    // Get the command name (first argument)
-    const commandName = args[0];
-
-    // Handle special cases
-    if (commandName === "--help" || commandName === "-h") {
-      return this.executeCommand("help", []);
-    }
-
-    if (commandName === "--version" || commandName === "-v") {
-      this.showVersion();
-      return 0;
-    }
-
-    // Execute the command
-    return this.executeCommand(commandName, args.slice(1));
   }
 
   /**
-   * Execute a specific command by name
-   *
-   * @param commandName - Name of the command to execute
-   * @param args - Arguments to pass to the command
-   * @returns Exit code
+   * Execute a specific command
    */
   private async executeCommand(
     commandName: string,
     args: string[],
   ): Promise<number> {
-    const command = this.registry.get(commandName);
+    // Special handling for --version
+    if (commandName === "--version" || commandName === "-v") {
+      this.showVersion();
+      return 0;
+    }
 
+    // Get the command
+    const command = this.registry.get(commandName);
     if (!command) {
-      this.stderr.error(`Error: Command "${commandName}" not found.`);
-      this.stderr.error("");
-      this.stderr.error("Available commands:");
-      this.stderr.error(this.registry.getCommandList());
+      this.stderr.error(`Unknown command: ${commandName}`);
+      this.stderr.error("Run 'help' to see available commands.");
       return 1;
     }
 
-    try {
-      // Run the command
-      if (command instanceof BaseCommand) {
-        // Set console for output
-        command.setConsole(this.stdout, this.stderr);
+    // Configure command output if it's a BaseCommand
+    if (command instanceof BaseCommand) {
+      command.setConsole(this.stdout, this.stderr);
+    }
 
-        const result = await command.run(args, this.debug);
+    try {
+      // Execute the command
+      let result: { exitCode: number; message?: string; success?: boolean };
+
+      if (command instanceof BaseCommand) {
+        // BaseCommand has run() method
+        result = await command.run(args, this.debug);
+      } else {
+        // ICommand only has handle()
+        result = await command.handle({
+          args: { _: args.filter((a) => !a.startsWith("-")) },
+          rawArgs: args,
+          debug: this.debug,
+        });
+      }
+
+      if (result.exitCode !== 0) {
+        const message = result.message || "Command failed";
+        this.stderr.error(message);
         return result.exitCode;
       }
 
-      // For non-BaseCommand implementations
-      const result = await command.handle({
-        args: { _: args },
-        rawArgs: args,
-        debug: this.debug,
-      });
-      return result.exitCode;
+      return 0;
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.stderr.error(`Error executing command: ${message}`);
-
-      if (this.debug && error instanceof Error && error.stack) {
-        this.stderr.error("");
-        this.stderr.error("Stack trace:");
-        this.stderr.error(error.stack);
-      }
-
+      this.stderr.error(
+        `Command '${commandName}' failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
       return 1;
     }
   }
 
   // ===========================================================================
-  // Help Output
+  // Help & Version
   // ===========================================================================
 
   /**
    * Show usage information
    */
   private showUsage(): void {
-    this.stdout.log("┌─────────────────────────────────────────────┐");
-    this.stdout.log("│         Alexi Management Commands           │");
-    this.stdout.log("└─────────────────────────────────────────────┘");
     this.stdout.log("");
-    this.stdout.log("Usage: deno run -A manage.ts <command> [arguments]");
+    this.stdout.log("Alexi Management Utility");
+    this.stdout.log("");
+    this.stdout.log("Usage:");
+    this.stdout.log("  deno task <command> [options]");
+    this.stdout.log("  deno run -A manage.ts <command> [options]");
     this.stdout.log("");
     this.stdout.log("Available commands:");
-    this.stdout.log(this.registry.getCommandList());
+
+    const commands = this.registry.all();
+    for (const cmd of commands.sort((a, b) => a.name.localeCompare(b.name))) {
+      this.stdout.log(`  ${cmd.name.padEnd(20)} ${cmd.help}`);
+    }
+
     this.stdout.log("");
-    this.stdout.log("Common arguments:");
-    this.stdout.log("  --help, -h     Show help");
-    this.stdout.log("  --version, -v  Show version");
-    this.stdout.log("  --debug        Enable debug mode");
-    this.stdout.log("");
-    this.stdout.log(
-      "Use 'help <command>' for more information about a specific command.",
-    );
+    this.stdout.log("Run 'help <command>' for more information on a command.");
   }
 
   /**
    * Show version information
    */
   private showVersion(): void {
-    this.stdout.log("Alexi Management v0.1.0");
+    this.stdout.log("Alexi Framework v0.8.0");
   }
 
   // ===========================================================================
@@ -784,22 +615,14 @@ export class ManagementUtility {
 // =============================================================================
 
 /**
- * Create and execute a management CLI
+ * Execute management commands (convenience function)
  *
- * Convenience function for simple use cases.
+ * This is a shortcut for creating a ManagementUtility and executing commands.
  *
- * @param config - Optional configuration
+ * @param args - Command line arguments (typically Deno.args)
  * @returns Exit code
- *
- * @example
- * ```ts
- * // manage.ts
- * import { execute } from "@alexi/management";
- *
- * Deno.exit(await execute());
- * ```
  */
-export async function execute(config?: ManagementConfig): Promise<number> {
-  const cli = new ManagementUtility(config);
-  return cli.execute(Deno.args);
+export async function execute(args: string[]): Promise<number> {
+  const cli = new ManagementUtility();
+  return await cli.execute(args);
 }
