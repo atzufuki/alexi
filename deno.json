@@ -1,6 +1,6 @@
 {
   "name": "@atzufuki/alexi",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "exports": {
     ".": "./src/mod.ts",
     "./core": "./src/core/mod.ts",
