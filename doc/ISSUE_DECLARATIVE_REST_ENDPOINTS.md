@@ -126,10 +126,10 @@ class ProjectEndpoint extends ModelEndpoint {
 
 Three descriptor types, each analogous to a DRF concept:
 
-| Descriptor       | DRF Equivalent                 | Generates                                       |
-| ---------------- | ------------------------------ | ----------------------------------------------- |
-| `DetailAction`   | `@action(detail=True)`         | `POST /endpoint/:id/action_name/`               |
-| `ListAction`     | `@action(detail=False)`        | `GET\|POST /endpoint/action_name/`              |
+| Descriptor       | DRF Equivalent                 | Generates                                        |
+| ---------------- | ------------------------------ | ------------------------------------------------ |
+| `DetailAction`   | `@action(detail=True)`         | `POST /endpoint/:id/action_name/`                |
+| `ListAction`     | `@action(detail=False)`        | `GET\|POST /endpoint/action_name/`               |
 | `SingletonQuery` | Custom queryset method / mixin | `filter({field: true})` → `GET /endpoint/field/` |
 
 ```typescript
@@ -465,14 +465,14 @@ override is completely replaced by `SingletonQuery` declarations.
 
 ### Action name → URL segment
 
-Following DRF's convention, camelCase property names are converted to
-kebab-case URL segments:
+Following DRF's convention, camelCase property names are converted to kebab-case
+URL segments:
 
-| Property Name    | URL Segment        | Full URL                              |
-| ---------------- | ------------------ | ------------------------------------- |
-| `publish`        | `publish`          | `POST /projects/:id/publish/`         |
-| `shareProject`   | `share-project`    | `POST /connections/:id/share-project/` |
-| `shareEmployees` | `share-employees`  | `POST /connections/:id/share-employees/` |
+| Property Name    | URL Segment       | Full URL                                 |
+| ---------------- | ----------------- | ---------------------------------------- |
+| `publish`        | `publish`         | `POST /projects/:id/publish/`            |
+| `shareProject`   | `share-project`   | `POST /connections/:id/share-project/`   |
+| `shareEmployees` | `share-employees` | `POST /connections/:id/share-employees/` |
 
 This mirrors DRF's automatic `snake_case → kebab-case` URL conversion.
 
@@ -480,8 +480,8 @@ This mirrors DRF's automatic `snake_case → kebab-case` URL conversion.
 
 ## Custom Action Logic
 
-For actions that need custom logic beyond a simple HTTP call, define methods
-on the endpoint class:
+For actions that need custom logic beyond a simple HTTP call, define methods on
+the endpoint class:
 
 ```typescript
 class ProjectEndpoint extends ModelEndpoint {
@@ -509,7 +509,8 @@ class ProjectEndpoint extends ModelEndpoint {
 
 ## Open Questions
 
-1. **Field constructors vs factory functions**: Should descriptors be `new
+1. **Field constructors vs factory functions**: Should descriptors be
+   `new
    DetailAction()` (class instances, like Alexi ORM fields) or
    `detailAction()` (factory functions, lighter syntax)?
 
@@ -544,8 +545,7 @@ This proposal is **fully backwards compatible**:
 - `endpointMap` config continues to work (lowest priority in resolution)
 - `getSpecialQueryHandlers()` override continues to work (merged with
   auto-generated handlers from `SingletonQuery` fields)
-- `callModelAction()` continues to work alongside the new
-  `backend.action()` API
+- `callModelAction()` continues to work alongside the new `backend.action()` API
 - `ModelEndpoint` classes are opt-in — existing subclassing patterns remain
   valid
 
@@ -559,7 +559,8 @@ This proposal is **fully backwards compatible**:
 - [x] Create `DetailAction`, `ListAction`, `SingletonQuery` descriptor classes
 - [x] Add `camelToKebab()` utility for action name → URL conversion
 - [x] File: `alexi/src/db/backends/rest/endpoints.ts`
-- [x] Add type guards: `isDetailAction()`, `isListAction()`, `isSingletonQuery()`, `isEndpointDescriptor()`
+- [x] Add type guards: `isDetailAction()`, `isListAction()`,
+      `isSingletonQuery()`, `isEndpointDescriptor()`
 - [x] Add `introspectEndpoint()` and `introspectEndpoints()` functions
 - [x] Add 58 unit tests (`alexi/src/db/tests/endpoints_test.ts`)
 
@@ -570,7 +571,8 @@ This proposal is **fully backwards compatible**:
 - [x] Auto-generate `SpecialQueryHandler` entries from `SingletonQuery` fields
 - [x] Auto-generate endpoint map from `ModelEndpoint.model`
 - [x] Add `backend.action()` type-safe method
-- [x] Add `backend.getRegisteredActions()` and `backend.getEndpointIntrospections()` debug helpers
+- [x] Add `backend.getRegisteredActions()` and
+      `backend.getEndpointIntrospections()` debug helpers
 - [x] Ensure backwards compatibility with existing config options
 
 ### Phase 3: Update applications
@@ -583,7 +585,8 @@ This proposal is **fully backwards compatible**:
 - [x] Migrate `comachine-deno` RestBackend to use minimal config
   - Slimmed `endpointMap` to only underscore/hyphen mismatches (3 entries)
   - Added re-exports for declarative types for future use
-- [x] Remove redundant `endpointMap` entries and `getSpecialQueryHandlers()` overrides
+- [x] Remove redundant `endpointMap` entries and `getSpecialQueryHandlers()`
+      overrides
 
 ### Phase 4: Documentation
 

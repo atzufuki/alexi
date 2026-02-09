@@ -409,11 +409,11 @@ import {
 
 ##### Descriptor Types
 
-| Descriptor       | DRF Equivalent           | Generates                                         |
-| ---------------- | ------------------------ | ------------------------------------------------- |
-| `DetailAction`   | `@action(detail=True)`   | `POST /endpoint/:id/action_name/`                 |
-| `ListAction`     | `@action(detail=False)`  | `GET\|POST /endpoint/action_name/`                |
-| `SingletonQuery` | Custom queryset / mixin  | `filter({field: true})` → `GET /endpoint/field/`  |
+| Descriptor       | DRF Equivalent          | Generates                                        |
+| ---------------- | ----------------------- | ------------------------------------------------ |
+| `DetailAction`   | `@action(detail=True)`  | `POST /endpoint/:id/action_name/`                |
+| `ListAction`     | `@action(detail=False)` | `GET\|POST /endpoint/action_name/`               |
+| `SingletonQuery` | Custom queryset / mixin | `filter({field: true})` → `GET /endpoint/field/` |
 
 ##### Defining Endpoints
 
@@ -517,38 +517,38 @@ camelCase property names are automatically converted to kebab-case URL segments:
 
 ```typescript
 // DetailAction options
-new DetailAction()                              // POST (default)
-new DetailAction({ method: "DELETE" })          // DELETE
-new DetailAction({ method: "PUT" })             // PUT
-new DetailAction({ urlSegment: "do-something" }) // custom URL segment
+new DetailAction(); // POST (default)
+new DetailAction({ method: "DELETE" }); // DELETE
+new DetailAction({ method: "PUT" }); // PUT
+new DetailAction({ urlSegment: "do-something" }); // custom URL segment
 
 // ListAction options
-new ListAction()                                // POST (default)
-new ListAction({ method: "GET" })               // GET
-new ListAction({ method: "GET", single: true }) // GET, returns single object
-new ListAction({ urlSegment: "my-list" })       // custom URL segment
+new ListAction(); // POST (default)
+new ListAction({ method: "GET" }); // GET
+new ListAction({ method: "GET", single: true }); // GET, returns single object
+new ListAction({ urlSegment: "my-list" }); // custom URL segment
 
 // SingletonQuery options
-new SingletonQuery()                            // filter({field: true})
-new SingletonQuery({ urlSegment: "me" })        // custom URL: /endpoint/me/
-new SingletonQuery({ matchValue: "active" })    // filter({field: "active"})
+new SingletonQuery(); // filter({field: true})
+new SingletonQuery({ urlSegment: "me" }); // custom URL: /endpoint/me/
+new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 ```
 
 ##### Updated Configuration Reference
 
-| Option                         | Default                    | Description                              |
-| ------------------------------ | -------------------------- | ---------------------------------------- |
-| `apiUrl`                       | (required)                 | API base URL                             |
-| `debug`                        | `false`                    | Enable console logging                   |
-| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens          |
-| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes         |
-| `endpointMap`                  | `{}`                       | Fallback model name → endpoint mapping   |
-| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                           |
-| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint                    |
-| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint                   |
-| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                          |
-| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint            |
-| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint                 |
+| Option                         | Default                    | Description                            |
+| ------------------------------ | -------------------------- | -------------------------------------- |
+| `apiUrl`                       | (required)                 | API base URL                           |
+| `debug`                        | `false`                    | Enable console logging                 |
+| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens        |
+| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes      |
+| `endpointMap`                  | `{}`                       | Fallback model name → endpoint mapping |
+| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                         |
+| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint                  |
+| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint                 |
+| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                        |
+| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint          |
+| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint               |
 
 ### Sync Backend (Browser)
 
