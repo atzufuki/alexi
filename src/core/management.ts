@@ -484,7 +484,9 @@ export class ManagementUtility {
         return 0;
       }
 
-      return await this.executeCommand(commandName, args);
+      // Remove command name from args before passing to command
+      const commandArgs = args.slice(args.indexOf(commandName) + 1);
+      return await this.executeCommand(commandName, commandArgs);
     } catch (error) {
       this.stderr.error(
         `Error: ${error instanceof Error ? error.message : String(error)}`,
