@@ -14,7 +14,6 @@
     "./src/auth",
     "./src/web",
     "./src/webui",
-    "./src/capacitor",
     "./src/create"
   ],
   "exports": {
