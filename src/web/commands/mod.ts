@@ -1,3 +1,10 @@
-export { default as CollectStaticCommand } from './collectstatic.ts';
-export { default as RunServerCommand } from './runserver.ts';
-export * from './mixins.ts';
+/**
+ * Alexi Web Commands
+ *
+ * Web server management commands.
+ * Provides the HTTP runserver for web API applications.
+ *
+ * @module @alexi/web/commands
+ */
+
+export { RunServerCommand } from "./runserver.ts";

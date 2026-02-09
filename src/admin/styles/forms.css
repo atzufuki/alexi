@@ -1,0 +1,631 @@
+/**
+ * Alexi Admin Form Styles
+ *
+ * Styles for form elements in the admin interface.
+ */
+
+/* =========================================================================
+ * Form Layout
+ * ========================================================================= */
+
+.admin-form {
+  max-width: var(--admin-form-max-width);
+}
+
+.admin-form-row {
+  margin-bottom: var(--admin-spacing-base);
+}
+
+.admin-form-row:last-child {
+  margin-bottom: 0;
+}
+
+.admin-form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--admin-spacing-base);
+  align-items: flex-end;
+}
+
+.admin-form-actions {
+  display: flex;
+  gap: var(--admin-spacing-sm);
+  padding-top: var(--admin-spacing-base);
+  border-top: 1px solid var(--admin-border-light);
+  margin-top: var(--admin-spacing-lg);
+}
+
+.admin-form-actions-right {
+  justify-content: flex-end;
+}
+
+.admin-form-actions-between {
+  justify-content: space-between;
+}
+
+/* =========================================================================
+ * Field Container
+ * ========================================================================= */
+
+.admin-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-spacing-xs);
+}
+
+.admin-field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--admin-spacing-sm);
+}
+
+.admin-field-horizontal {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--admin-spacing-base);
+}
+
+.admin-field-horizontal .admin-label {
+  flex: 0 0 200px;
+  padding-top: var(--admin-spacing-sm);
+}
+
+.admin-field-horizontal .admin-field-content {
+  flex: 1;
+}
+
+/* =========================================================================
+ * Labels
+ * ========================================================================= */
+
+.admin-label {
+  display: block;
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-font-weight-semibold);
+  color: var(--admin-text);
+  margin-bottom: var(--admin-spacing-xs);
+}
+
+.admin-label-required::after {
+  content: " *";
+  color: var(--admin-error);
+}
+
+.admin-label-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--admin-spacing-sm);
+  font-weight: var(--admin-font-weight-normal);
+  cursor: pointer;
+}
+
+/* =========================================================================
+ * Text Inputs
+ * ========================================================================= */
+
+.admin-input {
+  width: 100%;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-md);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  font-family: var(--admin-font-family);
+  font-size: var(--admin-font-size-base);
+  line-height: var(--admin-line-height-normal);
+  color: var(--admin-text);
+  background-color: var(--admin-bg);
+  transition:
+    border-color var(--admin-transition-fast),
+    box-shadow var(--admin-transition-fast);
+}
+
+.admin-input::placeholder {
+  color: var(--admin-text-muted);
+}
+
+.admin-input:hover:not(:disabled):not(:focus) {
+  border-color: var(--admin-border-dark);
+}
+
+.admin-input:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px rgba(65, 118, 144, 0.2);
+}
+
+.admin-input:disabled {
+  background-color: var(--admin-bg-alt);
+  color: var(--admin-text-muted);
+  cursor: not-allowed;
+}
+
+.admin-input:read-only {
+  background-color: var(--admin-bg-alt);
+}
+
+.admin-input-error {
+  border-color: var(--admin-error);
+}
+
+.admin-input-error:focus {
+  border-color: var(--admin-error);
+  box-shadow: 0 0 0 2px rgba(186, 33, 33, 0.2);
+}
+
+/* Input sizes */
+.admin-input-sm {
+  padding: var(--admin-spacing-xs) var(--admin-spacing-sm);
+  font-size: var(--admin-font-size-sm);
+}
+
+.admin-input-lg {
+  padding: var(--admin-spacing-md) var(--admin-spacing-base);
+  font-size: var(--admin-font-size-md);
+}
+
+/* =========================================================================
+ * Textarea
+ * ========================================================================= */
+
+.admin-textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-md);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  font-family: var(--admin-font-family);
+  font-size: var(--admin-font-size-base);
+  line-height: var(--admin-line-height-normal);
+  color: var(--admin-text);
+  background-color: var(--admin-bg);
+  resize: vertical;
+  transition:
+    border-color var(--admin-transition-fast),
+    box-shadow var(--admin-transition-fast);
+}
+
+.admin-textarea::placeholder {
+  color: var(--admin-text-muted);
+}
+
+.admin-textarea:hover:not(:disabled):not(:focus) {
+  border-color: var(--admin-border-dark);
+}
+
+.admin-textarea:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px rgba(65, 118, 144, 0.2);
+}
+
+.admin-textarea:disabled {
+  background-color: var(--admin-bg-alt);
+  color: var(--admin-text-muted);
+  cursor: not-allowed;
+}
+
+.admin-textarea-error {
+  border-color: var(--admin-error);
+}
+
+/* =========================================================================
+ * Select
+ * ========================================================================= */
+
+.admin-select {
+  width: 100%;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-md);
+  padding-right: var(--admin-spacing-2xl);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  font-family: var(--admin-font-family);
+  font-size: var(--admin-font-size-base);
+  line-height: var(--admin-line-height-normal);
+  color: var(--admin-text);
+  background-color: var(--admin-bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  appearance: none;
+  cursor: pointer;
+  transition:
+    border-color var(--admin-transition-fast),
+    box-shadow var(--admin-transition-fast);
+}
+
+.admin-select:hover:not(:disabled):not(:focus) {
+  border-color: var(--admin-border-dark);
+}
+
+.admin-select:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px rgba(65, 118, 144, 0.2);
+}
+
+.admin-select:disabled {
+  background-color: var(--admin-bg-alt);
+  color: var(--admin-text-muted);
+  cursor: not-allowed;
+}
+
+.admin-select-error {
+  border-color: var(--admin-error);
+}
+
+/* Select sizes */
+.admin-select-sm {
+  padding: var(--admin-spacing-xs) var(--admin-spacing-sm);
+  padding-right: var(--admin-spacing-xl);
+  font-size: var(--admin-font-size-sm);
+}
+
+/* =========================================================================
+ * Checkbox & Radio
+ * ========================================================================= */
+
+.admin-checkbox,
+.admin-radio {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--admin-primary);
+}
+
+.admin-checkbox:disabled,
+.admin-radio:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-checkbox-wrapper,
+.admin-radio-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-spacing-sm);
+  cursor: pointer;
+}
+
+.admin-checkbox-wrapper:has(:disabled),
+.admin-radio-wrapper:has(:disabled) {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.admin-checkbox-label,
+.admin-radio-label {
+  font-size: var(--admin-font-size-base);
+  color: var(--admin-text);
+  user-select: none;
+}
+
+/* Checkbox/Radio group */
+.admin-checkbox-group,
+.admin-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--admin-spacing-sm);
+}
+
+.admin-checkbox-group-inline,
+.admin-radio-group-inline {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: var(--admin-spacing-base);
+}
+
+/* =========================================================================
+ * Switch/Toggle
+ * ========================================================================= */
+
+.admin-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.admin-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.admin-switch-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--admin-border);
+  border-radius: var(--admin-radius-full);
+  transition: background-color var(--admin-transition-fast);
+}
+
+.admin-switch-slider::before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: var(--admin-bg);
+  border-radius: 50%;
+  transition: transform var(--admin-transition-fast);
+  box-shadow: var(--admin-shadow-sm);
+}
+
+.admin-switch input:checked + .admin-switch-slider {
+  background-color: var(--admin-primary);
+}
+
+.admin-switch input:checked + .admin-switch-slider::before {
+  transform: translateX(20px);
+}
+
+.admin-switch input:disabled + .admin-switch-slider {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* =========================================================================
+ * Help Text & Errors
+ * ========================================================================= */
+
+.admin-help-text {
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text-muted);
+  margin-top: var(--admin-spacing-xs);
+}
+
+.admin-error-text {
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-error);
+  margin-top: var(--admin-spacing-xs);
+}
+
+.admin-error-list {
+  margin: var(--admin-spacing-xs) 0 0 0;
+  padding-left: var(--admin-spacing-base);
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-error);
+}
+
+.admin-error-list li {
+  margin-bottom: 2px;
+}
+
+/* =========================================================================
+ * Fieldsets
+ * ========================================================================= */
+
+.admin-fieldset {
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  padding: var(--admin-spacing-base);
+  margin-bottom: var(--admin-spacing-lg);
+  background-color: var(--admin-bg);
+}
+
+.admin-fieldset-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--admin-font-size-md);
+  font-weight: var(--admin-font-weight-semibold);
+  color: var(--admin-text);
+  margin-bottom: var(--admin-spacing-base);
+  padding-bottom: var(--admin-spacing-sm);
+  border-bottom: 1px solid var(--admin-border-light);
+}
+
+.admin-fieldset-description {
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text-muted);
+  margin-bottom: var(--admin-spacing-base);
+}
+
+.admin-fieldset-collapsible .admin-fieldset-title {
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-fieldset-collapsible .admin-fieldset-title::after {
+  content: "▼";
+  font-size: var(--admin-font-size-xs);
+  color: var(--admin-text-muted);
+  transition: transform var(--admin-transition-fast);
+}
+
+.admin-fieldset-collapsed .admin-fieldset-title::after {
+  transform: rotate(-90deg);
+}
+
+.admin-fieldset-collapsed .admin-fieldset-content {
+  display: none;
+}
+
+/* =========================================================================
+ * Input Groups
+ * ========================================================================= */
+
+.admin-input-group {
+  display: flex;
+  align-items: stretch;
+}
+
+.admin-input-group .admin-input {
+  flex: 1;
+  border-radius: 0;
+}
+
+.admin-input-group .admin-input:first-child {
+  border-radius: var(--admin-radius) 0 0 var(--admin-radius);
+}
+
+.admin-input-group .admin-input:last-child {
+  border-radius: 0 var(--admin-radius) var(--admin-radius) 0;
+}
+
+.admin-input-group .admin-input:not(:first-child) {
+  margin-left: -1px;
+}
+
+.admin-input-group-addon {
+  display: flex;
+  align-items: center;
+  padding: 0 var(--admin-spacing-md);
+  background-color: var(--admin-bg-alt);
+  border: 1px solid var(--admin-border);
+  font-size: var(--admin-font-size-base);
+  color: var(--admin-text-light);
+  white-space: nowrap;
+}
+
+.admin-input-group-addon:first-child {
+  border-radius: var(--admin-radius) 0 0 var(--admin-radius);
+  border-right: none;
+}
+
+.admin-input-group-addon:last-child {
+  border-radius: 0 var(--admin-radius) var(--admin-radius) 0;
+  border-left: none;
+}
+
+/* =========================================================================
+ * Search Input
+ * ========================================================================= */
+
+.admin-search {
+  position: relative;
+}
+
+.admin-search-input {
+  padding-left: var(--admin-spacing-2xl);
+}
+
+.admin-search-icon {
+  position: absolute;
+  left: var(--admin-spacing-md);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--admin-text-muted);
+  pointer-events: none;
+}
+
+.admin-search-clear {
+  position: absolute;
+  right: var(--admin-spacing-sm);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: var(--admin-spacing-xs);
+  border: none;
+  background: none;
+  color: var(--admin-text-muted);
+  cursor: pointer;
+  border-radius: var(--admin-radius);
+  line-height: 1;
+}
+
+.admin-search-clear:hover {
+  color: var(--admin-text);
+  background-color: var(--admin-bg-hover);
+}
+
+/* =========================================================================
+ * Date/Time Inputs
+ * ========================================================================= */
+
+.admin-input[type="date"],
+.admin-input[type="time"],
+.admin-input[type="datetime-local"] {
+  padding-right: var(--admin-spacing-sm);
+}
+
+/* Fix date input appearance in WebKit */
+.admin-input[type="date"]::-webkit-calendar-picker-indicator,
+.admin-input[type="time"]::-webkit-calendar-picker-indicator,
+.admin-input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.admin-input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.admin-input[type="time"]::-webkit-calendar-picker-indicator:hover,
+.admin-input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+/* =========================================================================
+ * Number Input
+ * ========================================================================= */
+
+.admin-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+.admin-input[type="number"]::-webkit-outer-spin-button,
+.admin-input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Show spinners when needed */
+.admin-input-with-spinners[type="number"] {
+  -moz-appearance: auto;
+}
+
+.admin-input-with-spinners[type="number"]::-webkit-outer-spin-button,
+.admin-input-with-spinners[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: auto;
+}
+
+/* =========================================================================
+ * File Input
+ * ========================================================================= */
+
+.admin-file-input {
+  display: block;
+  width: 100%;
+  padding: var(--admin-spacing-sm);
+  border: 1px dashed var(--admin-border);
+  border-radius: var(--admin-radius);
+  background-color: var(--admin-bg-alt);
+  cursor: pointer;
+  transition:
+    border-color var(--admin-transition-fast),
+    background-color var(--admin-transition-fast);
+}
+
+.admin-file-input:hover {
+  border-color: var(--admin-primary);
+  background-color: var(--admin-bg-selected);
+}
+
+.admin-file-input:focus-within {
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px rgba(65, 118, 144, 0.2);
+}
+
+.admin-file-input input[type="file"] {
+  width: 100%;
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text);
+  cursor: pointer;
+}
+
+.admin-file-input input[type="file"]::file-selector-button {
+  margin-right: var(--admin-spacing-sm);
+  padding: var(--admin-spacing-xs) var(--admin-spacing-sm);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background-color: var(--admin-bg);
+  font-size: var(--admin-font-size-sm);
+  cursor: pointer;
+  transition: background-color var(--admin-transition-fast);
+}
+
+.admin-file-input input[type="file"]::file-selector-button:hover {
+  background-color: var(--admin-bg-hover);
+}

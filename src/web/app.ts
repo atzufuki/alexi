@@ -1,17 +1,18 @@
-import { AppConfig } from '@alexi/web/config.ts';
+/**
+ * Alexi Web App Configuration
+ *
+ * Django-style app configuration for web API server.
+ * Provides the HTTP runserver command for web applications.
+ *
+ * @module @alexi/web
+ */
 
-export class AlexiWebApp extends AppConfig {
-  name = 'alexi_web';
+import type { AppConfig } from "@alexi/types";
 
-  get appDir() {
-    const url = new URL(import.meta.url);
-    return url.pathname.split('/').slice(1, -1).join('/');
-  }
+const config: AppConfig = {
+  name: "alexi_web",
+  verboseName: "Alexi Web Server",
+  commandsModule: "./commands/mod.ts",
+};
 
-  getCommands = async () => {
-    return {
-      runserver: await import(`./commands/runserver.ts`),
-      collectstatic: await import(`./commands/collectstatic.ts`),
-    };
-  };
-}
+export default config;
