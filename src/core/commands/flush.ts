@@ -1,13 +1,42 @@
-/// <reference lib="deno.unstable" />
-
 /**
  * Flush Command for Alexi DB
  *
  * Django-style command that clears all data from the database.
  * Similar to Django's `manage.py flush` command.
  *
+ * NOTE: This module requires `--unstable-kv` flag when running Deno.
+ *
  * @module @alexi/core/commands/flush
  */
+
+// Type declarations for Deno KV (unstable API)
+// These allow the module to compile without --unstable-kv flag
+declare namespace Deno {
+  export interface Kv {
+    delete(key: KvKey): Promise<void>;
+    list<T>(selector: KvListSelector): KvListIterator<T>;
+    close(): void;
+  }
+
+  export type KvKey = readonly KvKeyPart[];
+  export type KvKeyPart = string | number | bigint | boolean | Uint8Array;
+
+  export interface KvEntry<T> {
+    key: KvKey;
+    value: T;
+    versionstamp: string;
+  }
+
+  export interface KvListSelector {
+    prefix?: KvKey;
+  }
+
+  export interface KvListIterator<T> extends AsyncIterableIterator<KvEntry<T>> {
+    cursor: string;
+  }
+
+  export function openKv(path?: string): Promise<Kv>;
+}
 
 import { BaseCommand, success } from "@alexi/core";
 import type {
