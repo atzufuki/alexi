@@ -7,7 +7,7 @@
  * @module alexi_webui/commands/build
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -113,7 +113,8 @@ export class BuildCommand extends BaseCommand {
       let settings: Record<string, unknown>;
 
       try {
-        settings = await import(`file://${settingsPath}`);
+        const settingsUrl = pathToFileUrl(settingsPath);
+        settings = await import(settingsUrl);
       } catch (error) {
         this.error(`Could not load settings: ${settingsPath}`);
         throw error;

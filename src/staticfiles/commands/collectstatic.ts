@@ -7,7 +7,7 @@
  * @module @alexi/staticfiles/commands/collectstatic
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -234,7 +234,8 @@ export class CollectStaticCommand extends BaseCommand {
       // Load deployment-specific settings (e.g., web.settings.ts, desktop.settings.ts)
       const settingsPath =
         `${this.projectRoot}/project/${settingsName}.settings.ts`;
-      const settings = await import(`file://${settingsPath}`);
+      const settingsUrl = pathToFileUrl(settingsPath);
+      const settings = await import(settingsUrl);
 
       return {
         installedApps: settings.INSTALLED_APPS ?? [],
@@ -280,7 +281,8 @@ export class CollectStaticCommand extends BaseCommand {
       let staticDirRel = "static"; // Default
       try {
         const configPath = `${appDir}/app.ts`;
-        const module = await import(`file://${configPath}`);
+        const configUrl = pathToFileUrl(configPath);
+        const module = await import(configUrl);
         const config = module.default as AppConfig;
         if (config.staticDir) {
           staticDirRel = config.staticDir.replace(/^\.\//, "");

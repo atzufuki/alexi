@@ -15,7 +15,7 @@
  * @module @alexi/web/commands/runserver
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -145,12 +145,12 @@ export class RunServerCommand extends BaseCommand {
       console.log(`[runserver] projectRoot: ${this.projectRoot}`);
       console.log(`[runserver] settingsPath: ${settingsPath}`);
 
-      // Use URL constructor to ensure proper file:// URL handling
+      // Use pathToFileUrl to ensure proper file:// URL handling across platforms
       // This prevents Deno from resolving relative to JSR when running from JSR package
-      const settingsUrl = new URL(`file://${settingsPath}`);
-      console.log(`[runserver] import URL: ${settingsUrl.href}`);
+      const settingsUrl = pathToFileUrl(settingsPath);
+      console.log(`[runserver] import URL: ${settingsUrl}`);
 
-      const settings = await import(settingsUrl.href);
+      const settings = await import(settingsUrl);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 8000;
       const host = hostArg ?? settings.DEFAULT_HOST ?? "0.0.0.0";
@@ -272,8 +272,8 @@ export class RunServerCommand extends BaseCommand {
             ? rootUrlconf.slice(2)
             : rootUrlconf;
           const urlsPath = `${this.projectRoot}/${normalizedPath}/urls.ts`;
-          const urlsUrl = new URL(`file://${urlsPath}`);
-          urlsModule = await import(urlsUrl.href);
+          const urlsUrl = pathToFileUrl(urlsPath);
+          urlsModule = await import(urlsUrl);
           this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
         } else {
           // Legacy: look up in APP_PATHS
@@ -281,8 +281,8 @@ export class RunServerCommand extends BaseCommand {
           const appPath = appPaths[rootUrlconf];
           if (appPath) {
             const urlsPath = `${this.projectRoot}/${appPath}/urls.ts`;
-            const urlsUrl = new URL(`file://${urlsPath}`);
-            urlsModule = await import(urlsUrl.href);
+            const urlsUrl = pathToFileUrl(urlsPath);
+            urlsModule = await import(urlsUrl);
             this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
           } else {
             throw new Error(

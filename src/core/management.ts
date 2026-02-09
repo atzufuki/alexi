@@ -89,7 +89,7 @@ function isImportSpecifier(value: string): boolean {
  * @param path - File system path
  * @returns file:// URL string suitable for dynamic import
  */
-function pathToFileUrl(path: string): string {
+export function pathToFileUrl(path: string): string {
   // Normalize backslashes to forward slashes
   let normalized = path.replace(/\\/g, "/");
 
