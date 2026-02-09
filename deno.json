@@ -21,7 +21,6 @@
     "./core": "./src/core/mod.ts",
     "./db": "./src/db/mod.ts",
     "./db/config": "./src/db/app.ts",
-    "./db/commands": "./src/db/commands/mod.ts",
     "./db/backends/denokv": "./src/db/backends/denokv/mod.ts",
     "./db/backends/indexeddb": "./src/db/backends/indexeddb/mod.ts",
     "./db/backends/rest": "./src/db/backends/rest/mod.ts",
