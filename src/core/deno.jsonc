@@ -13,5 +13,8 @@
     "@alexi/middleware": "jsr:@alexi/middleware@0.7.0",
     "@alexi/restframework": "jsr:@alexi/restframework@0.7.0",
     "@std/path": "jsr:@std/path@1"
+  },
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.unstable"]
   }
 }
