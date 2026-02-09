@@ -14,8 +14,7 @@
 import { assertEquals, assertExists } from "jsr:@std/assert";
 
 // Import fake-indexeddb polyfill for Deno testing
-// @ts-ignore - npm module
-import "npm:fake-indexeddb/auto";
+import "fake-indexeddb/auto";
 
 import {
   AutoField,
