@@ -41,7 +41,7 @@ class Article extends Model {
   updatedAt = new DateTimeField({ autoNow: true });
 
   static objects = new Manager(Article);
-  static meta = {
+  static override meta = {
     dbTable: "articles",
     ordering: ["-createdAt"],
   };
@@ -53,7 +53,7 @@ class Author extends Model {
   email = new CharField({ maxLength: 255 });
 
   static objects = new Manager(Author);
-  static meta = {
+  static override meta = {
     dbTable: "authors",
   };
 }
