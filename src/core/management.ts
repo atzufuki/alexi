@@ -86,7 +86,9 @@ export function pathToFileUrl(path: string): string {
 /**
  * Import function type for apps.
  */
-type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
+type AppImportFn = () => Promise<
+  { default?: AppConfig; [key: string]: unknown }
+>;
 
 // =============================================================================
 // ManagementUtility Class
@@ -245,7 +247,10 @@ export class ManagementUtility {
       if (settingsArg) {
         // Load from specified settings file
         try {
-          const settingsPath = this.resolveSettingsPath(settingsArg, projectDir);
+          const settingsPath = this.resolveSettingsPath(
+            settingsArg,
+            projectDir,
+          );
           const settingsUrl = toImportUrl(settingsPath);
 
           if (this.debug) {
@@ -343,10 +348,14 @@ export class ManagementUtility {
 
       // Get AppConfig from default export or named exports (config, appConfig)
       // Some modules use `export { default as config }` instead of `export default`
-      const config = (module.default ?? module.config ?? module.appConfig) as AppConfig | undefined;
+      const config = (module.default ?? module.config ?? module.appConfig) as
+        | AppConfig
+        | undefined;
       if (!config) {
         if (this.debug) {
-          console.log("  App module has no AppConfig (checked: default, config, appConfig)");
+          console.log(
+            "  App module has no AppConfig (checked: default, config, appConfig)",
+          );
         }
         return;
       }
@@ -364,7 +373,9 @@ export class ManagementUtility {
       }
 
       // Check if app provides a commandsImport function
-      if (config.commandsImport && typeof config.commandsImport === "function") {
+      if (
+        config.commandsImport && typeof config.commandsImport === "function"
+      ) {
         // Use the provided import function for commands
         const commandsModule = await config.commandsImport();
         this.registerCommandsFromModule(
@@ -413,7 +424,9 @@ export class ManagementUtility {
           this.registry.register(exportValue as CommandConstructor);
           if (this.debug) {
             const cmdName = proto.name ?? exportName;
-            console.log(`    Registered command: ${cmdName} from ${sourceName}`);
+            console.log(
+              `    Registered command: ${cmdName} from ${sourceName}`,
+            );
           }
         } catch {
           // Command might already be registered or invalid

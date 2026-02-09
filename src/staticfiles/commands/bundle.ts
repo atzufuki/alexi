@@ -60,7 +60,9 @@ function toImportUrl(filePath: string): string {
 /**
  * Import function type for apps.
  */
-type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
+type AppImportFn = () => Promise<
+  { default?: AppConfig; [key: string]: unknown }
+>;
 
 /**
  * Result of bundling a single app

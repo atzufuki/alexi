@@ -77,7 +77,9 @@ interface ServerConfig {
  * URL import function type.
  * User provides this as ROOT_URLCONF to ensure correct import context.
  */
-type UrlImportFn = () => Promise<{ urlpatterns?: unknown[]; default?: unknown[] }>;
+type UrlImportFn = () => Promise<
+  { urlpatterns?: unknown[]; default?: unknown[] }
+>;
 
 // =============================================================================
 // RunServerCommand
@@ -293,7 +295,8 @@ export class RunServerCommand extends BaseCommand {
       try {
         // Call user's import function - runs in user's context
         const urlsModule = await rootUrlConf();
-        urlpatterns = (urlsModule.urlpatterns ?? urlsModule.default ?? []) as URLPattern[];
+        urlpatterns =
+          (urlsModule.urlpatterns ?? urlsModule.default ?? []) as URLPattern[];
         this.success("Loaded URL patterns from ROOT_URLCONF");
       } catch (error) {
         this.warn(`Could not load URL patterns: ${error}`);
@@ -356,7 +359,9 @@ export class RunServerCommand extends BaseCommand {
 
   private startBackendWatcher(settings: Record<string, unknown>): void {
     const watchDirs: string[] = [];
-    const installedApps = settings.INSTALLED_APPS as Array<() => Promise<unknown>> | undefined;
+    const installedApps = settings.INSTALLED_APPS as
+      | Array<() => Promise<unknown>>
+      | undefined;
 
     if (!installedApps || !Array.isArray(installedApps)) {
       return;
