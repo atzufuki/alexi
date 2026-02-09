@@ -1,16 +1,13 @@
 {
   "name": "@alexi/create",
-  "version": "0.6.0",
+  "version": "0.6.3",
   "license": "MIT",
   "exports": {
-    ".": "./mod.ts",
-    "./main": "./main.ts"
+    ".": "./mod.ts"
   },
-  "tasks": {
-    "test": "deno test -A"
-  },
-  "compilerOptions": {
-    "lib": ["deno.ns", "esnext"],
-    "strict": true
+  "imports": {
+    "@alexi/core": "jsr:@alexi/core@0.6.3",
+    "@alexi/types": "jsr:@alexi/types@0.6.3",
+    "@std/path": "jsr:@std/path@1"
   }
 }

@@ -1,11 +1,15 @@
 {
   "name": "@alexi/webui",
-  "version": "0.6.0",
+  "version": "0.6.3",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./launcher": "./launcher.ts",
     "./bindings": "./bindings.ts",
     "./commands": "./commands/mod.ts"
+  },
+  "imports": {
+    "@alexi/core": "jsr:@alexi/core@0.6.3",
+    "@alexi/types": "jsr:@alexi/types@0.6.3"
   }
 }

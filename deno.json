@@ -1,6 +1,22 @@
 {
   "name": "@atzufuki/alexi",
-  "version": "0.6.2",
+  "version": "0.6.3",
+  "workspace": [
+    "./src/types",
+    "./src/urls",
+    "./src/middleware",
+    "./src/views",
+    "./src/db",
+    "./src/core",
+    "./src/staticfiles",
+    "./src/restframework",
+    "./src/http",
+    "./src/auth",
+    "./src/web",
+    "./src/webui",
+    "./src/capacitor",
+    "./src/create"
+  ],
   "exports": {
     ".": "./src/mod.ts",
     "./core": "./src/core/mod.ts",
