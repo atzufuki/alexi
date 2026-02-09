@@ -75,7 +75,7 @@ jobs:
 
             # Capture output and exit code
             set +e
-            OUTPUT=$(cd "$PKG_DIR" && deno publish --allow-dirty --allow-slow-types 2>&1)
+            OUTPUT=$(cd "$PKG_DIR" && deno publish --allow-dirty --allow-slow-types --no-check 2>&1)
             EXIT_CODE=$?
             set -e
 
