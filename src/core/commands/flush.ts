@@ -1,10 +1,12 @@
+/// <reference lib="deno.unstable" />
+
 /**
  * Flush Command for Alexi DB
  *
  * Django-style command that clears all data from the database.
  * Similar to Django's `manage.py flush` command.
  *
- * @module @alexi/db/commands/flush
+ * @module @alexi/core/commands/flush
  */
 
 import { BaseCommand, success } from "@alexi/core";
