@@ -73,7 +73,7 @@ jobs:
 
             echo "Publishing $PKG_NAME from $PKG_DIR..."
 
-            if (cd "$PKG_DIR" && deno publish --allow-dirty); then
+            if (cd "$PKG_DIR" && deno publish --allow-dirty --allow-slow-types); then
               echo "- ✅ $PKG_NAME" >> $GITHUB_STEP_SUMMARY
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             else
