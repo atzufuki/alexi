@@ -12,6 +12,7 @@
 // =============================================================================
 
 // App configuration
+export { default } from "./app.ts";
 export { default as config } from "./app.ts";
 
 // Commands are loaded dynamically via app.ts commandsModule

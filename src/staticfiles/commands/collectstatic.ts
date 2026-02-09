@@ -7,7 +7,12 @@
  * @module @alexi/staticfiles/commands/collectstatic
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import {
+  BaseCommand,
+  failure,
+  getSettingsModulePath,
+  success,
+} from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -273,9 +278,11 @@ export class CollectStaticCommand extends BaseCommand {
   > {
     try {
       // Load deployment-specific settings (e.g., web.settings.ts, desktop.settings.ts)
-      const settingsPath =
-        `${this.projectRoot}/project/${settingsName}.settings.ts`;
-      const settingsUrl = toImportUrl(settingsPath);
+      const settingsPath = getSettingsModulePath(settingsName);
+      const absolutePath = settingsPath.startsWith("./")
+        ? `${this.projectRoot}/${settingsPath.slice(2)}`
+        : settingsPath;
+      const settingsUrl = toImportUrl(absolutePath);
       const settings = await import(settingsUrl);
 
       // Collect import functions from INSTALLED_APPS
@@ -295,7 +302,7 @@ export class CollectStaticCommand extends BaseCommand {
     } catch (error) {
       this.error(`Failed to load settings: ${error}`);
       this.info(
-        `Make sure the file project/${settingsName}.settings.ts exists`,
+        `Make sure the settings file exists: ${settingsName}`,
       );
       return null;
     }
