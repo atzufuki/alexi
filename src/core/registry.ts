@@ -231,7 +231,7 @@ export class CommandRegistry implements ICommandRegistry {
  * globalRegistry.register(MyCommand);
  * ```
  */
-export const globalRegistry = new CommandRegistry();
+export const globalRegistry: CommandRegistry = new CommandRegistry();
 
 // =============================================================================
 // Registration Decorator (for future use)

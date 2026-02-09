@@ -440,27 +440,48 @@ export class NotFoundError extends Error {
 // ============================================================================
 
 /**
+ * Mixin type for list functionality
+ */
+export interface ListMixin {
+  list(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
+}
+
+/**
  * Mixin that provides list functionality
  */
-export const ListModelMixin = {
+export const ListModelMixin: ListMixin = {
   async list(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
     return ModelViewSet.prototype.list.call(this, context);
   },
 };
 
 /**
+ * Mixin type for create functionality
+ */
+export interface CreateMixin {
+  create(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
+}
+
+/**
  * Mixin that provides create functionality
  */
-export const CreateModelMixin = {
+export const CreateModelMixin: CreateMixin = {
   async create(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
     return ModelViewSet.prototype.create.call(this, context);
   },
 };
 
 /**
+ * Mixin type for retrieve functionality
+ */
+export interface RetrieveMixin {
+  retrieve(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
+}
+
+/**
  * Mixin that provides retrieve functionality
  */
-export const RetrieveModelMixin = {
+export const RetrieveModelMixin: RetrieveMixin = {
   async retrieve(
     this: ModelViewSet,
     context: ViewSetContext,
@@ -470,9 +491,20 @@ export const RetrieveModelMixin = {
 };
 
 /**
+ * Mixin type for update functionality
+ */
+export interface UpdateMixin {
+  update(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
+  partial_update(
+    this: ModelViewSet,
+    context: ViewSetContext,
+  ): Promise<Response>;
+}
+
+/**
  * Mixin that provides update functionality
  */
-export const UpdateModelMixin = {
+export const UpdateModelMixin: UpdateMixin = {
   async update(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
     return ModelViewSet.prototype.update.call(this, context);
   },
@@ -485,9 +517,16 @@ export const UpdateModelMixin = {
 };
 
 /**
+ * Mixin type for destroy functionality
+ */
+export interface DestroyMixin {
+  destroy(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
+}
+
+/**
  * Mixin that provides destroy functionality
  */
-export const DestroyModelMixin = {
+export const DestroyModelMixin: DestroyMixin = {
   async destroy(
     this: ModelViewSet,
     context: ViewSetContext,
