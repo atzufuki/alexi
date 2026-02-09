@@ -41,11 +41,11 @@ type BuildTarget = "windows" | "macos" | "linux";
 export class BuildCommand extends BaseCommand {
   readonly name = "build";
   readonly help = "Package desktop application for distribution";
-  readonly description =
+  override readonly description =
     "Builds a standalone desktop application executable. " +
     "Bundles the UI, WebUI runtime, and creates a native binary.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts build --settings desktop                  - Build for current OS",
     "manage.ts build --settings desktop --target windows - Build .exe (Windows)",
     "manage.ts build --settings desktop --target macos   - Build .app (macOS)",
@@ -56,7 +56,7 @@ export class BuildCommand extends BaseCommand {
   // Arguments
   // ==========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",
