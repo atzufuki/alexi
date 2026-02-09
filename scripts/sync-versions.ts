@@ -4,7 +4,9 @@
  * Syncs package versions across the Alexi monorepo.
  *
  * Reads the version from the root deno.json and updates all
- * subpackage deno.jsonc files to match.
+ * subpackage deno.jsonc files to match, including:
+ * - The "version" field
+ * - Any @alexi/* imports in the "imports" field
  *
  * Usage:
  *   deno run --allow-read --allow-write scripts/sync-versions.ts
@@ -17,6 +19,7 @@ import { join } from "jsr:@std/path@^1.0.0";
 interface PackageJson {
   name: string;
   version: string;
+  imports?: Record<string, string>;
   [key: string]: unknown;
 }
 
@@ -28,6 +31,39 @@ async function readJson(path: string): Promise<PackageJson> {
 async function writeJson(path: string, data: PackageJson): Promise<void> {
   const content = JSON.stringify(data, null, 2);
   await Deno.writeTextFile(path, content + "\n");
+}
+
+/**
+ * Updates @alexi/* imports to use the target version
+ * e.g., "jsr:@alexi/db@0.5.0" -> "jsr:@alexi/db@0.6.0"
+ */
+function updateAlexiImports(
+  imports: Record<string, string>,
+  targetVersion: string,
+): { updated: Record<string, string>; changes: string[] } {
+  const updated: Record<string, string> = {};
+  const changes: string[] = [];
+
+  for (const [key, value] of Object.entries(imports)) {
+    if (typeof value === "string" && value.startsWith("jsr:@alexi/")) {
+      // Match pattern like "jsr:@alexi/db@0.5.0" or "jsr:@alexi/db@^0.5.0"
+      const match = value.match(/^(jsr:@alexi\/[^@]+)@[\^~]?[\d.]+(.*)$/);
+      if (match) {
+        const [, prefix, suffix] = match;
+        const newValue = `${prefix}@${targetVersion}${suffix}`;
+        if (newValue !== value) {
+          changes.push(`${key}: ${value} → ${newValue}`);
+        }
+        updated[key] = newValue;
+      } else {
+        updated[key] = value;
+      }
+    } else {
+      updated[key] = value;
+    }
+  }
+
+  return { updated, changes };
 }
 
 async function main() {
@@ -70,17 +106,41 @@ async function main() {
   for (const pkgPath of subpackages) {
     const pkg = await readJson(pkgPath);
     const oldVersion = pkg.version;
+    let hasChanges = false;
+    const changeDetails: string[] = [];
 
-    if (oldVersion === targetVersion) {
-      console.log(`  ⏭️  ${pkg.name} - already ${targetVersion}`);
+    // Update version field
+    if (oldVersion !== targetVersion) {
+      pkg.version = targetVersion;
+      hasChanges = true;
+      changeDetails.push(`version: ${oldVersion} → ${targetVersion}`);
+    }
+
+    // Update @alexi/* imports
+    if (pkg.imports) {
+      const { updated, changes } = updateAlexiImports(
+        pkg.imports,
+        targetVersion,
+      );
+      if (changes.length > 0) {
+        pkg.imports = updated;
+        hasChanges = true;
+        changeDetails.push(...changes.map((c) => `  imports.${c}`));
+      }
+    }
+
+    if (!hasChanges) {
+      console.log(`  ⏭️  ${pkg.name} - already up to date`);
       skippedCount++;
       continue;
     }
 
-    pkg.version = targetVersion;
     await writeJson(pkgPath, pkg);
 
-    console.log(`  ✓ ${pkg.name} - ${oldVersion} → ${targetVersion}`);
+    console.log(`  ✓ ${pkg.name}`);
+    for (const detail of changeDetails) {
+      console.log(`      ${detail}`);
+    }
     updatedCount++;
   }
 

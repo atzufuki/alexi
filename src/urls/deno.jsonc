@@ -1,15 +1,11 @@
 {
   "name": "@alexi/urls",
-  "version": "0.6.0",
+  "version": "0.6.3",
   "license": "MIT",
   "exports": {
-    ".": "./mod.ts",
-    "./types": "./types.ts",
-    "./path": "./path.ts",
-    "./resolver": "./resolver.ts"
+    ".": "./mod.ts"
   },
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"],
-    "strict": true
+  "imports": {
+    "@std/assert": "jsr:@std/assert@1"
   }
 }
