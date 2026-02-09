@@ -9,34 +9,36 @@
  * @module @alexi/core/commands/flush
  */
 
-// Type declarations for Deno KV (unstable API)
-// These allow the module to compile without --unstable-kv flag
-declare namespace Deno {
-  export interface Kv {
-    delete(key: KvKey): Promise<void>;
-    list<T>(selector: KvListSelector): KvListIterator<T>;
-    close(): void;
-  }
-
-  export type KvKey = readonly KvKeyPart[];
-  export type KvKeyPart = string | number | bigint | boolean | Uint8Array;
-
-  export interface KvEntry<T> {
-    key: KvKey;
-    value: T;
-    versionstamp: string;
-  }
-
-  export interface KvListSelector {
-    prefix?: KvKey;
-  }
-
-  export interface KvListIterator<T> extends AsyncIterableIterator<KvEntry<T>> {
-    cursor: string;
-  }
-
-  export function openKv(path?: string): Promise<Kv>;
+// Type definitions for Deno KV (unstable API)
+// These are local interfaces to avoid type errors when publishing
+// The actual runtime uses Deno.openKv which requires --unstable-kv flag
+interface DenoKv {
+  delete(key: DenoKvKey): Promise<void>;
+  list<T>(selector: DenoKvListSelector): DenoKvListIterator<T>;
+  close(): void;
 }
+
+type DenoKvKey = readonly DenoKvKeyPart[];
+type DenoKvKeyPart = string | number | bigint | boolean | Uint8Array;
+
+interface DenoKvEntry<T> {
+  key: DenoKvKey;
+  value: T;
+  versionstamp: string;
+}
+
+interface DenoKvListSelector {
+  prefix?: DenoKvKey;
+}
+
+interface DenoKvListIterator<T> extends AsyncIterableIterator<DenoKvEntry<T>> {
+  cursor: string;
+}
+
+// deno-lint-ignore no-explicit-any
+const DenoKvOpen = (Deno as any).openKv as (
+  path?: string,
+) => Promise<DenoKv>;
 
 import { BaseCommand, success } from "@alexi/core";
 import type {
@@ -197,7 +199,7 @@ export class FlushCommand extends BaseCommand {
     );
 
     // Open DenoKV
-    const kv = await Deno.openKv(kvPath);
+    const kv = await DenoKvOpen(kvPath);
 
     let deletedCount = 0;
 
