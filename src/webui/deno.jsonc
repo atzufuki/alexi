@@ -10,7 +10,7 @@
     "./commands": "./commands/mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.7.6",
-    "@alexi/types": "jsr:@alexi/types@0.7.6"
+    "@alexi/core": "jsr:@alexi/core@0.7.7",
+    "@alexi/types": "jsr:@alexi/types@0.7.7"
   }
 }
