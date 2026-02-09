@@ -883,7 +883,8 @@ export class MyCommand extends BaseCommand {
 
 ## Settings Configuration
 
-Each app has its own settings file:
+Each app has its own settings file. Alexi uses Django-style `INSTALLED_APPS`
+with import specifiers:
 
 ```typescript
 // project/web.settings.ts
@@ -894,31 +895,61 @@ export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 export const DEFAULT_HOST = "0.0.0.0";
 export const DEFAULT_PORT = 8000;
 
+// Django-style INSTALLED_APPS with import specifiers
+// - Use "@alexi/..." for Alexi packages from JSR
+// - Use "./src/myapp" for local apps (relative paths)
 export const INSTALLED_APPS = [
-  "alexi_staticfiles",
-  "alexi_web",
-  "alexi_db",
-  "alexi_auth",
-  "alexi_admin",
-  "myapp-web",
+  "@alexi/staticfiles", // JSR package
+  "@alexi/web", // JSR package
+  "@alexi/db", // JSR package
+  "@alexi/auth", // JSR package
+  "@alexi/admin", // JSR package
+  "./src/myapp-web", // Local app (relative path)
 ];
 
-export const APP_PATHS: Record<string, string> = {
-  "alexi_staticfiles": "./src/alexi_staticfiles",
-  "alexi_web": "./src/alexi_web",
-  "alexi_db": "./src/alexi_db",
-  "alexi_auth": "./src/alexi_auth",
-  "alexi_admin": "./src/alexi_admin",
-  "myapp-web": "./src/myapp-web",
-};
-
-export const ROOT_URLCONF = "myapp-web";
+// ROOT_URLCONF can be an import specifier or local app path
+export const ROOT_URLCONF = "./src/myapp-web";
 
 export const DATABASE = {
   engine: "denokv" as const,
   name: "myapp",
   path: "./data/myapp.db",
 };
+```
+
+### INSTALLED_APPS Format
+
+Apps can be specified in two ways:
+
+| Format           | Example         | Description      |
+| ---------------- | --------------- | ---------------- |
+| Import specifier | `"@alexi/web"`  | JSR/npm packages |
+| Relative path    | `"./src/myapp"` | Local apps       |
+
+The framework automatically detects the format:
+
+- Starts with `@`, `jsr:`, `npm:` → Import specifier
+- Starts with `./` or `../` → Relative path
+
+### Legacy APP_PATHS (Deprecated)
+
+The `APP_PATHS` configuration is deprecated. If you're upgrading from an older
+version, migrate to import specifiers:
+
+```typescript
+// ❌ Old approach (deprecated)
+export const INSTALLED_APPS = ["alexi_web", "myapp"];
+export const APP_PATHS = {
+  "alexi_web": "../alexi/src/web",
+  "myapp": "./src/myapp",
+};
+
+// ✅ New approach (recommended)
+export const INSTALLED_APPS = [
+  "@alexi/web", // JSR package
+  "./src/myapp", // Local app
+];
+// No APP_PATHS needed!
 ```
 
 ---

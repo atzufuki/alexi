@@ -19,6 +19,63 @@ import type {
 import type { AppConfig } from "@alexi/types";
 
 // =============================================================================
+// Import Specifier Detection
+// =============================================================================
+
+/**
+ * Check if a string is an import specifier (package name) vs a file path.
+ *
+ * Import specifiers:
+ * - "@alexi/web" (scoped package)
+ * - "jsr:@alexi/web" (explicit JSR)
+ * - "npm:express" (explicit npm)
+ * - "alexi" (bare specifier - less common)
+ *
+ * File paths:
+ * - "./src/myapp" (relative)
+ * - "../alexi/src/web" (relative parent)
+ * - "/absolute/path" (absolute)
+ * - "C:/windows/path" (Windows absolute)
+ */
+function isImportSpecifier(value: string): boolean {
+  // Explicit protocol prefixes
+  if (
+    value.startsWith("jsr:") ||
+    value.startsWith("npm:") ||
+    value.startsWith("node:")
+  ) {
+    return true;
+  }
+
+  // Scoped packages (@org/package)
+  if (value.startsWith("@")) {
+    return true;
+  }
+
+  // Relative paths are NOT specifiers
+  if (value.startsWith("./") || value.startsWith("../")) {
+    return false;
+  }
+
+  // Absolute paths (Unix or Windows)
+  if (value.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(value)) {
+    return false;
+  }
+
+  // If it contains path separators but doesn't start with protocol, it's a path
+  if (value.includes("/") || value.includes("\\")) {
+    // Exception: scoped packages like @org/package/subpath
+    if (!value.startsWith("@")) {
+      return false;
+    }
+  }
+
+  // Bare specifiers (e.g., "lodash", "express")
+  // These are less common in Alexi but could be npm packages
+  return true;
+}
+
+// =============================================================================
 // Helper Functions
 // =============================================================================
 
@@ -212,7 +269,16 @@ export class ManagementUtility {
 
     try {
       const projectDir = `${this.projectRoot}/project`;
-      const allApps: Map<string, string> = new Map(); // appName -> appPath
+
+      // Collect apps to load: either specifier (string) or {name, path} for file-based
+      const appsToLoad: Array<
+        { type: "specifier"; specifier: string } | {
+          type: "path";
+          name: string;
+          path: string;
+        }
+      > = [];
+      const seenApps = new Set<string>();
 
       // Check if --settings was specified
       const settingsArg = this.parseSettingsArg(args);
@@ -230,10 +296,39 @@ export class ManagementUtility {
           const installedApps: string[] = settings.INSTALLED_APPS ?? [];
           const appPaths: Record<string, string> = settings.APP_PATHS ?? {};
 
-          for (const appName of installedApps) {
-            const appPath = appPaths[appName];
-            if (appPath) {
-              allApps.set(appName, appPath);
+          // Warn if APP_PATHS is still being used (deprecation notice)
+          if (
+            Object.keys(appPaths).length > 0 && settings.APP_PATHS !== undefined
+          ) {
+            console.warn(
+              "⚠️  APP_PATHS is deprecated. Use import specifiers in INSTALLED_APPS instead.",
+            );
+            console.warn(
+              '   Example: "@alexi/web" instead of "alexi_web" + APP_PATHS mapping.',
+            );
+          }
+
+          for (const appEntry of installedApps) {
+            if (seenApps.has(appEntry)) continue;
+            seenApps.add(appEntry);
+
+            if (isImportSpecifier(appEntry)) {
+              // It's an import specifier like "@alexi/web"
+              appsToLoad.push({ type: "specifier", specifier: appEntry });
+            } else {
+              // Legacy: look up in APP_PATHS
+              const appPath = appPaths[appEntry];
+              if (appPath) {
+                appsToLoad.push({
+                  type: "path",
+                  name: appEntry,
+                  path: appPath,
+                });
+              } else if (this.debug) {
+                console.warn(
+                  `  App '${appEntry}' not found in APP_PATHS and is not an import specifier`,
+                );
+              }
             }
           }
         } catch (error) {
@@ -246,10 +341,7 @@ export class ManagementUtility {
         // No --settings specified, load from all settings files
         try {
           for await (const entry of Deno.readDir(projectDir)) {
-            if (
-              entry.isFile &&
-              entry.name.endsWith(".settings.ts")
-            ) {
+            if (entry.isFile && entry.name.endsWith(".settings.ts")) {
               try {
                 const settingsPath = `${projectDir}/${entry.name}`;
                 const settingsUrl = pathToFileUrl(settingsPath);
@@ -259,10 +351,21 @@ export class ManagementUtility {
                 const appPaths: Record<string, string> = settings.APP_PATHS ??
                   {};
 
-                for (const appName of installedApps) {
-                  const appPath = appPaths[appName];
-                  if (appPath && !allApps.has(appName)) {
-                    allApps.set(appName, appPath);
+                for (const appEntry of installedApps) {
+                  if (seenApps.has(appEntry)) continue;
+                  seenApps.add(appEntry);
+
+                  if (isImportSpecifier(appEntry)) {
+                    appsToLoad.push({ type: "specifier", specifier: appEntry });
+                  } else {
+                    const appPath = appPaths[appEntry];
+                    if (appPath) {
+                      appsToLoad.push({
+                        type: "path",
+                        name: appEntry,
+                        path: appPath,
+                      });
+                    }
                   }
                 }
               } catch {
@@ -276,72 +379,186 @@ export class ManagementUtility {
       }
 
       if (this.debug) {
-        console.log(`Found ${allApps.size} apps to check for commands:`, [
-          ...allApps.keys(),
-        ]);
+        console.log(`Found ${appsToLoad.length} apps to check for commands`);
       }
 
-      // Load commands from each unique app
-      for (const [appName, appPath] of allApps) {
-        // Normalize app path - remove leading ./
-        const normalizedAppPath = appPath.startsWith("./")
-          ? appPath.slice(2)
-          : appPath;
-
-        // Try to load app.ts
-        try {
-          const appConfigPath =
-            `${this.projectRoot}/${normalizedAppPath}/app.ts`;
-          const appConfigUrl = pathToFileUrl(appConfigPath);
-          if (this.debug) {
-            console.log(`Loading app config from: ${appConfigUrl}`);
-          }
-          const appModule = await import(appConfigUrl);
-          const config = appModule.default as AppConfig;
-
-          // Check if app has commands module
-          if (!config?.commandsModule) {
-            if (this.debug) {
-              console.log(`  ${appName}: no commandsModule defined`);
-            }
-            continue;
-          }
-
-          // Load commands module
-          const commandsPath =
-            `${this.projectRoot}/${normalizedAppPath}/${config.commandsModule}`;
-          const commandsUrl = pathToFileUrl(commandsPath);
-          if (this.debug) {
-            console.log(`  Loading commands from: ${commandsUrl}`);
-          }
-          const commandsModule = await import(commandsUrl);
-
-          // Register all exported command classes
-          for (
-            const [exportName, exportValue] of Object.entries(commandsModule)
-          ) {
-            // Check if it's a command class (has 'name' and 'handle' in prototype)
-            if (
-              typeof exportValue === "function" &&
-              exportValue.prototype &&
-              typeof exportValue.prototype.handle === "function"
-            ) {
-              this.registry.register(exportValue as CommandConstructor);
-              if (this.debug) {
-                console.log(`✓ Loaded command '${exportName}' from ${appName}`);
-              }
-            }
-          }
-        } catch (error) {
-          // App doesn't have app.ts or commands module, skip silently
-          if (this.debug) {
-            console.warn(`  ${appName}: could not load commands: ${error}`);
-          }
+      // Load commands from each app
+      for (const app of appsToLoad) {
+        if (app.type === "specifier") {
+          await this.loadCommandsFromSpecifier(app.specifier);
+        } else {
+          await this.loadCommandsFromPath(app.name, app.path);
         }
       }
     } catch (error) {
       if (this.debug) {
         console.warn(`Could not load app commands: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * Load commands from an import specifier (e.g., "@alexi/web")
+   *
+   * This handles apps installed as packages (JSR, npm).
+   * It imports the app's config module to find the commands module.
+   */
+  private async loadCommandsFromSpecifier(specifier: string): Promise<void> {
+    try {
+      // Try to import the app's config module
+      // Convention: @alexi/web/config exports AppConfig
+      const configSpecifier = `${specifier}/config`;
+
+      if (this.debug) {
+        console.log(`Loading app config from specifier: ${configSpecifier}`);
+      }
+
+      let config: AppConfig;
+      try {
+        const appModule = await import(configSpecifier);
+        config = appModule.default as AppConfig;
+      } catch {
+        // Fallback: some packages might not have /config export yet
+        // Try importing the main module and looking for appConfig export
+        if (this.debug) {
+          console.log(
+            `  ${specifier}: no /config export, trying main module`,
+          );
+        }
+        try {
+          const mainModule = await import(specifier);
+          if (mainModule.appConfig) {
+            config = mainModule.appConfig as AppConfig;
+          } else {
+            if (this.debug) {
+              console.log(`  ${specifier}: no appConfig in main module`);
+            }
+            return;
+          }
+        } catch {
+          if (this.debug) {
+            console.log(`  ${specifier}: could not import main module`);
+          }
+          return;
+        }
+      }
+
+      // Check if app has commands module
+      if (!config?.commandsModule) {
+        if (this.debug) {
+          console.log(`  ${specifier}: no commandsModule defined`);
+        }
+        return;
+      }
+
+      // Determine how to import the commands module
+      let commandsModule: Record<string, unknown>;
+      const cmdModulePath = config.commandsModule;
+
+      if (isImportSpecifier(cmdModulePath)) {
+        // commandsModule is already a full specifier
+        commandsModule = await import(cmdModulePath);
+      } else if (
+        cmdModulePath.startsWith("./") || cmdModulePath.startsWith("../")
+      ) {
+        // Relative path - construct specifier from package + relative path
+        // e.g., "@alexi/web" + "./commands/mod.ts" -> "@alexi/web/commands"
+        // Strip ./commands/mod.ts -> commands, then @alexi/web/commands
+        const subpath = cmdModulePath
+          .replace(/^\.\//, "")
+          .replace(/\/mod\.ts$/, "")
+          .replace(/\.ts$/, "");
+        const commandsSpecifier = `${specifier}/${subpath}`;
+
+        if (this.debug) {
+          console.log(`  Loading commands from: ${commandsSpecifier}`);
+        }
+
+        commandsModule = await import(commandsSpecifier);
+      } else {
+        // Assume it's a subpath export name
+        const commandsSpecifier = `${specifier}/${cmdModulePath}`;
+        commandsModule = await import(commandsSpecifier);
+      }
+
+      // Register all exported command classes
+      this.registerCommandsFromModule(commandsModule, specifier);
+    } catch (error) {
+      if (this.debug) {
+        console.warn(`  ${specifier}: could not load commands: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * Load commands from a file path (legacy APP_PATHS approach)
+   */
+  private async loadCommandsFromPath(
+    appName: string,
+    appPath: string,
+  ): Promise<void> {
+    // Normalize app path - remove leading ./
+    const normalizedAppPath = appPath.startsWith("./")
+      ? appPath.slice(2)
+      : appPath;
+
+    try {
+      const appConfigPath = `${this.projectRoot}/${normalizedAppPath}/app.ts`;
+      const appConfigUrl = pathToFileUrl(appConfigPath);
+
+      if (this.debug) {
+        console.log(`Loading app config from: ${appConfigUrl}`);
+      }
+
+      const appModule = await import(appConfigUrl);
+      const config = appModule.default as AppConfig;
+
+      // Check if app has commands module
+      if (!config?.commandsModule) {
+        if (this.debug) {
+          console.log(`  ${appName}: no commandsModule defined`);
+        }
+        return;
+      }
+
+      // Load commands module
+      const commandsPath =
+        `${this.projectRoot}/${normalizedAppPath}/${config.commandsModule}`;
+      const commandsUrl = pathToFileUrl(commandsPath);
+
+      if (this.debug) {
+        console.log(`  Loading commands from: ${commandsUrl}`);
+      }
+
+      const commandsModule = await import(commandsUrl);
+
+      // Register all exported command classes
+      this.registerCommandsFromModule(commandsModule, appName);
+    } catch (error) {
+      if (this.debug) {
+        console.warn(`  ${appName}: could not load commands: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * Register command classes from a loaded module
+   */
+  private registerCommandsFromModule(
+    module: Record<string, unknown>,
+    sourceName: string,
+  ): void {
+    for (const [exportName, exportValue] of Object.entries(module)) {
+      // Check if it's a command class (has 'handle' in prototype)
+      if (
+        typeof exportValue === "function" &&
+        exportValue.prototype &&
+        typeof exportValue.prototype.handle === "function"
+      ) {
+        this.registry.register(exportValue as CommandConstructor);
+        if (this.debug) {
+          console.log(`✓ Loaded command '${exportName}' from ${sourceName}`);
+        }
       }
     }
   }

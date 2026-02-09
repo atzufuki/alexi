@@ -15,6 +15,58 @@ import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
 
 // =============================================================================
+// Import Specifier Detection
+// =============================================================================
+
+/**
+ * Check if a string is an import specifier (package name) vs a file path.
+ *
+ * Import specifiers:
+ * - "@alexi/web" (scoped package)
+ * - "jsr:@alexi/web" (explicit JSR)
+ * - "npm:express" (explicit npm)
+ *
+ * File paths:
+ * - "./src/myapp" (relative)
+ * - "../alexi/src/web" (relative parent)
+ */
+function isImportSpecifier(value: string): boolean {
+  // Explicit protocol prefixes
+  if (
+    value.startsWith("jsr:") ||
+    value.startsWith("npm:") ||
+    value.startsWith("node:")
+  ) {
+    return true;
+  }
+
+  // Scoped packages (@org/package)
+  if (value.startsWith("@")) {
+    return true;
+  }
+
+  // Relative paths are NOT specifiers
+  if (value.startsWith("./") || value.startsWith("../")) {
+    return false;
+  }
+
+  // Absolute paths (Unix or Windows)
+  if (value.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(value)) {
+    return false;
+  }
+
+  // If it contains path separators but doesn't start with protocol, it's a path
+  if (value.includes("/") || value.includes("\\")) {
+    if (!value.startsWith("@")) {
+      return false;
+    }
+  }
+
+  // Bare specifiers (e.g., "lodash", "express")
+  return true;
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -37,7 +89,11 @@ export interface AlexiSettings {
 
   // Apps
   INSTALLED_APPS: string[];
-  APP_PATHS: Record<string, string>;
+  /**
+   * @deprecated Use import specifiers in INSTALLED_APPS instead.
+   * Example: "@alexi/web" instead of "alexi_web" + APP_PATHS mapping.
+   */
+  APP_PATHS?: Record<string, string>;
 
   // Database
   DATABASE: DatabaseConfig;
@@ -236,8 +292,8 @@ export function getSettingsModuleName(): string | null {
  *
  * Django-style URL loading:
  * 1. Look up ROOT_URLCONF in settings
- * 2. Find the app path in APP_PATHS
- * 3. Import urls.ts from that app
+ * 2. If ROOT_URLCONF is an import specifier (@alexi/web), import directly
+ * 3. Otherwise, find the app path in APP_PATHS and load urls.ts
  * 4. Return urlpatterns export
  *
  * @param settings - Settings object (optional, uses global settings if not provided)
@@ -255,12 +311,31 @@ export async function loadUrlPatterns(
     return [];
   }
 
-  // Get app path
-  const appPath = config.APP_PATHS[rootUrlConf];
+  // Check if ROOT_URLCONF is an import specifier
+  if (isImportSpecifier(rootUrlConf)) {
+    // Import URLs from the package directly
+    // Convention: @alexi/web/urls or @myapp/urls
+    const urlsSpecifier = `${rootUrlConf}/urls`;
+
+    try {
+      const module = await import(urlsSpecifier);
+      const patterns = module.urlpatterns ?? module.default ?? [];
+      console.log(`✓ Loaded URL patterns from ${urlsSpecifier}`);
+      return patterns;
+    } catch (error) {
+      throw new Error(
+        `Failed to load URL patterns from '${urlsSpecifier}': ${error}`,
+      );
+    }
+  }
+
+  // Legacy: Get app path from APP_PATHS
+  const appPaths = config.APP_PATHS ?? {};
+  const appPath = appPaths[rootUrlConf];
   if (!appPath) {
     throw new Error(
-      `ROOT_URLCONF '${rootUrlConf}' not found in APP_PATHS. ` +
-        `Available apps: ${Object.keys(config.APP_PATHS).join(", ")}`,
+      `ROOT_URLCONF '${rootUrlConf}' not found in APP_PATHS and is not an import specifier. ` +
+        `Either use an import specifier like "@myorg/myapp" or add to APP_PATHS.`,
     );
   }
 
@@ -394,7 +469,7 @@ export async function createApplication(
     middleware = settings.createMiddleware({
       debug: serverConfig.debug,
       installedApps: settings.INSTALLED_APPS,
-      appPaths: settings.APP_PATHS,
+      appPaths: settings.APP_PATHS ?? {},
     });
   }
 
