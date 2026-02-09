@@ -144,9 +144,13 @@ export class RunServerCommand extends BaseCommand {
       // Debug: log the actual paths being used
       console.log(`[runserver] projectRoot: ${this.projectRoot}`);
       console.log(`[runserver] settingsPath: ${settingsPath}`);
-      console.log(`[runserver] import URL: file://${settingsPath}`);
 
-      const settings = await import(`file://${settingsPath}`);
+      // Use URL constructor to ensure proper file:// URL handling
+      // This prevents Deno from resolving relative to JSR when running from JSR package
+      const settingsUrl = new URL(`file://${settingsPath}`);
+      console.log(`[runserver] import URL: ${settingsUrl.href}`);
+
+      const settings = await import(settingsUrl.href);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 8000;
       const host = hostArg ?? settings.DEFAULT_HOST ?? "0.0.0.0";
