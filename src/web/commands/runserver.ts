@@ -141,6 +141,11 @@ export class RunServerCommand extends BaseCommand {
         this.info(`Loading settings: ${settingsArg}.settings.ts`);
       }
 
+      // Debug: log the actual paths being used
+      console.log(`[runserver] projectRoot: ${this.projectRoot}`);
+      console.log(`[runserver] settingsPath: ${settingsPath}`);
+      console.log(`[runserver] import URL: file://${settingsPath}`);
+
       const settings = await import(`file://${settingsPath}`);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 8000;
