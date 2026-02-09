@@ -4,8 +4,83 @@
  * This backend uses Deno's built-in KV store for data persistence.
  * DenoKV is a key-value database that supports atomic operations.
  *
+ * NOTE: This module requires `--unstable-kv` flag when running Deno.
+ * Users should add `"lib": ["deno.ns", "deno.unstable"]` to their
+ * deno.json compilerOptions if they want type checking to pass.
+ *
  * @module
  */
+
+// Type declarations for Deno KV (unstable API)
+// These allow the module to compile without --unstable-kv flag
+declare namespace Deno {
+  export interface Kv {
+    get<T>(key: KvKey): Promise<KvEntryMaybe<T>>;
+    set(key: KvKey, value: unknown): Promise<KvCommitResult>;
+    delete(key: KvKey): Promise<void>;
+    list<T>(
+      selector: KvListSelector,
+      options?: KvListOptions,
+    ): KvListIterator<T>;
+    atomic(): AtomicOperation;
+    close(): void;
+  }
+
+  export type KvKey = readonly KvKeyPart[];
+  export type KvKeyPart = string | number | bigint | boolean | Uint8Array;
+
+  export interface KvEntry<T> {
+    key: KvKey;
+    value: T;
+    versionstamp: string;
+  }
+
+  export interface KvEntryMaybe<T> {
+    key: KvKey;
+    value: T | null;
+    versionstamp: string | null;
+  }
+
+  export interface KvCommitResult {
+    ok: true;
+    versionstamp: string;
+  }
+
+  export interface KvListSelector {
+    prefix?: KvKey;
+    start?: KvKey;
+    end?: KvKey;
+  }
+
+  export interface KvListOptions {
+    limit?: number;
+    cursor?: string;
+    reverse?: boolean;
+    consistency?: "strong" | "eventual";
+    batchSize?: number;
+  }
+
+  export interface KvListIterator<T> extends AsyncIterableIterator<KvEntry<T>> {
+    cursor: string;
+  }
+
+  export interface AtomicOperation {
+    check(...checks: AtomicCheck[]): this;
+    set(key: KvKey, value: unknown): this;
+    delete(key: KvKey): this;
+    sum(key: KvKey, n: bigint): this;
+    min(key: KvKey, n: bigint): this;
+    max(key: KvKey, n: bigint): this;
+    commit(): Promise<KvCommitResult>;
+  }
+
+  export interface AtomicCheck {
+    key: KvKey;
+    versionstamp: string | null;
+  }
+
+  export function openKv(path?: string): Promise<Kv>;
+}
 
 import type { Model } from "../../models/model.ts";
 import type {
@@ -90,7 +165,7 @@ class DenoKVTransaction implements Transaction {
     const result = await atomic.commit();
     this._active = false;
 
-    if (!result.ok) {
+    if (!result || !result.ok) {
       throw new Error("DenoKV atomic transaction failed");
     }
   }
@@ -395,7 +470,7 @@ export class DenoKVBackend extends DatabaseBackend {
     }
 
     const result = await atomic.commit();
-    if (!result.ok) {
+    if (!result || !result.ok) {
       throw new Error("DenoKV bulk insert failed");
     }
 
@@ -422,7 +497,7 @@ export class DenoKVBackend extends DatabaseBackend {
     }
 
     const result = await atomic.commit();
-    if (!result.ok) {
+    if (!result || !result.ok) {
       throw new Error("DenoKV bulk update failed");
     }
 
@@ -447,7 +522,7 @@ export class DenoKVBackend extends DatabaseBackend {
     }
 
     const result = await atomic.commit();
-    if (!result.ok) {
+    if (!result || !result.ok) {
       throw new Error("DenoKV updateMany failed");
     }
 
@@ -468,7 +543,7 @@ export class DenoKVBackend extends DatabaseBackend {
     }
 
     const result = await atomic.commit();
-    if (!result.ok) {
+    if (!result || !result.ok) {
       throw new Error("DenoKV deleteMany failed");
     }
 
@@ -636,7 +711,7 @@ export class DenoKVBackend extends DatabaseBackend {
         .set(counterKey, newId)
         .commit();
 
-      if (result.ok) {
+      if (result && result.ok) {
         break;
       }
       // Retry if there was a conflict
