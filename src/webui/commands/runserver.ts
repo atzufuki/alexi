@@ -179,7 +179,10 @@ export class RunServerCommand extends BaseCommand {
       const launcher = new WebUILauncher({
         config,
         url,
-        bindings,
+        bindings: bindings as unknown as Record<
+          string,
+          (...args: unknown[]) => unknown
+        >,
         logger: {
           info: (msg) => this.info(msg),
           warn: (msg) => this.warn(msg),

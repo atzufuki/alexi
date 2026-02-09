@@ -107,12 +107,12 @@ type HashPasswordFn = (password: string) => Promise<string>;
 export class CreateSuperuserCommand extends BaseCommand {
   readonly name = "createsuperuser";
   readonly help = "Create superuser (admin) account";
-  readonly description =
+  override readonly description =
     "Creates a new user account with admin privileges (isAdmin: true). " +
     "This user can be used to log in to the admin panel at /admin/. " +
     "Requires AUTH_USER_MODEL setting in project settings.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts createsuperuser --settings web                    - Interactive creation",
     "manage.ts createsuperuser --settings web --email admin@example.com - Specify email",
     "manage.ts createsuperuser --settings web --no-input --email admin@example.com --password secret",
@@ -122,7 +122,7 @@ export class CreateSuperuserCommand extends BaseCommand {
   // Argument Configuration
   // ===========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--email", {
       type: "string",
       required: false,

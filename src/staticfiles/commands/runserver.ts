@@ -34,11 +34,11 @@ import type {
 export class RunServerCommand extends BaseCommand {
   readonly name = "runserver";
   readonly help = "Start static file development server";
-  readonly description =
+  override readonly description =
     "Starts a development server for SPA applications with bundling and HMR support. " +
     "API calls go to the web server - make sure dev:web is running.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts runserver --settings ui         - Start static server",
     "manage.ts runserver --settings ui -p 3000 - Start on port 3000",
     "manage.ts runserver --settings ui --no-bundle - Skip bundling",
@@ -52,7 +52,7 @@ export class RunServerCommand extends BaseCommand {
   // Arguments
   // ==========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",

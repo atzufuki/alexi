@@ -42,11 +42,11 @@ import type {
 export class FlushCommand extends BaseCommand {
   readonly name = "flush";
   readonly help = "Clear database by removing all data";
-  readonly description =
+  override readonly description =
     "Removes all data from the database. This action is irreversible. " +
     "Use --no-input to skip the confirmation prompt.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts flush                    - Clear database (prompts for confirmation)",
     "manage.ts flush --yes              - Clear without confirmation",
     "manage.ts flush --no-input         - Clear without confirmation (same as --yes)",
@@ -57,7 +57,7 @@ export class FlushCommand extends BaseCommand {
   // Argument Configuration
   // ===========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--no-input", {
       type: "boolean",
       default: false,
