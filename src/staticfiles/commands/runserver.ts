@@ -14,7 +14,13 @@
  * @module @alexi/staticfiles/commands/runserver
  */
 
-import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
+import {
+  BaseCommand,
+  failure,
+  getSettingsModulePath,
+  pathToFileUrl,
+  success,
+} from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -105,9 +111,11 @@ export class RunServerCommand extends BaseCommand {
 
     try {
       // Load settings from the specified settings file
-      const settingsPath =
-        `${this.projectRoot}/project/${settingsName}.settings.ts`;
-      const settingsUrl = pathToFileUrl(settingsPath);
+      const settingsPath = getSettingsModulePath(settingsName);
+      const absolutePath = settingsPath.startsWith("./")
+        ? `${this.projectRoot}/${settingsPath.slice(2)}`
+        : settingsPath;
+      const settingsUrl = pathToFileUrl(absolutePath);
       const settings = await import(settingsUrl);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 5173;
