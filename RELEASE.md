@@ -68,6 +68,7 @@ deno task version:sync
 ```
 
 This will update:
+
 - All `src/*/deno.jsonc` version fields
 - All `@alexi/*` imports in each package's `imports` field
 
