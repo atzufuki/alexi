@@ -35,10 +35,10 @@ import { createDefaultBindings } from "../bindings.ts";
 export class RunServerCommand extends BaseCommand {
   readonly name = "runserver";
   readonly help = "Open a desktop application window";
-  readonly description = "Opens a WebUI window for the desktop application. " +
+  override readonly description = "Opens a WebUI window for the desktop application. " +
     "Configure window properties and URL in the settings file.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts runserver --settings desktop              - Open desktop window",
     "manage.ts runserver --settings desktop --browser chrome  - Use Chrome",
     "manage.ts runserver --settings desktop --kiosk      - Fullscreen mode",
@@ -49,7 +49,7 @@ export class RunServerCommand extends BaseCommand {
   // Arguments
   // ==========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",

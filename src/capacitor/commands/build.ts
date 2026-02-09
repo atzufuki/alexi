@@ -38,12 +38,12 @@ type MobileTarget = "ios" | "android";
 export class BuildCommand extends BaseCommand {
   readonly name = "build";
   readonly help = "Build mobile app for distribution";
-  readonly description =
+  override readonly description =
     "Creates production builds for iOS App Store (.ipa) or " +
     "Google Play Store (.apk/.aab). Requires Xcode (iOS) or " +
     "Android Studio (Android) to be installed.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts build --settings mobile --target ios      - Build .ipa for App Store",
     "manage.ts build --settings mobile --target android  - Build .aab for Play Store",
   ];
@@ -52,7 +52,7 @@ export class BuildCommand extends BaseCommand {
   // Arguments
   // ==========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",

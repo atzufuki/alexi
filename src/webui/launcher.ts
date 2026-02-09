@@ -68,7 +68,8 @@ export interface WebUILauncherOptions {
   /**
    * Bindings to register (native functions callable from JS)
    */
-  bindings?: Record<string, (...args: unknown[]) => unknown>;
+  // deno-lint-ignore no-explicit-any
+  bindings?: Record<string, (...args: any[]) => unknown>;
 
   /**
    * Callback when window opens

@@ -38,11 +38,11 @@ type MobileTarget = "ios" | "android";
 export class RunServerCommand extends BaseCommand {
   readonly name = "runserver";
   readonly help = "Run mobile app on simulator/emulator";
-  readonly description =
+  override readonly description =
     "Launches the mobile application on an iOS simulator or Android emulator. " +
     "Requires Xcode (iOS) or Android Studio (Android) to be installed.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts runserver --settings mobile --target ios      - Run on iOS simulator",
     "manage.ts runserver --settings mobile --target android  - Run on Android emulator",
   ];
@@ -51,7 +51,7 @@ export class RunServerCommand extends BaseCommand {
   // Arguments
   // ==========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",

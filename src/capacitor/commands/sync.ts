@@ -31,11 +31,11 @@ import type {
 export class SyncCommand extends BaseCommand {
   readonly name = "sync";
   readonly help = "Sync web bundle to native projects";
-  readonly description =
+  override readonly description =
     "Copies the bundled web application to iOS and Android native projects. " +
     "Also updates native plugins and dependencies.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts sync --settings mobile    - Sync to all platforms",
   ];
 
@@ -43,7 +43,7 @@ export class SyncCommand extends BaseCommand {
   // Arguments
   // ==========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",
