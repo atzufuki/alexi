@@ -35,7 +35,8 @@ import { createDefaultBindings } from "../bindings.ts";
 export class RunServerCommand extends BaseCommand {
   readonly name = "runserver";
   readonly help = "Open a desktop application window";
-  override readonly description = "Opens a WebUI window for the desktop application. " +
+  override readonly description =
+    "Opens a WebUI window for the desktop application. " +
     "Configure window properties and URL in the settings file.";
 
   override readonly examples = [
