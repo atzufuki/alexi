@@ -116,10 +116,31 @@ export class RunServerCommand extends BaseCommand {
     const noBundle = options.args["no-bundle"] as boolean;
 
     try {
-      // Load settings
-      this.info(`Loading settings: ${settingsArg}.settings.ts`);
-      const settingsPath =
-        `${this.projectRoot}/project/${settingsArg}.settings.ts`;
+      // Load settings - support Django-style paths:
+      // 1. Full path: ./project/test.settings.ts or project/test.settings.ts
+      // 2. Dotted module: project.test (becomes project/test.settings.ts)
+      // 3. Short name: test (becomes project/test.settings.ts) - legacy
+      let settingsPath: string;
+
+      if (settingsArg.endsWith(".ts")) {
+        // Full path with .ts extension
+        if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
+          settingsPath = `${this.projectRoot}/${settingsArg.slice(2)}`;
+        } else {
+          settingsPath = `${this.projectRoot}/${settingsArg}`;
+        }
+        this.info(`Loading settings: ${settingsArg}`);
+      } else if (settingsArg.includes(".")) {
+        // Dotted module path like project.test
+        const modulePath = settingsArg.replace(/\./g, "/");
+        settingsPath = `${this.projectRoot}/${modulePath}.ts`;
+        this.info(`Loading settings: ${modulePath}.ts`);
+      } else {
+        // Legacy short name: test -> project/test.settings.ts
+        settingsPath = `${this.projectRoot}/project/${settingsArg}.settings.ts`;
+        this.info(`Loading settings: ${settingsArg}.settings.ts`);
+      }
+
       const settings = await import(`file://${settingsPath}`);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 8000;
