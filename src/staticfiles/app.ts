@@ -12,6 +12,7 @@ const config: AppConfig = {
   name: "alexi_staticfiles",
   verboseName: "Alexi Static Files",
   commandsModule: "./commands/mod.ts",
+  commandsImport: () => import("./commands/mod.ts"),
 };
 
 export default config;

@@ -341,11 +341,12 @@ export class ManagementUtility {
       // Call the user's import function
       const module = await importFn();
 
-      // Get AppConfig from default export
-      const config = module.default as AppConfig | undefined;
+      // Get AppConfig from default export or named exports (config, appConfig)
+      // Some modules use `export { default as config }` instead of `export default`
+      const config = (module.default ?? module.config ?? module.appConfig) as AppConfig | undefined;
       if (!config) {
         if (this.debug) {
-          console.log("  App module has no default export (AppConfig)");
+          console.log("  App module has no AppConfig (checked: default, config, appConfig)");
         }
         return;
       }
@@ -622,7 +623,7 @@ export class ManagementUtility {
  * @param args - Command line arguments (typically Deno.args)
  * @returns Exit code
  */
-export async function execute(args: string[]): Promise<number> {
+export async function execute(args: string[] = Deno.args): Promise<number> {
   const cli = new ManagementUtility();
   return await cli.execute(args);
 }

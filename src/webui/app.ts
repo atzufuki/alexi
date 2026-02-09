@@ -24,6 +24,7 @@ const config: AppConfig = {
    * Commands module for desktop app management.
    */
   commandsModule: "./commands/mod.ts",
+  commandsImport: () => import("./commands/mod.ts"),
 };
 
 export default config;

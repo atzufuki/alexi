@@ -24,6 +24,7 @@ const config: AppConfig = {
    * Commands module for mobile app management.
    */
   commandsModule: "./commands/mod.ts",
+  commandsImport: () => import("./commands/mod.ts"),
 };
 
 export default config;
