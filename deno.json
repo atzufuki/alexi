@@ -12,8 +12,10 @@
     "./src/restframework",
     "./src/http",
     "./src/auth",
+    "./src/admin",
     "./src/web",
     "./src/webui",
+    "./src/capacitor",
     "./src/create"
   ],
   "exports": {
