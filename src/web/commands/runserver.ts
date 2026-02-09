@@ -247,19 +247,53 @@ export class RunServerCommand extends BaseCommand {
   ): Promise<void> {
     this.serverAbortController = new AbortController();
 
-    // Load URL patterns
+    // Load URL patterns from ROOT_URLCONF
+    // Supports: import specifiers (@myorg/myapp), relative paths (./src/myapp), or legacy APP_PATHS
     const rootUrlconf = settings.ROOT_URLCONF as string;
-    const appPaths = settings.APP_PATHS as Record<string, string>;
-    const appPath = appPaths[rootUrlconf];
-
     let urlpatterns: URLPattern[] = [];
-    if (appPath) {
+
+    if (rootUrlconf) {
       try {
-        const urlsPath = `${this.projectRoot}/${appPath}/urls.ts`;
-        const urlsModule = await import(`file://${urlsPath}`);
+        let urlsModule: { urlpatterns?: URLPattern[]; default?: URLPattern[] };
+
+        if (
+          rootUrlconf.startsWith("@") || rootUrlconf.startsWith("jsr:") ||
+          rootUrlconf.startsWith("npm:")
+        ) {
+          // Import specifier (e.g., @myorg/myapp)
+          const urlsSpecifier = `${rootUrlconf}/urls`;
+          urlsModule = await import(urlsSpecifier);
+          this.success(`Loaded URL patterns from ${urlsSpecifier}`);
+        } else if (
+          rootUrlconf.startsWith("./") || rootUrlconf.startsWith("../")
+        ) {
+          // Relative path (e.g., ./src/uplake-web)
+          const normalizedPath = rootUrlconf.startsWith("./")
+            ? rootUrlconf.slice(2)
+            : rootUrlconf;
+          const urlsPath = `${this.projectRoot}/${normalizedPath}/urls.ts`;
+          const urlsUrl = new URL(`file://${urlsPath}`);
+          urlsModule = await import(urlsUrl.href);
+          this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
+        } else {
+          // Legacy: look up in APP_PATHS
+          const appPaths = (settings.APP_PATHS ?? {}) as Record<string, string>;
+          const appPath = appPaths[rootUrlconf];
+          if (appPath) {
+            const urlsPath = `${this.projectRoot}/${appPath}/urls.ts`;
+            const urlsUrl = new URL(`file://${urlsPath}`);
+            urlsModule = await import(urlsUrl.href);
+            this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
+          } else {
+            throw new Error(
+              `ROOT_URLCONF '${rootUrlconf}' not found. Use an import specifier (@myorg/myapp), ` +
+                `a relative path (./src/myapp), or add to APP_PATHS.`,
+            );
+          }
+        }
+
         urlpatterns =
           (urlsModule.urlpatterns ?? urlsModule.default ?? []) as URLPattern[];
-        this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
       } catch (error) {
         this.warn(`Could not load URL patterns: ${error}`);
       }
@@ -282,7 +316,6 @@ export class RunServerCommand extends BaseCommand {
       | ((opts: {
         debug: boolean;
         installedApps: string[];
-        appPaths: Record<string, string>;
       }) => unknown[])
       | undefined;
 
@@ -290,7 +323,6 @@ export class RunServerCommand extends BaseCommand {
       middleware = createMiddleware({
         debug: config.debug,
         installedApps: settings.INSTALLED_APPS as string[],
-        appPaths: settings.APP_PATHS as Record<string, string>,
       }) as Middleware[];
     }
 
@@ -331,21 +363,31 @@ export class RunServerCommand extends BaseCommand {
   ): void {
     const watchDirs: string[] = [];
     const installedApps = settings.INSTALLED_APPS as string[];
-    const appPaths = settings.APP_PATHS as Record<string, string>;
 
     // Frontend apps are handled by bundler HMR, not backend watcher
-    const frontendApps = ["comachine-ui"];
+    const frontendApps = ["uplake-ui", "comachine-ui"];
 
-    for (const appName of installedApps) {
+    for (const appEntry of installedApps) {
+      // Skip import specifiers (JSR/npm packages) - only watch local apps
+      if (
+        appEntry.startsWith("@") || appEntry.startsWith("jsr:") ||
+        appEntry.startsWith("npm:")
+      ) {
+        continue;
+      }
+
       // Skip frontend apps - they use bundler HMR
-      if (frontendApps.includes(appName)) continue;
+      if (frontendApps.some((fe) => appEntry.includes(fe))) continue;
 
-      const appPath = appPaths[appName];
-      if (!appPath) continue;
+      // Only handle relative paths (./src/myapp)
+      if (!appEntry.startsWith("./") && !appEntry.startsWith("../")) {
+        continue;
+      }
 
-      const appDir = appPath.startsWith("./")
-        ? `${this.projectRoot}/${appPath.slice(2)}`
-        : appPath;
+      const normalizedPath = appEntry.startsWith("./")
+        ? appEntry.slice(2)
+        : appEntry;
+      const appDir = `${this.projectRoot}/${normalizedPath}`;
 
       try {
         const stat = Deno.statSync(appDir);
