@@ -329,13 +329,33 @@ export async function loadUrlPatterns(
     }
   }
 
+  // Check if ROOT_URLCONF is a relative path (e.g., ./src/uplake-web)
+  if (rootUrlConf.startsWith("./") || rootUrlConf.startsWith("../")) {
+    const normalizedPath = rootUrlConf.startsWith("./")
+      ? rootUrlConf.slice(2)
+      : rootUrlConf;
+    const urlsPath = `${projectRoot}/${normalizedPath}/urls.ts`;
+    const urlsUrl = new URL(`file://${urlsPath}`);
+
+    try {
+      const module = await import(urlsUrl.href);
+      const patterns = module.urlpatterns ?? module.default ?? [];
+      console.log(`✓ Loaded URL patterns from ${rootUrlConf}/urls.ts`);
+      return patterns;
+    } catch (error) {
+      throw new Error(
+        `Failed to load URL patterns from '${urlsPath}': ${error}`,
+      );
+    }
+  }
+
   // Legacy: Get app path from APP_PATHS
   const appPaths = config.APP_PATHS ?? {};
   const appPath = appPaths[rootUrlConf];
   if (!appPath) {
     throw new Error(
       `ROOT_URLCONF '${rootUrlConf}' not found in APP_PATHS and is not an import specifier. ` +
-        `Either use an import specifier like "@myorg/myapp" or add to APP_PATHS.`,
+        `Either use an import specifier like "@myorg/myapp", a relative path like "./src/myapp", or add to APP_PATHS.`,
     );
   }
 
@@ -345,7 +365,8 @@ export async function loadUrlPatterns(
     : `${projectRoot}/${appPath}/urls.ts`;
 
   try {
-    const module = await import(`file://${urlsPath}`);
+    const urlsUrl = new URL(`file://${urlsPath}`);
+    const module = await import(urlsUrl.href);
 
     // Support both named export and default export
     const patterns = module.urlpatterns ?? module.default ?? [];
