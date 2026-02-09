@@ -883,8 +883,8 @@ export class MyCommand extends BaseCommand {
 
 ## Settings Configuration
 
-Each app has its own settings file. Alexi uses Django-style `INSTALLED_APPS` with
-import specifiers:
+Each app has its own settings file. Alexi uses Django-style `INSTALLED_APPS`
+with import specifiers:
 
 ```typescript
 // project/web.settings.ts
@@ -899,12 +899,12 @@ export const DEFAULT_PORT = 8000;
 // - Use "@alexi/..." for Alexi packages from JSR
 // - Use "./src/myapp" for local apps (relative paths)
 export const INSTALLED_APPS = [
-  "@alexi/staticfiles",  // JSR package
-  "@alexi/web",          // JSR package
-  "@alexi/db",           // JSR package
-  "@alexi/auth",         // JSR package
-  "@alexi/admin",        // JSR package
-  "./src/myapp-web",     // Local app (relative path)
+  "@alexi/staticfiles", // JSR package
+  "@alexi/web", // JSR package
+  "@alexi/db", // JSR package
+  "@alexi/auth", // JSR package
+  "@alexi/admin", // JSR package
+  "./src/myapp-web", // Local app (relative path)
 ];
 
 // ROOT_URLCONF can be an import specifier or local app path
@@ -921,12 +921,13 @@ export const DATABASE = {
 
 Apps can be specified in two ways:
 
-| Format | Example | Description |
-|--------|---------|-------------|
-| Import specifier | `"@alexi/web"` | JSR/npm packages |
-| Relative path | `"./src/myapp"` | Local apps |
+| Format           | Example         | Description      |
+| ---------------- | --------------- | ---------------- |
+| Import specifier | `"@alexi/web"`  | JSR/npm packages |
+| Relative path    | `"./src/myapp"` | Local apps       |
 
 The framework automatically detects the format:
+
 - Starts with `@`, `jsr:`, `npm:` → Import specifier
 - Starts with `./` or `../` → Relative path
 
@@ -945,8 +946,8 @@ export const APP_PATHS = {
 
 // ✅ New approach (recommended)
 export const INSTALLED_APPS = [
-  "@alexi/web",        // JSR package
-  "./src/myapp",       // Local app
+  "@alexi/web", // JSR package
+  "./src/myapp", // Local app
 ];
 // No APP_PATHS needed!
 ```

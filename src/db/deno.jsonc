@@ -12,14 +12,14 @@
     "./backends/denokv": "./backends/denokv/mod.ts",
     "./backends/indexeddb": "./backends/indexeddb/mod.ts",
     "./backends/rest": "./backends/rest/mod.ts",
-    "./backends/sync": "./backends/sync/mod.ts",
+    "./backends/sync": "./backends/sync/mod.ts"
   },
   "imports": {
     "@alexi/types": "jsr:@alexi/types@0.6.10",
-    "@std/assert": "jsr:@std/assert@1",
+    "@std/assert": "jsr:@std/assert@1"
   },
   "compilerOptions": {
     "lib": ["dom", "dom.iterable", "esnext", "deno.ns", "deno.unstable"],
-    "strict": true,
-  },
+    "strict": true
+  }
 }
