@@ -323,6 +323,14 @@ export interface TargetConfig {
  */
 export interface BundleConfig {
   /**
+   * Path to the app directory.
+   * If not specified, derived from app name as `./src/${name}`.
+   *
+   * @example "./src/myapp-ui"
+   */
+  appPath?: string;
+
+  /**
    * Entrypoint file for bundling.
    * Path is relative to the app's directory.
    *

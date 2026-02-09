@@ -282,10 +282,30 @@
       "npm:fake-indexeddb@6"
     ],
     "members": {
+      "src/admin": {
+        "dependencies": [
+          "jsr:@alexi/core@0.8.2",
+          "jsr:@alexi/db@0.8.2",
+          "jsr:@alexi/middleware@0.8.2",
+          "jsr:@alexi/restframework@0.8.2",
+          "jsr:@alexi/types@0.8.2",
+          "jsr:@alexi/urls@0.8.2",
+          "jsr:@html-props/built-ins@^1.0.0-beta.5",
+          "jsr:@html-props/core@^1.0.0-beta.5",
+          "jsr:@html-props/layout@^1.0.0-beta.5",
+          "jsr:@std/assert@1"
+        ]
+      },
       "src/auth": {
         "dependencies": [
           "jsr:@alexi/core@0.8.2",
           "jsr:@alexi/db@0.8.2",
+          "jsr:@alexi/types@0.8.2"
+        ]
+      },
+      "src/capacitor": {
+        "dependencies": [
+          "jsr:@alexi/core@0.8.2",
           "jsr:@alexi/types@0.8.2"
         ]
       },
