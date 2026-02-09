@@ -109,7 +109,12 @@ declare interface Event {
   preventDefault(): void;
   stopPropagation(): void;
 }
-declare interface EventTarget {}
+declare interface EventTarget {
+  addEventListener(type: string, listener: EventListener): void;
+  removeEventListener(type: string, listener: EventListener): void;
+  dispatchEvent(event: Event): boolean;
+}
+declare type EventListener = (event: Event) => void;
 declare type IDBRequestReadyState = "pending" | "done";
 declare interface IDBOpenDBRequest extends IDBRequest<IDBDatabase> {
   onblocked: ((this: IDBOpenDBRequest, ev: Event) => unknown) | null;
@@ -210,6 +215,7 @@ class IndexedDBTransaction implements Transaction {
     this._operations.push({ type: "delete", storeName, key });
   }
 
+  // deno-lint-ignore require-await
   async commit(): Promise<void> {
     if (!this._active) {
       throw new Error("Transaction is no longer active");
@@ -257,6 +263,7 @@ class IndexedDBTransaction implements Transaction {
     });
   }
 
+  // deno-lint-ignore require-await
   async rollback(): Promise<void> {
     // Discard queued operations
     this._operations = [];
@@ -296,6 +303,7 @@ class IndexedDBSchemaEditor implements SchemaEditor {
     return [...this._pendingChanges];
   }
 
+  // deno-lint-ignore require-await
   async createTable(model: typeof Model): Promise<void> {
     const tableName = model.getTableName();
 
@@ -311,6 +319,7 @@ class IndexedDBSchemaEditor implements SchemaEditor {
     });
   }
 
+  // deno-lint-ignore require-await
   async dropTable(model: typeof Model): Promise<void> {
     const tableName = model.getTableName();
 
@@ -332,6 +341,7 @@ class IndexedDBSchemaEditor implements SchemaEditor {
     // No-op for IndexedDB (schema-less within object stores)
   }
 
+  // deno-lint-ignore require-await
   async createIndex(
     model: typeof Model,
     fields: string[],
@@ -349,6 +359,7 @@ class IndexedDBSchemaEditor implements SchemaEditor {
     });
   }
 
+  // deno-lint-ignore require-await
   async dropIndex(model: typeof Model, indexName: string): Promise<void> {
     const tableName = model.getTableName();
 
@@ -468,6 +479,7 @@ export class IndexedDBBackend extends DatabaseBackend {
   /**
    * Get the current database version without triggering an upgrade
    */
+  // deno-lint-ignore require-await
   private async _getCurrentVersion(): Promise<number> {
     return new Promise((resolve) => {
       // Open without version to get current version
@@ -487,6 +499,7 @@ export class IndexedDBBackend extends DatabaseBackend {
     });
   }
 
+  // deno-lint-ignore require-await
   async disconnect(): Promise<void> {
     if (this._db) {
       this._db.close();
@@ -499,6 +512,7 @@ export class IndexedDBBackend extends DatabaseBackend {
   /**
    * Ensure an object store exists, creating it if necessary via version upgrade
    */
+  // deno-lint-ignore require-await
   async ensureStore(storeName: string): Promise<void> {
     if (this._storeNames.has(storeName)) {
       return;
@@ -588,6 +602,7 @@ export class IndexedDBBackend extends DatabaseBackend {
     return limited;
   }
 
+  // deno-lint-ignore require-await
   async executeRaw<R = unknown>(
     _query: string,
     _params?: unknown[],
@@ -669,6 +684,7 @@ export class IndexedDBBackend extends DatabaseBackend {
     });
   }
 
+  // deno-lint-ignore require-await
   async delete<T extends Model>(instance: T): Promise<void> {
     this.ensureConnected();
 
@@ -698,6 +714,7 @@ export class IndexedDBBackend extends DatabaseBackend {
     });
   }
 
+  // deno-lint-ignore require-await
   async deleteById(tableName: string, id: unknown): Promise<void> {
     this.ensureConnected();
 
@@ -724,6 +741,7 @@ export class IndexedDBBackend extends DatabaseBackend {
     });
   }
 
+  // deno-lint-ignore require-await
   async getById<T extends Model>(
     model: new () => T,
     id: unknown,
@@ -1050,6 +1068,7 @@ export class IndexedDBBackend extends DatabaseBackend {
   // Transactions
   // ============================================================================
 
+  // deno-lint-ignore require-await
   async beginTransaction(): Promise<Transaction> {
     this.ensureConnected();
     return new IndexedDBTransaction(this._db!);
@@ -1064,6 +1083,7 @@ export class IndexedDBBackend extends DatabaseBackend {
     return new IndexedDBSchemaEditor(this._db!);
   }
 
+  // deno-lint-ignore require-await
   async tableExists(tableName: string): Promise<boolean> {
     this.ensureConnected();
     return this._db!.objectStoreNames.contains(tableName);
@@ -1100,6 +1120,7 @@ export class IndexedDBBackend extends DatabaseBackend {
   /**
    * Get all records from an object store
    */
+  // deno-lint-ignore require-await
   private async _getAllFromStore(
     storeName: string,
   ): Promise<Record<string, unknown>[]> {
@@ -1121,6 +1142,7 @@ export class IndexedDBBackend extends DatabaseBackend {
   /**
    * Clear all data from a store
    */
+  // deno-lint-ignore require-await
   async clearStore(storeName: string): Promise<void> {
     this.ensureConnected();
 
