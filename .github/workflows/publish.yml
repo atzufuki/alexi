@@ -73,11 +73,20 @@ jobs:
 
             echo "Publishing $PKG_NAME from $PKG_DIR..."
 
-            if (cd "$PKG_DIR" && deno publish --allow-dirty --allow-slow-types); then
+            # Capture output and exit code
+            set +e
+            OUTPUT=$(cd "$PKG_DIR" && deno publish --allow-dirty --allow-slow-types 2>&1)
+            EXIT_CODE=$?
+            set -e
+
+            echo "$OUTPUT"
+
+            if [ $EXIT_CODE -eq 0 ]; then
               echo "- ✅ $PKG_NAME" >> $GITHUB_STEP_SUMMARY
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             else
-              echo "- ❌ $PKG_NAME" >> $GITHUB_STEP_SUMMARY
+              echo "- ❌ $PKG_NAME (exit code: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+              echo "  Error: $OUTPUT" >> $GITHUB_STEP_SUMMARY
               FAIL_COUNT=$((FAIL_COUNT + 1))
             fi
           done < /tmp/packages.txt
