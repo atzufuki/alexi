@@ -4,9 +4,9 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
-    "./config": "./app.ts",
+    "./config": "./app.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.6.10",
-  },
+    "@alexi/types": "jsr:@alexi/types@0.6.10"
+  }
 }
