@@ -13,6 +13,7 @@ const config: AppConfig = {
   name: "alexi_web",
   verboseName: "Alexi Web Server",
   commandsModule: "./commands/mod.ts",
+  commandsImport: () => import("./commands/mod.ts"),
 };
 
 export default config;

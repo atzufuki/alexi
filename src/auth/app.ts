@@ -13,6 +13,7 @@ const config: AppConfig = {
   name: "alexi_auth",
   verboseName: "Alexi Authentication",
   commandsModule: "./commands/mod.ts",
+  commandsImport: () => import("./commands/mod.ts"),
 };
 
 export default config;
