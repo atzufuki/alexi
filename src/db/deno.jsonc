@@ -14,7 +14,7 @@
     "./backends/sync": "./backends/sync/mod.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.7.6",
+    "@alexi/types": "jsr:@alexi/types@0.7.7",
     "@std/assert": "jsr:@std/assert@1"
   },
   "compilerOptions": {
