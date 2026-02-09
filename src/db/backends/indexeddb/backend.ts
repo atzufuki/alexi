@@ -4,8 +4,142 @@
  * This backend uses the browser's IndexedDB API for data persistence.
  * IndexedDB is an asynchronous key-value database available in browsers.
  *
+ * NOTE: This module requires DOM types. Users should either:
+ * - Run in a browser environment
+ * - Add "dom" to their TypeScript lib config
+ * - Use `/// <reference lib="dom" />` in their entry point
+ *
  * @module
  */
+
+// Type declarations for IndexedDB APIs (browser environment)
+declare const indexedDB: IDBFactory;
+declare interface IDBFactory {
+  open(name: string, version?: number): IDBOpenDBRequest;
+  deleteDatabase(name: string): IDBOpenDBRequest;
+}
+declare interface IDBDatabase {
+  readonly name: string;
+  readonly version: number;
+  readonly objectStoreNames: DOMStringList;
+  close(): void;
+  createObjectStore(
+    name: string,
+    options?: IDBObjectStoreParameters,
+  ): IDBObjectStore;
+  deleteObjectStore(name: string): void;
+  transaction(
+    storeNames: string | string[],
+    mode?: IDBTransactionMode,
+  ): IDBTransaction;
+}
+declare interface IDBObjectStoreParameters {
+  keyPath?: string | string[] | null;
+  autoIncrement?: boolean;
+}
+declare interface IDBTransaction {
+  readonly objectStoreNames: DOMStringList;
+  readonly mode: IDBTransactionMode;
+  readonly db: IDBDatabase;
+  readonly error: DOMException | null;
+  objectStore(name: string): IDBObjectStore;
+  abort(): void;
+  commit(): void;
+  oncomplete: ((this: IDBTransaction, ev: Event) => unknown) | null;
+  onerror: ((this: IDBTransaction, ev: Event) => unknown) | null;
+  onabort: ((this: IDBTransaction, ev: Event) => unknown) | null;
+}
+declare type IDBTransactionMode = "readonly" | "readwrite" | "versionchange";
+declare interface IDBObjectStore {
+  readonly name: string;
+  readonly keyPath: string | string[] | null;
+  readonly indexNames: DOMStringList;
+  readonly transaction: IDBTransaction;
+  readonly autoIncrement: boolean;
+  add(value: unknown, key?: IDBValidKey): IDBRequest<IDBValidKey>;
+  clear(): IDBRequest<undefined>;
+  count(query?: IDBValidKey | IDBKeyRange): IDBRequest<number>;
+  delete(query: IDBValidKey | IDBKeyRange): IDBRequest<undefined>;
+  get(query: IDBValidKey | IDBKeyRange): IDBRequest<unknown>;
+  getAll(
+    query?: IDBValidKey | IDBKeyRange | null,
+    count?: number,
+  ): IDBRequest<unknown[]>;
+  put(value: unknown, key?: IDBValidKey): IDBRequest<IDBValidKey>;
+  openCursor(
+    query?: IDBValidKey | IDBKeyRange | null,
+    direction?: IDBCursorDirection,
+  ): IDBRequest<IDBCursorWithValue | null>;
+}
+declare type IDBCursorDirection = "next" | "nextunique" | "prev" | "prevunique";
+declare interface IDBCursor {
+  readonly direction: IDBCursorDirection;
+  readonly key: IDBValidKey;
+  readonly primaryKey: IDBValidKey;
+  readonly request: IDBRequest;
+  readonly source: IDBObjectStore | IDBIndex;
+  advance(count: number): void;
+  continue(key?: IDBValidKey): void;
+  continuePrimaryKey(key: IDBValidKey, primaryKey: IDBValidKey): void;
+  delete(): IDBRequest<undefined>;
+  update(value: unknown): IDBRequest<IDBValidKey>;
+}
+declare interface IDBCursorWithValue extends IDBCursor {
+  readonly value: unknown;
+}
+declare interface IDBIndex {
+  readonly name: string;
+  readonly objectStore: IDBObjectStore;
+  readonly keyPath: string | string[];
+  readonly multiEntry: boolean;
+  readonly unique: boolean;
+}
+declare interface IDBRequest<T = unknown> {
+  readonly error: DOMException | null;
+  readonly result: T;
+  readonly source: IDBObjectStore | IDBIndex | IDBCursor | null;
+  readonly readyState: IDBRequestReadyState;
+  readonly transaction: IDBTransaction | null;
+  onsuccess: ((this: IDBRequest<T>, ev: Event) => unknown) | null;
+  onerror: ((this: IDBRequest<T>, ev: Event) => unknown) | null;
+}
+declare interface Event {
+  readonly target: EventTarget | null;
+  readonly type: string;
+  preventDefault(): void;
+  stopPropagation(): void;
+}
+declare interface EventTarget {}
+declare type IDBRequestReadyState = "pending" | "done";
+declare interface IDBOpenDBRequest extends IDBRequest<IDBDatabase> {
+  onblocked: ((this: IDBOpenDBRequest, ev: Event) => unknown) | null;
+  onupgradeneeded:
+    | ((this: IDBOpenDBRequest, ev: IDBVersionChangeEvent) => unknown)
+    | null;
+}
+declare interface IDBVersionChangeEvent extends Event {
+  readonly oldVersion: number;
+  readonly newVersion: number | null;
+}
+declare type IDBValidKey =
+  | number
+  | string
+  | Date
+  | BufferSource
+  | IDBValidKey[];
+declare interface IDBKeyRange {
+  readonly lower: unknown;
+  readonly upper: unknown;
+  readonly lowerOpen: boolean;
+  readonly upperOpen: boolean;
+  includes(key: unknown): boolean;
+}
+declare interface DOMStringList {
+  readonly length: number;
+  contains(string: string): boolean;
+  item(index: number): string | null;
+  [index: number]: string;
+}
 
 import type { Model } from "../../models/model.ts";
 import type {
@@ -320,8 +454,8 @@ export class IndexedDBBackend extends DatabaseBackend {
         resolve();
       };
 
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
+      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+        const db = (event.target as unknown as IDBOpenDBRequest).result;
 
         // Create the _meta store for tracking metadata
         if (!db.objectStoreNames.contains("_meta")) {
@@ -388,8 +522,8 @@ export class IndexedDBBackend extends DatabaseBackend {
         resolve();
       };
 
-      request.onupgradeneeded = (event) => {
-        const db = (event.target as IDBOpenDBRequest).result;
+      request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
+        const db = (event.target as unknown as IDBOpenDBRequest).result;
 
         // Create the new object store with auto-incrementing id
         if (!db.objectStoreNames.contains(storeName)) {
@@ -484,7 +618,7 @@ export class IndexedDBBackend extends DatabaseBackend {
       const tx = this._db!.transaction(tableName, "readwrite");
       const store = tx.objectStore(tableName);
 
-      let request: IDBRequest;
+      let request: IDBRequest<IDBValidKey>;
 
       if (hasId) {
         request = store.put(data);
@@ -497,7 +631,7 @@ export class IndexedDBBackend extends DatabaseBackend {
 
       request.onsuccess = () => {
         // Get the generated ID if auto-incremented
-        data.id = request.result;
+        data.id = request.result as unknown;
         resolve(data);
       };
 
@@ -609,7 +743,7 @@ export class IndexedDBBackend extends DatabaseBackend {
       const request = store.get(id as IDBValidKey);
 
       request.onsuccess = () => {
-        resolve(request.result ?? null);
+        resolve((request.result as Record<string, unknown>) ?? null);
       };
 
       request.onerror = () => {
@@ -655,7 +789,7 @@ export class IndexedDBBackend extends DatabaseBackend {
         const data = instance.toDB();
         const hasId = data.id !== null && data.id !== undefined;
 
-        let request: IDBRequest;
+        let request: IDBRequest<IDBValidKey>;
 
         if (hasId) {
           request = store.put(data);
@@ -667,7 +801,7 @@ export class IndexedDBBackend extends DatabaseBackend {
 
         request.onsuccess = () => {
           if (hasError) return;
-          data.id = request.result;
+          data.id = request.result as unknown;
           results.push(data);
           completed++;
 

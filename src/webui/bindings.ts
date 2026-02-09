@@ -309,4 +309,4 @@ export function createDefaultBindings(): WebUIBindings {
  *
  * Pre-created bindings for convenience.
  */
-export const defaultBindings = createDefaultBindings();
+export const defaultBindings: WebUIBindings = createDefaultBindings();

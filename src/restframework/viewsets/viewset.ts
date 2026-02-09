@@ -110,12 +110,16 @@ const actionRegistry = new WeakMap<object, Map<string, ActionMetadata>>();
  * }
  * ```
  */
-export function action(options: ActionOptions) {
+export function action(options: ActionOptions): (
+  target: object,
+  propertyKey: string,
+  _descriptor: PropertyDescriptor,
+) => void {
   return function (
     target: object,
     propertyKey: string,
     _descriptor: PropertyDescriptor,
-  ) {
+  ): void {
     // Get or create the action map for this class
     let actions = actionRegistry.get(target);
     if (!actions) {

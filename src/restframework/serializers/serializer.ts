@@ -591,14 +591,17 @@ export class FieldValidationError extends Error {
 export class ValidationError extends Error {
   readonly fieldErrors?: ValidationErrors;
 
-  constructor(messageOrErrors: string | ValidationErrors) {
-    if (typeof messageOrErrors === "string") {
-      super(messageOrErrors);
-    } else {
-      super("Validation error");
-      this.fieldErrors = messageOrErrors;
-    }
+  constructor(message: string, fieldErrors?: ValidationErrors) {
+    super(message);
     this.name = "ValidationError";
+    this.fieldErrors = fieldErrors;
+  }
+
+  /**
+   * Create a ValidationError from field errors
+   */
+  static fromFieldErrors(errors: ValidationErrors): ValidationError {
+    return new ValidationError("Validation error", errors);
   }
 }
 
