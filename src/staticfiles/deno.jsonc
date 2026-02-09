@@ -4,13 +4,14 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
-    "./commands": "./commands/mod.ts"
+    "./config": "./app.ts",
+    "./commands": "./commands/mod.ts",
   },
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.6.10",
     "@alexi/types": "jsr:@alexi/types@0.6.10",
     "@std/path": "jsr:@std/path@1",
     "esbuild": "npm:esbuild@^0.24.0",
-    "esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1"
-  }
+    "esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
+  },
 }

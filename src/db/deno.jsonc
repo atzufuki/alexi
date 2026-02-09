@@ -4,26 +4,22 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
+    "./config": "./app.ts",
+    "./commands": "./commands/mod.ts",
     "./models": "./models/mod.ts",
     "./fields": "./fields/mod.ts",
     "./query": "./query/mod.ts",
     "./backends/denokv": "./backends/denokv/mod.ts",
     "./backends/indexeddb": "./backends/indexeddb/mod.ts",
     "./backends/rest": "./backends/rest/mod.ts",
-    "./backends/sync": "./backends/sync/mod.ts"
+    "./backends/sync": "./backends/sync/mod.ts",
   },
   "imports": {
     "@alexi/types": "jsr:@alexi/types@0.6.10",
-    "@std/assert": "jsr:@std/assert@1"
+    "@std/assert": "jsr:@std/assert@1",
   },
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext",
-      "deno.ns",
-      "deno.unstable"
-    ],
-    "strict": true
-  }
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns", "deno.unstable"],
+    "strict": true,
+  },
 }
