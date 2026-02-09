@@ -70,12 +70,12 @@ type HmrClient = ReadableStreamDefaultController<Uint8Array>;
 export class BundleCommand extends BaseCommand {
   readonly name = "bundle";
   readonly help = "Bundle TypeScript frontends to JavaScript";
-  readonly description =
+  override readonly description =
     "Reads INSTALLED_APPS and bundles the frontend for each app " +
     "that has a bundle configuration in app.ts. Output goes to the app's " +
     "static directory, from where collectstatic can collect it.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts bundle                  - Bundle all frontends",
     "manage.ts bundle --app comachine  - Bundle only comachine",
     "manage.ts bundle --watch          - Bundle and watch for changes",
@@ -106,7 +106,7 @@ export class BundleCommand extends BaseCommand {
   // Argument Configuration
   // ===========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--app", {
       type: "string",
       help: "Bundle only a specific app (app name in INSTALLED_APPS)",

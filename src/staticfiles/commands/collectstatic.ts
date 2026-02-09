@@ -58,11 +58,11 @@ interface CollectResult {
 export class CollectStaticCommand extends BaseCommand {
   readonly name = "collectstatic";
   readonly help = "Collect static files to STATIC_ROOT directory";
-  readonly description =
+  override readonly description =
     "Reads INSTALLED_APPS and copies each app's static directory " +
     "contents to the STATIC_ROOT directory. This is intended for production use.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts collectstatic              - Collect all static files",
     "manage.ts collectstatic --no-input   - Do not prompt for confirmation",
     "manage.ts collectstatic --clear      - Clear STATIC_ROOT first",
@@ -78,7 +78,7 @@ export class CollectStaticCommand extends BaseCommand {
   // Argument Configuration
   // ===========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",

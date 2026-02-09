@@ -25,6 +25,8 @@ import { Application } from "@alexi/core";
 import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { path } from "@alexi/urls";
+import type { URLPattern } from "@alexi/urls";
+import type { Middleware } from "@alexi/middleware";
 
 // =============================================================================
 // Types
@@ -49,12 +51,12 @@ interface ServerConfig {
 export class RunServerCommand extends BaseCommand {
   readonly name = "runserver";
   readonly help = "Start web server (API + Admin)";
-  readonly description =
+  override readonly description =
     "Starts a Django-style web server that provides REST API, " +
     "admin panel, static file serving, and SPA fallback. " +
     "Automatically bundles TypeScript frontends and supports HMR.";
 
-  readonly examples = [
+  override readonly examples = [
     "manage.ts runserver --settings web         - Start web server",
     "manage.ts runserver --settings web -p 3000 - Start on port 3000",
     "manage.ts runserver --settings web --no-bundle - Skip bundling",
@@ -69,7 +71,7 @@ export class RunServerCommand extends BaseCommand {
   // Arguments
   // ==========================================================================
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",
@@ -220,12 +222,13 @@ export class RunServerCommand extends BaseCommand {
     const appPaths = settings.APP_PATHS as Record<string, string>;
     const appPath = appPaths[rootUrlconf];
 
-    let urlpatterns: unknown[] = [];
+    let urlpatterns: URLPattern[] = [];
     if (appPath) {
       try {
         const urlsPath = `${this.projectRoot}/${appPath}/urls.ts`;
         const urlsModule = await import(`file://${urlsPath}`);
-        urlpatterns = urlsModule.urlpatterns ?? urlsModule.default ?? [];
+        urlpatterns =
+          (urlsModule.urlpatterns ?? urlsModule.default ?? []) as URLPattern[];
         this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
       } catch (error) {
         this.warn(`Could not load URL patterns: ${error}`);
@@ -244,7 +247,7 @@ export class RunServerCommand extends BaseCommand {
     }
 
     // Create middleware
-    let middleware: unknown[] = [];
+    let middleware: Middleware[] = [];
     const createMiddleware = settings.createMiddleware as
       | ((opts: {
         debug: boolean;
@@ -258,7 +261,7 @@ export class RunServerCommand extends BaseCommand {
         debug: config.debug,
         installedApps: settings.INSTALLED_APPS as string[],
         appPaths: settings.APP_PATHS as Record<string, string>,
-      });
+      }) as Middleware[];
     }
 
     // Create application
