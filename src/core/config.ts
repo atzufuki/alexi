@@ -81,13 +81,17 @@ export interface DatabaseConfig {
  * Import function type for apps.
  * User provides these in INSTALLED_APPS to ensure correct import context.
  */
-export type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
+export type AppImportFn = () => Promise<
+  { default?: AppConfig; [key: string]: unknown }
+>;
 
 /**
  * Import function type for URL patterns.
  * User provides this as ROOT_URLCONF to ensure correct import context.
  */
-export type UrlImportFn = () => Promise<{ urlpatterns?: unknown[]; default?: unknown[] }>;
+export type UrlImportFn = () => Promise<
+  { urlpatterns?: unknown[]; default?: unknown[] }
+>;
 
 /**
  * Loaded settings module
@@ -507,7 +511,9 @@ export async function createApplication(
   // Log configuration
   console.log("");
   console.log("App Configuration:");
-  console.log(`  Loaded apps: ${loadedApps.map((a) => a.config.name).join(", ")}`);
+  console.log(
+    `  Loaded apps: ${loadedApps.map((a) => a.config.name).join(", ")}`,
+  );
   console.log("");
 
   return app;

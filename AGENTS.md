@@ -905,7 +905,7 @@ export const INSTALLED_APPS = [
   () => import("@alexi/db"),
   () => import("@alexi/auth"),
   () => import("@alexi/admin"),
-  () => import("@myapp/web"),  // Local app (defined in deno.json import map)
+  () => import("@myapp/web"), // Local app (defined in deno.json import map)
 ];
 
 // ROOT_URLCONF is an import function that returns the URL patterns module.
@@ -920,8 +920,8 @@ export const DATABASE = {
 
 ### Why Import Functions?
 
-When Alexi (a JSR package) tries to `import("@myapp/web")`, it fails because
-the import map is defined in the user's project, not in Alexi's package.
+When Alexi (a JSR package) tries to `import("@myapp/web")`, it fails because the
+import map is defined in the user's project, not in Alexi's package.
 
 By using **import functions**, the import happens in the **user's settings
 module context**, where the import map is available. Alexi just calls the

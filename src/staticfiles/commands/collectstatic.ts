@@ -52,7 +52,9 @@ function toImportUrl(filePath: string): string {
 /**
  * Import function type for apps.
  */
-type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
+type AppImportFn = () => Promise<
+  { default?: AppConfig; [key: string]: unknown }
+>;
 
 // =============================================================================
 // Types
@@ -346,9 +348,12 @@ export class CollectStaticCommand extends BaseCommand {
           const stat = await Deno.stat(staticDir);
           if (stat.isDirectory) {
             apps.push({ name: config.name, path: appPath, staticDir, config });
+          }
+        } catch {
+          // Directory doesn't exist, skip
         }
       } catch {
-        // Directory doesn't exist, skip
+        // Failed to import app, skip
       }
     }
 
