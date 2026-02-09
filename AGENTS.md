@@ -883,8 +883,9 @@ export class MyCommand extends BaseCommand {
 
 ## Settings Configuration
 
-Each app has its own settings file. Alexi uses Django-style `INSTALLED_APPS`
-with import specifiers:
+Each app has its own settings file. Alexi uses **import functions** in
+`INSTALLED_APPS` and `ROOT_URLCONF` to ensure imports happen in the correct
+context (so import maps work correctly):
 
 ```typescript
 // project/web.settings.ts
@@ -895,20 +896,20 @@ export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 export const DEFAULT_HOST = "0.0.0.0";
 export const DEFAULT_PORT = 8000;
 
-// Django-style INSTALLED_APPS with import specifiers
-// - Use "@alexi/..." for Alexi packages from JSR
-// - Use "./src/myapp" for local apps (relative paths)
+// INSTALLED_APPS contains import functions for each app.
+// Using import functions ensures the import happens in this module's context,
+// so import maps defined in deno.json work correctly.
 export const INSTALLED_APPS = [
-  "@alexi/staticfiles", // JSR package
-  "@alexi/web", // JSR package
-  "@alexi/db", // JSR package
-  "@alexi/auth", // JSR package
-  "@alexi/admin", // JSR package
-  "./src/myapp-web", // Local app (relative path)
+  () => import("@alexi/staticfiles"),
+  () => import("@alexi/web"),
+  () => import("@alexi/db"),
+  () => import("@alexi/auth"),
+  () => import("@alexi/admin"),
+  () => import("@myapp/web"),  // Local app (defined in deno.json import map)
 ];
 
-// ROOT_URLCONF can be an import specifier or local app path
-export const ROOT_URLCONF = "./src/myapp-web";
+// ROOT_URLCONF is an import function that returns the URL patterns module.
+export const ROOT_URLCONF = () => import("@myapp/web/urls");
 
 export const DATABASE = {
   engine: "denokv" as const,
@@ -917,38 +918,57 @@ export const DATABASE = {
 };
 ```
 
-### INSTALLED_APPS Format
+### Why Import Functions?
 
-Apps can be specified in two ways:
+When Alexi (a JSR package) tries to `import("@myapp/web")`, it fails because
+the import map is defined in the user's project, not in Alexi's package.
 
-| Format           | Example         | Description      |
-| ---------------- | --------------- | ---------------- |
-| Import specifier | `"@alexi/web"`  | JSR/npm packages |
-| Relative path    | `"./src/myapp"` | Local apps       |
-
-The framework automatically detects the format:
-
-- Starts with `@`, `jsr:`, `npm:` → Import specifier
-- Starts with `./` or `../` → Relative path
-
-### Legacy APP_PATHS (Deprecated)
-
-The `APP_PATHS` configuration is deprecated. If you're upgrading from an older
-version, migrate to import specifiers:
+By using **import functions**, the import happens in the **user's settings
+module context**, where the import map is available. Alexi just calls the
+function:
 
 ```typescript
-// ❌ Old approach (deprecated)
+// Alexi calls the user's function - correct import context
+for (const importApp of settings.INSTALLED_APPS) {
+  const module = await importApp();
+  const config = module.default; // AppConfig
+}
+```
+
+### Import Map Setup
+
+Define local apps in your `deno.json` import map:
+
+```json
+{
+  "imports": {
+    "@alexi/web": "jsr:@alexi/web@^0.8",
+    "@alexi/db": "jsr:@alexi/db@^0.8",
+    "@myapp/web": "./src/myapp-web/mod.ts",
+    "@myapp/ui": "./src/myapp-ui/mod.ts"
+  }
+}
+```
+
+### Migration from APP_PATHS (Deprecated)
+
+The `APP_PATHS` configuration is removed. Migrate to import functions:
+
+```typescript
+// ❌ Old approach (removed)
 export const INSTALLED_APPS = ["alexi_web", "myapp"];
 export const APP_PATHS = {
   "alexi_web": "../alexi/src/web",
   "myapp": "./src/myapp",
 };
+export const ROOT_URLCONF = "myapp";
 
-// ✅ New approach (recommended)
+// ✅ New approach (required)
 export const INSTALLED_APPS = [
-  "@alexi/web", // JSR package
-  "./src/myapp", // Local app
+  () => import("@alexi/web"),
+  () => import("@myapp/web"),
 ];
+export const ROOT_URLCONF = () => import("@myapp/web/urls");
 // No APP_PATHS needed!
 ```
 

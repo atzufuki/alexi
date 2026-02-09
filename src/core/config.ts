@@ -1,70 +1,67 @@
 /**
  * Alexi Configuration Loader
  *
- * Django-tyylinen konfiguraation lataus.
- * Lukee settings-moduulin ja alustaa projektin automaattisesti.
+ * Django-style configuration loading.
+ * Reads settings module and initializes the project automatically.
  *
- * @module @alexi/management/config
+ * @module @alexi/core/config
  */
 
 import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { Application } from "./application.ts";
-import { pathToFileUrl } from "./management.ts";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
+import type { AppConfig } from "@alexi/types";
 
 // =============================================================================
-// Import Specifier Detection
+// Helper Functions
 // =============================================================================
 
 /**
- * Check if a string is an import specifier (package name) vs a file path.
+ * Convert a file path to a file:// URL string for dynamic import.
  *
- * Import specifiers:
- * - "@alexi/web" (scoped package)
- * - "jsr:@alexi/web" (explicit JSR)
- * - "npm:express" (explicit npm)
+ * This is an internal helper for loading project-local settings files.
+ * It handles Windows paths correctly.
  *
- * File paths:
- * - "./src/myapp" (relative)
- * - "../alexi/src/web" (relative parent)
+ * NOTE: This is only used for settings files (loaded via --settings CLI arg).
+ * App modules use import functions provided by the user in settings.
+ *
+ * @param filePath - File system path
+ * @returns file:// URL string suitable for dynamic import
+ * @internal
  */
-function isImportSpecifier(value: string): boolean {
-  // Explicit protocol prefixes
-  if (
-    value.startsWith("jsr:") ||
-    value.startsWith("npm:") ||
-    value.startsWith("node:")
-  ) {
-    return true;
+function toImportUrl(filePath: string): string {
+  // Normalize backslashes to forward slashes
+  let normalized = filePath.replace(/\\/g, "/");
+
+  // Remove leading ./ if present
+  if (normalized.startsWith("./")) {
+    normalized = normalized.slice(2);
   }
 
-  // Scoped packages (@org/package)
-  if (value.startsWith("@")) {
-    return true;
+  // Check if it's a Windows absolute path (e.g., C:/...)
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return `file:///${normalized}`;
   }
 
-  // Relative paths are NOT specifiers
-  if (value.startsWith("./") || value.startsWith("../")) {
-    return false;
+  // Check if it's a Windows path without forward slash yet (e.g., C:\...)
+  if (/^[a-zA-Z]:/.test(normalized)) {
+    return `file:///${normalized}`;
   }
 
-  // Absolute paths (Unix or Windows)
-  if (value.startsWith("/") || /^[a-zA-Z]:[\\/]/.test(value)) {
-    return false;
+  // Unix absolute path
+  if (normalized.startsWith("/")) {
+    return `file://${normalized}`;
   }
 
-  // If it contains path separators but doesn't start with protocol, it's a path
-  if (value.includes("/") || value.includes("\\")) {
-    if (!value.startsWith("@")) {
-      return false;
-    }
+  // Relative path - make it absolute
+  const cwd = Deno.cwd().replace(/\\/g, "/");
+  if (/^[a-zA-Z]:\//.test(cwd)) {
+    return `file:///${cwd}/${normalized}`;
   }
-
-  // Bare specifiers (e.g., "lodash", "express")
-  return true;
+  return `file://${cwd}/${normalized}`;
 }
 
 // =============================================================================
@@ -81,6 +78,18 @@ export interface DatabaseConfig {
 }
 
 /**
+ * Import function type for apps.
+ * User provides these in INSTALLED_APPS to ensure correct import context.
+ */
+export type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
+
+/**
+ * Import function type for URL patterns.
+ * User provides this as ROOT_URLCONF to ensure correct import context.
+ */
+export type UrlImportFn = () => Promise<{ urlpatterns?: unknown[]; default?: unknown[] }>;
+
+/**
  * Loaded settings module
  */
 export interface AlexiSettings {
@@ -88,13 +97,11 @@ export interface AlexiSettings {
   DEBUG: boolean;
   SECRET_KEY?: string;
 
-  // Apps
-  INSTALLED_APPS: string[];
-  /**
-   * @deprecated Use import specifiers in INSTALLED_APPS instead.
-   * Example: "@alexi/web" instead of "alexi_web" + APP_PATHS mapping.
-   */
-  APP_PATHS?: Record<string, string>;
+  // Apps - array of import functions
+  INSTALLED_APPS: AppImportFn[];
+
+  // URL Configuration - import function
+  ROOT_URLCONF?: UrlImportFn;
 
   // Database
   DATABASE: DatabaseConfig;
@@ -118,18 +125,10 @@ export interface AlexiSettings {
   // Testing
   TEST_PATTERN?: string;
 
-  // URL Configuration (Django-style ROOT_URLCONF)
-  ROOT_URLCONF?: string;
-
   // Middleware factory
   createMiddleware?: (options: {
     debug: boolean;
-    installedApps: string[];
-    appPaths: Record<string, string>;
   }) => unknown[];
-
-  // URL patterns (legacy, prefer ROOT_URLCONF)
-  urlpatterns?: unknown[];
 }
 
 /**
@@ -142,6 +141,14 @@ export interface ServerConfig {
   createHmrResponse?: () => Response;
 }
 
+/**
+ * Loaded app module with config and optional exports
+ */
+export interface LoadedApp {
+  config: AppConfig;
+  module: Record<string, unknown>;
+}
+
 // =============================================================================
 // Global State
 // =============================================================================
@@ -149,6 +156,7 @@ export interface ServerConfig {
 let _settings: AlexiSettings | null = null;
 let _settingsModule: string | null = null;
 let _initialized = false;
+let _loadedApps: LoadedApp[] = [];
 
 // =============================================================================
 // Settings Loading
@@ -200,8 +208,9 @@ export async function loadSettings(
       ? `${projectRoot}/${settingsPath.slice(2)}`
       : settingsPath;
 
-    // Import the settings module
-    const settingsUrl = pathToFileUrl(absolutePath);
+    // Import the settings module using file:// URL
+    // This is the only place we need file:// URLs - for loading settings
+    const settingsUrl = toImportUrl(absolutePath);
     const module = await import(settingsUrl);
 
     // Build settings object with defaults
@@ -210,9 +219,11 @@ export async function loadSettings(
       DEBUG: module.DEBUG ?? false,
       SECRET_KEY: module.SECRET_KEY,
 
-      // Apps
+      // Apps - must be array of import functions
       INSTALLED_APPS: module.INSTALLED_APPS ?? [],
-      APP_PATHS: module.APP_PATHS ?? {},
+
+      // URL Configuration - import function
+      ROOT_URLCONF: module.ROOT_URLCONF,
 
       // Database
       DATABASE: module.DATABASE ?? {
@@ -238,9 +249,6 @@ export async function loadSettings(
 
       // Testing
       TEST_PATTERN: module.TEST_PATTERN,
-
-      // URL Configuration
-      ROOT_URLCONF: module.ROOT_URLCONF,
 
       // Middleware factory
       createMiddleware: module.createMiddleware,
@@ -286,17 +294,61 @@ export function getSettingsModuleName(): string | null {
 }
 
 // =============================================================================
+// App Loading
+// =============================================================================
+
+/**
+ * Load all installed apps by calling their import functions.
+ *
+ * This executes the user-provided import functions in INSTALLED_APPS,
+ * which ensures imports happen in the user's context (import maps work).
+ *
+ * @param settings - Settings object (optional, uses global settings if not provided)
+ */
+export async function loadInstalledApps(
+  settings?: AlexiSettings,
+): Promise<LoadedApp[]> {
+  const config = settings ?? getSettings();
+  const apps: LoadedApp[] = [];
+
+  for (const importFn of config.INSTALLED_APPS) {
+    try {
+      // Call user's import function - this runs in user's context
+      const module = await importFn();
+
+      // Get AppConfig from default export
+      const appConfig = module.default as AppConfig | undefined;
+      if (appConfig) {
+        apps.push({
+          config: appConfig,
+          module: module as Record<string, unknown>,
+        });
+      }
+    } catch (error) {
+      console.warn(`Failed to load app: ${error}`);
+    }
+  }
+
+  _loadedApps = apps;
+  return apps;
+}
+
+/**
+ * Get loaded apps.
+ */
+export function getLoadedApps(): LoadedApp[] {
+  return _loadedApps;
+}
+
+// =============================================================================
 // URL Pattern Loading
 // =============================================================================
 
 /**
- * Load URL patterns from the ROOT_URLCONF app.
+ * Load URL patterns from ROOT_URLCONF.
  *
- * Django-style URL loading:
- * 1. Look up ROOT_URLCONF in settings
- * 2. If ROOT_URLCONF is an import specifier (@alexi/web), import directly
- * 3. Otherwise, find the app path in APP_PATHS and load urls.ts
- * 4. Return urlpatterns export
+ * ROOT_URLCONF is an import function provided by the user.
+ * This ensures the import happens in user's context (import maps work).
  *
  * @param settings - Settings object (optional, uses global settings if not provided)
  */
@@ -304,81 +356,29 @@ export async function loadUrlPatterns(
   settings?: AlexiSettings,
 ): Promise<unknown[]> {
   const config = settings ?? getSettings();
-  const projectRoot = Deno.cwd();
 
-  // Get ROOT_URLCONF from settings
+  // Get ROOT_URLCONF import function
   const rootUrlConf = config.ROOT_URLCONF;
   if (!rootUrlConf) {
     console.warn("ROOT_URLCONF not set in settings. No URL patterns loaded.");
     return [];
   }
 
-  // Check if ROOT_URLCONF is an import specifier
-  if (isImportSpecifier(rootUrlConf)) {
-    // Import URLs from the package directly
-    // Convention: @alexi/web/urls or @myapp/urls
-    const urlsSpecifier = `${rootUrlConf}/urls`;
-
-    try {
-      const module = await import(urlsSpecifier);
-      const patterns = module.urlpatterns ?? module.default ?? [];
-      console.log(`✓ Loaded URL patterns from ${urlsSpecifier}`);
-      return patterns;
-    } catch (error) {
-      throw new Error(
-        `Failed to load URL patterns from '${urlsSpecifier}': ${error}`,
-      );
-    }
-  }
-
-  // Check if ROOT_URLCONF is a relative path (e.g., ./src/uplake-web)
-  if (rootUrlConf.startsWith("./") || rootUrlConf.startsWith("../")) {
-    const normalizedPath = rootUrlConf.startsWith("./")
-      ? rootUrlConf.slice(2)
-      : rootUrlConf;
-    const urlsPath = `${projectRoot}/${normalizedPath}/urls.ts`;
-    const urlsUrl = pathToFileUrl(urlsPath);
-
-    try {
-      const module = await import(urlsUrl);
-      const patterns = module.urlpatterns ?? module.default ?? [];
-      console.log(`✓ Loaded URL patterns from ${rootUrlConf}/urls.ts`);
-      return patterns;
-    } catch (error) {
-      throw new Error(
-        `Failed to load URL patterns from '${urlsPath}': ${error}`,
-      );
-    }
-  }
-
-  // Legacy: Get app path from APP_PATHS
-  const appPaths = config.APP_PATHS ?? {};
-  const appPath = appPaths[rootUrlConf];
-  if (!appPath) {
+  if (typeof rootUrlConf !== "function") {
     throw new Error(
-      `ROOT_URLCONF '${rootUrlConf}' not found in APP_PATHS and is not an import specifier. ` +
-        `Either use an import specifier like "@myorg/myapp", a relative path like "./src/myapp", or add to APP_PATHS.`,
+      "ROOT_URLCONF must be an import function, e.g.:\n" +
+        '  export const ROOT_URLCONF = () => import("@myapp/web/urls");',
     );
   }
-
-  // Construct urls.ts path
-  const urlsPath = appPath.startsWith("./")
-    ? `${projectRoot}/${appPath.slice(2)}/urls.ts`
-    : `${projectRoot}/${appPath}/urls.ts`;
 
   try {
-    const urlsUrl = pathToFileUrl(urlsPath);
-    const module = await import(urlsUrl);
-
-    // Support both named export and default export
+    // Call user's import function - this runs in user's context
+    const module = await rootUrlConf();
     const patterns = module.urlpatterns ?? module.default ?? [];
-
-    console.log(`✓ Loaded URL patterns from ${rootUrlConf}/urls.ts`);
+    console.log("✓ Loaded URL patterns from ROOT_URLCONF");
     return patterns;
   } catch (error) {
-    throw new Error(
-      `Failed to load URL patterns from '${urlsPath}': ${error}`,
-    );
+    throw new Error(`Failed to load URL patterns from ROOT_URLCONF: ${error}`);
   }
 }
 
@@ -426,7 +426,7 @@ export async function initializeDatabase(
       });
       await backend.connect();
       setup({ backend });
-      console.log(`✓ Database initialized (memory)`);
+      console.log("✓ Database initialized (memory)");
       break;
     }
 
@@ -472,6 +472,9 @@ export async function createApplication(
     await initializeDatabase(settings);
   }
 
+  // Load installed apps
+  const loadedApps = await loadInstalledApps(settings);
+
   // Load URL patterns from ROOT_URLCONF
   let urlpatterns = await loadUrlPatterns(settings);
 
@@ -491,8 +494,6 @@ export async function createApplication(
   if (settings.createMiddleware) {
     middleware = settings.createMiddleware({
       debug: serverConfig.debug,
-      installedApps: settings.INSTALLED_APPS,
-      appPaths: settings.APP_PATHS ?? {},
     });
   }
 
@@ -505,11 +506,8 @@ export async function createApplication(
 
   // Log configuration
   console.log("");
-  console.log(`URL Configuration (${settings.ROOT_URLCONF}/urls.ts):`);
-
-  // List installed apps
-  const appsList = settings.INSTALLED_APPS.join(", ");
-  console.log(`  Installed apps: ${appsList}`);
+  console.log("App Configuration:");
+  console.log(`  Loaded apps: ${loadedApps.map((a) => a.config.name).join(", ")}`);
   console.log("");
 
   return app;
@@ -533,6 +531,9 @@ export async function configure(settingsArg?: string): Promise<void> {
 
   // Initialize database
   await initializeDatabase();
+
+  // Load installed apps
+  await loadInstalledApps();
 }
 
 /**
@@ -542,4 +543,5 @@ export function resetConfiguration(): void {
   _settings = null;
   _settingsModule = null;
   _initialized = false;
+  _loadedApps = [];
 }

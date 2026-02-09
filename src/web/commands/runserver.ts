@@ -15,7 +15,7 @@
  * @module @alexi/web/commands/runserver
  */
 
-import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -29,6 +29,40 @@ import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
 
 // =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Convert a file path to a file:// URL string for dynamic import.
+ * Only used for loading settings files.
+ */
+function toImportUrl(filePath: string): string {
+  let normalized = filePath.replace(/\\/g, "/");
+
+  if (normalized.startsWith("./")) {
+    normalized = normalized.slice(2);
+  }
+
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (/^[a-zA-Z]:/.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (normalized.startsWith("/")) {
+    return `file://${normalized}`;
+  }
+
+  const cwd = Deno.cwd().replace(/\\/g, "/");
+  if (/^[a-zA-Z]:\//.test(cwd)) {
+    return `file:///${cwd}/${normalized}`;
+  }
+  return `file://${cwd}/${normalized}`;
+}
+
+// =============================================================================
 // Types
 // =============================================================================
 
@@ -38,6 +72,12 @@ interface ServerConfig {
   debug: boolean;
   createHmrResponse?: () => Response;
 }
+
+/**
+ * URL import function type.
+ * User provides this as ROOT_URLCONF to ensure correct import context.
+ */
+type UrlImportFn = () => Promise<{ urlpatterns?: unknown[]; default?: unknown[] }>;
 
 // =============================================================================
 // RunServerCommand
@@ -116,46 +156,16 @@ export class RunServerCommand extends BaseCommand {
     const noBundle = options.args["no-bundle"] as boolean;
 
     try {
-      // Load settings - support Django-style paths:
-      // 1. Full path: ./project/test.settings.ts or project/test.settings.ts
-      // 2. Dotted module: project.test (becomes project/test.settings.ts)
-      // 3. Short name: test (becomes project/test.settings.ts) - legacy
-      let settingsPath: string;
+      // Load settings
+      const settingsPath = this.resolveSettingsPath(settingsArg);
+      this.info(`Loading settings: ${settingsArg}`);
 
-      if (settingsArg.endsWith(".ts")) {
-        // Full path with .ts extension
-        if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
-          settingsPath = `${this.projectRoot}/${settingsArg.slice(2)}`;
-        } else {
-          settingsPath = `${this.projectRoot}/${settingsArg}`;
-        }
-        this.info(`Loading settings: ${settingsArg}`);
-      } else if (settingsArg.includes(".")) {
-        // Dotted module path like project.test
-        const modulePath = settingsArg.replace(/\./g, "/");
-        settingsPath = `${this.projectRoot}/${modulePath}.ts`;
-        this.info(`Loading settings: ${modulePath}.ts`);
-      } else {
-        // Legacy short name: test -> project/test.settings.ts
-        settingsPath = `${this.projectRoot}/project/${settingsArg}.settings.ts`;
-        this.info(`Loading settings: ${settingsArg}.settings.ts`);
-      }
-
-      // Debug: log the actual paths being used
-      console.log(`[runserver] projectRoot: ${this.projectRoot}`);
-      console.log(`[runserver] settingsPath: ${settingsPath}`);
-
-      // Use pathToFileUrl to ensure proper file:// URL handling across platforms
-      // This prevents Deno from resolving relative to JSR when running from JSR package
-      const settingsUrl = pathToFileUrl(settingsPath);
-      console.log(`[runserver] import URL: ${settingsUrl}`);
-
+      const settingsUrl = toImportUrl(settingsPath);
       const settings = await import(settingsUrl);
 
       const port = portArg ?? settings.DEFAULT_PORT ?? 8000;
       const host = hostArg ?? settings.DEFAULT_HOST ?? "0.0.0.0";
-      // Dev server is always in debug mode (no-cache headers, detailed logs, etc.)
-      const debug = true;
+      const debug = true; // Dev server is always in debug mode
 
       // Validate port
       if (port < 1 || port > 65535) {
@@ -223,7 +233,7 @@ export class RunServerCommand extends BaseCommand {
 
       // Start file watcher
       if (!noReload) {
-        this.startBackendWatcher(settings, serverConfig);
+        this.startBackendWatcher(settings);
       }
 
       // Keep alive
@@ -238,6 +248,26 @@ export class RunServerCommand extends BaseCommand {
   }
 
   // ==========================================================================
+  // Settings Resolution
+  // ==========================================================================
+
+  private resolveSettingsPath(settingsArg: string): string {
+    if (settingsArg.endsWith(".ts")) {
+      if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
+        return `${this.projectRoot}/${settingsArg.slice(2)}`;
+      }
+      return `${this.projectRoot}/${settingsArg}`;
+    }
+
+    if (settingsArg.includes(".")) {
+      const modulePath = settingsArg.replace(/\./g, "/");
+      return `${this.projectRoot}/${modulePath}.ts`;
+    }
+
+    return `${this.projectRoot}/project/${settingsArg}.settings.ts`;
+  }
+
+  // ==========================================================================
   // Server
   // ==========================================================================
 
@@ -248,55 +278,28 @@ export class RunServerCommand extends BaseCommand {
     this.serverAbortController = new AbortController();
 
     // Load URL patterns from ROOT_URLCONF
-    // Supports: import specifiers (@myorg/myapp), relative paths (./src/myapp), or legacy APP_PATHS
-    const rootUrlconf = settings.ROOT_URLCONF as string;
     let urlpatterns: URLPattern[] = [];
 
-    if (rootUrlconf) {
+    const rootUrlConf = settings.ROOT_URLCONF as UrlImportFn | undefined;
+
+    if (rootUrlConf) {
+      if (typeof rootUrlConf !== "function") {
+        throw new Error(
+          "ROOT_URLCONF must be an import function, e.g.:\n" +
+            '  export const ROOT_URLCONF = () => import("@myapp/web/urls");',
+        );
+      }
+
       try {
-        let urlsModule: { urlpatterns?: URLPattern[]; default?: URLPattern[] };
-
-        if (
-          rootUrlconf.startsWith("@") || rootUrlconf.startsWith("jsr:") ||
-          rootUrlconf.startsWith("npm:")
-        ) {
-          // Import specifier (e.g., @myorg/myapp)
-          const urlsSpecifier = `${rootUrlconf}/urls`;
-          urlsModule = await import(urlsSpecifier);
-          this.success(`Loaded URL patterns from ${urlsSpecifier}`);
-        } else if (
-          rootUrlconf.startsWith("./") || rootUrlconf.startsWith("../")
-        ) {
-          // Relative path (e.g., ./src/uplake-web)
-          const normalizedPath = rootUrlconf.startsWith("./")
-            ? rootUrlconf.slice(2)
-            : rootUrlconf;
-          const urlsPath = `${this.projectRoot}/${normalizedPath}/urls.ts`;
-          const urlsUrl = pathToFileUrl(urlsPath);
-          urlsModule = await import(urlsUrl);
-          this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
-        } else {
-          // Legacy: look up in APP_PATHS
-          const appPaths = (settings.APP_PATHS ?? {}) as Record<string, string>;
-          const appPath = appPaths[rootUrlconf];
-          if (appPath) {
-            const urlsPath = `${this.projectRoot}/${appPath}/urls.ts`;
-            const urlsUrl = pathToFileUrl(urlsPath);
-            urlsModule = await import(urlsUrl);
-            this.success(`Loaded URL patterns from ${rootUrlconf}/urls.ts`);
-          } else {
-            throw new Error(
-              `ROOT_URLCONF '${rootUrlconf}' not found. Use an import specifier (@myorg/myapp), ` +
-                `a relative path (./src/myapp), or add to APP_PATHS.`,
-            );
-          }
-        }
-
-        urlpatterns =
-          (urlsModule.urlpatterns ?? urlsModule.default ?? []) as URLPattern[];
+        // Call user's import function - runs in user's context
+        const urlsModule = await rootUrlConf();
+        urlpatterns = (urlsModule.urlpatterns ?? urlsModule.default ?? []) as URLPattern[];
+        this.success("Loaded URL patterns from ROOT_URLCONF");
       } catch (error) {
         this.warn(`Could not load URL patterns: ${error}`);
       }
+    } else {
+      this.warn("ROOT_URLCONF not set in settings. No URL patterns loaded.");
     }
 
     // Add HMR endpoint
@@ -313,16 +316,12 @@ export class RunServerCommand extends BaseCommand {
     // Create middleware
     let middleware: Middleware[] = [];
     const createMiddleware = settings.createMiddleware as
-      | ((opts: {
-        debug: boolean;
-        installedApps: string[];
-      }) => unknown[])
+      | ((opts: { debug: boolean }) => unknown[])
       | undefined;
 
     if (createMiddleware) {
       middleware = createMiddleware({
         debug: config.debug,
-        installedApps: settings.INSTALLED_APPS as string[],
       }) as Middleware[];
     }
 
@@ -335,10 +334,8 @@ export class RunServerCommand extends BaseCommand {
 
     // Log configuration
     console.log("");
-    console.log(`URL Configuration (${rootUrlconf}/urls.ts):`);
-    console.log(
-      `  Installed apps: ${(settings.INSTALLED_APPS as string[]).join(", ")}`,
-    );
+    console.log("Server Configuration:");
+    console.log(`  URL: http://${config.host}:${config.port}/`);
     console.log("");
 
     // Start server
@@ -357,46 +354,23 @@ export class RunServerCommand extends BaseCommand {
   // File Watcher
   // ==========================================================================
 
-  private startBackendWatcher(
-    settings: Record<string, unknown>,
-    _serverConfig: ServerConfig,
-  ): void {
+  private startBackendWatcher(settings: Record<string, unknown>): void {
     const watchDirs: string[] = [];
-    const installedApps = settings.INSTALLED_APPS as string[];
+    const installedApps = settings.INSTALLED_APPS as Array<() => Promise<unknown>> | undefined;
 
-    // Frontend apps are handled by bundler HMR, not backend watcher
-    const frontendApps = ["uplake-ui", "comachine-ui"];
+    if (!installedApps || !Array.isArray(installedApps)) {
+      return;
+    }
 
-    for (const appEntry of installedApps) {
-      // Skip import specifiers (JSR/npm packages) - only watch local apps
-      if (
-        appEntry.startsWith("@") || appEntry.startsWith("jsr:") ||
-        appEntry.startsWith("npm:")
-      ) {
-        continue;
+    // Watch the project's src directory for backend changes
+    const srcDir = `${this.projectRoot}/src`;
+    try {
+      const stat = Deno.statSync(srcDir);
+      if (stat.isDirectory) {
+        watchDirs.push(srcDir);
       }
-
-      // Skip frontend apps - they use bundler HMR
-      if (frontendApps.some((fe) => appEntry.includes(fe))) continue;
-
-      // Only handle relative paths (./src/myapp)
-      if (!appEntry.startsWith("./") && !appEntry.startsWith("../")) {
-        continue;
-      }
-
-      const normalizedPath = appEntry.startsWith("./")
-        ? appEntry.slice(2)
-        : appEntry;
-      const appDir = `${this.projectRoot}/${normalizedPath}`;
-
-      try {
-        const stat = Deno.statSync(appDir);
-        if (stat.isDirectory) {
-          watchDirs.push(appDir);
-        }
-      } catch {
-        // Directory doesn't exist
-      }
+    } catch {
+      // src directory doesn't exist
     }
 
     if (watchDirs.length === 0) return;
@@ -416,7 +390,6 @@ export class RunServerCommand extends BaseCommand {
 
         if (isBackendChange && event.kind === "modify") {
           this.info("\n🔄 Backend change detected...");
-          // Could restart server here if needed
         }
       }
     })();

@@ -9,7 +9,7 @@
  * @module @alexi/staticfiles/commands/bundle
  */
 
-import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -20,8 +20,47 @@ import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
 
 // =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Convert a file path to a file:// URL string for dynamic import.
+ * Only used for loading settings files.
+ */
+function toImportUrl(filePath: string): string {
+  let normalized = filePath.replace(/\\/g, "/");
+
+  if (normalized.startsWith("./")) {
+    normalized = normalized.slice(2);
+  }
+
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (/^[a-zA-Z]:/.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (normalized.startsWith("/")) {
+    return `file://${normalized}`;
+  }
+
+  const cwd = Deno.cwd().replace(/\\/g, "/");
+  if (/^[a-zA-Z]:\//.test(cwd)) {
+    return `file:///${cwd}/${normalized}`;
+  }
+  return `file://${cwd}/${normalized}`;
+}
+
+// =============================================================================
 // Types
 // =============================================================================
+
+/**
+ * Import function type for apps.
+ */
+type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
 
 /**
  * Result of bundling a single app
@@ -208,36 +247,32 @@ export class BundleCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Load project settings from all settings files
-   * Aggregates INSTALLED_APPS and APP_PATHS from all *.settings.ts files
+   * Load project settings from all settings files.
+   * Collects import functions from INSTALLED_APPS.
    */
   private async loadSettings(): Promise<
     {
-      installedApps: string[];
-      appPaths: Record<string, string>;
+      importFunctions: AppImportFn[];
     } | null
   > {
     try {
       const projectDir = `${this.projectRoot}/project`;
-      const allApps: Set<string> = new Set();
-      const allPaths: Record<string, string> = {};
+      const importFunctions: AppImportFn[] = [];
 
       // Find all settings files in project directory
       for await (const entry of Deno.readDir(projectDir)) {
         if (entry.isFile && entry.name.endsWith(".settings.ts")) {
           try {
             const settingsPath = `${projectDir}/${entry.name}`;
-            const settingsUrl = pathToFileUrl(settingsPath);
+            const settingsUrl = toImportUrl(settingsPath);
             const settings = await import(settingsUrl);
 
-            const installedApps: string[] = settings.INSTALLED_APPS ?? [];
-            const appPaths: Record<string, string> = settings.APP_PATHS ?? {};
+            const installedApps = settings.INSTALLED_APPS ?? [];
 
-            // Collect all unique apps
-            for (const appName of installedApps) {
-              allApps.add(appName);
-              if (appPaths[appName] && !allPaths[appName]) {
-                allPaths[appName] = appPaths[appName];
+            // Collect import functions
+            for (const app of installedApps) {
+              if (typeof app === "function") {
+                importFunctions.push(app as AppImportFn);
               }
             }
           } catch {
@@ -246,14 +281,11 @@ export class BundleCommand extends BaseCommand {
         }
       }
 
-      if (allApps.size === 0) {
+      if (importFunctions.length === 0) {
         return null;
       }
 
-      return {
-        installedApps: Array.from(allApps),
-        appPaths: allPaths,
-      };
+      return { importFunctions };
     } catch (error) {
       if (this.watcher === null) {
         // Only log error if not in watch mode (to avoid spam)
@@ -268,60 +300,46 @@ export class BundleCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Find apps that have bundle configuration
+   * Find apps that have bundle configuration.
+   * Calls each import function to get the app module.
    */
   private async findAppsToBuild(
-    settings: { installedApps: string[]; appPaths: Record<string, string> },
+    settings: { importFunctions: AppImportFn[] },
     targetApp?: string,
   ): Promise<Array<{ name: string; path: string; config: AppConfig }>> {
     const apps: Array<{ name: string; path: string; config: AppConfig }> = [];
 
-    for (const appName of settings.installedApps) {
-      // Skip if targeting a specific app
-      if (targetApp && appName !== targetApp) {
-        continue;
-      }
+    for (const importFn of settings.importFunctions) {
+      try {
+        // Call the user's import function
+        const module = await importFn();
+        const config = module.default as AppConfig | undefined;
 
-      const appPath = settings.appPaths[appName];
-      if (!appPath) {
-        this.debug(`App ${appName} not in APP_PATHS, skipping`, true);
-        continue;
-      }
+        if (!config) {
+          continue;
+        }
 
-      // Try to load app.ts
-      const config = await this.loadAppConfig(appName, appPath);
-      if (!config) {
-        continue;
-      }
+        // Skip if targeting a specific app
+        if (targetApp && config.name !== targetApp) {
+          continue;
+        }
 
-      // Check if app has bundle configuration
-      if (!config.bundle) {
-        this.debug(`App ${appName} has no bundle configuration`, true);
-        continue;
-      }
+        // Check if app has bundle configuration
+        if (!config.bundle) {
+          this.debug(`App ${config.name} has no bundle configuration`, true);
+          continue;
+        }
 
-      apps.push({ name: appName, path: appPath, config });
+        // Get the app path from bundle config or derive from name
+        const appPath = config.bundle.appPath ?? `./src/${config.name}`;
+
+        apps.push({ name: config.name, path: appPath, config });
+      } catch (error) {
+        this.debug(`Failed to load app: ${error}`, true);
+      }
     }
 
     return apps;
-  }
-
-  /**
-   * Load an app's configuration from app.ts
-   */
-  private async loadAppConfig(
-    appName: string,
-    appPath: string,
-  ): Promise<AppConfig | null> {
-    try {
-      const fullPath = `${this.projectRoot}/${appPath}/app.ts`;
-      const moduleUrl = pathToFileUrl(fullPath);
-      const module = await import(moduleUrl);
-      return module.default as AppConfig;
-    } catch (error) {
-      this.debug(`App ${appName} app.ts not found: ${error}`, true);
-      return null;
-    }
   }
 
   // ===========================================================================

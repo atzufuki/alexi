@@ -7,13 +7,52 @@
  * @module @alexi/staticfiles/commands/collectstatic
  */
 
-import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
 } from "@alexi/core";
 import type { AppConfig } from "@alexi/types";
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Convert a file path to a file:// URL string for dynamic import.
+ * Only used for loading settings files.
+ */
+function toImportUrl(filePath: string): string {
+  let normalized = filePath.replace(/\\/g, "/");
+
+  if (normalized.startsWith("./")) {
+    normalized = normalized.slice(2);
+  }
+
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (/^[a-zA-Z]:/.test(normalized)) {
+    return `file:///${normalized}`;
+  }
+
+  if (normalized.startsWith("/")) {
+    return `file://${normalized}`;
+  }
+
+  const cwd = Deno.cwd().replace(/\\/g, "/");
+  if (/^[a-zA-Z]:\//.test(cwd)) {
+    return `file:///${cwd}/${normalized}`;
+  }
+  return `file://${cwd}/${normalized}`;
+}
+
+/**
+ * Import function type for apps.
+ */
+type AppImportFn = () => Promise<{ default?: AppConfig; [key: string]: unknown }>;
 
 // =============================================================================
 // Types
@@ -221,12 +260,12 @@ export class CollectStaticCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Load project settings from specified settings module
+   * Load project settings from specified settings module.
+   * Collects import functions from INSTALLED_APPS.
    */
   private async loadSettings(settingsName: string): Promise<
     {
-      installedApps: string[];
-      appPaths: Record<string, string>;
+      importFunctions: AppImportFn[];
       staticRoot: string;
     } | null
   > {
@@ -234,12 +273,21 @@ export class CollectStaticCommand extends BaseCommand {
       // Load deployment-specific settings (e.g., web.settings.ts, desktop.settings.ts)
       const settingsPath =
         `${this.projectRoot}/project/${settingsName}.settings.ts`;
-      const settingsUrl = pathToFileUrl(settingsPath);
+      const settingsUrl = toImportUrl(settingsPath);
       const settings = await import(settingsUrl);
 
+      // Collect import functions from INSTALLED_APPS
+      const importFunctions: AppImportFn[] = [];
+      const installedApps = settings.INSTALLED_APPS ?? [];
+
+      for (const app of installedApps) {
+        if (typeof app === "function") {
+          importFunctions.push(app as AppImportFn);
+        }
+      }
+
       return {
-        installedApps: settings.INSTALLED_APPS ?? [],
-        appPaths: settings.APP_PATHS ?? {},
+        importFunctions,
         staticRoot: settings.STATIC_ROOT ?? "./static",
       };
     } catch (error) {
@@ -256,11 +304,12 @@ export class CollectStaticCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Find apps that have static directories
+   * Find apps that have static directories.
+   * Calls each import function to get the app module.
    */
   private async findAppsWithStatic(settings: {
-    installedApps: string[];
-    appPaths: Record<string, string>;
+    importFunctions: AppImportFn[];
+    staticRoot: string;
   }): Promise<
     Array<{ name: string; path: string; staticDir: string; config?: AppConfig }>
   > {
@@ -268,36 +317,35 @@ export class CollectStaticCommand extends BaseCommand {
       { name: string; path: string; staticDir: string; config?: AppConfig }
     > = [];
 
-    for (const appName of settings.installedApps) {
-      const appPath = settings.appPaths[appName];
-      if (!appPath) {
-        continue;
-      }
-
-      const appPathNormalized = appPath.replace(/^\.\//, "");
-      const appDir = `${this.projectRoot}/${appPathNormalized}`;
-
-      // Try to load app.ts for staticDir configuration
-      let staticDirRel = "static"; // Default
+    for (const importFn of settings.importFunctions) {
       try {
-        const configPath = `${appDir}/app.ts`;
-        const configUrl = pathToFileUrl(configPath);
-        const module = await import(configUrl);
-        const config = module.default as AppConfig;
-        if (config.staticDir) {
-          staticDirRel = config.staticDir.replace(/^\.\//, "");
+        // Call the user's import function
+        const module = await importFn();
+        const config = module.default as AppConfig | undefined;
+
+        if (!config) {
+          continue;
         }
-      } catch {
-        // No app.ts, use default
-      }
 
-      const staticDir = `${appDir}/${staticDirRel}`;
+        // Get app path from config or derive from name
+        const appPath = config.staticDir
+          ? `./src/${config.name}`
+          : `./src/${config.name}`;
+        const appPathNormalized = appPath.replace(/^\.\//, "");
+        const appDir = `${this.projectRoot}/${appPathNormalized}`;
 
-      // Check if static directory exists
-      try {
-        const stat = await Deno.stat(staticDir);
-        if (stat.isDirectory) {
-          apps.push({ name: appName, path: appPath, staticDir });
+        // Get static directory from config
+        const staticDirRel = config.staticDir
+          ? config.staticDir.replace(/^\.\//, "")
+          : "static";
+
+        const staticDir = `${appDir}/${staticDirRel}`;
+
+        // Check if static directory exists
+        try {
+          const stat = await Deno.stat(staticDir);
+          if (stat.isDirectory) {
+            apps.push({ name: config.name, path: appPath, staticDir, config });
         }
       } catch {
         // Directory doesn't exist, skip

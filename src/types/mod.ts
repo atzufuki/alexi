@@ -591,4 +591,14 @@ export interface AppConfig {
    * @example "./commands/mod.ts"
    */
   commandsModule?: string;
+
+  /**
+   * Import function for loading commands module.
+   *
+   * This is the preferred way to load commands - it runs in the app's
+   * context so import maps work correctly.
+   *
+   * @example () => import("./commands/mod.ts")
+   */
+  commandsImport?: () => Promise<Record<string, unknown>>;
 }

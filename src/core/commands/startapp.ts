@@ -780,20 +780,13 @@ export const DEFAULT_HOST = "0.0.0.0";
 export const DEFAULT_PORT = 8000;
 
 export const INSTALLED_APPS = [
-  "alexi_staticfiles",
-  "alexi_web",
-  "alexi_db",
-  "${name}",
+  () => import("@alexi/staticfiles"),
+  () => import("@alexi/web"),
+  () => import("@alexi/db"),
+  () => import("@${name}/web"),
 ];
 
-export const APP_PATHS: Record<string, string> = {
-  "alexi_staticfiles": "jsr:@alexi/staticfiles",
-  "alexi_web": "jsr:@alexi/web",
-  "alexi_db": "jsr:@alexi/db",
-  "${name}": "./src/${name}",
-};
-
-export const ROOT_URLCONF = "${name}";
+export const ROOT_URLCONF = () => import("@${name}/web/urls");
 
 export function createMiddleware() {
   return [
@@ -817,14 +810,9 @@ export const DEFAULT_HOST = "127.0.0.1";
 export const DEFAULT_PORT = 5173;
 
 export const INSTALLED_APPS = [
-  "alexi_staticfiles",
-  "${name}",
+  () => import("@alexi/staticfiles"),
+  () => import("@${name}/ui"),
 ];
-
-export const APP_PATHS: Record<string, string> = {
-  "alexi_staticfiles": "jsr:@alexi/staticfiles",
-  "${name}": "./src/${name}",
-};
 
 export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
 export const SPA_ROOT = "./src/${name}/static";
@@ -843,14 +831,9 @@ export const DEFAULT_HOST = "127.0.0.1";
 export const DEFAULT_PORT = 51730;
 
 export const INSTALLED_APPS = [
-  "alexi_webui",
-  "${name}",
+  () => import("@alexi/webui"),
+  () => import("@${name}/desktop"),
 ];
-
-export const APP_PATHS: Record<string, string> = {
-  "alexi_webui": "jsr:@alexi/webui",
-  "${name}": "./src/${name}",
-};
 
 export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
 export const UI_URL = Deno.env.get("UI_URL") ?? "http://127.0.0.1:5173/";
@@ -876,14 +859,9 @@ export const BINDINGS_MODULE = "src/${name}/bindings.ts";
 export const DEBUG = Deno.env.get("DEBUG") === "true";
 
 export const INSTALLED_APPS = [
-  "alexi_capacitor",
-  "${name}",
+  () => import("@alexi/capacitor"),
+  () => import("@${name}/mobile"),
 ];
-
-export const APP_PATHS: Record<string, string> = {
-  "alexi_capacitor": "jsr:@alexi/capacitor",
-  "${name}": "./src/${name}",
-};
 
 export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
 `;
@@ -899,12 +877,8 @@ export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
 export const DEBUG = Deno.env.get("DEBUG") === "true";
 
 export const INSTALLED_APPS = [
-  "${name}",
+  () => import("@${name}/cli"),
 ];
-
-export const APP_PATHS: Record<string, string> = {
-  "${name}": "./src/${name}",
-};
 `;
   }
 
