@@ -1,4 +1,4 @@
-#!/usr/bin/env -S deno run --allow-read --allow-write
+#!/usr/bin/env -S deno run --allow-read --allow-write --allow-run
 
 /**
  * Syncs package versions across the Alexi monorepo.
@@ -150,6 +150,36 @@ async function main() {
   console.log(`   Total: ${subpackages.length}`);
 
   if (updatedCount > 0) {
+    console.log(`\n🔄 Regenerating deno.lock...`);
+
+    // Remove old lock file
+    try {
+      await Deno.remove("deno.lock");
+    } catch {
+      // Lock file might not exist
+    }
+
+    // Regenerate lock by caching dependencies
+    const cacheCmd = new Deno.Command("deno", {
+      args: [
+        "cache",
+        "--reload",
+        "src/mod.ts",
+        "src/db/tests/indexeddb_test.ts",
+      ],
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+
+    const cacheResult = await cacheCmd.output();
+    if (cacheResult.success) {
+      console.log(`✅ deno.lock regenerated successfully`);
+    } else {
+      console.log(
+        `⚠️  Failed to regenerate deno.lock - run 'deno cache' manually`,
+      );
+    }
+
     console.log(`\n💡 Don't forget to commit the changes!`);
   }
 }

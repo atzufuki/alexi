@@ -1,6 +1,6 @@
 {
   "name": "@atzufuki/alexi",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "workspace": [
     "./src/types",
     "./src/urls",
@@ -46,7 +46,7 @@
     "check": "deno check src/**/mod.ts",
     "lint": "deno lint",
     "fmt": "deno fmt",
-    "version:sync": "deno run --allow-read --allow-write scripts/sync-versions.ts"
+    "version:sync": "deno run --allow-read --allow-write --allow-run scripts/sync-versions.ts"
   },
   "imports": {
     "@alexi/types": "./src/types/mod.ts",
