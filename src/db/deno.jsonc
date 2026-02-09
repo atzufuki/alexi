@@ -1,6 +1,7 @@
 {
   "name": "@alexi/db",
   "version": "0.6.0",
+  "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./models": "./models/mod.ts",

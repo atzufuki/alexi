@@ -1,6 +1,7 @@
 {
   "name": "@alexi/staticfiles",
   "version": "0.6.0",
+  "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./commands": "./commands/mod.ts",
