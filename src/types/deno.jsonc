@@ -1,0 +1,11 @@
+{
+  "name": "@alexi/types",
+  "version": "0.6.0",
+  "exports": {
+    ".": "./mod.ts"
+  },
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns"],
+    "strict": true
+  }
+}

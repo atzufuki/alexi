@@ -1,16 +1,16 @@
 {
   "name": "@alexi/db",
-  "version": "0.5.1",
-  "imports": {
-    "@alexi/web": "jsr:@alexi/web@^0.4.0",
-    "idb": "npm:idb@8.0.0",
-    "fake-indexeddb": "npm:fake-indexeddb@^6.0.0"
-  },
+  "version": "0.6.0",
   "exports": {
-    "./backends": "./backends/mod.ts",
-    "./models": "./models/mod.ts"
+    ".": "./mod.ts",
+    "./models": "./models/mod.ts",
+    "./fields": "./fields/mod.ts",
+    "./query": "./query/mod.ts",
+    "./backends/denokv": "./backends/denokv/mod.ts",
+    "./backends/indexeddb": "./backends/indexeddb/mod.ts"
   },
-  "tasks": {
-    "test": "deno test -A --no-check --unstable-kv"
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns", "deno.unstable"],
+    "strict": true
   }
 }
