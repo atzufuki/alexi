@@ -2,10 +2,8 @@ name: Publish to JSR
 
 on:
   push:
-    branches: [main]
-    paths:
-      - "deno.json"
-      - "src/**/deno.jsonc"
+    tags:
+      - "v*" # Trigger on version tags like v0.6.3
 
 jobs:
   publish:
@@ -18,69 +16,44 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 2 # Need previous commit to check version change
 
-      - name: Check if version changed
-        id: version-check
+      - name: Get version from tag
+        id: version
         run: |
-          # Get current version from root
-          CURRENT_VERSION=$(jq -r '.version' deno.json)
-          echo "current_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
-
-          # Get previous version
-          git show HEAD~1:deno.json > /tmp/prev_deno.json 2>/dev/null || echo '{"version":"0.0.0"}' > /tmp/prev_deno.json
-          PREVIOUS_VERSION=$(jq -r '.version' /tmp/prev_deno.json)
-          echo "previous_version=$PREVIOUS_VERSION" >> $GITHUB_OUTPUT
-
-          # Check if version changed
-          if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
-            echo "Version changed from $PREVIOUS_VERSION to $CURRENT_VERSION"
-            echo "changed=true" >> $GITHUB_OUTPUT
-          else
-            echo "Version unchanged ($CURRENT_VERSION)"
-            echo "changed=false" >> $GITHUB_OUTPUT
-          fi
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Publishing version: $VERSION"
 
       - name: Setup Deno
-        if: steps.version-check.outputs.changed == 'true'
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
 
       - name: Verify formatting
-        if: steps.version-check.outputs.changed == 'true'
         run: deno fmt --check
 
       - name: Run linter
-        if: steps.version-check.outputs.changed == 'true'
         run: deno lint
 
       - name: Run tests
-        if: steps.version-check.outputs.changed == 'true'
         run: deno task test
 
-      - name: Find all packages
-        if: steps.version-check.outputs.changed == 'true'
+      - name: Find workspace packages
         id: find-packages
         run: |
-          echo "Finding all subpackages..."
-          PACKAGES=$(find src -name "deno.jsonc" -type f | sort)
-          echo "Found packages:"
-          echo "$PACKAGES"
-
-          # Save package list for next step
-          echo "$PACKAGES" > /tmp/packages.txt
-
-          PACKAGE_COUNT=$(echo "$PACKAGES" | wc -l)
-          echo "package_count=$PACKAGE_COUNT" >> $GITHUB_OUTPUT
+          # Get workspace members from deno.json
+          WORKSPACES=$(jq -r '.workspace[]' deno.json)
+          echo "Found workspace packages:"
+          echo "$WORKSPACES"
+          echo "$WORKSPACES" > /tmp/packages.txt
 
       - name: Publish packages
-        if: steps.version-check.outputs.changed == 'true'
         run: |
           echo "## 🚀 Publishing to JSR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.version-check.outputs.current_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Published Packages" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
@@ -88,41 +61,33 @@ jobs:
           SUCCESS_COUNT=0
           FAIL_COUNT=0
 
-          # Read packages from temp file
-          while IFS= read -r PKG_PATH; do
-            # Get package directory
-            PKG_DIR=$(dirname "$PKG_PATH")
+          # Publish each workspace package
+          while IFS= read -r PKG_DIR; do
+            # Get package name from deno.jsonc
+            PKG_PATH="$PKG_DIR/deno.jsonc"
+            if [ ! -f "$PKG_PATH" ]; then
+              PKG_PATH="$PKG_DIR/deno.json"
+            fi
 
-            # Get package name
             PKG_NAME=$(jq -r '.name' "$PKG_PATH")
 
             echo "Publishing $PKG_NAME from $PKG_DIR..."
 
-            # Publish from package directory
             if (cd "$PKG_DIR" && deno publish --allow-dirty); then
-              echo "  ✓ $PKG_NAME - published successfully" | tee -a $GITHUB_STEP_SUMMARY
+              echo "- ✅ $PKG_NAME" >> $GITHUB_STEP_SUMMARY
               SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
             else
-              echo "  ✗ $PKG_NAME - failed to publish" | tee -a $GITHUB_STEP_SUMMARY
+              echo "- ❌ $PKG_NAME" >> $GITHUB_STEP_SUMMARY
               FAIL_COUNT=$((FAIL_COUNT + 1))
             fi
           done < /tmp/packages.txt
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Summary:** $SUCCESS_COUNT succeeded, $FAIL_COUNT failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "[View on JSR](https://jsr.io/@alexi)" >> $GITHUB_STEP_SUMMARY
 
-          # Exit with error if any failed
           if [ $FAIL_COUNT -gt 0 ]; then
             exit 1
           fi
-
-      - name: Skip summary
-        if: steps.version-check.outputs.changed == 'false'
-        run: |
-          echo "## ⏭️ Publish skipped" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Version unchanged (${{ steps.version-check.outputs.current_version }})" >> $GITHUB_STEP_SUMMARY

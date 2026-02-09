@@ -60,38 +60,59 @@ Edit the root `deno.json` file and bump the version:
 
 ### 3. Sync Versions Across Packages
 
-Run the version sync script to update all subpackage versions:
+Run the version sync script to update all subpackage versions and their
+`@alexi/*` import dependencies:
 
 ```bash
 deno task version:sync
 ```
 
-This will update all `src/*/deno.jsonc` files to match the root version.
+This will update:
+- All `src/*/deno.jsonc` version fields
+- All `@alexi/*` imports in each package's `imports` field
 
 ### 4. Commit Version Changes
 
 ```bash
-git add deno.json src/*/deno.jsonc
+git add -A
 git commit -m "chore: bump version to 0.7.0"
 ```
 
-### 5. Push and Create PR
+### 5. Create and Push Tag
+
+Create a version tag and push it to trigger the release:
 
 ```bash
-git push origin feature/my-feature
+git tag v0.7.0
+git push origin main
+git push origin v0.7.0
 ```
 
-Create a pull request to `main` branch.
+### 6. Automatic Publishing
 
-### 6. Merge to Main
+Once the tag is pushed, the GitHub Actions workflow will automatically:
 
-Once the PR is approved and merged to `main`, the GitHub Actions workflow will
-automatically:
+1. Checkout the tagged commit
+2. Run formatting check (`deno fmt --check`)
+3. Run linter (`deno lint`)
+4. Run tests (`deno task test`)
+5. Publish all workspace packages to JSR under `@alexi/*` scope
+6. Create a summary in the GitHub Actions run
 
-1. Detect the version change in `deno.json`
-2. Run tests (`deno task test`)
-3. Publish all packages to JSR under `@alexi/*` scope
-4. Create a summary in the GitHub Actions run
+## Quick Release (TL;DR)
+
+```bash
+# 1. Update version in deno.json
+# 2. Sync all packages
+deno task version:sync
+
+# 3. Commit, tag, and push
+git add -A
+git commit -m "chore: bump version to 0.7.0"
+git tag v0.7.0
+git push origin main
+git push origin v0.7.0
+```
 
 ## Manual Publishing (if needed)
 
@@ -102,12 +123,10 @@ If you need to publish manually:
 cd src/db
 deno publish
 
-# Or publish all packages
-for dir in src/*/; do
-  if [ -f "$dir/deno.jsonc" ]; then
-    echo "Publishing $dir..."
-    (cd "$dir" && deno publish)
-  fi
+# Or publish all workspace packages
+for dir in $(jq -r '.workspace[]' deno.json); do
+  echo "Publishing $dir..."
+  (cd "$dir" && deno publish)
 done
 ```
 
@@ -122,12 +141,13 @@ Visit JSR to see published packages:
 
 ## Pre-release Checklist
 
-Before bumping version and merging:
+Before creating a release tag:
 
 - [ ] All tests pass (`deno task test`)
 - [ ] Code is formatted (`deno task fmt`)
 - [ ] Code is linted (`deno task lint`)
 - [ ] Type checking passes (`deno task check`)
+- [ ] Version synced (`deno task version:sync`)
 - [ ] CHANGELOG updated (if you maintain one)
 - [ ] Breaking changes documented (if `MAJOR` bump)
 
@@ -139,7 +159,7 @@ JSR doesn't allow republishing the same version. If you need to fix something:
 
 1. Increment the patch version (e.g., `0.7.0` → `0.7.1`)
 2. Run `deno task version:sync`
-3. Commit and push
+3. Commit, tag with new version, and push
 
 ### "Permission denied" during publish
 
@@ -151,7 +171,39 @@ Make sure:
 
 ### Version mismatch between packages
 
-Run `deno task version:sync` to synchronize all package versions.
+Run `deno task version:sync` to synchronize all package versions and imports.
+
+### Tag already exists
+
+If you need to re-tag (e.g., after fixing something):
+
+```bash
+# Delete local and remote tag
+git tag -d v0.7.0
+git push origin :refs/tags/v0.7.0
+
+# Create new tag and push
+git tag v0.7.0
+git push origin v0.7.0
+```
+
+## Workspace Configuration
+
+The monorepo uses Deno's workspace feature. The root `deno.json` defines:
+
+```json
+{
+  "workspace": [
+    "./src/types",
+    "./src/urls",
+    "./src/middleware",
+    ...
+  ]
+}
+```
+
+This allows packages to reference each other using JSR specifiers
+(`jsr:@alexi/db@0.7.0`) while Deno resolves them locally during development.
 
 ## Notes
 
@@ -159,4 +211,6 @@ Run `deno task version:sync` to synchronize all package versions.
   `@alexi/*`
 - All packages must be published from their respective directories (`src/*/`)
 - The workflow uses `--allow-dirty` flag to publish from CI
-- Version changes trigger the workflow only when pushed to `main` branch
+- Only tags matching `v*` pattern trigger the publish workflow
+- The `@alexi/admin` package is currently excluded from workspace due to
+  html-props compatibility issues
