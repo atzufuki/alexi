@@ -286,7 +286,28 @@ export class ManagementUtility {
       if (settingsArg) {
         // Load commands only from the specified settings file
         try {
-          const settingsPath = `${projectDir}/${settingsArg}.settings.ts`;
+          // Support Django-style settings module paths:
+          // 1. Full path: ./project/test.settings.ts or project/test.settings.ts
+          // 2. Dotted module: project.test (becomes project/test.settings.ts)
+          // 3. Short name: test (becomes project/test.settings.ts) - legacy
+          let settingsPath: string;
+
+          if (settingsArg.endsWith(".ts")) {
+            // Full path with .ts extension
+            if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
+              settingsPath = `${this.projectRoot}/${settingsArg.slice(2)}`;
+            } else {
+              settingsPath = `${this.projectRoot}/${settingsArg}`;
+            }
+          } else if (settingsArg.includes(".")) {
+            // Dotted module path like project.test or project.settings.production
+            const modulePath = settingsArg.replace(/\./g, "/");
+            settingsPath = `${this.projectRoot}/${modulePath}.ts`;
+          } else {
+            // Legacy short name: test -> project/test.settings.ts
+            settingsPath = `${projectDir}/${settingsArg}.settings.ts`;
+          }
+
           const settingsUrl = pathToFileUrl(settingsPath);
           if (this.debug) {
             console.log(`Loading settings from: ${settingsUrl}`);
