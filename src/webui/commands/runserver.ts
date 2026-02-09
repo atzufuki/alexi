@@ -7,7 +7,7 @@
  * @module alexi_webui/commands/runserver
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -117,7 +117,8 @@ export class RunServerCommand extends BaseCommand {
       let settings: Record<string, unknown>;
 
       try {
-        settings = await import(`file://${settingsPath}`);
+        const settingsUrl = pathToFileUrl(settingsPath);
+        settings = await import(settingsUrl);
       } catch (error) {
         this.error(`Could not load settings: ${settingsPath}`);
         throw error;
@@ -162,7 +163,8 @@ export class RunServerCommand extends BaseCommand {
       if (bindingsModule) {
         try {
           const customBindingsPath = `${Deno.cwd()}/${bindingsModule}`;
-          const customBindings = await import(`file://${customBindingsPath}`);
+          const customBindingsUrl = pathToFileUrl(customBindingsPath);
+          const customBindings = await import(customBindingsUrl);
           bindings = {
             ...bindings,
             ...(customBindings.bindings ?? customBindings.default ?? {}),

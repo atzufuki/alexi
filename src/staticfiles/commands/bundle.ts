@@ -9,7 +9,7 @@
  * @module @alexi/staticfiles/commands/bundle
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, pathToFileUrl, success } from "@alexi/core";
 import type {
   CommandOptions,
   CommandResult,
@@ -227,7 +227,8 @@ export class BundleCommand extends BaseCommand {
         if (entry.isFile && entry.name.endsWith(".settings.ts")) {
           try {
             const settingsPath = `${projectDir}/${entry.name}`;
-            const settings = await import(`file://${settingsPath}`);
+            const settingsUrl = pathToFileUrl(settingsPath);
+            const settings = await import(settingsUrl);
 
             const installedApps: string[] = settings.INSTALLED_APPS ?? [];
             const appPaths: Record<string, string> = settings.APP_PATHS ?? {};
@@ -314,7 +315,8 @@ export class BundleCommand extends BaseCommand {
   ): Promise<AppConfig | null> {
     try {
       const fullPath = `${this.projectRoot}/${appPath}/app.ts`;
-      const module = await import(`file://${fullPath}`);
+      const moduleUrl = pathToFileUrl(fullPath);
+      const module = await import(moduleUrl);
       return module.default as AppConfig;
     } catch (error) {
       this.debug(`App ${appName} app.ts not found: ${error}`, true);

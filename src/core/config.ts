@@ -10,6 +10,7 @@
 import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { Application } from "./application.ts";
+import { pathToFileUrl } from "./management.ts";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
@@ -200,7 +201,8 @@ export async function loadSettings(
       : settingsPath;
 
     // Import the settings module
-    const module = await import(`file://${absolutePath}`);
+    const settingsUrl = pathToFileUrl(absolutePath);
+    const module = await import(settingsUrl);
 
     // Build settings object with defaults
     const settings: AlexiSettings = {
@@ -335,10 +337,10 @@ export async function loadUrlPatterns(
       ? rootUrlConf.slice(2)
       : rootUrlConf;
     const urlsPath = `${projectRoot}/${normalizedPath}/urls.ts`;
-    const urlsUrl = new URL(`file://${urlsPath}`);
+    const urlsUrl = pathToFileUrl(urlsPath);
 
     try {
-      const module = await import(urlsUrl.href);
+      const module = await import(urlsUrl);
       const patterns = module.urlpatterns ?? module.default ?? [];
       console.log(`✓ Loaded URL patterns from ${rootUrlConf}/urls.ts`);
       return patterns;
@@ -365,8 +367,8 @@ export async function loadUrlPatterns(
     : `${projectRoot}/${appPath}/urls.ts`;
 
   try {
-    const urlsUrl = new URL(`file://${urlsPath}`);
-    const module = await import(urlsUrl.href);
+    const urlsUrl = pathToFileUrl(urlsPath);
+    const module = await import(urlsUrl);
 
     // Support both named export and default export
     const patterns = module.urlpatterns ?? module.default ?? [];

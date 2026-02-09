@@ -57,7 +57,7 @@
 // Core Classes
 // =============================================================================
 
-export { execute, ManagementUtility } from "./management.ts";
+export { execute, ManagementUtility, pathToFileUrl } from "./management.ts";
 export { BaseCommand, failure, success } from "./base_command.ts";
 export { ArgumentParser } from "./argument_parser.ts";
 export {
