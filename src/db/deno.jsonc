@@ -5,7 +5,6 @@
   "exports": {
     ".": "./mod.ts",
     "./config": "./app.ts",
-    "./commands": "./commands/mod.ts",
     "./models": "./models/mod.ts",
     "./fields": "./fields/mod.ts",
     "./query": "./query/mod.ts",
@@ -19,13 +18,7 @@
     "@std/assert": "jsr:@std/assert@1"
   },
   "compilerOptions": {
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext",
-      "deno.ns",
-      "deno.unstable"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext", "deno.ns", "deno.unstable"],
     "strict": true
   }
 }
