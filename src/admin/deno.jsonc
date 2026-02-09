@@ -4,6 +4,7 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
+    "./config": "./app.ts",
     "./introspection": "./introspection.ts",
     "./urls": "./urls.ts",
     "./options": "./options.ts",
