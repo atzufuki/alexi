@@ -6,8 +6,13 @@
     "jsr:@std/assert@1": "1.0.18",
     "jsr:@std/bytes@^1.0.2": "1.0.6",
     "jsr:@std/encoding@^1.0.5": "1.0.10",
+    "jsr:@std/fs@^1.0.19": "1.0.22",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/path@^1.0.6": "1.1.4",
+    "jsr:@std/path@^1.1.2": "1.1.4",
+    "jsr:@std/path@^1.1.4": "1.1.4",
+    "jsr:@webui/deno-webui@^2.5.13": "2.5.13",
+    "jsr:@zip-js/zip-js@^2.8.7": "2.8.18",
     "npm:esbuild@0.24": "0.24.2",
     "npm:fake-indexeddb@6": "6.2.5"
   },
@@ -17,7 +22,7 @@
       "dependencies": [
         "jsr:@std/bytes",
         "jsr:@std/encoding",
-        "jsr:@std/path"
+        "jsr:@std/path@^1.0.6"
       ]
     },
     "@std/assert@1.0.18": {
@@ -32,6 +37,13 @@
     "@std/encoding@1.0.10": {
       "integrity": "8783c6384a2d13abd5e9e87a7ae0520a30e9f56aeeaa3bdf910a3eaaf5c811a1"
     },
+    "@std/fs@1.0.22": {
+      "integrity": "de0f277a58a867147a8a01bc1b181d0dfa80bfddba8c9cf2bacd6747bcec9308",
+      "dependencies": [
+        "jsr:@std/internal",
+        "jsr:@std/path@^1.1.4"
+      ]
+    },
     "@std/internal@1.0.12": {
       "integrity": "972a634fd5bc34b242024402972cd5143eac68d8dffaca5eaa4dba30ce17b027"
     },
@@ -40,6 +52,17 @@
       "dependencies": [
         "jsr:@std/internal"
       ]
+    },
+    "@webui/deno-webui@2.5.13": {
+      "integrity": "6f03345e19b943177766a30ed728a0e16c228757b5469bceee6092a7e18a25f9",
+      "dependencies": [
+        "jsr:@std/fs",
+        "jsr:@std/path@^1.1.2",
+        "jsr:@zip-js/zip-js"
+      ]
+    },
+    "@zip-js/zip-js@2.8.18": {
+      "integrity": "5d99195cfebff80dce2d9fb350d57cc92bed3369059f5c7a0083be84319cf048"
     }
   },
   "npm": {
@@ -284,59 +307,59 @@
     "members": {
       "src/auth": {
         "dependencies": [
-          "jsr:@alexi/core@0.8.5",
-          "jsr:@alexi/db@0.8.5",
-          "jsr:@alexi/types@0.8.5"
+          "jsr:@alexi/core@0.8.6",
+          "jsr:@alexi/db@0.8.6",
+          "jsr:@alexi/types@0.8.6"
         ]
       },
       "src/core": {
         "dependencies": [
-          "jsr:@alexi/db@0.8.5",
-          "jsr:@alexi/middleware@0.8.5",
-          "jsr:@alexi/restframework@0.8.5",
-          "jsr:@alexi/types@0.8.5",
-          "jsr:@alexi/urls@0.8.5",
+          "jsr:@alexi/db@0.8.6",
+          "jsr:@alexi/middleware@0.8.6",
+          "jsr:@alexi/restframework@0.8.6",
+          "jsr:@alexi/types@0.8.6",
+          "jsr:@alexi/urls@0.8.6",
           "jsr:@std/path@1"
         ]
       },
       "src/create": {
         "dependencies": [
-          "jsr:@alexi/core@0.8.5",
-          "jsr:@alexi/types@0.8.5",
+          "jsr:@alexi/core@0.8.6",
+          "jsr:@alexi/types@0.8.6",
           "jsr:@std/path@1"
         ]
       },
       "src/db": {
         "dependencies": [
-          "jsr:@alexi/types@0.8.5",
+          "jsr:@alexi/types@0.8.6",
           "jsr:@std/assert@1"
         ]
       },
       "src/http": {
         "dependencies": [
-          "jsr:@alexi/core@0.8.5",
-          "jsr:@alexi/middleware@0.8.5",
-          "jsr:@alexi/staticfiles@0.8.5",
-          "jsr:@alexi/urls@0.8.5",
-          "jsr:@alexi/views@0.8.5"
+          "jsr:@alexi/core@0.8.6",
+          "jsr:@alexi/middleware@0.8.6",
+          "jsr:@alexi/staticfiles@0.8.6",
+          "jsr:@alexi/urls@0.8.6",
+          "jsr:@alexi/views@0.8.6"
         ]
       },
       "src/middleware": {
         "dependencies": [
-          "jsr:@alexi/types@0.8.5"
+          "jsr:@alexi/types@0.8.6"
         ]
       },
       "src/restframework": {
         "dependencies": [
-          "jsr:@alexi/db@0.8.5",
-          "jsr:@alexi/urls@0.8.5",
+          "jsr:@alexi/db@0.8.6",
+          "jsr:@alexi/urls@0.8.6",
           "jsr:@std/assert@1"
         ]
       },
       "src/staticfiles": {
         "dependencies": [
-          "jsr:@alexi/core@0.8.5",
-          "jsr:@alexi/types@0.8.5",
+          "jsr:@alexi/core@0.8.6",
+          "jsr:@alexi/types@0.8.6",
           "jsr:@luca/esbuild-deno-loader@~0.11.1",
           "jsr:@std/path@1",
           "npm:esbuild@0.24"
@@ -349,21 +372,22 @@
       },
       "src/views": {
         "dependencies": [
-          "jsr:@alexi/types@0.8.5"
+          "jsr:@alexi/types@0.8.6"
         ]
       },
       "src/web": {
         "dependencies": [
-          "jsr:@alexi/core@0.8.5",
-          "jsr:@alexi/db@0.8.5",
-          "jsr:@alexi/types@0.8.5",
-          "jsr:@alexi/urls@0.8.5"
+          "jsr:@alexi/core@0.8.6",
+          "jsr:@alexi/db@0.8.6",
+          "jsr:@alexi/types@0.8.6",
+          "jsr:@alexi/urls@0.8.6"
         ]
       },
       "src/webui": {
         "dependencies": [
-          "jsr:@alexi/core@0.8.5",
-          "jsr:@alexi/types@0.8.5"
+          "jsr:@alexi/core@0.8.6",
+          "jsr:@alexi/types@0.8.6",
+          "jsr:@webui/deno-webui@^2.5.13"
         ]
       }
     }
