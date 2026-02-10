@@ -1,6 +1,6 @@
 {
   "name": "@alexi/admin",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -13,12 +13,12 @@
     "./app": "./app/app.ts"
   },
   "imports": {
-    "@alexi/db": "jsr:@alexi/db@0.8.7",
-    "@alexi/types": "jsr:@alexi/types@0.8.7",
-    "@alexi/urls": "jsr:@alexi/urls@0.8.7",
-    "@alexi/core": "jsr:@alexi/core@0.8.7",
-    "@alexi/middleware": "jsr:@alexi/middleware@0.8.7",
-    "@alexi/restframework": "jsr:@alexi/restframework@0.8.7",
+    "@alexi/db": "jsr:@alexi/db@0.8.8",
+    "@alexi/types": "jsr:@alexi/types@0.8.8",
+    "@alexi/urls": "jsr:@alexi/urls@0.8.8",
+    "@alexi/core": "jsr:@alexi/core@0.8.8",
+    "@alexi/middleware": "jsr:@alexi/middleware@0.8.8",
+    "@alexi/restframework": "jsr:@alexi/restframework@0.8.8",
     "@html-props/core": "jsr:@html-props/core@^1.0.0-beta.5",
     "@html-props/built-ins": "jsr:@html-props/built-ins@^1.0.0-beta.5",
     "@html-props/layout": "jsr:@html-props/layout@^1.0.0-beta.5",

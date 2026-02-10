@@ -180,10 +180,7 @@ export interface AuthEndpoints {
  *     login: "/auth/login/",
  *     register: "/auth/register/",
  *   },
- *   endpointMap: {
- *     UserModel: "users",
- *     TaskModel: "tasks",
- *   },
+ *   endpoints: [ProjectEndpoint, OrganisationEndpoint],
  * }
  * ```
  */
@@ -207,32 +204,11 @@ export interface RestBackendConfig {
   authEndpoints?: AuthEndpoints;
 
   /**
-   * Explicit model-name-to-endpoint mapping.
-   *
-   * By default, RestBackend resolves endpoints using `Model.meta.dbTable`.
-   * Use this map as a fallback for models that don't define `meta.dbTable`,
-   * or to override the default resolution.
-   *
-   * Keys are model constructor names (e.g., `"TaskModel"`),
-   * values are API path segments (e.g., `"tasks"`).
-   *
-   * @example
-   * ```ts
-   * {
-   *   UserModel: "users",
-   *   TicketMessageModel: "ticket-messages",
-   * }
-   * ```
-   */
-  endpointMap?: Record<string, string>;
-
-  /**
    * Declarative endpoint configurations (DRF-style).
    *
    * Register {@link ModelEndpoint} subclasses to declaratively define
    * actions, singleton queries, and endpoint mappings using field-like
-   * descriptors instead of imperative `endpointMap` and
-   * `getSpecialQueryHandlers()` overrides.
+   * descriptors.
    *
    * @example
    * ```ts
@@ -425,8 +401,8 @@ const DEFAULT_AUTH_ENDPOINTS: Required<AuthEndpoints> = {
  * ### Endpoint Resolution
  *
  * The endpoint for a model is resolved in this order:
- * 1. `Model.meta.dbTable` (recommended)
- * 2. `config.endpointMap[ModelName]`
+ * 1. ModelEndpoint with explicit `endpoint` field
+ * 2. `Model.meta.dbTable` (recommended)
  * 3. Auto-derived: strip "Model" suffix, lowercase, pluralize
  *
  * ### Extending
@@ -466,7 +442,7 @@ export class RestBackend extends DatabaseBackend {
       ...DEFAULT_AUTH_ENDPOINTS,
       ...(config.authEndpoints ?? {}),
     };
-    this._endpointMap = config.endpointMap ?? {};
+    this._endpointMap = {};
 
     // Register declarative endpoints (DRF-style)
     if (config.endpoints && config.endpoints.length > 0) {
@@ -1084,12 +1060,9 @@ export class RestBackend extends DatabaseBackend {
    * Resolve the REST API endpoint for a model class or instance.
    *
    * Resolution order:
-   * 1. `config.endpointMap[ModelName]` (e.g., `{ EmployeeCompetenceModel: "employee-competences" }`)
+   * 1. ModelEndpoint with explicit `endpoint` field (registered via `endpoints` config)
    * 2. `Model.meta.dbTable` (e.g., `"tasks"`)
    * 3. Auto-derived: `"TaskModel"` → `"tasks"`
-   *
-   * This allows `endpointMap` to map models with underscore `dbTable` names
-   * (matching the database) to API endpoints with hyphens.
    *
    * Override this to implement custom endpoint resolution:
    *

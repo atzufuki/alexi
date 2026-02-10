@@ -336,27 +336,11 @@ class MyAppRestBackend extends RestBackend {
         login: "/auth/login/",
         register: "/auth/register/",
       },
-      endpointMap: {
-        TicketMessageModel: "ticket-messages",
-      },
+      endpoints: [
+        OrganisationEndpoint,
+        TicketMessageEndpoint,
+      ],
     });
-  }
-
-  // Map specific ORM filters to custom API endpoints
-  protected override getSpecialQueryHandlers(): Record<
-    string,
-    SpecialQueryHandler[]
-  > {
-    return {
-      organisations: [{
-        matches: (filters) =>
-          filters.length === 1 &&
-          filters[0].field === "current" &&
-          filters[0].value === true,
-        getEndpoint: () => "/organisations/current/",
-        returnsSingle: true,
-      }],
-    };
   }
 
   // App-specific methods using the protected request() helper
@@ -364,10 +348,6 @@ class MyAppRestBackend extends RestBackend {
     return this.request(`/projects/${id}/publish/`, { method: "POST" });
   }
 }
-
-// Now in your components:
-// OrganisationModel.objects.using(backend).filter({ current: true }).first()
-// → GET /organisations/current/
 ```
 
 #### RestBackend Configuration Reference
@@ -383,18 +363,17 @@ class MyAppRestBackend extends RestBackend {
 | `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                        |
 | `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint          |
 | `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint               |
-| `endpointMap`                  | `{}`                       | Fallback model name → endpoint mapping |
+| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes      |
 
 #### Endpoint Resolution Order
 
-1. `Model.meta.dbTable` (recommended — set this on your models)
-2. `config.endpointMap[ModelConstructorName]`
+1. ModelEndpoint with explicit `endpoint` field (via `endpoints` config)
+2. `Model.meta.dbTable` (recommended — set this on your models)
 3. Auto-derived: strip `"Model"` suffix, lowercase (e.g., `TaskModel` → `tasks`)
 
 #### Declarative Endpoints (DRF-style)
 
-Instead of imperative `endpointMap` and `getSpecialQueryHandlers()` overrides,
-you can declare endpoint configuration using field-like descriptors — mirroring
+Declare endpoint configuration using field-like descriptors — mirroring
 Django REST Framework's ViewSet and `@action` patterns.
 
 ```typescript
@@ -471,10 +450,6 @@ const backend = new RestBackend({
     OrganisationEndpoint,
     ConnectionEndpoint,
   ],
-  // endpointMap still works as fallback for models without ModelEndpoint
-  endpointMap: {
-    TicketMessageModel: "ticket-messages",
-  },
 });
 ```
 
@@ -542,7 +517,6 @@ new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 | `debug`                        | `false`                    | Enable console logging                 |
 | `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens        |
 | `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes      |
-| `endpointMap`                  | `{}`                       | Fallback model name → endpoint mapping |
 | `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                         |
 | `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint                  |
 | `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint                 |
@@ -1164,11 +1138,10 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
    environment types. When running `deno check` on server code, you may see type
    errors for IndexedDB - these can be ignored if you're only using DenoKV.
 
-8. **RestBackend uses `meta.dbTable` for endpoints**: Set
-   `static meta = {
-   dbTable: "tasks" }` on your models so RestBackend knows
-   which API endpoint to call. If not set, it falls back to `config.endpointMap`
-   or auto-derives from the class name.
+8. **RestBackend uses ModelEndpoint for endpoints**: Define a ModelEndpoint
+   class with `model` and optionally `endpoint` fields. If `endpoint` is not
+   set, it falls back to `Model.meta.dbTable` or auto-derives from the class
+   name.
 
 9. **SyncBackend propagates auth errors**: Even in `failSilently` mode, 401/403
    errors are always thrown so the UI can redirect to login.
