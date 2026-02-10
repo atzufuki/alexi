@@ -6,6 +6,7 @@
  * - runserver (web) → @alexi/web
  * - runserver (desktop) → @alexi/webui
  * - createsuperuser → @alexi/auth
+ * - flush → @alexi/db
  *
  * @module @alexi/core/commands
  */
@@ -15,4 +16,3 @@ export { TestCommand } from "./test.ts";
 export type { TestConfig } from "./test.ts";
 export { StartAppCommand } from "./startapp.ts";
 export type { AppType } from "./startapp.ts";
-export { FlushCommand } from "./flush.ts";
