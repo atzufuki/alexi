@@ -9,9 +9,11 @@ import {
   AutoField,
   CharField,
   DateTimeField,
+  ForeignKey,
   IntegerField,
   Manager,
   Model,
+  OnDelete,
   TextField,
 } from "../mod.ts";
 
@@ -459,4 +461,125 @@ Deno.test("DenoKVBackend - unique field constraint", async () => {
       await Deno.remove(dbPath, { recursive: true });
     } catch { /* ignore */ }
   }
+});
+
+// ============================================================================
+// ForeignKey fromDB Tests
+// ============================================================================
+
+class Employee extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(Employee);
+  static override meta = {
+    dbTable: "employees",
+  };
+}
+
+class Competence extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(Competence);
+  static override meta = {
+    dbTable: "competences",
+  };
+}
+
+class EmployeeCompetence extends Model {
+  id = new AutoField({ primaryKey: true });
+  employee = new ForeignKey("Employee", { onDelete: OnDelete.CASCADE });
+  competence = new ForeignKey("Competence", { onDelete: OnDelete.CASCADE });
+  addedAt = new DateTimeField({ autoNowAdd: true });
+
+  static objects = new Manager(EmployeeCompetence);
+  static override meta = {
+    dbTable: "employee_competences",
+  };
+}
+
+Deno.test("Model.fromDB - ForeignKey with column name format (employee_id)", () => {
+  const empComp = new EmployeeCompetence();
+
+  // Database/IndexedDB format uses column names with _id suffix
+  empComp.fromDB({
+    id: 1,
+    employee_id: 5,
+    competence_id: 3,
+    addedAt: "2024-01-01T00:00:00.000Z",
+  });
+
+  assertEquals(empComp.id.get(), 1);
+  assertEquals(empComp.employee.get(), 5);
+  assertEquals(empComp.competence.get(), 3);
+  assertEquals(empComp.isPersisted, true);
+});
+
+Deno.test("Model.fromDB - ForeignKey with field name format (employee)", () => {
+  const empComp = new EmployeeCompetence();
+
+  // REST API format uses field names without _id suffix (Django convention)
+  empComp.fromDB({
+    id: 2,
+    employee: 10,
+    competence: 7,
+    addedAt: "2024-02-01T00:00:00.000Z",
+  });
+
+  assertEquals(empComp.id.get(), 2);
+  assertEquals(empComp.employee.get(), 10);
+  assertEquals(empComp.competence.get(), 7);
+  assertEquals(empComp.isPersisted, true);
+});
+
+Deno.test("Model.fromDB - ForeignKey column name takes precedence over field name", () => {
+  const empComp = new EmployeeCompetence();
+
+  // If both are present, column name (employee_id) should take precedence
+  empComp.fromDB({
+    id: 3,
+    employee: 100, // field name
+    employee_id: 5, // column name - should be used
+    competence: 200,
+    competence_id: 3,
+    addedAt: "2024-03-01T00:00:00.000Z",
+  });
+
+  assertEquals(empComp.id.get(), 3);
+  assertEquals(empComp.employee.get(), 5); // column name value
+  assertEquals(empComp.competence.get(), 3); // column name value
+});
+
+Deno.test("Model.fromDB - ForeignKey with null values", () => {
+  const empComp = new EmployeeCompetence();
+
+  empComp.fromDB({
+    id: 4,
+    employee: null,
+    competence: null,
+    addedAt: "2024-04-01T00:00:00.000Z",
+  });
+
+  assertEquals(empComp.id.get(), 4);
+  assertEquals(empComp.employee.get(), null);
+  assertEquals(empComp.competence.get(), null);
+});
+
+Deno.test("Model.toDB - ForeignKey outputs column name format", () => {
+  const empComp = new EmployeeCompetence();
+  empComp.getFields();
+
+  empComp.id.set(1);
+  empComp.employee.set(5);
+  empComp.competence.set(3);
+
+  const data = empComp.toDB();
+
+  // toDB should output column names with _id suffix
+  assertEquals(data.employee_id, 5);
+  assertEquals(data.competence_id, 3);
+  // Field names without suffix should NOT be present
+  assertEquals("employee" in data, false);
+  assertEquals("competence" in data, false);
 });

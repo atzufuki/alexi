@@ -384,8 +384,23 @@ export abstract class Model {
 
     for (const [key, field] of Object.entries(fields)) {
       const columnName = field.getColumnName();
+
+      let value: unknown;
+      let found = false;
+
+      // Primary: look for column name (e.g., employee_id)
       if (columnName in data) {
-        const value = field.fromDB(data[columnName]);
+        value = field.fromDB(data[columnName]);
+        found = true;
+      } // Fallback: look for field name (e.g., employee)
+      // This handles REST API responses that use field names instead of column names
+      // (Django REST Framework convention)
+      else if (columnName !== key && key in data) {
+        value = field.fromDB(data[key]);
+        found = true;
+      }
+
+      if (found) {
         field.set(value as never);
         this._data[key] = value;
       }
