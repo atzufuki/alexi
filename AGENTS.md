@@ -352,18 +352,18 @@ class MyAppRestBackend extends RestBackend {
 
 #### RestBackend Configuration Reference
 
-| Option                         | Default                    | Description                            |
-| ------------------------------ | -------------------------- | -------------------------------------- |
-| `apiUrl`                       | (required)                 | API base URL                           |
-| `debug`                        | `false`                    | Enable console logging                 |
-| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens        |
-| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                         |
-| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint                  |
-| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint                 |
-| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                        |
-| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint          |
-| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint               |
-| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes      |
+| Option                         | Default                    | Description                       |
+| ------------------------------ | -------------------------- | --------------------------------- |
+| `apiUrl`                       | (required)                 | API base URL                      |
+| `debug`                        | `false`                    | Enable console logging            |
+| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens   |
+| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                    |
+| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint             |
+| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint            |
+| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                   |
+| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint     |
+| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
+| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes |
 
 #### Endpoint Resolution Order
 
@@ -373,8 +373,8 @@ class MyAppRestBackend extends RestBackend {
 
 #### Declarative Endpoints (DRF-style)
 
-Declare endpoint configuration using field-like descriptors — mirroring
-Django REST Framework's ViewSet and `@action` patterns.
+Declare endpoint configuration using field-like descriptors — mirroring Django
+REST Framework's ViewSet and `@action` patterns.
 
 ```typescript
 import {
@@ -511,18 +511,18 @@ new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 
 ##### Updated Configuration Reference
 
-| Option                         | Default                    | Description                            |
-| ------------------------------ | -------------------------- | -------------------------------------- |
-| `apiUrl`                       | (required)                 | API base URL                           |
-| `debug`                        | `false`                    | Enable console logging                 |
-| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens        |
-| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes      |
-| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                         |
-| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint                  |
-| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint                 |
-| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                        |
-| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint          |
-| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint               |
+| Option                         | Default                    | Description                       |
+| ------------------------------ | -------------------------- | --------------------------------- |
+| `apiUrl`                       | (required)                 | API base URL                      |
+| `debug`                        | `false`                    | Enable console logging            |
+| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens   |
+| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes |
+| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                    |
+| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint             |
+| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint            |
+| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                   |
+| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint     |
+| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
 
 ### Sync Backend (Browser)
 
