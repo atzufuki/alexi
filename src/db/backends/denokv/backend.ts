@@ -391,6 +391,9 @@ export class DenoKVBackend extends DatabaseBackend {
     const tableName = instance.getTableName();
     const data = instance.toDB();
 
+    // Check unique field constraints before inserting
+    await this._validateUniqueFields(instance, data);
+
     // Generate ID if not provided
     if (data.id === null || data.id === undefined) {
       data.id = await this._generateId(tableName);
@@ -403,6 +406,49 @@ export class DenoKVBackend extends DatabaseBackend {
     return data;
   }
 
+  /**
+   * Validate unique field constraints before insert/update
+   */
+  private async _validateUniqueFields<T extends Model>(
+    instance: T,
+    data: Record<string, unknown>,
+    excludeId?: unknown,
+  ): Promise<void> {
+    const fields = instance.getFields();
+    const tableName = instance.getTableName();
+
+    for (const [fieldName, field] of Object.entries(fields)) {
+      if (field.options.unique && !field.options.primaryKey) {
+        const value = data[fieldName];
+        if (value === null || value === undefined) continue;
+
+        // Check if any existing record has this value
+        const entries = this._kv!.list<Record<string, unknown>>({
+          prefix: [tableName],
+        });
+
+        for await (const entry of entries) {
+          const record = entry.value;
+          // Skip the current record if updating
+          if (excludeId !== undefined && record.id === excludeId) continue;
+
+          // Check if field value matches (case-insensitive for strings)
+          const existingValue = record[fieldName];
+          const matches =
+            typeof value === "string" && typeof existingValue === "string"
+              ? value.toLowerCase() === existingValue.toLowerCase()
+              : value === existingValue;
+
+          if (matches) {
+            throw new Error(
+              `Unique constraint violation: ${fieldName} with value "${value}" already exists in ${tableName}`,
+            );
+          }
+        }
+      }
+    }
+  }
+
   async update<T extends Model>(instance: T): Promise<void> {
     this.ensureConnected();
 
@@ -413,6 +459,9 @@ export class DenoKVBackend extends DatabaseBackend {
     if (id === null || id === undefined) {
       throw new Error("Cannot update a record without an ID");
     }
+
+    // Check unique field constraints before updating (exclude current record)
+    await this._validateUniqueFields(instance, data, id);
 
     const key: Deno.KvKey = [tableName, id as Deno.KvKeyPart];
     await this._kv!.set(key, data);

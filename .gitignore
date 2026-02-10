@@ -31,6 +31,7 @@ npm-debug.log*
 # Test
 coverage/
 .playwright/
+.test-db-*
 
 # Lock file (optional - uncomment if you want to ignore)
 # deno.lock

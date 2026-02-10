@@ -1295,6 +1295,11 @@ export class RestBackend extends DatabaseBackend {
     const modelClass = state.model as unknown as typeof Model;
     const endpoint = this.getEndpointForModel(modelClass.name);
 
+    this._log(
+      `[execute] endpoint=${endpoint}, filters=`,
+      JSON.stringify(state.filters),
+    );
+
     // Check for special query handlers
     const handler = this._findSpecialQueryHandler(endpoint, state.filters);
     if (handler) {
@@ -1335,6 +1340,8 @@ export class RestBackend extends DatabaseBackend {
 
     const queryString = params.toString();
     const url = `/${endpoint}/${queryString ? `?${queryString}` : ""}`;
+
+    this._log(`[execute] GET ${url}`);
 
     return await this.request<Record<string, unknown>[]>(url);
   }

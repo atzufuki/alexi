@@ -626,6 +626,9 @@ export class IndexedDBBackend extends DatabaseBackend {
 
     const data = instance.toDB();
 
+    // Check unique field constraints before inserting
+    await this._validateUniqueFields(instance, data);
+
     // If id is null/undefined, IndexedDB will auto-generate it
     const hasId = data.id !== null && data.id !== undefined;
 
@@ -669,6 +672,9 @@ export class IndexedDBBackend extends DatabaseBackend {
       throw new Error("Cannot update a record without an ID");
     }
 
+    // Check unique field constraints before updating (exclude current record)
+    await this._validateUniqueFields(instance, data, id);
+
     return new Promise((resolve, reject) => {
       const tx = this._db!.transaction(tableName, "readwrite");
       const store = tx.objectStore(tableName);
@@ -682,6 +688,64 @@ export class IndexedDBBackend extends DatabaseBackend {
         reject(request.error);
       };
     });
+  }
+
+  /**
+   * Validate unique field constraints before insert/update
+   */
+  private async _validateUniqueFields<T extends Model>(
+    instance: T,
+    data: Record<string, unknown>,
+    excludeId?: unknown,
+  ): Promise<void> {
+    const fields = instance.getFields();
+    const tableName = instance.getTableName();
+
+    if (!this._storeNames.has(tableName)) {
+      return; // Store doesn't exist yet, no conflicts possible
+    }
+
+    for (const [fieldName, field] of Object.entries(fields)) {
+      if (field.options.unique && !field.options.primaryKey) {
+        const value = data[fieldName];
+        if (value === null || value === undefined) continue;
+
+        // Check if any existing record has this value
+        const allRecords = await new Promise<Record<string, unknown>[]>(
+          (resolve, reject) => {
+            const tx = this._db!.transaction(tableName, "readonly");
+            const store = tx.objectStore(tableName);
+            const request = store.getAll();
+
+            request.onsuccess = () => {
+              resolve(request.result as Record<string, unknown>[]);
+            };
+
+            request.onerror = () => {
+              reject(request.error);
+            };
+          },
+        );
+
+        for (const record of allRecords) {
+          // Skip the current record if updating
+          if (excludeId !== undefined && record.id === excludeId) continue;
+
+          // Check if field value matches (case-insensitive for strings)
+          const existingValue = record[fieldName];
+          const matches =
+            typeof value === "string" && typeof existingValue === "string"
+              ? value.toLowerCase() === existingValue.toLowerCase()
+              : value === existingValue;
+
+          if (matches) {
+            throw new Error(
+              `Unique constraint violation: ${fieldName} with value "${value}" already exists in ${tableName}`,
+            );
+          }
+        }
+      }
+    }
   }
 
   // deno-lint-ignore require-await
