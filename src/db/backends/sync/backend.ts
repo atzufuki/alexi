@@ -218,6 +218,11 @@ export class SyncBackend extends DatabaseBackend {
 
         this._log(`Fetched ${remoteResults.length} records from API`);
 
+        // Cache results to local backend for offline access
+        if (remoteResults.length > 0) {
+          await this._cacheToLocal(state, remoteResults);
+        }
+
         return remoteResults;
       } catch (error) {
         this._log("Remote execute failed, falling back to local:", error);
@@ -390,6 +395,10 @@ export class SyncBackend extends DatabaseBackend {
         const result = await this._restBackend.getById(model, id);
         if (result) {
           this._log(`Got by ID from remote: ${model.name}/${id}`);
+
+          // Cache result to local backend for offline access
+          await this._cacheRecordToLocal(model, result);
+
           return result;
         }
       } catch (error) {
@@ -520,6 +529,64 @@ export class SyncBackend extends DatabaseBackend {
 
   compile<T extends Model>(state: QueryState<T>): CompiledQuery {
     return this._localBackend.compile(state);
+  }
+
+  // ===========================================================================
+  // Caching Helpers
+  // ===========================================================================
+
+  /**
+   * Cache remote results to the local backend for offline access.
+   *
+   * For each record:
+   * - If it exists locally with the same ID, update it
+   * - If it doesn't exist, insert it
+   */
+  private async _cacheToLocal<T extends Model>(
+    state: QueryState<T>,
+    results: Record<string, unknown>[],
+  ): Promise<void> {
+    const modelClass = state.model;
+
+    for (const data of results) {
+      await this._cacheRecordToLocal(modelClass, data);
+    }
+  }
+
+  /**
+   * Cache a single record to the local backend for offline access.
+   */
+  private async _cacheRecordToLocal<T extends Model>(
+    modelClass: new () => T,
+    data: Record<string, unknown>,
+  ): Promise<void> {
+    const id = data.id;
+    if (id === undefined || id === null) {
+      return;
+    }
+
+    try {
+      // Check if record exists locally
+      const exists = await this._localBackend.existsById(modelClass, id);
+
+      // Create a temporary instance and populate using fromDB()
+      // This properly sets _persisted=true and handles field conversion
+      const instance = new modelClass();
+      instance.fromDB(data);
+
+      if (exists) {
+        // Update existing record
+        await this._localBackend.update(instance);
+        this._log(`Cached (updated) ${modelClass.name}/${id}`);
+      } else {
+        // Insert new record
+        await this._localBackend.insert(instance);
+        this._log(`Cached (inserted) ${modelClass.name}/${id}`);
+      }
+    } catch (error) {
+      // Don't fail the whole operation if caching one record fails
+      this._log(`Failed to cache ${modelClass.name}/${id}:`, error);
+    }
   }
 
   // ===========================================================================
