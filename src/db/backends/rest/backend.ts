@@ -1084,9 +1084,12 @@ export class RestBackend extends DatabaseBackend {
    * Resolve the REST API endpoint for a model class or instance.
    *
    * Resolution order:
-   * 1. `Model.meta.dbTable` (e.g., `"tasks"`)
-   * 2. `config.endpointMap[ModelName]` (e.g., `{ TaskModel: "tasks" }`)
+   * 1. `config.endpointMap[ModelName]` (e.g., `{ EmployeeCompetenceModel: "employee-competences" }`)
+   * 2. `Model.meta.dbTable` (e.g., `"tasks"`)
    * 3. Auto-derived: `"TaskModel"` → `"tasks"`
+   *
+   * This allows `endpointMap` to map models with underscore `dbTable` names
+   * (matching the database) to API endpoints with hyphens.
    *
    * Override this to implement custom endpoint resolution:
    *
@@ -1100,12 +1103,20 @@ export class RestBackend extends DatabaseBackend {
   protected getEndpointForModel(modelOrName: Model | string): string {
     if (typeof modelOrName !== "string") {
       const modelClass = modelOrName.constructor as typeof Model;
+      const name = modelClass.name;
+
+      // 1. Check endpointMap first (allows mapping dbTable with underscores to API with hyphens)
+      if (this._endpointMap[name]) {
+        return this._endpointMap[name];
+      }
+
+      // 2. Fall back to dbTable
       if (modelClass.meta?.dbTable) {
         return modelClass.meta.dbTable;
       }
-      const name = modelClass.name;
-      return this._endpointMap[name] ||
-        name.toLowerCase().replace("model", "s");
+
+      // 3. Auto-derive from class name
+      return name.toLowerCase().replace("model", "s");
     }
 
     return this._endpointMap[modelOrName] ||
@@ -1309,8 +1320,7 @@ export class RestBackend extends DatabaseBackend {
     state: QueryState<T>,
   ): Promise<Record<string, unknown>[]> {
     const modelClass = state.model as unknown as typeof Model;
-    const endpoint = modelClass.meta?.dbTable ||
-      this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass.name);
 
     // Check for special query handlers
     const handler = this._findSpecialQueryHandler(endpoint, state.filters);
@@ -1423,8 +1433,7 @@ export class RestBackend extends DatabaseBackend {
     id: unknown,
   ): Promise<Record<string, unknown> | null> {
     const modelClass = model as unknown as typeof Model;
-    const endpoint = modelClass.meta?.dbTable ||
-      this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass.name);
 
     this._log(`GET /${endpoint}/${id}/`);
 
@@ -1490,8 +1499,7 @@ export class RestBackend extends DatabaseBackend {
 
   async count<T extends Model>(state: QueryState<T>): Promise<number> {
     const modelClass = state.model as unknown as typeof Model;
-    const endpoint = modelClass.meta?.dbTable ||
-      this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass.name);
 
     try {
       const result = await this.request<{ count: number }>(
@@ -1538,8 +1546,7 @@ export class RestBackend extends DatabaseBackend {
 
   compile<T extends Model>(state: QueryState<T>): CompiledQuery {
     const modelClass = state.model as unknown as typeof Model;
-    const endpoint = modelClass.meta?.dbTable ||
-      this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass.name);
 
     return {
       operation: {
