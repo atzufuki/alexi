@@ -11,6 +11,7 @@ import { CommandRegistry, globalRegistry } from "./registry.ts";
 import { HelpCommand } from "./commands/help.ts";
 import { TestCommand } from "./commands/test.ts";
 import { StartAppCommand } from "./commands/startapp.ts";
+import { FlushCommand } from "./commands/flush.ts";
 import type {
   CommandConstructor,
   IConsole,
@@ -197,7 +198,10 @@ export class ManagementUtility {
     // Register startapp command
     this.registry.register(StartAppCommand);
 
-    // Note: Other commands (flush, createsuperuser, bundle, collectstatic, runserver)
+    // Register flush command (core command, like Django's flush)
+    this.registry.register(FlushCommand);
+
+    // Note: Other commands (createsuperuser, bundle, collectstatic, runserver)
     // are loaded dynamically from INSTALLED_APPS via loadAppCommands()
   }
 
