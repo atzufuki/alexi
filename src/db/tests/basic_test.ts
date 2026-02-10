@@ -16,6 +16,7 @@ import {
 } from "../mod.ts";
 
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
+import { reset, setup } from "../setup.ts";
 
 // ============================================================================
 // Test Models
@@ -30,7 +31,7 @@ class Article extends Model {
   updatedAt = new DateTimeField({ autoNow: true });
 
   static objects = new Manager(Article);
-  static meta = {
+  static override meta = {
     dbTable: "articles",
     ordering: ["-createdAt"],
   };
@@ -42,7 +43,7 @@ class Author extends Model {
   email = new CharField({ maxLength: 255 });
 
   static objects = new Manager(Author);
-  static meta = {
+  static override meta = {
     dbTable: "authors",
   };
 }
@@ -369,6 +370,89 @@ Deno.test("DenoKVBackend - aggregation", async () => {
     assertEquals(stats.minViews, 100);
     assertEquals(stats.maxViews, 300);
   } finally {
+    await backend.disconnect();
+    // Clean up test database
+    try {
+      await Deno.remove(dbPath, { recursive: true });
+    } catch { /* ignore */ }
+  }
+});
+
+// Model with unique field for testing
+class UniqueEmail extends Model {
+  id = new AutoField({ primaryKey: true });
+  email = new CharField({ maxLength: 255, unique: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(UniqueEmail);
+  static override meta = {
+    dbTable: "unique_emails",
+  };
+}
+
+Deno.test("DenoKVBackend - unique field constraint", async () => {
+  // Use unique path for this test
+  const dbPath = `./.test-db-unique-${Date.now()}`;
+  const backend = new DenoKVBackend({ name: "test-db", path: dbPath });
+  await backend.connect();
+  await setup({ backend });
+
+  try {
+    // Create first record - should succeed
+    const record1 = new UniqueEmail();
+    record1.getFields();
+    record1.email.set("test@example.com");
+    record1.name.set("Test User");
+    await backend.insert(record1);
+
+    // Try to create second record with same email - should fail
+    const record2 = new UniqueEmail();
+    record2.getFields();
+    record2.email.set("test@example.com");
+    record2.name.set("Another User");
+
+    let errorThrown = false;
+    try {
+      await backend.insert(record2);
+    } catch (error) {
+      errorThrown = true;
+      assertEquals(
+        (error as Error).message.includes("Unique constraint violation"),
+        true,
+      );
+    }
+    assertEquals(errorThrown, true);
+
+    // Create record with different email - should succeed
+    const record3 = new UniqueEmail();
+    record3.getFields();
+    record3.email.set("other@example.com");
+    record3.name.set("Other User");
+    await backend.insert(record3);
+
+    // Verify we have 2 records
+    const all = await UniqueEmail.objects.all().fetch();
+    assertEquals(all.length, 2);
+
+    // Test case-insensitive uniqueness
+    const record4 = new UniqueEmail();
+    record4.getFields();
+    record4.email.set("TEST@EXAMPLE.COM");
+    record4.name.set("Case Test");
+
+    let caseErrorThrown = false;
+    try {
+      await backend.insert(record4);
+    } catch (error) {
+      caseErrorThrown = true;
+      assertEquals(
+        (error as Error).message.includes("Unique constraint violation"),
+        true,
+      );
+    }
+    assertEquals(caseErrorThrown, true);
+  } finally {
+    await reset();
     await backend.disconnect();
     // Clean up test database
     try {
