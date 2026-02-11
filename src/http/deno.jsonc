@@ -1,15 +1,15 @@
 {
   "name": "@alexi/http",
-  "version": "0.8.15",
+  "version": "0.8.16",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.8.15",
-    "@alexi/middleware": "jsr:@alexi/middleware@0.8.15",
-    "@alexi/views": "jsr:@alexi/views@0.8.15",
-    "@alexi/staticfiles": "jsr:@alexi/staticfiles@0.8.15",
-    "@alexi/urls": "jsr:@alexi/urls@0.8.15"
+    "@alexi/core": "jsr:@alexi/core@0.8.16",
+    "@alexi/middleware": "jsr:@alexi/middleware@0.8.16",
+    "@alexi/views": "jsr:@alexi/views@0.8.16",
+    "@alexi/staticfiles": "jsr:@alexi/staticfiles@0.8.16",
+    "@alexi/urls": "jsr:@alexi/urls@0.8.16"
   }
 }
