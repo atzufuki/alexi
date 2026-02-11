@@ -11,7 +11,7 @@ import { Model } from "./model.ts";
 import { QuerySet } from "../query/queryset.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
 import type { FilterConditions, OrderByField } from "../query/types.ts";
-import { getBackend, isInitialized } from "../setup.ts";
+import { getBackend, getBackendByName, isInitialized } from "../setup.ts";
 
 // ============================================================================
 // Exceptions
@@ -81,14 +81,34 @@ export class Manager<T extends Model> {
   /**
    * Create a new manager instance using a specific database backend
    *
+   * Accepts either a backend instance or a string name (if registered via setup()).
+   *
    * @example
    * ```ts
+   * // With backend instance
    * const pgArticles = Article.objects.using(postgresBackend);
+   *
+   * // With named backend (requires setup() with databases config)
+   * const cached = Article.objects.using('indexeddb');
+   * const fresh = Article.objects.using('sync');
    * ```
    */
-  using(backend: DatabaseBackend): Manager<T> {
+  using(backend: DatabaseBackend | string): Manager<T> {
     const manager = new Manager(this._modelClass);
-    manager._backend = backend;
+
+    if (typeof backend === "string") {
+      const namedBackend = getBackendByName(backend);
+      if (!namedBackend) {
+        throw new Error(
+          `Unknown database backend: '${backend}'. ` +
+            `Make sure it's registered in setup({ databases: { ... } }).`,
+        );
+      }
+      manager._backend = namedBackend;
+    } else {
+      manager._backend = backend;
+    }
+
     return manager;
   }
 
