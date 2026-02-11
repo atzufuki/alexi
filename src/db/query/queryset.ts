@@ -4,6 +4,10 @@
  * QuerySet represents a lazy database query that can be filtered, ordered,
  * and executed. QuerySets are immutable - each operation returns a new QuerySet.
  *
+ * After calling fetch(), the QuerySet contains loaded data in memory.
+ * Subsequent filter() calls will apply in-memory filtering instead of
+ * building database queries.
+ *
  * @module
  */
 
@@ -26,6 +30,7 @@ import {
   type ParsedOrdering,
   type QueryState,
 } from "./types.ts";
+import { ForeignKey } from "../fields/relations.ts";
 
 // ============================================================================
 // QuerySet Class
@@ -56,6 +61,7 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   private _state: QueryState<T>;
   private _backend?: DatabaseBackend;
   private _cache: T[] | null = null;
+  private _isFetched = false;
 
   constructor(model: new () => T, backend?: DatabaseBackend) {
     this._state = createQueryState(model);
@@ -68,9 +74,17 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   private static _fromState<T extends Model>(
     state: QueryState<T>,
     backend?: DatabaseBackend,
+    cache?: T[] | null,
+    isFetched?: boolean,
   ): QuerySet<T> {
     const qs = new QuerySet<T>(state.model, backend);
     qs._state = state;
+    if (cache !== undefined) {
+      qs._cache = cache;
+    }
+    if (isFetched !== undefined) {
+      qs._isFetched = isFetched;
+    }
     return qs;
   }
 
@@ -82,7 +96,20 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     if (modifier) {
       modifier(newState);
     }
-    return QuerySet._fromState(newState, this._backend);
+    // Clone preserves fetched state and cache
+    return QuerySet._fromState(
+      newState,
+      this._backend,
+      this._cache,
+      this._isFetched,
+    );
+  }
+
+  /**
+   * Check if this QuerySet has been fetched (data loaded into memory)
+   */
+  isFetched(): boolean {
+    return this._isFetched;
   }
 
   /**
@@ -113,14 +140,34 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   /**
    * Filter the QuerySet by the given conditions
    *
+   * If the QuerySet has been fetched, filtering is done in-memory.
+   * Otherwise, filters are added to the query state for database execution.
+   *
    * @example
    * ```ts
+   * // Database filtering (before fetch)
    * qs.filter({ name: 'John' })
    * qs.filter({ age__gte: 18 })
-   * qs.filter({ author__name__contains: 'Smith' })
+   *
+   * // In-memory filtering (after fetch)
+   * const fetched = await qs.fetch();
+   * const filtered = fetched.filter({ status: 'active' }); // No DB call
    * ```
    */
   filter(conditions: FilterConditions<T> | Q<T>): QuerySet<T> {
+    // If we have fetched data, apply in-memory filtering
+    if (this._isFetched && this._cache !== null) {
+      const filters = this._parseConditions(conditions);
+      const filteredCache = this._applyInMemoryFilters(this._cache, filters);
+      return QuerySet._fromState(
+        cloneQueryState(this._state),
+        this._backend,
+        filteredCache,
+        true,
+      );
+    }
+
+    // Otherwise, add to query state for database execution
     return this._clone((state) => {
       const filters = this._parseConditions(conditions);
       state.filters.push(...filters);
@@ -193,6 +240,114 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
       value,
       negated: false,
     };
+  }
+
+  /**
+   * Apply filters to an in-memory array of model instances
+   */
+  private _applyInMemoryFilters(items: T[], filters: ParsedFilter[]): T[] {
+    return items.filter((item) => {
+      for (const filter of filters) {
+        const matches = this._matchesFilter(item, filter);
+        if (filter.negated ? matches : !matches) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
+  /**
+   * Check if a model instance matches a single filter
+   */
+  private _matchesFilter(item: T, filter: ParsedFilter): boolean {
+    const fieldValue = this._getFieldValue(item, filter.field);
+    const filterValue = filter.value;
+
+    switch (filter.lookup) {
+      case "exact":
+        return fieldValue === filterValue;
+      case "iexact":
+        return String(fieldValue).toLowerCase() ===
+          String(filterValue).toLowerCase();
+      case "contains":
+        return String(fieldValue).includes(String(filterValue));
+      case "icontains":
+        return String(fieldValue).toLowerCase().includes(
+          String(filterValue).toLowerCase(),
+        );
+      case "startswith":
+        return String(fieldValue).startsWith(String(filterValue));
+      case "istartswith":
+        return String(fieldValue).toLowerCase().startsWith(
+          String(filterValue).toLowerCase(),
+        );
+      case "endswith":
+        return String(fieldValue).endsWith(String(filterValue));
+      case "iendswith":
+        return String(fieldValue).toLowerCase().endsWith(
+          String(filterValue).toLowerCase(),
+        );
+      case "gt":
+        return fieldValue !== null && fieldValue !== undefined &&
+          filterValue !== null && filterValue !== undefined &&
+          (fieldValue as number) > (filterValue as number);
+      case "gte":
+        return fieldValue !== null && fieldValue !== undefined &&
+          filterValue !== null && filterValue !== undefined &&
+          (fieldValue as number) >= (filterValue as number);
+      case "lt":
+        return fieldValue !== null && fieldValue !== undefined &&
+          filterValue !== null && filterValue !== undefined &&
+          (fieldValue as number) < (filterValue as number);
+      case "lte":
+        return fieldValue !== null && fieldValue !== undefined &&
+          filterValue !== null && filterValue !== undefined &&
+          (fieldValue as number) <= (filterValue as number);
+      case "in":
+        return Array.isArray(filterValue) && filterValue.includes(fieldValue);
+      case "isnull":
+        return filterValue ? fieldValue === null : fieldValue !== null;
+      case "regex":
+        return new RegExp(String(filterValue)).test(String(fieldValue));
+      case "iregex":
+        return new RegExp(String(filterValue), "i").test(String(fieldValue));
+      case "range":
+        if (Array.isArray(filterValue) && filterValue.length === 2) {
+          return fieldValue !== null && fieldValue !== undefined &&
+            (fieldValue as number) >= filterValue[0] &&
+            (fieldValue as number) <= filterValue[1];
+        }
+        return false;
+      default:
+        // Unknown lookup - default to exact match
+        return fieldValue === filterValue;
+    }
+  }
+
+  /**
+   * Get the value of a field from a model instance
+   * Supports nested field access (e.g., "author__name")
+   */
+  private _getFieldValue(item: T, fieldPath: string): unknown {
+    const parts = fieldPath.split("__");
+    // deno-lint-ignore no-explicit-any
+    let current: any = item;
+
+    for (const part of parts) {
+      if (current === null || current === undefined) {
+        return null;
+      }
+
+      // Check if it's a Field instance
+      if (current[part] && typeof current[part].get === "function") {
+        current = current[part].get();
+      } else {
+        current = current[part];
+      }
+    }
+
+    return current;
   }
 
   /**
@@ -480,11 +635,29 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   // ============================================================================
 
   /**
-   * Execute the query and return all results
+   * Execute the query and return this QuerySet with loaded data
+   *
+   * After fetch(), the QuerySet contains data in memory. Subsequent
+   * filter() calls will apply in-memory filtering instead of hitting
+   * the database.
+   *
+   * @example
+   * ```ts
+   * // Fetch from database
+   * const projects = await Project.objects
+   *   .filter({ organisation: myOrg })
+   *   .fetch();
+   *
+   * // Further filtering is done in-memory (no DB call)
+   * const published = projects.filter({ isPublished: true });
+   *
+   * // Get the array when needed
+   * const arr = published.array();
+   * ```
    */
-  async fetch(): Promise<T[]> {
-    if (this._cache !== null) {
-      return this._cache;
+  async fetch(): Promise<this> {
+    if (this._isFetched && this._cache !== null) {
+      return this;
     }
 
     const backend = this._getBackend();
@@ -493,8 +666,113 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     // Hydrate results into model instances
     const instances = results.map((data) => this._hydrate(data));
 
+    // Handle selectRelated
+    if (this._state.selectRelated.length > 0) {
+      await this._loadRelatedObjects(instances);
+    }
+
     this._cache = instances;
-    return instances;
+    this._isFetched = true;
+    return this;
+  }
+
+  /**
+   * Load related objects for selectRelated fields
+   */
+  private async _loadRelatedObjects(instances: T[]): Promise<void> {
+    const backend = this._getBackend();
+
+    for (const relation of this._state.selectRelated) {
+      // Collect all foreign key IDs for this relation
+      const ids = new Set<unknown>();
+      const fieldsByInstance = new Map<T, ForeignKey<Model>>();
+
+      for (const instance of instances) {
+        // deno-lint-ignore no-explicit-any
+        const field = (instance as any)[relation];
+        if (field instanceof ForeignKey) {
+          const fkId = field.id;
+          if (fkId !== null && fkId !== undefined) {
+            ids.add(fkId);
+          }
+          fieldsByInstance.set(instance, field);
+        }
+      }
+
+      if (ids.size === 0) continue;
+
+      // Get the related model class from the first ForeignKey field
+      const firstField = fieldsByInstance.values().next().value;
+      if (!firstField) continue;
+
+      const relatedModelClass = firstField.getRelatedModel();
+      if (!relatedModelClass) continue;
+
+      // Fetch all related objects in one query
+      const relatedData = await backend.execute({
+        model: relatedModelClass,
+        filters: [
+          { field: "id", lookup: "in", value: Array.from(ids), negated: false },
+        ],
+        ordering: [],
+        limit: null,
+        offset: null,
+        distinctFields: [],
+        selectRelated: [],
+        prefetchRelated: [],
+        annotations: {},
+        selectFields: [],
+        deferFields: [],
+        reversed: false,
+      });
+
+      // Create a map of ID to related instance
+      const relatedMap = new Map<unknown, Model>();
+      for (const data of relatedData) {
+        const relatedInstance = new relatedModelClass();
+        // deno-lint-ignore no-explicit-any
+        (relatedInstance as any).fromDB(data);
+        // deno-lint-ignore no-explicit-any
+        (relatedInstance as any)._backend = backend;
+        const pk = relatedInstance.pk;
+        if (pk !== null && pk !== undefined) {
+          relatedMap.set(pk, relatedInstance);
+        }
+      }
+
+      // Set the related instances on each ForeignKey field
+      for (const [instance, field] of fieldsByInstance) {
+        const fkId = field.id;
+        if (fkId !== null && fkId !== undefined) {
+          const relatedInstance = relatedMap.get(fkId);
+          if (relatedInstance) {
+            // deno-lint-ignore no-explicit-any
+            field.setRelatedInstance(relatedInstance as any);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Get the loaded data as an array
+   *
+   * @throws Error if fetch() has not been called
+   *
+   * @example
+   * ```ts
+   * const projects = await Project.objects.filter({ active: true }).fetch();
+   * const arr = projects.array(); // T[]
+   * ```
+   */
+  array(): T[] {
+    if (!this._isFetched) {
+      throw new Error(
+        "QuerySet not fetched. Call fetch() before array(). " +
+          "If you want to get results directly, use: const arr = (await qs.fetch()).array()",
+      );
+    }
+    return this._cache ?? [];
   }
 
   /**
@@ -510,7 +788,24 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
       qs = qs.filter(conditions);
     }
 
-    const results = await qs.limit(2).fetch();
+    // If already fetched, use in-memory data
+    if (qs._isFetched && qs._cache !== null) {
+      const results = qs._cache;
+      if (results.length === 0) {
+        throw new DoesNotExist(
+          `${this._state.model.name} matching query does not exist.`,
+        );
+      }
+      if (results.length > 1) {
+        throw new MultipleObjectsReturned(
+          `get() returned more than one ${this._state.model.name}.`,
+        );
+      }
+      return results[0];
+    }
+
+    const limitedQs = await qs.limit(2).fetch();
+    const results = limitedQs.array();
 
     if (results.length === 0) {
       throw new DoesNotExist(
@@ -531,24 +826,54 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
    * Get the first object, or null if empty
    */
   async first(): Promise<T | null> {
-    const results = await this.limit(1).fetch();
-    return results[0] ?? null;
+    // If already fetched, use in-memory data
+    if (this._isFetched && this._cache !== null) {
+      return this._cache[0] ?? null;
+    }
+
+    const qs = this.limit(1);
+    await qs.fetch();
+    return qs.array()[0] ?? null;
   }
 
   /**
    * Get the last object, or null if empty
    */
   async last(): Promise<T | null> {
-    const results = await this.reverse().limit(1).fetch();
-    return results[0] ?? null;
+    // If already fetched, use in-memory data
+    if (this._isFetched && this._cache !== null) {
+      return this._cache[this._cache.length - 1] ?? null;
+    }
+
+    const qs = this.reverse().limit(1);
+    await qs.fetch();
+    return qs.array()[0] ?? null;
   }
 
   /**
    * Check if any objects exist
    */
   async exists(): Promise<boolean> {
+    // If already fetched, use in-memory data
+    if (this._isFetched && this._cache !== null) {
+      return this._cache.length > 0;
+    }
+
     const count = await this.limit(1).count();
     return count > 0;
+  }
+
+  /**
+   * Get the count of objects
+   *
+   * If the QuerySet has been fetched, returns the length of the cached array.
+   * Otherwise, executes a count query against the database.
+   */
+  async length(): Promise<number> {
+    if (this._isFetched && this._cache !== null) {
+      return this._cache.length;
+    }
+    return this.count();
   }
 
   // ============================================================================
@@ -604,7 +929,8 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
    * ```
    */
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
-    const results = await this.fetch();
+    await this.fetch();
+    const results = this.array();
     for (const item of results) {
       yield item;
     }
@@ -687,10 +1013,11 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   }
 
   /**
-   * Clear the result cache
+   * Clear the result cache and reset fetched state
    */
   clearCache(): void {
     this._cache = null;
+    this._isFetched = false;
   }
 
   /**
