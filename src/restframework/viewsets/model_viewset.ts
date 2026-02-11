@@ -216,7 +216,8 @@ export abstract class ModelViewSet extends ViewSet {
    */
   override async list(context: ViewSetContext): Promise<Response> {
     const queryset = await this.getQueryset(context);
-    const instances = await queryset.fetch();
+    const qs = await queryset.fetch();
+    const instances = qs.array();
 
     const serializer = this.getSerializer({
       instance: instances,
@@ -225,7 +226,7 @@ export abstract class ModelViewSet extends ViewSet {
 
     // Use toRepresentation for async SerializerMethodField support
     const data = await Promise.all(
-      (instances as unknown[]).map((inst) => serializer.toRepresentation(inst)),
+      instances.map((inst) => serializer.toRepresentation(inst)),
     );
     return Response.json(data);
   }
