@@ -226,7 +226,7 @@ Deno.test("DenoKVBackend - CRUD operations", async () => {
     assertEquals(author.email.get(), "john@example.com");
 
     // Read
-    const fetchedAuthors = await authors.all().fetch();
+    const fetchedAuthors = (await authors.all().fetch()).array();
     assertEquals(fetchedAuthors.length, 1);
     assertEquals(fetchedAuthors[0].name.get(), "John Doe");
 
@@ -243,7 +243,7 @@ Deno.test("DenoKVBackend - CRUD operations", async () => {
 
     // Delete
     await backend.delete(found);
-    const remaining = await authors.all().fetch();
+    const remaining = (await authors.all().fetch()).array();
     assertEquals(remaining.length, 0);
   } finally {
     await backend.disconnect();
@@ -282,37 +282,37 @@ Deno.test("DenoKVBackend - filter operations", async () => {
     });
 
     // Filter by exact match
-    const typescript = await articles
+    const typescript = (await articles
       .filter({ title: "TypeScript Guide" })
-      .fetch();
+      .fetch()).array();
     assertEquals(typescript.length, 1);
     assertEquals(typescript[0].title.get(), "TypeScript Guide");
 
     // Filter by contains
-    const learnArticles = await articles
+    const learnArticles = (await articles
       .filter({ title__contains: "Guide" })
-      .fetch();
+      .fetch()).array();
     assertEquals(learnArticles.length, 1);
 
     // Filter by gte
-    const popularArticles = await articles
+    const popularArticles = (await articles
       .filter({ views__gte: 100 })
-      .fetch();
+      .fetch()).array();
     assertEquals(popularArticles.length, 2);
 
     // Filter by lt
-    const unpopularArticles = await articles
+    const unpopularArticles = (await articles
       .filter({ views__lt: 100 })
-      .fetch();
+      .fetch()).array();
     assertEquals(unpopularArticles.length, 1);
 
     // Ordering
-    const orderedByViews = await articles.orderBy("-views").fetch();
+    const orderedByViews = (await articles.orderBy("-views").fetch()).array();
     assertEquals(orderedByViews[0].views.get(), 200);
     assertEquals(orderedByViews[2].views.get(), 50);
 
     // Limit
-    const limited = await articles.orderBy("-views").limit(2).fetch();
+    const limited = (await articles.orderBy("-views").limit(2).fetch()).array();
     assertEquals(limited.length, 2);
 
     // Count
@@ -433,7 +433,7 @@ Deno.test("DenoKVBackend - unique field constraint", async () => {
     await backend.insert(record3);
 
     // Verify we have 2 records
-    const all = await UniqueEmail.objects.all().fetch();
+    const all = (await UniqueEmail.objects.all().fetch()).array();
     assertEquals(all.length, 2);
 
     // Test case-insensitive uniqueness
@@ -511,8 +511,9 @@ Deno.test("Model.fromDB - ForeignKey with column name format (employee_id)", () 
   });
 
   assertEquals(empComp.id.get(), 1);
-  assertEquals(empComp.employee.get(), 5);
-  assertEquals(empComp.competence.get(), 3);
+  // Use .id to get the foreign key ID (new API)
+  assertEquals(empComp.employee.id, 5);
+  assertEquals(empComp.competence.id, 3);
   assertEquals(empComp.isPersisted, true);
 });
 
@@ -528,8 +529,9 @@ Deno.test("Model.fromDB - ForeignKey with field name format (employee)", () => {
   });
 
   assertEquals(empComp.id.get(), 2);
-  assertEquals(empComp.employee.get(), 10);
-  assertEquals(empComp.competence.get(), 7);
+  // Use .id to get the foreign key ID (new API)
+  assertEquals(empComp.employee.id, 10);
+  assertEquals(empComp.competence.id, 7);
   assertEquals(empComp.isPersisted, true);
 });
 
@@ -547,8 +549,9 @@ Deno.test("Model.fromDB - ForeignKey column name takes precedence over field nam
   });
 
   assertEquals(empComp.id.get(), 3);
-  assertEquals(empComp.employee.get(), 5); // column name value
-  assertEquals(empComp.competence.get(), 3); // column name value
+  // Use .id to get the foreign key ID (new API)
+  assertEquals(empComp.employee.id, 5); // column name value
+  assertEquals(empComp.competence.id, 3); // column name value
 });
 
 Deno.test("Model.fromDB - ForeignKey with null values", () => {
@@ -562,8 +565,9 @@ Deno.test("Model.fromDB - ForeignKey with null values", () => {
   });
 
   assertEquals(empComp.id.get(), 4);
-  assertEquals(empComp.employee.get(), null);
-  assertEquals(empComp.competence.get(), null);
+  // Use .id to get the foreign key ID (new API)
+  assertEquals(empComp.employee.id, null);
+  assertEquals(empComp.competence.id, null);
 });
 
 Deno.test("Model.toDB - ForeignKey outputs column name format", () => {
@@ -571,8 +575,9 @@ Deno.test("Model.toDB - ForeignKey outputs column name format", () => {
   empComp.getFields();
 
   empComp.id.set(1);
-  empComp.employee.set(5);
-  empComp.competence.set(3);
+  // Use .set() with raw ID values (new API supports this)
+  empComp.employee.set(5 as unknown as Employee);
+  empComp.competence.set(3 as unknown as Competence);
 
   const data = empComp.toDB();
 

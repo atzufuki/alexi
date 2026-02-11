@@ -143,7 +143,7 @@ Deno.test("IndexedDBBackend - insert and retrieve", async () => {
     assertEquals(author.email.get(), "john@example.com");
 
     // Retrieve all
-    const fetchedAuthors = await authors.all().fetch();
+    const fetchedAuthors = (await authors.all().fetch()).array();
     assertEquals(fetchedAuthors.length, 1);
     assertEquals(fetchedAuthors[0].name.get(), "John Doe");
   } finally {
@@ -194,14 +194,14 @@ Deno.test("IndexedDBBackend - delete", async () => {
     });
 
     // Verify created
-    let all = await authors.all().fetch();
+    let all = (await authors.all().fetch()).array();
     assertEquals(all.length, 1);
 
     // Delete
     await backend.delete(author);
 
     // Verify deleted
-    all = await authors.all().fetch();
+    all = (await authors.all().fetch()).array();
     assertEquals(all.length, 0);
   } finally {
     await backend.disconnect();
@@ -234,7 +234,8 @@ Deno.test("IndexedDBBackend - filter exact match", async () => {
     });
 
     // Filter by exact match
-    const result = await articles.filter({ title: "TypeScript Guide" }).fetch();
+    const result =
+      (await articles.filter({ title: "TypeScript Guide" }).fetch()).array();
     assertEquals(result.length, 1);
     assertEquals(result[0].title.get(), "TypeScript Guide");
   } finally {
@@ -268,8 +269,8 @@ Deno.test("IndexedDBBackend - filter contains", async () => {
     });
 
     // Filter by contains
-    const scriptArticles = await articles.filter({ title__contains: "Script" })
-      .fetch();
+    const scriptArticles =
+      (await articles.filter({ title__contains: "Script" }).fetch()).array();
     assertEquals(scriptArticles.length, 2);
   } finally {
     await backend.disconnect();
@@ -290,21 +291,21 @@ Deno.test("IndexedDBBackend - filter comparison operators", async () => {
     await articles.create({ title: "Article 3", content: "C3", views: 200 });
 
     // Greater than or equal
-    const gte100 = await articles.filter({ views__gte: 100 }).fetch();
+    const gte100 = (await articles.filter({ views__gte: 100 }).fetch()).array();
     assertEquals(gte100.length, 2);
 
     // Less than
-    const lt100 = await articles.filter({ views__lt: 100 }).fetch();
+    const lt100 = (await articles.filter({ views__lt: 100 }).fetch()).array();
     assertEquals(lt100.length, 1);
     assertEquals(lt100[0].views.get(), 50);
 
     // Greater than
-    const gt100 = await articles.filter({ views__gt: 100 }).fetch();
+    const gt100 = (await articles.filter({ views__gt: 100 }).fetch()).array();
     assertEquals(gt100.length, 1);
     assertEquals(gt100[0].views.get(), 200);
 
     // Less than or equal
-    const lte100 = await articles.filter({ views__lte: 100 }).fetch();
+    const lte100 = (await articles.filter({ views__lte: 100 }).fetch()).array();
     assertEquals(lte100.length, 2);
   } finally {
     await backend.disconnect();
@@ -325,7 +326,8 @@ Deno.test("IndexedDBBackend - filter in operator", async () => {
     await articles.create({ title: "Article 3", content: "C3", views: 200 });
 
     // In operator
-    const inValues = await articles.filter({ views__in: [50, 200] }).fetch();
+    const inValues = (await articles.filter({ views__in: [50, 200] }).fetch())
+      .array();
     assertEquals(inValues.length, 2);
   } finally {
     await backend.disconnect();
@@ -349,7 +351,7 @@ Deno.test("IndexedDBBackend - ordering ascending", async () => {
     await articles.create({ title: "A Article", content: "C", views: 100 });
     await articles.create({ title: "C Article", content: "C", views: 50 });
 
-    const ordered = await articles.orderBy("title").fetch();
+    const ordered = (await articles.orderBy("title").fetch()).array();
     assertEquals(ordered[0].title.get(), "A Article");
     assertEquals(ordered[1].title.get(), "B Article");
     assertEquals(ordered[2].title.get(), "C Article");
@@ -371,7 +373,7 @@ Deno.test("IndexedDBBackend - ordering descending", async () => {
     await articles.create({ title: "B", content: "C", views: 200 });
     await articles.create({ title: "C", content: "C", views: 50 });
 
-    const ordered = await articles.orderBy("-views").fetch();
+    const ordered = (await articles.orderBy("-views").fetch()).array();
     assertEquals(ordered[0].views.get(), 200);
     assertEquals(ordered[1].views.get(), 100);
     assertEquals(ordered[2].views.get(), 50);
@@ -397,7 +399,7 @@ Deno.test("IndexedDBBackend - limit", async () => {
     await articles.create({ title: "Article 2", content: "C", views: 200 });
     await articles.create({ title: "Article 3", content: "C", views: 300 });
 
-    const limited = await articles.orderBy("-views").limit(2).fetch();
+    const limited = (await articles.orderBy("-views").limit(2).fetch()).array();
     assertEquals(limited.length, 2);
     assertEquals(limited[0].views.get(), 300);
     assertEquals(limited[1].views.get(), 200);
@@ -419,7 +421,8 @@ Deno.test("IndexedDBBackend - offset", async () => {
     await articles.create({ title: "Article 2", content: "C", views: 200 });
     await articles.create({ title: "Article 3", content: "C", views: 300 });
 
-    const offsetted = await articles.orderBy("-views").offset(1).fetch();
+    const offsetted = (await articles.orderBy("-views").offset(1).fetch())
+      .array();
     assertEquals(offsetted.length, 2);
     assertEquals(offsetted[0].views.get(), 200);
     assertEquals(offsetted[1].views.get(), 100);
@@ -443,7 +446,8 @@ Deno.test("IndexedDBBackend - limit and offset combined", async () => {
     await articles.create({ title: "Article 4", content: "C", views: 400 });
 
     // Skip first, take 2
-    const result = await articles.orderBy("-views").offset(1).limit(2).fetch();
+    const result = (await articles.orderBy("-views").offset(1).limit(2).fetch())
+      .array();
     assertEquals(result.length, 2);
     assertEquals(result[0].views.get(), 300);
     assertEquals(result[1].views.get(), 200);
@@ -473,7 +477,7 @@ Deno.test("IndexedDBBackend - bulk create", async () => {
 
     assertEquals(created.length, 3);
 
-    const all = await articles.all().fetch();
+    const all = (await articles.all().fetch()).array();
     assertEquals(all.length, 3);
   } finally {
     await backend.disconnect();
@@ -502,10 +506,10 @@ Deno.test("IndexedDBBackend - updateMany", async () => {
     assertEquals(updated, 2);
 
     // Verify
-    const articles999 = await articles.filter({ views: 999 }).fetch();
+    const articles999 = (await articles.filter({ views: 999 }).fetch()).array();
     assertEquals(articles999.length, 2);
 
-    const articles300 = await articles.filter({ views: 300 }).fetch();
+    const articles300 = (await articles.filter({ views: 300 }).fetch()).array();
     assertEquals(articles300.length, 1);
   } finally {
     await backend.disconnect();
@@ -532,7 +536,7 @@ Deno.test("IndexedDBBackend - deleteMany", async () => {
     assertEquals(deleted, 2);
 
     // Verify
-    const remaining = await articles.all().fetch();
+    const remaining = (await articles.all().fetch()).array();
     assertEquals(remaining.length, 1);
     assertEquals(remaining[0].title.get(), "Keep");
   } finally {
@@ -827,7 +831,7 @@ Deno.test("IndexedDBBackend - atomic transaction", async () => {
     });
 
     // Verify all were created
-    const all = await authors.all().fetch();
+    const all = (await authors.all().fetch()).array();
     assertEquals(all.length, 3);
   } finally {
     await backend.disconnect();
@@ -855,7 +859,7 @@ Deno.test("IndexedDBBackend - transaction interface", async () => {
     assertEquals(tx.isActive, false);
 
     // Verify nothing changed
-    const all = await authors.all().fetch();
+    const all = (await authors.all().fetch()).array();
     assertEquals(all.length, 1);
     assertEquals(all[0].name.get(), "Keep Me");
   } finally {
