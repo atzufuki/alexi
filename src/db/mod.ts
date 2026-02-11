@@ -150,8 +150,12 @@ export type {
 
 export {
   getBackend,
+  getBackendByName,
+  getBackendNames,
   getSettings,
+  hasBackend,
   isInitialized,
+  registerBackend,
   reset,
   setBackend,
   setup,
@@ -161,5 +165,6 @@ export {
 export type {
   AlexiSettings,
   DatabaseEngine,
+  DatabasesConfig,
   DatabaseSettings,
 } from "./setup.ts";

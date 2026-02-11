@@ -10,7 +10,7 @@
 import type { Model } from "../models/model.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
 import { DoesNotExist, MultipleObjectsReturned } from "../models/manager.ts";
-import { getBackend, isInitialized } from "../setup.ts";
+import { getBackend, getBackendByName, isInitialized } from "../setup.ts";
 import { Q, type ResolvedQ } from "./q.ts";
 import {
   type Aggregation,
@@ -652,11 +652,37 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
 
   /**
    * Create a copy of this QuerySet using a different backend
+   *
+   * Accepts either a backend instance or a string name (if registered via setup()).
+   *
+   * @example
+   * ```ts
+   * // With backend instance
+   * const articles = await Article.objects.all().using(backend).fetch();
+   *
+   * // With named backend (requires setup() with databases config)
+   * const cached = await Article.objects.all().using('indexeddb').fetch();
+   * const fresh = await Article.objects.all().using('sync').fetch();
+   * ```
    */
-  using(backend: DatabaseBackend): QuerySet<T> {
+  using(backend: DatabaseBackend | string): QuerySet<T> {
     const qs = this._clone();
-    // deno-lint-ignore no-explicit-any
-    (qs as any)._backend = backend;
+
+    if (typeof backend === "string") {
+      const namedBackend = getBackendByName(backend);
+      if (!namedBackend) {
+        throw new Error(
+          `Unknown database backend: '${backend}'. ` +
+            `Make sure it's registered in setup({ databases: { ... } }).`,
+        );
+      }
+      // deno-lint-ignore no-explicit-any
+      (qs as any)._backend = namedBackend;
+    } else {
+      // deno-lint-ignore no-explicit-any
+      (qs as any)._backend = backend;
+    }
+
     return qs;
   }
 
