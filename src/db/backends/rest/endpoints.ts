@@ -385,6 +385,8 @@ export interface EndpointIntrospection {
   modelClass: typeof Model;
   /** Model constructor name (e.g., "ProjectModel") */
   modelName: string;
+  /** Model's meta.dbTable value (e.g., "project_roles") - used for bundled code */
+  dbTable: string | undefined;
   /** Resolved endpoint path segment (e.g., "projects") */
   endpoint: string;
   /** Detail actions (POST /endpoint/:id/action/) */
@@ -434,10 +436,11 @@ export function introspectEndpoint(
   const instance = new EndpointClass();
   const modelClass = instance.model;
   const modelName = modelClass.name;
+  const dbTable = modelClass.meta?.dbTable;
 
   // Resolve endpoint: explicit > meta.dbTable > auto-derived
   const endpoint = instance.endpoint ??
-    modelClass.meta?.dbTable ??
+    dbTable ??
     deriveEndpoint(modelName);
 
   const detailActions: RegisteredDetailAction[] = [];
@@ -490,6 +493,7 @@ export function introspectEndpoint(
   return {
     modelClass,
     modelName,
+    dbTable,
     endpoint,
     detailActions,
     listActions,
