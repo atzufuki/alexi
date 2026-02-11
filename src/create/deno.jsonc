@@ -1,13 +1,13 @@
 {
   "name": "@alexi/create",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.10.1",
-    "@alexi/types": "jsr:@alexi/types@0.10.1",
+    "@alexi/core": "jsr:@alexi/core@0.10.2",
+    "@alexi/types": "jsr:@alexi/types@0.10.2",
     "@std/path": "jsr:@std/path@1"
   }
 }
