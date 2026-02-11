@@ -21,7 +21,32 @@
  * // Then in any component/view
  * import { getBackend } from '@alexi/db';
  * const backend = getBackend();
- * const users = await User.objects.using(backend).all().fetch();
+ * const articles = await Article.objects.using(backend).all().fetch();
+ * ```
+ *
+ * @example Named backends (Django-style DATABASES)
+ * ```ts
+ * import { setup } from '@alexi/db';
+ * import { IndexedDBBackend } from '@alexi/db/backends/indexeddb';
+ * import { RestBackend } from '@alexi/db/backends/rest';
+ * import { SyncBackend } from '@alexi/db/backends/sync';
+ *
+ * const indexeddb = new IndexedDBBackend({ name: 'myapp' });
+ * const rest = new RestBackend({ apiUrl: 'http://localhost:8000/api' });
+ * const sync = new SyncBackend(indexeddb, rest);
+ *
+ * await setup({
+ *   databases: {
+ *     default: sync,
+ *     indexeddb: indexeddb,
+ *     rest: rest,
+ *     sync: sync,
+ *   },
+ * });
+ *
+ * // Then use by name
+ * const cached = await Article.objects.using('indexeddb').all().fetch();
+ * const fresh = await Article.objects.using('sync').all().fetch();
  * ```
  */
 
@@ -49,6 +74,11 @@ export interface DatabaseSettings {
 }
 
 /**
+ * Named database backends configuration (Django-style DATABASES)
+ */
+export type DatabasesConfig = Record<string, DatabaseBackend>;
+
+/**
  * Alexi ORM settings
  */
 export interface AlexiSettings {
@@ -56,6 +86,21 @@ export interface AlexiSettings {
   database?: DatabaseSettings;
   /** Pre-configured backend instance (alternative to database config) */
   backend?: DatabaseBackend;
+  /**
+   * Named database backends (Django-style DATABASES).
+   * Allows using string names with .using('name').
+   * The 'default' key sets the default backend.
+   *
+   * @example
+   * ```ts
+   * databases: {
+   *   default: syncBackend,
+   *   indexeddb: indexedDBBackend,
+   *   rest: restBackend,
+   * }
+   * ```
+   */
+  databases?: DatabasesConfig;
   /** Debug mode - enables extra logging */
   debug?: boolean;
 }
@@ -67,6 +112,9 @@ export interface AlexiSettings {
 let _settings: AlexiSettings | null = null;
 let _backend: DatabaseBackend | null = null;
 let _initialized = false;
+
+/** Named backends registry */
+const _backends: Map<string, DatabaseBackend> = new Map();
 
 // ============================================================================
 // Setup Functions
@@ -114,8 +162,34 @@ export async function setup(settings: AlexiSettings): Promise<void> {
     console.log("[Alexi] Initializing with settings:", settings);
   }
 
-  // Use provided backend or create one from database settings
-  if (settings.backend) {
+  // Handle named databases configuration (Django-style DATABASES)
+  if (settings.databases) {
+    // Clear existing registry
+    _backends.clear();
+
+    // Register and connect all named backends
+    for (const [name, backend] of Object.entries(settings.databases)) {
+      if (!backend.isConnected) {
+        await backend.connect();
+      }
+      _backends.set(name, backend);
+
+      if (settings.debug) {
+        console.log(`[Alexi] Registered backend '${name}'`);
+      }
+    }
+
+    // Set default backend if specified
+    if (_backends.has("default")) {
+      _backend = _backends.get("default")!;
+    } else {
+      // Use first backend as default if no 'default' key
+      const firstBackend = _backends.values().next().value;
+      if (firstBackend) {
+        _backend = firstBackend;
+      }
+    }
+  } else if (settings.backend) {
     // Use pre-configured backend
     _backend = settings.backend;
     if (!_backend.isConnected) {
@@ -127,7 +201,7 @@ export async function setup(settings: AlexiSettings): Promise<void> {
     await _backend.connect();
   } else {
     throw new Error(
-      "Alexi ORM setup requires either 'backend' or 'database' configuration.",
+      "Alexi ORM setup requires 'databases', 'backend', or 'database' configuration.",
     );
   }
 
@@ -216,6 +290,62 @@ export function isInitialized(): boolean {
   return _initialized;
 }
 
+// ============================================================================
+// Named Backend Registry
+// ============================================================================
+
+/**
+ * Register a named backend
+ *
+ * @param name - The name to register the backend under
+ * @param backend - The backend instance
+ *
+ * @example
+ * ```ts
+ * registerBackend('replica', replicaBackend);
+ * ```
+ */
+export function registerBackend(name: string, backend: DatabaseBackend): void {
+  _backends.set(name, backend);
+}
+
+/**
+ * Get a backend by name
+ *
+ * @param name - The name of the backend to retrieve
+ * @returns The backend instance, or undefined if not found
+ *
+ * @example
+ * ```ts
+ * const backend = getBackendByName('indexeddb');
+ * if (backend) {
+ *   const articles = await Article.objects.using(backend).all().fetch();
+ * }
+ * ```
+ */
+export function getBackendByName(name: string): DatabaseBackend | undefined {
+  return _backends.get(name);
+}
+
+/**
+ * Check if a named backend exists
+ *
+ * @param name - The name to check
+ * @returns true if the backend exists
+ */
+export function hasBackend(name: string): boolean {
+  return _backends.has(name);
+}
+
+/**
+ * Get all registered backend names
+ *
+ * @returns Array of registered backend names
+ */
+export function getBackendNames(): string[] {
+  return Array.from(_backends.keys());
+}
+
 /**
  * Replace the current database backend
  *
@@ -248,10 +378,19 @@ export function setBackend(backend: DatabaseBackend): void {
  * Call this when your application is shutting down.
  */
 export async function shutdown(): Promise<void> {
-  if (_backend) {
-    await _backend.disconnect();
-    _backend = null;
+  // Disconnect all named backends
+  for (const backend of _backends.values()) {
+    if (backend.isConnected) {
+      await backend.disconnect();
+    }
   }
+  _backends.clear();
+
+  // Disconnect default backend if not in registry
+  if (_backend && !Array.from(_backends.values()).includes(_backend)) {
+    await _backend.disconnect();
+  }
+  _backend = null;
   _settings = null;
   _initialized = false;
 }
