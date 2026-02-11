@@ -5,11 +5,12 @@
  * REST API shape — mirroring Django REST Framework's ViewSet and @action patterns.
  *
  * Instead of imperative `endpointMap` and `getSpecialQueryHandlers()` overrides,
- * declare endpoints declaratively:
+ * declare endpoints declaratively with an explicit `path`:
  *
  * ```ts
  * class ProjectEndpoint extends ModelEndpoint {
  *   model = ProjectModel;
+ *   path = "/projects/";  // Explicit full path - required
  *
  *   publish = new DetailAction();      // POST /projects/:id/publish/
  *   unpublish = new DetailAction();    // POST /projects/:id/unpublish/
@@ -18,6 +19,7 @@
  *
  * class OrganisationEndpoint extends ModelEndpoint {
  *   model = OrganisationModel;
+ *   path = "/organisations/";
  *
  *   current = new SingletonQuery();    // filter({current: true}) → GET /organisations/current/
  *   activate = new DetailAction();     // POST /organisations/:id/activate/
@@ -32,6 +34,10 @@
  *   endpoints: [ProjectEndpoint, OrganisationEndpoint],
  * });
  * ```
+ *
+ * The `path` property is **required** and must be the full API path with
+ * leading and trailing slashes (e.g., `/projects/`). No auto-derivation
+ * from model names or dbTable — what you write is what you get.
  *
  * @module
  */
@@ -262,16 +268,15 @@ export class SingletonQuery {
  * Analogous to DRF's ViewSet, but on the client side. Subclass this
  * and declare fields to describe your API shape.
  *
- * The endpoint URL is resolved in this order:
- * 1. Explicit `endpoint` property on the subclass
- * 2. `model.meta.dbTable`
- * 3. Auto-derived from model name (strip "Model" suffix, lowercase)
+ * The `path` property is **required** and must be the full API path with
+ * leading and trailing slashes (e.g., `/projects/`). No auto-derivation
+ * from model names or dbTable — what you write is what you get.
  *
  * @example
  * ```ts
  * class ProjectEndpoint extends ModelEndpoint {
  *   model = ProjectModel;
- *   // endpoint auto-derived from ProjectModel.meta.dbTable = "projects"
+ *   path = "/projects/";  // Required - explicit full path
  *
  *   publish = new DetailAction();           // POST /projects/:id/publish/
  *   unpublish = new DetailAction();         // POST /projects/:id/unpublish/
@@ -280,7 +285,7 @@ export class SingletonQuery {
  *
  * class ConnectionEndpoint extends ModelEndpoint {
  *   model = ConnectionModel;
- *   endpoint = "connections";               // explicit override
+ *   path = "/connections/";
  *
  *   accept = new DetailAction();            // POST /connections/:id/accept/
  *   decline = new DetailAction();           // POST /connections/:id/decline/
@@ -293,12 +298,14 @@ export abstract class ModelEndpoint {
   abstract model: typeof Model;
 
   /**
-   * Override to set a custom endpoint path segment.
+   * The full API path for this endpoint.
    *
-   * By default, the endpoint is resolved from `model.meta.dbTable`
-   * or auto-derived from the model class name.
+   * Must include leading and trailing slashes.
+   * Example: `/projects/`, `/organisations/`, `/employee-competences/`
+   *
+   * This is **required** — no auto-derivation from model name or dbTable.
    */
-  endpoint?: string;
+  abstract path: string;
 }
 
 // =============================================================================
@@ -385,9 +392,15 @@ export interface EndpointIntrospection {
   modelClass: typeof Model;
   /** Model constructor name (e.g., "ProjectModel") */
   modelName: string;
-  /** Model's meta.dbTable value (e.g., "project_roles") - used for bundled code */
-  dbTable: string | undefined;
-  /** Resolved endpoint path segment (e.g., "projects") */
+  /**
+   * The full API path from the endpoint (e.g., "/projects/").
+   * This is the explicit `path` property from ModelEndpoint.
+   */
+  path: string;
+  /**
+   * The endpoint path segment without slashes (e.g., "projects").
+   * Derived from `path` by trimming slashes.
+   */
   endpoint: string;
   /** Detail actions (POST /endpoint/:id/action/) */
   detailActions: RegisteredDetailAction[];
@@ -398,13 +411,13 @@ export interface EndpointIntrospection {
 }
 
 /**
- * Derive an endpoint path from a model class name.
+ * Extract the endpoint segment from a full path.
  *
- * Strips "Model" suffix, converts to lowercase.
- * E.g., "ProjectModel" → "projects", "TaskModel" → "tasks"
+ * Trims leading and trailing slashes.
+ * E.g., "/projects/" → "projects", "/employee-competences/" → "employee-competences"
  */
-function deriveEndpoint(modelName: string): string {
-  return modelName.toLowerCase().replace("model", "s");
+function pathToEndpoint(path: string): string {
+  return path.replace(/^\/+|\/+$/g, "");
 }
 
 /**
@@ -420,11 +433,13 @@ function deriveEndpoint(modelName: string): string {
  * ```ts
  * class ProjectEndpoint extends ModelEndpoint {
  *   model = ProjectModel;
+ *   path = "/projects/";
  *   publish = new DetailAction();
  *   current = new SingletonQuery();
  * }
  *
  * const info = introspectEndpoint(ProjectEndpoint);
+ * // info.path → "/projects/"
  * // info.endpoint → "projects"
  * // info.detailActions → [{ urlSegment: "publish", method: "POST", ... }]
  * // info.singletonQueries → [SpecialQueryHandler for "current"]
@@ -436,12 +451,10 @@ export function introspectEndpoint(
   const instance = new EndpointClass();
   const modelClass = instance.model;
   const modelName = modelClass.name;
-  const dbTable = modelClass.meta?.dbTable;
 
-  // Resolve endpoint: explicit > meta.dbTable > auto-derived
-  const endpoint = instance.endpoint ??
-    dbTable ??
-    deriveEndpoint(modelName);
+  // Use explicit path - no auto-derivation
+  const path = instance.path;
+  const endpoint = pathToEndpoint(path);
 
   const detailActions: RegisteredDetailAction[] = [];
   const listActions: RegisteredListAction[] = [];
@@ -449,7 +462,7 @@ export function introspectEndpoint(
 
   // Scan all own properties for descriptors
   for (const key of Object.keys(instance)) {
-    if (key === "model" || key === "endpoint") continue;
+    if (key === "model" || key === "path") continue;
 
     const value = (instance as unknown as Record<string, unknown>)[key];
 
@@ -484,7 +497,7 @@ export function introspectEndpoint(
           filters[0].field === key &&
           filters[0].lookup === "exact" &&
           filters[0].value === matchValue,
-        getEndpoint: () => `/${endpoint}/${urlSegment}/`,
+        getEndpoint: () => `${path}${urlSegment}/`,
         returnsSingle: true,
       });
     }
@@ -493,7 +506,7 @@ export function introspectEndpoint(
   return {
     modelClass,
     modelName,
-    dbTable,
+    path,
     endpoint,
     detailActions,
     listActions,

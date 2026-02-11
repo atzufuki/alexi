@@ -99,6 +99,7 @@ class NoMetaModel extends Model {
 
 class ProjectEndpoint extends ModelEndpoint {
   model = ProjectModel;
+  path = "/projects/";
 
   publish = new DetailAction();
   unpublish = new DetailAction();
@@ -110,6 +111,7 @@ class ProjectEndpoint extends ModelEndpoint {
 
 class OrganisationEndpoint extends ModelEndpoint {
   model = OrganisationModel;
+  path = "/organisations/";
 
   current = new SingletonQuery();
   activate = new DetailAction();
@@ -118,12 +120,14 @@ class OrganisationEndpoint extends ModelEndpoint {
 
 class UserEndpoint extends ModelEndpoint {
   model = UserModel;
+  path = "/users/";
 
   current = new SingletonQuery();
 }
 
 class ConnectionEndpoint extends ModelEndpoint {
   model = ConnectionModel;
+  path = "/connections/";
 
   accept = new DetailAction();
   decline = new DetailAction();
@@ -133,19 +137,21 @@ class ConnectionEndpoint extends ModelEndpoint {
 
 class ExplicitEndpointPath extends ModelEndpoint {
   model = ProjectModel;
-  override endpoint = "custom-projects";
+  path = "/custom-projects/";
 
   publish = new DetailAction();
 }
 
 class NoMetaEndpoint extends ModelEndpoint {
   model = NoMetaModel;
+  path = "/no-meta/";
 
   refresh = new DetailAction();
 }
 
 class CustomUrlSegmentEndpoint extends ModelEndpoint {
   model = ProjectModel;
+  path = "/projects/";
 
   myAction = new DetailAction({ urlSegment: "do-something" });
   myList = new ListAction({ method: "GET", urlSegment: "special-list" });
@@ -154,12 +160,14 @@ class CustomUrlSegmentEndpoint extends ModelEndpoint {
 
 class CustomMatchValueEndpoint extends ModelEndpoint {
   model = OrganisationModel;
+  path = "/organisations/";
 
   status = new SingletonQuery({ matchValue: "active", urlSegment: "active" });
 }
 
 class EmptyEndpoint extends ModelEndpoint {
   model = ProjectModel;
+  path = "/projects/";
 }
 
 // ============================================================================
@@ -337,24 +345,24 @@ Deno.test("isEndpointDescriptor: false for non-descriptors", () => {
 // Introspection Tests
 // ============================================================================
 
-Deno.test("introspectEndpoint: resolves endpoint from model meta.dbTable", () => {
+Deno.test("introspectEndpoint: uses explicit path property", () => {
   const info = introspectEndpoint(ProjectEndpoint);
+  assertEquals(info.path, "/projects/");
   assertEquals(info.endpoint, "projects");
   assertEquals(info.modelName, "ProjectModel");
   assertEquals(info.modelClass, ProjectModel);
 });
 
-Deno.test("introspectEndpoint: uses explicit endpoint override", () => {
+Deno.test("introspectEndpoint: uses custom path", () => {
   const info = introspectEndpoint(ExplicitEndpointPath);
+  assertEquals(info.path, "/custom-projects/");
   assertEquals(info.endpoint, "custom-projects");
 });
 
-Deno.test("introspectEndpoint: derives endpoint from model name when no meta.dbTable", () => {
+Deno.test("introspectEndpoint: endpoint derived from path by trimming slashes", () => {
   const info = introspectEndpoint(NoMetaEndpoint);
-  // "NoMetaModel" → "nometamodels" (lowercase, replace "model" with "s")
-  // Actually the derive function does: name.toLowerCase().replace("model", "s")
-  // "nometamodel" → "nometas"
-  assertEquals(info.endpoint, "nometas");
+  assertEquals(info.path, "/no-meta/");
+  assertEquals(info.endpoint, "no-meta");
 });
 
 Deno.test("introspectEndpoint: extracts detail actions", () => {
@@ -632,16 +640,18 @@ Deno.test("endpoint resolution: explicit endpoint takes priority over meta.dbTab
   assertEquals(info.endpoint, "custom-projects");
 });
 
-Deno.test("endpoint resolution: meta.dbTable takes priority over auto-derived", () => {
-  // ProjectModel has meta.dbTable = "projects"
+Deno.test("endpoint resolution: path is used directly", () => {
+  // ProjectEndpoint has path = "/projects/"
   const info = introspectEndpoint(ProjectEndpoint);
+  assertEquals(info.path, "/projects/");
   assertEquals(info.endpoint, "projects");
 });
 
-Deno.test("endpoint resolution: auto-derived when no explicit and no meta.dbTable", () => {
+Deno.test("endpoint resolution: endpoint derived from path by stripping slashes", () => {
   const info = introspectEndpoint(NoMetaEndpoint);
-  // NoMetaModel → "nometas" (toLowerCase().replace("model", "s"))
-  assertEquals(info.endpoint, "nometas");
+  // NoMetaEndpoint has path = "/no-meta/"
+  assertEquals(info.path, "/no-meta/");
+  assertEquals(info.endpoint, "no-meta");
 });
 
 // ============================================================================

@@ -365,11 +365,17 @@ class MyAppRestBackend extends RestBackend {
 | `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
 | `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes |
 
-#### Endpoint Resolution Order
+#### Endpoint Path (Required)
 
-1. ModelEndpoint with explicit `endpoint` field (via `endpoints` config)
-2. `Model.meta.dbTable` (recommended — set this on your models)
-3. Auto-derived: strip `"Model"` suffix, lowercase (e.g., `TaskModel` → `tasks`)
+ModelEndpoint requires an explicit `path` property — no auto-derivation from
+model names or `dbTable`. What you write is what you get.
+
+```typescript
+class ProjectEndpoint extends ModelEndpoint {
+  model = ProjectModel;
+  path = "/projects/"; // Required - full path with slashes
+}
+```
 
 #### Declarative Endpoints (DRF-style)
 
@@ -399,7 +405,7 @@ import {
 ```typescript
 class ProjectEndpoint extends ModelEndpoint {
   model = ProjectModel;
-  // endpoint auto-derived from ProjectModel.meta.dbTable = "projects"
+  path = "/projects/"; // Required - explicit full path
 
   // POST /projects/:id/publish/
   publish = new DetailAction();
@@ -417,6 +423,7 @@ class ProjectEndpoint extends ModelEndpoint {
 
 class OrganisationEndpoint extends ModelEndpoint {
   model = OrganisationModel;
+  path = "/organisations/";
 
   // filter({current: true}) → GET /organisations/current/
   current = new SingletonQuery();
@@ -428,6 +435,7 @@ class OrganisationEndpoint extends ModelEndpoint {
 
 class ConnectionEndpoint extends ModelEndpoint {
   model = ConnectionModel;
+  path = "/connections/";
 
   accept = new DetailAction();
   decline = new DetailAction();
@@ -491,6 +499,12 @@ camelCase property names are automatically converted to kebab-case URL segments:
 ##### Descriptor Options
 
 ```typescript
+// ModelEndpoint - path is required
+class MyEndpoint extends ModelEndpoint {
+  model = MyModel;
+  path = "/my-endpoint/"; // Full path with leading/trailing slashes
+}
+
 // DetailAction options
 new DetailAction(); // POST (default)
 new DetailAction({ method: "DELETE" }); // DELETE
@@ -505,7 +519,7 @@ new ListAction({ urlSegment: "my-list" }); // custom URL segment
 
 // SingletonQuery options
 new SingletonQuery(); // filter({field: true})
-new SingletonQuery({ urlSegment: "me" }); // custom URL: /endpoint/me/
+new SingletonQuery({ urlSegment: "me" }); // custom URL: /path/me/
 new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 ```
 
@@ -1138,10 +1152,10 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
    environment types. When running `deno check` on server code, you may see type
    errors for IndexedDB - these can be ignored if you're only using DenoKV.
 
-8. **RestBackend uses ModelEndpoint for endpoints**: Define a ModelEndpoint
-   class with `model` and optionally `endpoint` fields. If `endpoint` is not
-   set, it falls back to `Model.meta.dbTable` or auto-derives from the class
-   name.
+8. **RestBackend requires explicit ModelEndpoint path**: Define a ModelEndpoint
+   class with `model` and `path` fields. The `path` is required and must be the
+   full API path with leading/trailing slashes (e.g., `/projects/`). No
+   auto-derivation from model name or `dbTable`.
 
 9. **SyncBackend propagates auth errors**: Even in `failSilently` mode, 401/403
    errors are always thrown so the UI can redirect to login.
