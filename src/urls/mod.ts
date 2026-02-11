@@ -68,6 +68,8 @@ export type {
   View,
 } from "./types.ts";
 
+export type { RedirectOptions, RedirectResponse } from "./redirect.ts";
+
 // ============================================================================
 // Path and Include
 // ============================================================================
@@ -79,3 +81,9 @@ export { include, path, pathInclude } from "./path.ts";
 // ============================================================================
 
 export { clearRegistryCache, resolve, reverse } from "./resolver.ts";
+
+// ============================================================================
+// Redirect
+// ============================================================================
+
+export { isRedirectResponse, redirect } from "./redirect.ts";
