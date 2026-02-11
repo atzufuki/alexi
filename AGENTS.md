@@ -258,7 +258,73 @@ await task.delete();
 
 // Bulk operations
 await TaskModel.objects.filter({ status: "closed" }).delete();
+
+// Save fetched QuerySet (bulk persistence)
+const drafts = await TaskModel.objects.filter({ status: "draft" }).fetch();
+for (const task of drafts.array()) {
+  task.status.set("published");
+}
+const result = await drafts.save();
+// result: { inserted: 0, updated: 5, failed: 0, total: 5, errors: [] }
 ```
+
+### QuerySet.save() - Bulk Persistence
+
+The `save()` method persists all loaded model instances in a QuerySet. This
+enables a "unit of work" pattern and cross-backend synchronization.
+
+```typescript
+import type { SaveResult } from "@alexi/db";
+
+// Basic usage: modify and save multiple objects
+const projects = await ProjectModel.objects
+  .filter({ status: "draft" })
+  .fetch();
+
+for (const project of projects.array()) {
+  project.status.set("published");
+  project.publishedAt.set(new Date());
+}
+
+const result: SaveResult = await projects.save();
+console.log(`Updated: ${result.updated}, Inserted: ${result.inserted}`);
+```
+
+#### Cross-Backend Sync
+
+Combined with `using()`, this enables explicit sync between backends:
+
+```typescript
+// Fetch from REST API
+const orgs = await OrganisationModel.objects
+  .using("rest")
+  .filter({ current: true })
+  .fetch();
+
+// Save to IndexedDB (cache remote data locally)
+await orgs.using("indexeddb").save();
+```
+
+#### SaveResult Interface
+
+```typescript
+interface SaveResult {
+  inserted: number; // New records created
+  updated: number; // Existing records updated
+  failed: number; // Records that failed to save
+  total: number; // Total records processed
+  errors: Array<{ instance: Model; error: Error }>; // Error details
+}
+```
+
+#### Save Behavior
+
+For each object in the QuerySet:
+
+- If object exists in target backend (by PK) → `update()`
+- If object doesn't exist → `insert()`
+
+This is essentially `updateOrCreate()` for each object.
 
 ### Database Setup
 

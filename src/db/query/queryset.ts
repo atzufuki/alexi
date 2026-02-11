@@ -915,6 +915,111 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   }
 
   // ============================================================================
+  // Bulk Persistence
+  // ============================================================================
+
+  /**
+   * Result of a save() operation
+   */
+  // Note: SaveResult interface is defined below the class
+
+  /**
+   * Save all loaded model instances to the backend
+   *
+   * For each object in the QuerySet:
+   * - If object exists in target backend (by PK) → update
+   * - If object doesn't exist → insert
+   *
+   * This enables a "unit of work" pattern and cross-backend sync:
+   *
+   * @example Basic usage - save modified objects
+   * ```ts
+   * const projects = await ProjectModel.objects
+   *   .filter({ status: 'draft' })
+   *   .fetch();
+   *
+   * // Modify multiple objects
+   * for (const project of projects.array()) {
+   *   project.status.set('published');
+   * }
+   *
+   * // Save all changes
+   * const result = await projects.save();
+   * console.log(`Updated: ${result.updated}, Inserted: ${result.inserted}`);
+   * ```
+   *
+   * @example Cross-backend sync
+   * ```ts
+   * // Fetch from REST API
+   * const orgs = await OrganisationModel.objects
+   *   .using('rest')
+   *   .filter({ current: true })
+   *   .fetch();
+   *
+   * // Save to IndexedDB (cache remote data locally)
+   * await orgs.using('indexeddb').save();
+   * ```
+   *
+   * @param options.force - Save all objects even if not modified (default: false)
+   * @returns SaveResult with counts of inserted, updated, and failed objects
+   */
+  async save(options?: { force?: boolean }): Promise<SaveResult> {
+    if (!this._isFetched || this._cache === null) {
+      throw new Error(
+        "QuerySet not fetched. Call fetch() before save(). " +
+          "Example: const qs = await Model.objects.filter({...}).fetch(); await qs.save();",
+      );
+    }
+
+    const backend = this._getBackend();
+    const instances = this._cache;
+
+    const result: SaveResult = {
+      inserted: 0,
+      updated: 0,
+      failed: 0,
+      total: instances.length,
+      errors: [],
+    };
+
+    for (const instance of instances) {
+      try {
+        const pk = instance.pk;
+
+        if (pk !== null && pk !== undefined) {
+          // Check if exists in target backend
+          const exists = await backend.existsById(
+            this._state.model,
+            pk,
+          );
+
+          if (exists) {
+            // Update existing record
+            await backend.update(instance);
+            result.updated++;
+          } else {
+            // Insert new record (preserving PK)
+            await backend.insert(instance);
+            result.inserted++;
+          }
+        } else {
+          // No PK - insert as new record
+          await backend.insert(instance);
+          result.inserted++;
+        }
+      } catch (error) {
+        result.failed++;
+        result.errors.push({
+          instance,
+          error: error instanceof Error ? error : new Error(String(error)),
+        });
+      }
+    }
+
+    return result;
+  }
+
+  // ============================================================================
   // Async Iterator
   // ============================================================================
 
@@ -1050,6 +1155,29 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
 
     return parts.join(" | ");
   }
+}
+
+// ============================================================================
+// SaveResult Type
+// ============================================================================
+
+/**
+ * Result of a QuerySet save() operation
+ */
+export interface SaveResult {
+  /** Number of records inserted (new records) */
+  inserted: number;
+  /** Number of records updated (existing records) */
+  updated: number;
+  /** Number of records that failed to save */
+  failed: number;
+  /** Total number of records processed */
+  total: number;
+  /** Details of any errors that occurred */
+  errors: Array<{
+    instance: Model;
+    error: Error;
+  }>;
 }
 
 // ============================================================================
