@@ -223,7 +223,11 @@ export class SyncBackend extends DatabaseBackend {
           await this._cacheToLocal(state, remoteResults);
         }
 
-        return remoteResults;
+        // Apply the original filter locally to ensure correctness.
+        // This provides defense-in-depth: even if the remote API returns
+        // unfiltered or incorrectly filtered results, we enforce the
+        // requested filter client-side.
+        return this._localBackend.execute(state);
       } catch (error) {
         this._log("Remote execute failed, falling back to local:", error);
 
