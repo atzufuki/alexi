@@ -660,4 +660,85 @@ describe("Serializer", () => {
     assertEquals(data.email, "john@example.com");
     assertEquals(data.age, 30);
   });
+
+  it("should handle ForeignKey fields by returning ID", () => {
+    // Mock ForeignKey field - has .id property and .fetch method
+    const mockForeignKey = {
+      id: 42,
+      fetch: async () => ({ id: 42, name: "Related Object" }),
+      get: () => {
+        throw new Error("Related object not fetched. Call .fetch() first.");
+      },
+      isLoaded: () => false,
+    };
+
+    // Mock regular Field - has .get method only
+    const mockRegularField = {
+      get: () => "regular value",
+    };
+
+    const instance = {
+      id: { get: () => 1 },
+      name: mockRegularField,
+      organisation: mockForeignKey, // ForeignKey field
+    };
+
+    class FKTestSerializer extends Serializer {
+      protected override getFieldDefinitions(): Record<
+        string,
+        SerializerField
+      > {
+        return {
+          id: new IntegerField({ readOnly: true }),
+          name: new CharField(),
+          organisation: new IntegerField({ readOnly: true }),
+        };
+      }
+    }
+
+    const serializer = new FKTestSerializer({ instance });
+    const data = serializer.data;
+
+    // ForeignKey should return ID (42), not throw error
+    assertEquals(data.id, 1);
+    assertEquals(data.name, "regular value");
+    assertEquals(data.organisation, 42);
+  });
+
+  it("should handle nested ForeignKey in dot notation", () => {
+    const mockForeignKey = {
+      id: 99,
+      fetch: async () => ({ id: 99 }),
+      get: () => {
+        throw new Error("Related object not fetched.");
+      },
+      isLoaded: () => false,
+    };
+
+    const instance = {
+      parent: {
+        child: mockForeignKey,
+      },
+    };
+
+    class NestedFKSerializer extends Serializer {
+      protected override getFieldDefinitions(): Record<
+        string,
+        SerializerField
+      > {
+        return {
+          parentChild: new IntegerField({
+            readOnly: true,
+            source: "parent.child",
+          }),
+        };
+      }
+    }
+
+    const serializer = new NestedFKSerializer({ instance });
+    const data = serializer.data;
+
+    // Nested ForeignKey should also return ID
+    assertEquals(data.parentChild, 99);
+  });
 });

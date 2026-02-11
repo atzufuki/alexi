@@ -484,9 +484,46 @@ export class Serializer {
   }
 
   /**
+   * Check if a value is a ForeignKey field
+   *
+   * ForeignKey fields have both 'id' property (for FK ID access) and 'fetch' method
+   * (for lazy loading the related object).
+   */
+  private isForeignKeyField(value: unknown): boolean {
+    return (
+      value !== null &&
+      typeof value === "object" &&
+      "id" in value &&
+      "fetch" in value &&
+      typeof (value as Record<string, unknown>).fetch === "function"
+    );
+  }
+
+  /**
+   * Get the value from a field (regular Field or ForeignKey)
+   *
+   * For ForeignKey fields, returns the ID (using .id property).
+   * For regular Fields, returns the value (using .get() method).
+   */
+  private getFieldValue(value: unknown): unknown {
+    // Check if it's a ForeignKey field first (has .id and .fetch)
+    if (this.isForeignKeyField(value)) {
+      // Return the FK ID directly without trying to load the related object
+      return (value as { id: unknown }).id;
+    }
+
+    // Check if it's a regular Field instance (has .get method)
+    if (value && typeof value === "object" && "get" in value) {
+      return (value as { get: () => unknown }).get();
+    }
+
+    return value;
+  }
+
+  /**
    * Get an attribute value from an object
    *
-   * Handles nested attributes (dot notation), alexi/db Fields, and special cases.
+   * Handles nested attributes (dot notation), alexi/db Fields, and ForeignKey fields.
    */
   protected getAttributeValue(
     obj: Record<string, unknown>,
@@ -505,10 +542,8 @@ export class Serializer {
         const currentObj = current as Record<string, unknown>;
         let value = currentObj[part];
 
-        // Handle alexi/db Field
-        if (value && typeof value === "object" && "get" in value) {
-          value = (value as { get: () => unknown }).get();
-        }
+        // Handle alexi/db Field or ForeignKey
+        value = this.getFieldValue(value);
 
         current = value;
       }
@@ -519,13 +554,8 @@ export class Serializer {
     // Simple attribute access
     const value = obj[attrName];
 
-    // Check if it's a Field instance (from alexi/db Model)
-    if (value && typeof value === "object" && "get" in value) {
-      // It's an alexi/db Field, get its value
-      return (value as { get: () => unknown }).get();
-    }
-
-    return value;
+    // Handle alexi/db Field or ForeignKey
+    return this.getFieldValue(value);
   }
 
   // ==========================================================================
