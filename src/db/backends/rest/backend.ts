@@ -1073,27 +1073,57 @@ export class RestBackend extends DatabaseBackend {
    * }
    * ```
    */
-  protected getEndpointForModel(modelOrName: Model | string): string {
-    if (typeof modelOrName !== "string") {
+  protected getEndpointForModel(
+    modelOrName: Model | (typeof Model) | string,
+  ): string {
+    // Case 1: Model instance
+    if (typeof modelOrName !== "string" && typeof modelOrName !== "function") {
       const modelClass = modelOrName.constructor as typeof Model;
-      const name = modelClass.name;
-
-      // 1. Check endpointMap first (allows mapping dbTable with underscores to API with hyphens)
-      if (this._endpointMap[name]) {
-        return this._endpointMap[name];
-      }
-
-      // 2. Fall back to dbTable
-      if (modelClass.meta?.dbTable) {
-        return modelClass.meta.dbTable;
-      }
-
-      // 3. Auto-derive from class name
-      return name.toLowerCase().replace("model", "s");
+      return this._resolveEndpointFromModelClass(modelClass);
     }
 
-    return this._endpointMap[modelOrName] ||
-      modelOrName.toLowerCase().replace("model", "s");
+    // Case 2: Model class (typeof Model)
+    if (typeof modelOrName === "function") {
+      return this._resolveEndpointFromModelClass(modelOrName as typeof Model);
+    }
+
+    // Case 3: String (model name or table name)
+    // First check endpointMap for the exact string
+    if (this._endpointMap[modelOrName]) {
+      return this._endpointMap[modelOrName];
+    }
+
+    // Fall back to auto-derive from string
+    return modelOrName.toLowerCase().replace("model", "s");
+  }
+
+  /**
+   * Resolve endpoint from a model class.
+   * Checks endpointMap by class name, then meta.dbTable, then auto-derives.
+   */
+  private _resolveEndpointFromModelClass(modelClass: typeof Model): string {
+    const name = modelClass.name;
+
+    // 1. Check endpointMap first (by class name)
+    if (this._endpointMap[name]) {
+      return this._endpointMap[name];
+    }
+
+    // 2. Check endpointMap by dbTable (for bundled code where class name changes)
+    const dbTable = modelClass.meta?.dbTable;
+    if (dbTable) {
+      // Check if there's an endpoint mapped for this dbTable
+      for (const [, endpoint] of Object.entries(this._endpointMap)) {
+        if (endpoint === dbTable) {
+          return dbTable;
+        }
+      }
+      // Use dbTable directly as endpoint
+      return dbTable;
+    }
+
+    // 3. Auto-derive from class name (last resort)
+    return name.toLowerCase().replace("model", "s");
   }
 
   /**
@@ -1293,7 +1323,7 @@ export class RestBackend extends DatabaseBackend {
     state: QueryState<T>,
   ): Promise<Record<string, unknown>[]> {
     const modelClass = state.model as unknown as typeof Model;
-    const endpoint = this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass);
 
     this._log(
       `[execute] endpoint=${endpoint}, filters=`,
@@ -1413,7 +1443,7 @@ export class RestBackend extends DatabaseBackend {
     id: unknown,
   ): Promise<Record<string, unknown> | null> {
     const modelClass = model as unknown as typeof Model;
-    const endpoint = this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass);
 
     this._log(`GET /${endpoint}/${id}/`);
 
@@ -1479,7 +1509,7 @@ export class RestBackend extends DatabaseBackend {
 
   async count<T extends Model>(state: QueryState<T>): Promise<number> {
     const modelClass = state.model as unknown as typeof Model;
-    const endpoint = this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass);
 
     try {
       const result = await this.request<{ count: number }>(
@@ -1526,7 +1556,7 @@ export class RestBackend extends DatabaseBackend {
 
   compile<T extends Model>(state: QueryState<T>): CompiledQuery {
     const modelClass = state.model as unknown as typeof Model;
-    const endpoint = this.getEndpointForModel(modelClass.name);
+    const endpoint = this.getEndpointForModel(modelClass);
 
     return {
       operation: {
