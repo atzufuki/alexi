@@ -197,11 +197,11 @@ Deno.test({
       });
 
       // Query using named backend via QuerySet.using()
-      const articles = await Article.objects
+      const articles = (await Article.objects
         .all()
         .using("main")
         .filter({ views__gte: 100 })
-        .fetch();
+        .fetch()).array();
 
       assertEquals(articles.length, 1);
       assertEquals(articles[0].title.get(), "Article 2");
@@ -314,12 +314,13 @@ Deno.test({
       });
 
       // Query db1 - should only find db1 article
-      const db1Articles = await Article.objects.using("db1").all().fetch();
+      const db1Articles = (await Article.objects.using("db1").all().fetch())
+        .array();
       assertEquals(db1Articles.length, 1);
       assertEquals(db1Articles[0].title.get(), "DB1 Article");
 
-      // Query db2 - should only find db2 article
-      const db2Articles = await Article.objects.using("db2").all().fetch();
+      const db2Articles = (await Article.objects.using("db2").all().fetch())
+        .array();
       assertEquals(db2Articles.length, 1);
       assertEquals(db2Articles[0].title.get(), "DB2 Article");
     } finally {
