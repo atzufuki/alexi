@@ -37,3 +37,4 @@ export type { QConnector, ResolvedQ } from "./q.ts";
 
 // QuerySet classes
 export { QuerySet, ValuesListQuerySet, ValuesQuerySet } from "./queryset.ts";
+export type { SaveResult } from "./queryset.ts";

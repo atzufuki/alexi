@@ -112,6 +112,7 @@ export type {
 // ============================================================================
 
 export { QuerySet, ValuesListQuerySet, ValuesQuerySet } from "./query/mod.ts";
+export type { SaveResult } from "./query/mod.ts";
 
 export { andQ, orQ, Q, q } from "./query/mod.ts";
 export type { QConnector, ResolvedQ } from "./query/mod.ts";
