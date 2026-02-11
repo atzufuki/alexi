@@ -65,9 +65,9 @@ export type SerializerClass = new (options?: {
  *   model = AssetModel;
  *   serializer_class = AssetSerializer;
  *
- *   // Optional: customize queryset
- *   getQueryset(context: ViewSetContext): QuerySet<AssetModel> {
- *     const qs = super.getQueryset(context);
+ *   // Optional: customize queryset (async for user context filtering)
+ *   override async getQueryset(context: ViewSetContext): Promise<QuerySet<AssetModel>> {
+ *     const qs = await super.getQueryset(context);
  *     const unitId = new URL(context.request.url).searchParams.get("unit_id");
  *     if (unitId) {
  *       return qs.filter({ unitId });
@@ -111,8 +111,22 @@ export abstract class ModelViewSet extends ViewSet {
    * Get the base queryset for this ViewSet
    *
    * Override this method to customize filtering.
+   * This method is async to support common patterns like filtering
+   * by authenticated user's organisation.
+   *
+   * @example
+   * ```ts
+   * override async getQueryset(context: ViewSetContext) {
+   *   const user = await getUserFromRequest(context.request);
+   *   if (!user) {
+   *     return ProjectModel.objects.filter({ id: -1 }); // empty
+   *   }
+   *   const orgId = await getUserOrganisationId(user.id);
+   *   return ProjectModel.objects.filter({ organisation_id: orgId });
+   * }
+   * ```
    */
-  getQueryset(_context: ViewSetContext): QuerySet<Model> {
+  async getQueryset(_context: ViewSetContext): Promise<QuerySet<Model>> {
     if (this.backend) {
       return this.model.objects.using(this.backend).all();
     }
@@ -129,7 +143,7 @@ export abstract class ModelViewSet extends ViewSet {
       throw new Error(`Missing lookup parameter: ${this.lookupUrlKwarg}`);
     }
 
-    const queryset = this.getQueryset(context);
+    const queryset = await this.getQueryset(context);
     const conditions: Record<string, unknown> = {
       [this.lookupField]: this.parseLookupValue(lookupValue),
     };
@@ -201,7 +215,7 @@ export abstract class ModelViewSet extends ViewSet {
    * List all objects (GET /)
    */
   override async list(context: ViewSetContext): Promise<Response> {
-    const queryset = this.getQueryset(context);
+    const queryset = await this.getQueryset(context);
     const instances = await queryset.fetch();
 
     const serializer = this.getSerializer({

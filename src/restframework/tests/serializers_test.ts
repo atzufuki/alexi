@@ -560,7 +560,7 @@ describe("JSONField", () => {
 // ============================================================================
 
 class TestSerializer extends Serializer {
-  protected getFieldDefinitions(): Record<string, SerializerField> {
+  protected override getFieldDefinitions(): Record<string, SerializerField> {
     return {
       id: new IntegerField({ readOnly: true }),
       name: new CharField({ maxLength: 100 }),
