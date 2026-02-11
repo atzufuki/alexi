@@ -424,6 +424,7 @@ export class RestBackend extends DatabaseBackend {
   private _tokenStorageKey: string;
   private _authEndpoints: Required<AuthEndpoints>;
   private _endpointMap: Record<string, string>;
+  private _dbTableToEndpoint: Record<string, string>;
   private _registeredActions: Map<string, RegisteredAction[]> = new Map();
   private _endpointIntrospections: EndpointIntrospection[] = [];
   private _endpointSpecialHandlers: Record<string, SpecialQueryHandler[]> = {};
@@ -443,6 +444,7 @@ export class RestBackend extends DatabaseBackend {
       ...(config.authEndpoints ?? {}),
     };
     this._endpointMap = {};
+    this._dbTableToEndpoint = {};
 
     // Register declarative endpoints (DRF-style)
     if (config.endpoints && config.endpoints.length > 0) {
@@ -1099,7 +1101,7 @@ export class RestBackend extends DatabaseBackend {
 
   /**
    * Resolve endpoint from a model class.
-   * Checks endpointMap by class name, then meta.dbTable, then auto-derives.
+   * Checks endpointMap by class name, then dbTableToEndpoint by dbTable, then uses dbTable directly.
    */
   private _resolveEndpointFromModelClass(modelClass: typeof Model): string {
     const name = modelClass.name;
@@ -1109,16 +1111,14 @@ export class RestBackend extends DatabaseBackend {
       return this._endpointMap[name];
     }
 
-    // 2. Check endpointMap by dbTable (for bundled code where class name changes)
+    // 2. Check dbTableToEndpoint by dbTable (for bundled code where class name changes)
     const dbTable = modelClass.meta?.dbTable;
     if (dbTable) {
-      // Check if there's an endpoint mapped for this dbTable
-      for (const [, endpoint] of Object.entries(this._endpointMap)) {
-        if (endpoint === dbTable) {
-          return dbTable;
-        }
+      // Check if there's an explicit endpoint registered for this dbTable
+      if (this._dbTableToEndpoint[dbTable]) {
+        return this._dbTableToEndpoint[dbTable];
       }
-      // Use dbTable directly as endpoint
+      // Use dbTable directly as endpoint (no custom mapping)
       return dbTable;
     }
 
@@ -1187,6 +1187,12 @@ export class RestBackend extends DatabaseBackend {
     for (const info of this._endpointIntrospections) {
       // 1. Register endpoint mapping (model name → endpoint path)
       this._endpointMap[info.modelName] = info.endpoint;
+
+      // 1b. Also register dbTable → endpoint mapping for bundled code
+      // where class names get mangled (e.g., ProjectRoleModel → _ProjectRoleModel)
+      if (info.dbTable && info.dbTable !== info.endpoint) {
+        this._dbTableToEndpoint[info.dbTable] = info.endpoint;
+      }
 
       // 2. Collect actions
       const actions: RegisteredAction[] = [
