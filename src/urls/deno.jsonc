@@ -1,6 +1,6 @@
 {
   "name": "@alexi/urls",
-  "version": "0.8.18",
+  "version": "0.8.19",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts"
