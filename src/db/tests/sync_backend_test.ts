@@ -230,10 +230,10 @@ Deno.test({
 
     try {
       // Query for only published projects
-      const results = await Project.objects
+      const results = (await Project.objects
         .using(syncBackend)
         .filter({ isPublished: true })
-        .fetch();
+        .fetch()).array();
 
       // Even though the mock API returned all 4 projects,
       // SyncBackend should apply the local filter and return only published ones
@@ -295,10 +295,10 @@ Deno.test({
 
     try {
       // Query for published projects in organisation 1 only
-      const results = await Project.objects
+      const results = (await Project.objects
         .using(syncBackend)
         .filter({ organisationId: 1, isPublished: true })
-        .fetch();
+        .fetch()).array();
 
       // Should return only projects that match BOTH filters
       assertEquals(
@@ -359,10 +359,10 @@ Deno.test({
       });
 
       // Query through SyncBackend - should use local since not authenticated
-      const results = await Project.objects
+      const results = (await Project.objects
         .using(syncBackend)
         .filter({ isPublished: true })
-        .fetch();
+        .fetch()).array();
 
       // Should return local data, not remote mock data
       assertEquals(results.length, 1);

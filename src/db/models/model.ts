@@ -368,8 +368,15 @@ export abstract class Model {
       }
 
       const columnName = field.getColumnName();
-      const value = field.get();
-      data[columnName] = field.toDB(value as never);
+
+      // ForeignKey fields handle their own value extraction in toDB()
+      // Don't call get() as it throws if the related object isn't loaded
+      if (field instanceof ForeignKey) {
+        data[columnName] = field.toDB(null);
+      } else {
+        const value = field.get();
+        data[columnName] = field.toDB(value as never);
+      }
     }
 
     return data;
@@ -403,6 +410,11 @@ export abstract class Model {
       if (found) {
         field.set(value as never);
         this._data[key] = value;
+      }
+
+      // Set backend on ForeignKey fields for lazy loading
+      if (field instanceof ForeignKey && this._backend) {
+        field.setBackend(this._backend);
       }
     }
 
