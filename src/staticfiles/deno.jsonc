@@ -1,6 +1,6 @@
 {
   "name": "@alexi/staticfiles",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -8,8 +8,8 @@
     "./commands": "./commands/mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.11.0",
-    "@alexi/types": "jsr:@alexi/types@0.11.0",
+    "@alexi/core": "jsr:@alexi/core@0.12.0",
+    "@alexi/types": "jsr:@alexi/types@0.12.0",
     "@std/path": "jsr:@std/path@1",
     "esbuild": "npm:esbuild@^0.24.0",
     "esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1"
