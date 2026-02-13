@@ -95,7 +95,7 @@ import type { CommandOptions, CommandResult } from "@alexi/core";
 // Database ORM
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
 import { getBackend, isInitialized, setBackend, setup } from "@alexi/db";
-import { Count, Q, QuerySet, Sum } from "@alexi/db";
+import { Count, Q, QuerySet, RelatedManager, Sum } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
 import {
@@ -267,6 +267,111 @@ for (const task of drafts.array()) {
 const result = await drafts.save();
 // result: { inserted: 0, updated: 5, failed: 0, total: 5, errors: [] }
 ```
+
+### Reverse Relations (RelatedManager)
+
+ForeignKey fields can define a `relatedName` to create reverse relations on the
+target model. This allows Django-style access to related objects.
+
+```typescript
+import {
+  AutoField,
+  CharField,
+  ForeignKey,
+  IntegerField,
+  Manager,
+  Model,
+  OnDelete,
+  RelatedManager,
+} from "@alexi/db";
+
+// Target model - declare reverse relation type
+export class ProjectRoleModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 255 });
+
+  // TypeScript type declaration - runtime populates this
+  declare roleCompetences: RelatedManager<ProjectRoleCompetenceModel>;
+
+  static objects = new Manager(ProjectRoleModel);
+  static meta = { dbTable: "project_roles" };
+}
+
+// Source model - defines ForeignKey with relatedName
+export class ProjectRoleCompetenceModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  projectRole = new ForeignKey<ProjectRoleModel>("ProjectRoleModel", {
+    onDelete: OnDelete.CASCADE,
+    relatedName: "roleCompetences", // Creates reverse relation
+  });
+  competence = new ForeignKey<CompetenceModel>("CompetenceModel", {
+    onDelete: OnDelete.CASCADE,
+  });
+  level = new IntegerField({ default: 1 });
+
+  static objects = new Manager(ProjectRoleCompetenceModel);
+  static meta = { dbTable: "project_role_competences" };
+}
+
+// Usage - access related objects via reverse relation
+const role = await ProjectRoleModel.objects.get({ id: 1 });
+
+// Get all related objects (returns QuerySet)
+const competences = await role.roleCompetences.all().fetch();
+
+// Filter related objects
+const highLevel = await role.roleCompetences.filter({ level__gte: 3 }).fetch();
+
+// Count related objects
+const count = await role.roleCompetences.count();
+
+// Check if related objects exist
+const hasCompetences = await role.roleCompetences.exists();
+
+// Create related object (FK set automatically)
+const newComp = await role.roleCompetences.create({
+  competence: someCompetence,
+  level: 4,
+});
+
+// Get first/last related object
+const first = await role.roleCompetences.first();
+```
+
+#### RelatedManager Methods
+
+| Method                  | Return Type          | Description                         |
+| ----------------------- | -------------------- | ----------------------------------- |
+| `all()`                 | `QuerySet<T>`        | Get all related objects             |
+| `filter(conditions)`    | `QuerySet<T>`        | Filter related objects              |
+| `exclude(conditions)`   | `QuerySet<T>`        | Exclude related objects             |
+| `first()`               | `Promise<T \| null>` | Get first related object            |
+| `last()`                | `Promise<T \| null>` | Get last related object             |
+| `count()`               | `Promise<number>`    | Count related objects               |
+| `exists()`              | `Promise<boolean>`   | Check if any related objects exist  |
+| `create(data)`          | `Promise<T>`         | Create related object (FK set auto) |
+| `getOrCreate(defaults)` | `Promise<[T, bool]>` | Get or create related object        |
+
+#### TypeScript Typing Pattern
+
+Use `declare` to tell TypeScript about reverse relation properties:
+
+```typescript
+class Author extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  // Declare reverse relations - runtime creates RelatedManager
+  declare articles: RelatedManager<Article>;
+  declare books: RelatedManager<Book>;
+
+  static objects = new Manager(Author);
+}
+```
+
+The `declare` keyword informs TypeScript without generating JavaScript code. The
+runtime automatically creates `RelatedManager` instances based on `relatedName`
+values from ForeignKey definitions.
 
 ### QuerySet.save() - Bulk Persistence
 

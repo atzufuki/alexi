@@ -9,6 +9,7 @@ import {
   ForeignKey,
   ManyToManyField,
   ManyToManyManager,
+  RelatedManager,
 } from "../fields/relations.ts";
 
 // ============================================================================
@@ -73,10 +74,28 @@ export type CreateData = Record<string, unknown>;
 /**
  * Registry for all defined models
  */
+/**
+ * Reverse relation definition
+ */
+export interface ReverseRelationDef {
+  /** Name of the reverse relation (relatedName from ForeignKey) */
+  relatedName: string;
+  /** Name of the model that has the ForeignKey */
+  relatedModelName: string;
+  /** Name of the ForeignKey field on the related model */
+  fieldName: string;
+}
+
 export class ModelRegistry {
   private static _instance: ModelRegistry;
   // deno-lint-ignore no-explicit-any
   private _models: Map<string, any> = new Map();
+  /**
+   * Map of model name -> array of reverse relations pointing to it
+   * Key: target model name (e.g., "ProjectRoleModel")
+   * Value: array of reverse relation definitions
+   */
+  private _reverseRelations: Map<string, ReverseRelationDef[]> = new Map();
 
   private constructor() {}
 
@@ -117,25 +136,88 @@ export class ModelRegistry {
   }
 
   /**
-   * Resolve string-based model references in relations
+   * Get reverse relations for a model
+   *
+   * @param modelName - Name of the model to get reverse relations for
+   * @returns Array of reverse relation definitions
+   */
+  getReverseRelations(modelName: string): ReverseRelationDef[] {
+    return this._reverseRelations.get(modelName) || [];
+  }
+
+  /**
+   * Register a reverse relation
+   *
+   * @param targetModelName - Name of the model the FK points to
+   * @param def - Reverse relation definition
+   */
+  private _registerReverseRelation(
+    targetModelName: string,
+    def: ReverseRelationDef,
+  ): void {
+    const existing = this._reverseRelations.get(targetModelName) || [];
+    // Check if already registered (avoid duplicates)
+    const alreadyExists = existing.some(
+      (r) =>
+        r.relatedName === def.relatedName &&
+        r.relatedModelName === def.relatedModelName &&
+        r.fieldName === def.fieldName,
+    );
+    if (!alreadyExists) {
+      existing.push(def);
+      this._reverseRelations.set(targetModelName, existing);
+    }
+  }
+
+  /**
+   * Resolve string-based model references in relations and register reverse relations
    */
   // deno-lint-ignore no-explicit-any
   private _resolveRelations(model: any): void {
     try {
       const instance = new model();
       const fields = instance.getFields();
+      const modelName = model.name;
 
-      for (const [, field] of Object.entries(fields)) {
-        if (field instanceof ForeignKey || field instanceof ManyToManyField) {
+      for (const [fieldName, field] of Object.entries(fields)) {
+        if (field instanceof ForeignKey) {
           // Try to resolve string references
           const relatedModel = field.getRelatedModel();
+          let targetModelName: string | undefined;
+
           if (
             !relatedModel &&
             typeof (field as ForeignKey<unknown>).relatedModel === "string"
           ) {
-            const relatedName = (field as ForeignKey<unknown>)
+            targetModelName = (field as ForeignKey<unknown>)
               .relatedModel as string;
-            const resolved = this._models.get(relatedName);
+            const resolved = this._models.get(targetModelName);
+            if (resolved) {
+              // deno-lint-ignore no-explicit-any
+              (field as any).setRelatedModel(resolved);
+            }
+          } else if (relatedModel) {
+            targetModelName = relatedModel.name;
+          }
+
+          // Register reverse relation if relatedName is defined
+          if (targetModelName && field.relatedName) {
+            this._registerReverseRelation(targetModelName, {
+              relatedName: field.relatedName,
+              relatedModelName: modelName,
+              fieldName: fieldName,
+            });
+          }
+        } else if (field instanceof ManyToManyField) {
+          // Try to resolve string references for ManyToMany
+          const relatedModel = field.getRelatedModel();
+          if (
+            !relatedModel &&
+            typeof (field as ManyToManyField<unknown>).relatedModel === "string"
+          ) {
+            const relatedModelName = (field as ManyToManyField<unknown>)
+              .relatedModel as string;
+            const resolved = this._models.get(relatedModelName);
             if (resolved) {
               // deno-lint-ignore no-explicit-any
               (field as any).setRelatedModel(resolved);
@@ -262,6 +344,95 @@ export abstract class Model {
     if (constructor !== Model) {
       ModelRegistry.instance.register(constructor);
     }
+
+    // Initialize reverse relations (RelatedManagers) using lazy getters
+    this._initializeReverseRelations();
+  }
+
+  /**
+   * Initialize reverse relations (RelatedManagers) on this model instance
+   *
+   * This defines lazy getters for each ForeignKey that points to this model
+   * and has a relatedName defined. The RelatedManager is created on first access.
+   *
+   * Note: This is called during field initialization, but reverse relations
+   * are looked up dynamically to handle cases where related models are
+   * registered after this model.
+   */
+  private _initializeReverseRelations(): void {
+    const constructor = Object.getPrototypeOf(this).constructor;
+    const modelName = constructor.name;
+
+    // Get all reverse relations for this model
+    const reverseRelations = ModelRegistry.instance.getReverseRelations(
+      modelName,
+    );
+
+    for (const def of reverseRelations) {
+      // Skip if already defined (e.g., user defined a getter or property)
+      if (Object.getOwnPropertyDescriptor(this, def.relatedName)) {
+        continue;
+      }
+
+      // Capture def in closure for the getter
+      const relatedName = def.relatedName;
+
+      // Define a lazy getter that creates the RelatedManager on first access
+      Object.defineProperty(this, relatedName, {
+        get: () => this.getRelatedManager(relatedName),
+        enumerable: false,
+        configurable: true, // Allow re-definition if model is re-initialized
+      });
+    }
+  }
+
+  /**
+   * Cache for RelatedManager instances (created lazily)
+   */
+  private _relatedManagers: Map<string, RelatedManager<unknown>> = new Map();
+
+  /**
+   * Get a reverse relation manager by name
+   *
+   * This is a dynamic lookup that works regardless of model registration order.
+   * It's called via Proxy or can be called directly.
+   *
+   * @param relatedName - The name of the reverse relation (relatedName from ForeignKey)
+   * @returns RelatedManager instance or undefined if not found
+   */
+  getRelatedManager(relatedName: string): RelatedManager<unknown> | undefined {
+    const constructor = Object.getPrototypeOf(this).constructor;
+    const modelName = constructor.name;
+
+    // Check cache first
+    if (this._relatedManagers.has(relatedName)) {
+      return this._relatedManagers.get(relatedName);
+    }
+
+    // Look up the reverse relation definition
+    const reverseRelations = ModelRegistry.instance.getReverseRelations(
+      modelName,
+    );
+    const def = reverseRelations.find((r) => r.relatedName === relatedName);
+
+    if (!def) {
+      return undefined;
+    }
+
+    // Get the related model class
+    const relatedModelClass = ModelRegistry.instance.get(def.relatedModelName);
+    if (!relatedModelClass) {
+      // Related model not yet registered
+      return undefined;
+    }
+
+    // Create the RelatedManager
+    const manager = new RelatedManager(this, relatedModelClass, def.fieldName);
+
+    // Cache it
+    this._relatedManagers.set(relatedName, manager);
+
+    return manager;
   }
 
   /**
