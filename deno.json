@@ -59,6 +59,8 @@
     "check": "deno check src/**/mod.ts",
     "lint": "deno lint",
     "fmt": "deno fmt",
+    "outdated": "deno outdated",
+    "update": "deno outdated --update",
     "version:sync": "deno run --allow-read --allow-write --allow-run scripts/sync-versions.ts",
     "install-hooks": "deno run --allow-read --allow-write --allow-run scripts/install-hooks.ts"
   },
