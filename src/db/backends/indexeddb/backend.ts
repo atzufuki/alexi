@@ -150,6 +150,7 @@ import type { Model } from "../../models/model.ts";
 import type {
   Aggregations,
   CompiledQuery,
+  ParsedFilter,
   QueryOperation,
   QueryState,
 } from "../../query/types.ts";
@@ -570,14 +571,20 @@ export class IndexedDBBackend extends DatabaseBackend {
     // Ensure the store exists
     await this.ensureStore(tableName);
 
+    // Resolve nested FK lookups (e.g., projectRole__project = 123)
+    const resolvedFilters = await this.resolveNestedFilters(
+      state.model,
+      state.filters,
+    );
+
     const results: Record<string, unknown>[] = [];
 
     // Get all records from the store
     const records = await this._getAllFromStore(tableName);
 
-    // Apply filters
+    // Apply resolved filters
     for (const record of records) {
-      if (this.matchesFilters(record, state.filters)) {
+      if (this.matchesFilters(record, resolvedFilters)) {
         results.push(record);
       }
     }
@@ -1250,5 +1257,42 @@ export class IndexedDBBackend extends DatabaseBackend {
         reject(new Error("Database deletion blocked - close all connections"));
       };
     });
+  }
+
+  // ============================================================================
+  // Nested Lookup Support
+  // ============================================================================
+
+  /**
+   * Execute a simple filter query on a table
+   *
+   * Used by nested lookup resolution to query related tables.
+   *
+   * @param tableName - The table name to query
+   * @param filters - Filters to apply
+   * @returns Matching records
+   */
+  protected async executeSimpleFilter(
+    tableName: string,
+    filters: ParsedFilter[],
+  ): Promise<Record<string, unknown>[]> {
+    this.ensureConnected();
+
+    // Ensure the store exists
+    await this.ensureStore(tableName);
+
+    const results: Record<string, unknown>[] = [];
+
+    // Get all records from the store
+    const records = await this._getAllFromStore(tableName);
+
+    // Apply filters using the base class method
+    for (const record of records) {
+      if (this.matchesFilters(record, filters)) {
+        results.push(record);
+      }
+    }
+
+    return results;
   }
 }

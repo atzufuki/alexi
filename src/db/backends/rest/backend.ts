@@ -1650,6 +1650,27 @@ export class RestBackend extends DatabaseBackend {
       console.log("[RestBackend]", ...args);
     }
   }
+
+  // ============================================================================
+  // Nested Lookup Support (not needed for REST - server handles it)
+  // ============================================================================
+
+  /**
+   * Execute a simple filter query on a table
+   *
+   * Not used by REST backend because nested lookups are passed directly
+   * to the server as query parameters (e.g., ?projectRole__project=123).
+   *
+   * @throws Error - REST backend delegates nested lookups to the server
+   */
+  protected executeSimpleFilter(
+    _tableName: string,
+    _filters: ParsedFilter[],
+  ): Promise<Record<string, unknown>[]> {
+    throw new Error(
+      "REST backend does not use executeSimpleFilter - nested lookups are handled by the server",
+    );
+  }
 }
 
 // =============================================================================
