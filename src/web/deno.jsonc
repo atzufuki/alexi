@@ -1,6 +1,6 @@
 {
   "name": "@alexi/web",
-  "version": "0.13.1",
+  "version": "0.13.2",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -8,9 +8,9 @@
     "./commands": "./commands/mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.13.1",
-    "@alexi/db": "jsr:@alexi/db@0.13.1",
-    "@alexi/types": "jsr:@alexi/types@0.13.1",
-    "@alexi/urls": "jsr:@alexi/urls@0.13.1"
+    "@alexi/core": "jsr:@alexi/core@0.13.2",
+    "@alexi/db": "jsr:@alexi/db@0.13.2",
+    "@alexi/types": "jsr:@alexi/types@0.13.2",
+    "@alexi/urls": "jsr:@alexi/urls@0.13.2"
   }
 }
