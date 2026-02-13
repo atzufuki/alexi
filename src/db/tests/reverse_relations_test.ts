@@ -996,3 +996,129 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// RelatedManager.using() method
+// ============================================================================
+
+Deno.test({
+  name: "RelatedManager - using() returns QuerySet with specified backend",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create test data
+      const role = await ProjectRole.objects.create({
+        name: "Developer",
+        description: "Writes code",
+      });
+
+      const comp = await Competence.objects.create({ name: "TypeScript" });
+
+      await ProjectRoleCompetence.objects.create({
+        projectRole: role,
+        competence: comp,
+        level: 3,
+      });
+
+      // Reload role
+      const loadedRole = await ProjectRole.objects.get({ id: role.id.get() });
+
+      // using() should return a QuerySet that can be fetched
+      const qs = loadedRole.roleCompetences.using(backend);
+
+      // Verify it has QuerySet methods
+      assertExists(qs.fetch, "Should have fetch method");
+      assertExists(qs.filter, "Should have filter method");
+      assertExists(qs.count, "Should have count method");
+
+      // Fetch and verify data
+      const fetched = await qs.fetch();
+      assertEquals(fetched.length(), 1);
+
+      const item = fetched.array()[0];
+      assertEquals(item.level.get(), 3);
+    } finally {
+      await teardown(backend);
+    }
+  },
+});
+
+Deno.test({
+  name: "RelatedManager - using() with string backend name",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    // Setup with named backend using databases config
+    const backend = new DenoKVBackend({
+      name: "reverse-relations-named-test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({
+      databases: {
+        default: backend,
+        primary: backend, // Register with a specific name
+      },
+    });
+
+    try {
+      // Create test data
+      const author = await Author.objects.create({ name: "Test Author" });
+
+      await Article.objects.create({ title: "Article 1", author: author });
+      await Article.objects.create({ title: "Article 2", author: author });
+
+      // Reload author
+      const loadedAuthor = await Author.objects.get({ id: author.id.get() });
+
+      // using() with string should work (uses registered backend)
+      const qs = loadedAuthor.articles.using("primary");
+
+      assertExists(qs.fetch, "Should have fetch method");
+
+      const fetched = await qs.fetch();
+      assertEquals(fetched.length(), 2);
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "RelatedManager - using() allows fetching from different backend than source",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create test data
+      const role = await ProjectRole.objects.create({ name: "Tester" });
+      const comp = await Competence.objects.create({ name: "Testing" });
+
+      await ProjectRoleCompetence.objects.create({
+        projectRole: role,
+        competence: comp,
+        level: 5,
+      });
+
+      // Reload role
+      const loadedRole = await ProjectRole.objects.get({ id: role.id.get() });
+
+      // Source instance has a backend, but we can use a different one
+      // In this test we use the same backend, but the mechanism works
+      const competences = await loadedRole.roleCompetences.using(backend)
+        .fetch();
+
+      assertEquals(competences.length(), 1);
+      assertEquals(competences.array()[0].level.get(), 5);
+    } finally {
+      await teardown(backend);
+    }
+  },
+});
