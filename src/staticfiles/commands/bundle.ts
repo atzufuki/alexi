@@ -485,6 +485,8 @@ export class BundleCommand extends BaseCommand {
       treeShaking: true,
       // Keep console.log in dev
       drop: minify ? ["console", "debugger"] : [],
+      // Preserve class names for ModelRegistry (reverse relations use constructor.name)
+      keepNames: true,
     });
 
     if (result.errors.length > 0) {
