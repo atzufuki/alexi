@@ -62,6 +62,7 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   private _backend?: DatabaseBackend;
   private _cache: T[] | null = null;
   private _isFetched = false;
+  private _isEmpty = false; // True for none() QuerySets - avoids all database queries
 
   constructor(model: new () => T, backend?: DatabaseBackend) {
     this._state = createQueryState(model);
@@ -76,6 +77,7 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     backend?: DatabaseBackend,
     cache?: T[] | null,
     isFetched?: boolean,
+    isEmpty?: boolean,
   ): QuerySet<T> {
     const qs = new QuerySet<T>(state.model, backend);
     qs._state = state;
@@ -84,6 +86,9 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     }
     if (isFetched !== undefined) {
       qs._isFetched = isFetched;
+    }
+    if (isEmpty !== undefined) {
+      qs._isEmpty = isEmpty;
     }
     return qs;
   }
@@ -96,12 +101,13 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     if (modifier) {
       modifier(newState);
     }
-    // Clone preserves fetched state and cache
+    // Clone preserves fetched state, cache, and isEmpty flag
     return QuerySet._fromState(
       newState,
       this._backend,
       this._cache,
       this._isFetched,
+      this._isEmpty,
     );
   }
 
@@ -136,6 +142,44 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   // ============================================================================
   // Filter Methods
   // ============================================================================
+
+  /**
+   * Return an empty QuerySet that will never return any objects
+   *
+   * Useful for:
+   * - Returning an empty result from a method that normally returns a QuerySet
+   * - Providing a base case for union operations
+   * - Avoiding database queries when you know the result will be empty
+   *
+   * @example
+   * ```ts
+   * // Return empty result for unauthenticated users
+   * function getTasks(user: User | null): QuerySet<TaskModel> {
+   *   if (!user) {
+   *     return TaskModel.objects.none();
+   *   }
+   *   return TaskModel.objects.filter({ owner: user.id });
+   * }
+   *
+   * // Empty QuerySet behavior
+   * const empty = TaskModel.objects.none();
+   * await empty.fetch();  // Returns QuerySet with empty array
+   * await empty.count();  // Returns 0
+   * await empty.first();  // Returns null
+   * empty.length();       // Returns 0
+   * ```
+   */
+  none(): QuerySet<T> {
+    // Create a new QuerySet that is already "fetched" with an empty cache
+    // This avoids any database queries
+    return QuerySet._fromState(
+      cloneQueryState(this._state),
+      this._backend,
+      [], // Empty cache
+      true, // Mark as fetched
+      true, // Mark as empty - prevents all database queries
+    );
+  }
 
   /**
    * Filter the QuerySet by the given conditions
@@ -585,9 +629,18 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   }
 
   /**
-   * Return the count of objects
+   * Return the count of objects from the database
+   *
+   * Always executes a count query against the database to get the current count.
+   * Use length() for the in-memory count of already fetched objects.
+   *
+   * For none() QuerySets, returns 0 without hitting the database.
    */
   async count(): Promise<number> {
+    // Empty QuerySet (from none()) - no database query needed
+    if (this._isEmpty) {
+      return 0;
+    }
     const backend = this._getBackend();
     return backend.count(this._state);
   }

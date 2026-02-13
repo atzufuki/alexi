@@ -157,6 +157,29 @@ export class Manager<T extends Model> {
   }
 
   /**
+   * Return an empty QuerySet that will never return any objects
+   *
+   * Useful for:
+   * - Returning an empty result from a method that normally returns a QuerySet
+   * - Providing a base case for union operations
+   * - Avoiding database queries when you know the result will be empty
+   *
+   * @example
+   * ```ts
+   * // Return empty result for unauthenticated users
+   * function getTasks(user: User | null): QuerySet<TaskModel> {
+   *   if (!user) {
+   *     return TaskModel.objects.none();
+   *   }
+   *   return TaskModel.objects.filter({ owner: user.id });
+   * }
+   * ```
+   */
+  none(): QuerySet<T> {
+    return this.all().none();
+  }
+
+  /**
    * Return a QuerySet filtered by the given conditions
    *
    * @example
