@@ -791,3 +791,208 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// Issue #44: RelatedManager typing and QuerySet.array() behavior
+// ============================================================================
+
+Deno.test({
+  name: "Issue #44 - RelatedManager.all() returns typed QuerySet",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create test data
+      const role = await ProjectRole.objects.create({
+        name: "Developer",
+        description: "Writes code",
+      });
+
+      const comp = await Competence.objects.create({ name: "TypeScript" });
+
+      await ProjectRoleCompetence.objects.create({
+        projectRole: role,
+        competence: comp,
+        level: 3,
+      });
+
+      // Reload role
+      const loadedRole = await ProjectRole.objects.get({ id: role.id.get() });
+
+      // all() should return a properly typed QuerySet
+      const qs = loadedRole.roleCompetences.all();
+
+      // Verify it has QuerySet methods
+      assertExists(qs.fetch, "Should have fetch method");
+      assertExists(qs.filter, "Should have filter method");
+      assertExists(qs.exclude, "Should have exclude method");
+      assertExists(qs.count, "Should have count method");
+
+      // Fetch and verify data
+      const fetched = await qs.fetch();
+      assertEquals(fetched.length(), 1);
+
+      // Verify the item is typed correctly
+      const item = fetched.array()[0];
+      assertEquals(item.level.get(), 3);
+    } finally {
+      await teardown(backend);
+    }
+  },
+});
+
+Deno.test({
+  name: "Issue #44 - RelatedManager.filter() returns typed QuerySet",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create test data
+      const author = await Author.objects.create({ name: "Jane Doe" });
+
+      await Book.objects.create({
+        title: "Short Story",
+        pages: 50,
+        author: author,
+      });
+
+      await Book.objects.create({
+        title: "Long Novel",
+        pages: 500,
+        author: author,
+      });
+
+      // Reload author
+      const loadedAuthor = await Author.objects.get({ id: author.id.get() });
+
+      // filter() should return a properly typed QuerySet
+      const qs = loadedAuthor.books.filter({ pages__gte: 100 });
+
+      // Verify it has QuerySet methods (chaining works)
+      assertExists(qs.fetch, "Should have fetch method");
+      assertExists(qs.filter, "Should have filter method");
+
+      // Fetch and verify data
+      const fetched = await qs.fetch();
+      assertEquals(fetched.length(), 1);
+
+      // Verify the item is typed correctly
+      const book = fetched.array()[0];
+      assertEquals(book.title.get(), "Long Novel");
+      assertEquals(book.pages.get(), 500);
+    } finally {
+      await teardown(backend);
+    }
+  },
+});
+
+Deno.test({
+  name: "Issue #44 - QuerySet.array() returns empty array when not fetched",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create test data
+      const role = await ProjectRole.objects.create({ name: "Tester" });
+      const comp = await Competence.objects.create({ name: "Testing" });
+
+      await ProjectRoleCompetence.objects.create({
+        projectRole: role,
+        competence: comp,
+        level: 2,
+      });
+
+      // Reload role
+      const loadedRole = await ProjectRole.objects.get({ id: role.id.get() });
+
+      // Get QuerySet WITHOUT fetching
+      const qs = loadedRole.roleCompetences.all();
+
+      // array() should return empty array instead of throwing
+      const arr = qs.array();
+      assertEquals(arr, [], "Should return empty array when not fetched");
+      assertEquals(arr.length, 0, "Array length should be 0");
+
+      // After fetch, array() should return data
+      await qs.fetch();
+      const fetchedArr = qs.array();
+      assertEquals(fetchedArr.length, 1, "Should have 1 item after fetch");
+      assertEquals(fetchedArr[0].level.get(), 2);
+    } finally {
+      await teardown(backend);
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "Issue #44 - QuerySet.array() allows synchronous access in render patterns",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create test data
+      const author = await Author.objects.create({ name: "Test Author" });
+
+      await Article.objects.create({ title: "Article 1", author: author });
+      await Article.objects.create({ title: "Article 2", author: author });
+      await Article.objects.create({ title: "Article 3", author: author });
+
+      // Simulate view pattern: fetch data first
+      const loadedAuthor = await Author.objects.get({ id: author.id.get() });
+      const articlesQs = await loadedAuthor.articles.all().fetch();
+
+      // Simulate render pattern: synchronous access to fetched data
+      // This should work without errors
+      const articles = articlesQs.array();
+      assertEquals(articles.length, 3, "Should have 3 articles");
+
+      // Map over articles (common render pattern)
+      const titles = articles.map((a) => a.title.get());
+      assertEquals(titles.length, 3);
+      assertEquals(titles.includes("Article 1"), true);
+      assertEquals(titles.includes("Article 2"), true);
+      assertEquals(titles.includes("Article 3"), true);
+    } finally {
+      await teardown(backend);
+    }
+  },
+});
+
+Deno.test({
+  name: "Issue #44 - Unfetched QuerySet.array() does not throw",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create a model directly using Manager
+      const role = await ProjectRole.objects.create({ name: "Empty Role" });
+
+      // Get unfetched QuerySet
+      const unfetchedQs = ProjectRole.objects.filter({ id: role.id.get() });
+
+      // This should NOT throw - just return empty array
+      let noError = true;
+      try {
+        const result = unfetchedQs.array();
+        assertEquals(result, [], "Should return empty array");
+      } catch (_e) {
+        noError = false;
+      }
+
+      assertEquals(noError, true, "array() should not throw when not fetched");
+    } finally {
+      await teardown(backend);
+    }
+  },
+});

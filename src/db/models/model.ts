@@ -382,7 +382,7 @@ export abstract class Model {
   /**
    * Cache for RelatedManager instances (created lazily)
    */
-  private _relatedManagers: Map<string, RelatedManager<unknown>> = new Map();
+  private _relatedManagers: Map<string, RelatedManager<Model>> = new Map();
 
   /**
    * Get a reverse relation manager by name
@@ -393,7 +393,7 @@ export abstract class Model {
    * @param relatedName - The name of the reverse relation (relatedName from ForeignKey)
    * @returns RelatedManager instance or undefined if not found
    */
-  getRelatedManager(relatedName: string): RelatedManager<unknown> | undefined {
+  getRelatedManager(relatedName: string): RelatedManager<Model> | undefined {
     const constructor = Object.getPrototypeOf(this).constructor;
     const modelName = constructor.name;
 
