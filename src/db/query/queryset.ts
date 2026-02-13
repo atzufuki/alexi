@@ -864,16 +864,26 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   }
 
   /**
-   * Get the count of objects
+   * Get the count of objects currently loaded in memory
    *
-   * If the QuerySet has been fetched, returns the length of the cached array.
-   * Otherwise, executes a count query against the database.
+   * This is a synchronous method that returns the number of objects
+   * in the QuerySet's cache. Returns 0 if the QuerySet has not been fetched.
+   *
+   * For database count, use count() instead.
+   *
+   * @example
+   * ```ts
+   * const qs = await Article.objects.all().fetch();
+   * const loaded = qs.length();  // Synchronous, in-memory count
+   *
+   * const total = await Article.objects.count();  // Async, database count
+   * ```
    */
-  async length(): Promise<number> {
+  length(): number {
     if (this._isFetched && this._cache !== null) {
       return this._cache.length;
     }
-    return this.count();
+    return 0;
   }
 
   // ============================================================================

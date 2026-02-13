@@ -714,12 +714,12 @@ Deno.test({
 
       // With fetch - uses in-memory data
       const fetched = await Organisation.objects.all().fetch();
-      const count2 = await fetched.length();
+      const count2 = fetched.length();
       assertEquals(count2, 3);
 
       // After in-memory filter
       const filtered = fetched.filter({ country: "Finland" });
-      const count3 = await filtered.length();
+      const count3 = filtered.length();
       assertEquals(count3, 1);
     } finally {
       await reset();
