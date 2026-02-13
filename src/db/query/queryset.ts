@@ -758,79 +758,114 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
 
   /**
    * Load related objects for selectRelated fields
+   *
+   * Supports nested relations using Django's double-underscore syntax:
+   * - `selectRelated("organisation")` - loads the organisation FK
+   * - `selectRelated("projectRole__project")` - loads projectRole, then project on each projectRole
+   * - `selectRelated("a__b__c")` - loads a, then b on each a, then c on each b
    */
   private async _loadRelatedObjects(instances: T[]): Promise<void> {
     const backend = this._getBackend();
 
     for (const relation of this._state.selectRelated) {
-      // Collect all foreign key IDs for this relation
-      const ids = new Set<unknown>();
-      const fieldsByInstance = new Map<T, ForeignKey<Model>>();
+      // Parse nested relations (e.g., "projectRole__project" -> ["projectRole", "project"])
+      const parts = relation.split("__");
+      await this._loadRelatedObjectsRecursive(instances, parts, backend);
+    }
+  }
 
-      for (const instance of instances) {
-        // deno-lint-ignore no-explicit-any
-        const field = (instance as any)[relation];
-        if (field instanceof ForeignKey) {
-          const fkId = field.id;
-          if (fkId !== null && fkId !== undefined) {
-            ids.add(fkId);
-          }
-          fieldsByInstance.set(instance, field);
-        }
-      }
+  /**
+   * Recursively load related objects for nested relations
+   */
+  private async _loadRelatedObjectsRecursive(
+    instances: Model[],
+    relationParts: string[],
+    backend: DatabaseBackend,
+  ): Promise<void> {
+    if (relationParts.length === 0 || instances.length === 0) {
+      return;
+    }
 
-      if (ids.size === 0) continue;
+    const [currentRelation, ...remainingParts] = relationParts;
 
-      // Get the related model class from the first ForeignKey field
-      const firstField = fieldsByInstance.values().next().value;
-      if (!firstField) continue;
+    // Collect all foreign key IDs for this relation
+    const ids = new Set<unknown>();
+    const fieldsByInstance = new Map<Model, ForeignKey<Model>>();
 
-      const relatedModelClass = firstField.getRelatedModel();
-      if (!relatedModelClass) continue;
-
-      // Fetch all related objects in one query
-      const relatedData = await backend.execute({
-        model: relatedModelClass,
-        filters: [
-          { field: "id", lookup: "in", value: Array.from(ids), negated: false },
-        ],
-        ordering: [],
-        limit: null,
-        offset: null,
-        distinctFields: [],
-        selectRelated: [],
-        prefetchRelated: [],
-        annotations: {},
-        selectFields: [],
-        deferFields: [],
-        reversed: false,
-      });
-
-      // Create a map of ID to related instance
-      const relatedMap = new Map<unknown, Model>();
-      for (const data of relatedData) {
-        const relatedInstance = new relatedModelClass();
-        // deno-lint-ignore no-explicit-any
-        (relatedInstance as any).fromDB(data);
-        // deno-lint-ignore no-explicit-any
-        (relatedInstance as any)._backend = backend;
-        const pk = relatedInstance.pk;
-        if (pk !== null && pk !== undefined) {
-          relatedMap.set(pk, relatedInstance);
-        }
-      }
-
-      // Set the related instances on each ForeignKey field
-      for (const [instance, field] of fieldsByInstance) {
+    for (const instance of instances) {
+      // deno-lint-ignore no-explicit-any
+      const field = (instance as any)[currentRelation];
+      if (field instanceof ForeignKey) {
         const fkId = field.id;
         if (fkId !== null && fkId !== undefined) {
-          const relatedInstance = relatedMap.get(fkId);
-          if (relatedInstance) {
-            // deno-lint-ignore no-explicit-any
-            field.setRelatedInstance(relatedInstance as any);
-          }
+          ids.add(fkId);
+        }
+        fieldsByInstance.set(instance, field);
+      }
+    }
+
+    if (ids.size === 0) return;
+
+    // Get the related model class from the first ForeignKey field
+    const firstField = fieldsByInstance.values().next().value;
+    if (!firstField) return;
+
+    const relatedModelClass = firstField.getRelatedModel();
+    if (!relatedModelClass) return;
+
+    // Fetch all related objects in one query
+    const relatedData = await backend.execute({
+      model: relatedModelClass,
+      filters: [
+        { field: "id", lookup: "in", value: Array.from(ids), negated: false },
+      ],
+      ordering: [],
+      limit: null,
+      offset: null,
+      distinctFields: [],
+      selectRelated: [],
+      prefetchRelated: [],
+      annotations: {},
+      selectFields: [],
+      deferFields: [],
+      reversed: false,
+    });
+
+    // Create a map of ID to related instance
+    const relatedMap = new Map<unknown, Model>();
+    const relatedInstances: Model[] = [];
+    for (const data of relatedData) {
+      const relatedInstance = new relatedModelClass();
+      // deno-lint-ignore no-explicit-any
+      (relatedInstance as any).fromDB(data);
+      // deno-lint-ignore no-explicit-any
+      (relatedInstance as any)._backend = backend;
+      const pk = relatedInstance.pk;
+      if (pk !== null && pk !== undefined) {
+        relatedMap.set(pk, relatedInstance);
+        relatedInstances.push(relatedInstance);
+      }
+    }
+
+    // Set the related instances on each ForeignKey field
+    for (const [_instance, field] of fieldsByInstance) {
+      const fkId = field.id;
+      if (fkId !== null && fkId !== undefined) {
+        const relatedInstance = relatedMap.get(fkId);
+        if (relatedInstance) {
+          // deno-lint-ignore no-explicit-any
+          field.setRelatedInstance(relatedInstance as any);
         }
       }
+    }
+
+    // If there are more nested relations, recurse with the loaded instances
+    if (remainingParts.length > 0 && relatedInstances.length > 0) {
+      await this._loadRelatedObjectsRecursive(
+        relatedInstances,
+        remainingParts,
+        backend,
+      );
     }
   }
 

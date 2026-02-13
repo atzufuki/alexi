@@ -65,6 +65,33 @@ class Employee extends Model {
   };
 }
 
+// Models for nested selectRelated tests (Issue #46)
+class ProjectRole extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+  project = new ForeignKey<Project>(Project, {
+    onDelete: OnDelete.CASCADE,
+  });
+
+  static objects = new Manager(ProjectRole);
+  static override meta = {
+    dbTable: "project_roles",
+  };
+}
+
+class ProjectRoleCompetence extends Model {
+  id = new AutoField({ primaryKey: true });
+  level = new IntegerField({ default: 1 });
+  projectRole = new ForeignKey<ProjectRole>(ProjectRole, {
+    onDelete: OnDelete.CASCADE,
+  });
+
+  static objects = new Manager(ProjectRoleCompetence);
+  static override meta = {
+    dbTable: "project_role_competences",
+  };
+}
+
 // ============================================================================
 // ForeignKey Tests (Issue #24)
 // ============================================================================
@@ -300,6 +327,217 @@ Deno.test({
 // ============================================================================
 // QuerySet selectRelated Tests (Issue #24)
 // ============================================================================
+
+Deno.test({
+  name: "QuerySet - selectRelated() nested relations (Issue #46)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr-nested-1",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      // Create org -> project -> role -> competence chain
+      const org = await Organisation.objects.create({
+        name: "Nested Test Org",
+        country: "Finland",
+      });
+
+      const project = await Project.objects.create({
+        name: "Nested Test Project",
+        organisation: org,
+        isPublished: true,
+      });
+
+      const role1 = await ProjectRole.objects.create({
+        name: "Developer",
+        project: project,
+      });
+
+      const role2 = await ProjectRole.objects.create({
+        name: "Designer",
+        project: project,
+      });
+
+      await ProjectRoleCompetence.objects.create({
+        level: 3,
+        projectRole: role1,
+      });
+
+      await ProjectRoleCompetence.objects.create({
+        level: 5,
+        projectRole: role2,
+      });
+
+      // Fetch with nested selectRelated: projectRole and projectRole.project
+      const competences = await ProjectRoleCompetence.objects
+        .selectRelated("projectRole__project")
+        .fetch();
+
+      const compArray = competences.array();
+      assertEquals(compArray.length, 2);
+
+      // All competences should have projectRole pre-loaded
+      for (const comp of compArray) {
+        assertEquals(
+          comp.projectRole.isLoaded(),
+          true,
+          "projectRole should be loaded",
+        );
+
+        const role = comp.projectRole.get();
+        assertExists(role);
+
+        // The nested project should also be loaded
+        assertEquals(
+          role.project.isLoaded(),
+          true,
+          "projectRole.project should be loaded via nested selectRelated",
+        );
+
+        const proj = role.project.get();
+        assertExists(proj);
+        assertEquals(proj.name.get(), "Nested Test Project");
+      }
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name: "QuerySet - selectRelated() deeply nested (3 levels)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr-nested-2",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      // Create org -> project -> role -> competence chain
+      const org = await Organisation.objects.create({
+        name: "Deep Nested Org",
+        country: "Sweden",
+      });
+
+      const project = await Project.objects.create({
+        name: "Deep Nested Project",
+        organisation: org,
+        isPublished: true,
+      });
+
+      const role = await ProjectRole.objects.create({
+        name: "Architect",
+        project: project,
+      });
+
+      await ProjectRoleCompetence.objects.create({
+        level: 4,
+        projectRole: role,
+      });
+
+      // Fetch with 3-level nested selectRelated
+      const competences = await ProjectRoleCompetence.objects
+        .selectRelated("projectRole__project__organisation")
+        .fetch();
+
+      const compArray = competences.array();
+      assertEquals(compArray.length, 1);
+
+      const comp = compArray[0];
+
+      // Level 1: projectRole
+      assertEquals(comp.projectRole.isLoaded(), true);
+      const loadedRole = comp.projectRole.get();
+      assertExists(loadedRole);
+      assertEquals(loadedRole.name.get(), "Architect");
+
+      // Level 2: project
+      assertEquals(loadedRole.project.isLoaded(), true);
+      const loadedProject = loadedRole.project.get();
+      assertExists(loadedProject);
+      assertEquals(loadedProject.name.get(), "Deep Nested Project");
+
+      // Level 3: organisation
+      assertEquals(loadedProject.organisation.isLoaded(), true);
+      const loadedOrg = loadedProject.organisation.get();
+      assertExists(loadedOrg);
+      assertEquals(loadedOrg.name.get(), "Deep Nested Org");
+      assertEquals(loadedOrg.country.get(), "Sweden");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name: "QuerySet - selectRelated() multiple nested relations",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr-nested-3",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Multi Nested Org",
+        country: "Norway",
+      });
+
+      const project = await Project.objects.create({
+        name: "Multi Nested Project",
+        organisation: org,
+        isPublished: true,
+      });
+
+      const role = await ProjectRole.objects.create({
+        name: "Lead Developer",
+        project: project,
+      });
+
+      await ProjectRoleCompetence.objects.create({
+        level: 5,
+        projectRole: role,
+      });
+
+      // Fetch with multiple selectRelated calls
+      // One for projectRole only, one for projectRole__project__organisation
+      const competences = await ProjectRoleCompetence.objects
+        .selectRelated("projectRole", "projectRole__project__organisation")
+        .fetch();
+
+      const compArray = competences.array();
+      assertEquals(compArray.length, 1);
+
+      const comp = compArray[0];
+
+      // All levels should be loaded
+      assertEquals(comp.projectRole.isLoaded(), true);
+      assertEquals(comp.projectRole.get().project.isLoaded(), true);
+      assertEquals(
+        comp.projectRole.get().project.get().organisation.isLoaded(),
+        true,
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
 
 Deno.test({
   name: "QuerySet - selectRelated() preloads ForeignKey relations",
