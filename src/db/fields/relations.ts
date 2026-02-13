@@ -6,6 +6,7 @@
 import { Field, FieldOptions } from "./field.ts";
 import type { QuerySet } from "../query/queryset.ts";
 import type { Model } from "../models/model.ts";
+import type { DatabaseBackend } from "../backends/backend.ts";
 
 // ============================================================================
 // Relation Types
@@ -771,6 +772,36 @@ export class RelatedManager<T extends Model> {
       qs = qs.using(backend);
     }
     return qs;
+  }
+
+  /**
+   * Use a specific backend for related object queries
+   *
+   * This allows querying related objects from a different backend
+   * than the source instance's backend.
+   *
+   * @param backend - Backend instance or registered backend name
+   * @returns QuerySet using the specified backend
+   *
+   * @example
+   * ```ts
+   * // Fetch from REST API instead of source instance's backend
+   * const competences = await role.roleCompetences.using("rest").fetch();
+   *
+   * // Fetch from IndexedDB
+   * const cached = await role.roleCompetences.using("indexeddb").fetch();
+   *
+   * // Use backend instance directly
+   * const data = await role.roleCompetences.using(myBackend).fetch();
+   * ```
+   */
+  using(backend: DatabaseBackend | string): QuerySet<T> {
+    // deno-lint-ignore no-explicit-any
+    const sourcePk = (this._sourceInstance as any).pk;
+    const filter = { [this._fieldName]: sourcePk };
+    // deno-lint-ignore no-explicit-any
+    const qs: QuerySet<T> = (this._relatedModel as any).objects.filter(filter);
+    return qs.using(backend);
   }
 
   /**
