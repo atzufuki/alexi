@@ -1236,28 +1236,42 @@ export class RestBackend extends DatabaseBackend {
     instance: T,
   ): Record<string, unknown> {
     const data: Record<string, unknown> = {};
-    const fields = instance as unknown as Record<string, { get(): unknown }>;
+    const fields = instance as unknown as Record<string, unknown>;
 
     for (const key of Object.keys(fields)) {
       const field = fields[key];
-      if (
-        field &&
-        typeof field === "object" &&
-        typeof field.get === "function"
-      ) {
-        if (key === "objects" || key === "meta") continue;
+      if (key === "objects" || key === "meta") continue;
 
-        try {
-          const value = field.get();
-          if (value !== null) {
-            if (value instanceof Date) {
-              data[key] = this.formatDateForApi(value);
-            } else {
-              data[key] = value;
-            }
+      if (field && typeof field === "object") {
+        // Check if this is a ForeignKey field (has .id property and .isLoaded method)
+        // deno-lint-ignore no-explicit-any
+        const fkField = field as any;
+        if (
+          "id" in fkField &&
+          typeof fkField.isLoaded === "function"
+        ) {
+          // ForeignKey: use .id (the raw FK ID) instead of .get() which throws
+          const fkId = fkField.id;
+          if (fkId !== null && fkId !== undefined) {
+            data[key] = fkId;
           }
-        } catch {
-          // Field might not have a valid get method
+          continue;
+        }
+
+        // Regular field with .get() method
+        if (typeof (field as { get?: () => unknown }).get === "function") {
+          try {
+            const value = (field as { get: () => unknown }).get();
+            if (value !== null) {
+              if (value instanceof Date) {
+                data[key] = this.formatDateForApi(value);
+              } else {
+                data[key] = value;
+              }
+            }
+          } catch {
+            // Field might not have a valid get method
+          }
         }
       }
     }
