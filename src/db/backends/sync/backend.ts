@@ -59,6 +59,7 @@ import type { Model } from "../../models/model.ts";
 import type {
   Aggregations,
   CompiledQuery,
+  ParsedFilter,
   QueryState,
 } from "../../query/types.ts";
 import { RestApiError } from "../rest/backend.ts";
@@ -684,5 +685,32 @@ export class SyncBackend extends DatabaseBackend {
     if (this._debug) {
       console.log("[SyncBackend]", ...args);
     }
+  }
+
+  // ===========================================================================
+  // Nested Lookup Support
+  // ===========================================================================
+
+  /**
+   * Execute a simple filter query on a table
+   *
+   * Delegates to the local backend for nested lookup resolution.
+   *
+   * @param tableName - The table name to query
+   * @param filters - Filters to apply
+   * @returns Matching records
+   */
+  protected executeSimpleFilter(
+    tableName: string,
+    filters: ParsedFilter[],
+  ): Promise<Record<string, unknown>[]> {
+    // Delegate to local backend's executeSimpleFilter
+    // This works because local backend (IndexedDB) implements this method
+    return (this._localBackend as unknown as {
+      executeSimpleFilter(
+        tableName: string,
+        filters: ParsedFilter[],
+      ): Promise<Record<string, unknown>[]>;
+    }).executeSimpleFilter(tableName, filters);
   }
 }

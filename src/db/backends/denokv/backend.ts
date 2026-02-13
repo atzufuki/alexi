@@ -86,6 +86,7 @@ import type { Model } from "../../models/model.ts";
 import type {
   Aggregations,
   CompiledQuery,
+  ParsedFilter,
   QueryOperation,
   QueryState,
 } from "../../query/types.ts";
@@ -336,6 +337,12 @@ export class DenoKVBackend extends DatabaseBackend {
     const tableName = instance.getTableName();
     const results: Record<string, unknown>[] = [];
 
+    // Resolve nested FK lookups (e.g., projectRole__project = 123)
+    const resolvedFilters = await this.resolveNestedFilters(
+      state.model,
+      state.filters,
+    );
+
     // Scan all records in the table
     const iter = this._kv!.list<Record<string, unknown>>({
       prefix: [tableName],
@@ -344,8 +351,8 @@ export class DenoKVBackend extends DatabaseBackend {
     for await (const entry of iter) {
       const record = entry.value;
 
-      // Apply filters
-      if (this.matchesFilters(record, state.filters)) {
+      // Apply resolved filters
+      if (this.matchesFilters(record, resolvedFilters)) {
         results.push(record);
       }
     }
@@ -795,5 +802,43 @@ export class DenoKVBackend extends DatabaseBackend {
   ): Promise<boolean> {
     const record = await this.getById(model, id);
     return record !== null;
+  }
+
+  // ============================================================================
+  // Nested Lookup Support
+  // ============================================================================
+
+  /**
+   * Execute a simple filter query on a table
+   *
+   * Used by nested lookup resolution to query related tables.
+   *
+   * @param tableName - The table name to query
+   * @param filters - Filters to apply
+   * @returns Matching records
+   */
+  protected async executeSimpleFilter(
+    tableName: string,
+    filters: ParsedFilter[],
+  ): Promise<Record<string, unknown>[]> {
+    this.ensureConnected();
+
+    const results: Record<string, unknown>[] = [];
+
+    // Scan all records in the table
+    const iter = this._kv!.list<Record<string, unknown>>({
+      prefix: [tableName],
+    });
+
+    for await (const entry of iter) {
+      const record = entry.value;
+
+      // Apply filters using the base class method
+      if (this.matchesFilters(record, filters)) {
+        results.push(record);
+      }
+    }
+
+    return results;
   }
 }
