@@ -7,7 +7,7 @@
  * @module
  */
 
-import { Model } from "./model.ts";
+import { Model, ModelRegistry } from "./model.ts";
 import { QuerySet } from "../query/queryset.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
 import type { FilterConditions, OrderByField } from "../query/types.ts";
@@ -62,6 +62,11 @@ export class Manager<T extends Model> {
 
   constructor(modelClass: new () => T) {
     this._modelClass = modelClass;
+
+    // Register model at class definition time (Django-style)
+    // This ensures reverse relations are available before any instances are created
+    // See: https://github.com/atzufuki/alexi/issues/41
+    ModelRegistry.instance.register(modelClass);
   }
 
   /**
