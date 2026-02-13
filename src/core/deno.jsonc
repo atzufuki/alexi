@@ -1,17 +1,17 @@
 {
   "name": "@alexi/core",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./commands": "./commands/mod.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.12.0",
-    "@alexi/db": "jsr:@alexi/db@0.12.0",
-    "@alexi/urls": "jsr:@alexi/urls@0.12.0",
-    "@alexi/middleware": "jsr:@alexi/middleware@0.12.0",
-    "@alexi/restframework": "jsr:@alexi/restframework@0.12.0",
+    "@alexi/types": "jsr:@alexi/types@0.13.0",
+    "@alexi/db": "jsr:@alexi/db@0.13.0",
+    "@alexi/urls": "jsr:@alexi/urls@0.13.0",
+    "@alexi/middleware": "jsr:@alexi/middleware@0.13.0",
+    "@alexi/restframework": "jsr:@alexi/restframework@0.13.0",
     "@std/path": "jsr:@std/path@1"
   },
   "compilerOptions": {
