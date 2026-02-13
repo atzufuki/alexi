@@ -13,6 +13,7 @@ export type {
   ModelData,
   ModelMeta,
   PartialModelData,
+  ReverseRelationDef,
 } from "./model.ts";
 
 // Manager class and exceptions

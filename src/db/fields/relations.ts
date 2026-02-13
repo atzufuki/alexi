@@ -665,3 +665,258 @@ export class ManyToManyManager<T> {
     return this._field;
   }
 }
+
+// ============================================================================
+// RelatedManager (for ForeignKey reverse relations)
+// ============================================================================
+
+/**
+ * Manager for ForeignKey reverse relationships (Django-style)
+ *
+ * This manager is automatically created on the target model when a ForeignKey
+ * defines a `relatedName`. It provides a QuerySet-like interface for accessing
+ * related objects.
+ *
+ * @example
+ * ```ts
+ * // Define models with reverse relation
+ * class ProjectRole extends Model {
+ *   id = new AutoField({ primaryKey: true });
+ *   name = new CharField({ maxLength: 255 });
+ *
+ *   // TypeScript type declaration (runtime populates this)
+ *   declare roleCompetences: RelatedManager<ProjectRoleCompetence>;
+ *
+ *   static objects = new Manager(ProjectRole);
+ * }
+ *
+ * class ProjectRoleCompetence extends Model {
+ *   projectRole = new ForeignKey<ProjectRole>(ProjectRole, {
+ *     onDelete: OnDelete.CASCADE,
+ *     relatedName: "roleCompetences",  // Creates reverse relation
+ *   });
+ *   competence = new ForeignKey<Competence>(Competence, {
+ *     onDelete: OnDelete.CASCADE,
+ *   });
+ * }
+ *
+ * // Usage
+ * const role = await ProjectRole.objects.get({ id: 1 });
+ * const competences = await role.roleCompetences.all().fetch();
+ * const filtered = await role.roleCompetences.filter({ competence: 5 }).fetch();
+ * await role.roleCompetences.create({ competence: 10 });
+ * ```
+ */
+export class RelatedManager<T> {
+  private _sourceInstance: unknown;
+  private _relatedModel: ModelClass<T>;
+  private _fieldName: string;
+
+  /**
+   * Create a new RelatedManager
+   *
+   * @param sourceInstance - The model instance that owns this relation
+   * @param relatedModel - The related model class
+   * @param fieldName - The ForeignKey field name on the related model
+   */
+  constructor(
+    sourceInstance: unknown,
+    relatedModel: ModelClass<T>,
+    fieldName: string,
+  ) {
+    this._sourceInstance = sourceInstance;
+    this._relatedModel = relatedModel;
+    this._fieldName = fieldName;
+  }
+
+  /**
+   * Get the backend from the source instance (lazy)
+   */
+  // deno-lint-ignore no-explicit-any
+  private _getBackend(): any {
+    // deno-lint-ignore no-explicit-any
+    return (this._sourceInstance as any)._backend;
+  }
+
+  /**
+   * Set the backend for this manager (for backwards compatibility)
+   * @deprecated Backend is now retrieved lazily from source instance
+   */
+  // deno-lint-ignore no-explicit-any
+  setBackend(_backend: any): void {
+    // No-op: backend is now retrieved lazily from source instance
+  }
+
+  /**
+   * Get all related objects as a QuerySet
+   *
+   * @returns QuerySet filtered to objects related to the source instance
+   *
+   * @example
+   * ```ts
+   * const role = await ProjectRole.objects.get({ id: 1 });
+   * const competences = await role.roleCompetences.all().fetch();
+   * ```
+   */
+  // deno-lint-ignore no-explicit-any
+  all(): any {
+    const sourcePk = (this._sourceInstance as any).pk;
+    const filter = { [this._fieldName]: sourcePk };
+    // deno-lint-ignore no-explicit-any
+    let qs = (this._relatedModel as any).objects.filter(filter);
+    const backend = this._getBackend();
+    if (backend) {
+      qs = qs.using(backend);
+    }
+    return qs;
+  }
+
+  /**
+   * Filter related objects
+   *
+   * @param filters - Filter conditions
+   * @returns Filtered QuerySet
+   *
+   * @example
+   * ```ts
+   * const filtered = await role.roleCompetences.filter({ level: 3 }).fetch();
+   * ```
+   */
+  // deno-lint-ignore no-explicit-any
+  filter(filters: Record<string, unknown>): any {
+    return this.all().filter(filters);
+  }
+
+  /**
+   * Exclude related objects matching conditions
+   *
+   * @param filters - Exclusion conditions
+   * @returns Filtered QuerySet
+   */
+  // deno-lint-ignore no-explicit-any
+  exclude(filters: Record<string, unknown>): any {
+    return this.all().exclude(filters);
+  }
+
+  /**
+   * Get the first related object
+   *
+   * @returns First related object or null
+   */
+  async first(): Promise<T | null> {
+    return this.all().first();
+  }
+
+  /**
+   * Get the last related object
+   *
+   * @returns Last related object or null
+   */
+  async last(): Promise<T | null> {
+    return this.all().last();
+  }
+
+  /**
+   * Create a new related object
+   *
+   * The foreign key is automatically set to the source instance.
+   *
+   * @param data - Data for the new object (FK field is set automatically)
+   * @returns The created object
+   *
+   * @example
+   * ```ts
+   * const newCompetence = await role.roleCompetences.create({
+   *   competence: 10,
+   *   level: 3,
+   * });
+   * ```
+   */
+  async create(data: Partial<Record<string, unknown>>): Promise<T> {
+    const sourcePk = (this._sourceInstance as any).pk;
+    const createData = {
+      ...data,
+      [this._fieldName]: sourcePk,
+    };
+    // deno-lint-ignore no-explicit-any
+    let manager = (this._relatedModel as any).objects;
+    const backend = this._getBackend();
+    if (backend) {
+      manager = manager.using(backend);
+    }
+    return manager.create(createData);
+  }
+
+  /**
+   * Get or create a related object
+   *
+   * @param defaults - Default values for creation
+   * @param lookup - Lookup conditions (FK is added automatically)
+   * @returns Tuple of [instance, created]
+   */
+  async getOrCreate(
+    defaults: Partial<Record<string, unknown>>,
+    lookup?: Record<string, unknown>,
+  ): Promise<[T, boolean]> {
+    const sourcePk = (this._sourceInstance as any).pk;
+    const lookupWithFk = {
+      ...lookup,
+      [this._fieldName]: sourcePk,
+    };
+    const defaultsWithFk = {
+      ...defaults,
+      [this._fieldName]: sourcePk,
+    };
+    // deno-lint-ignore no-explicit-any
+    let manager = (this._relatedModel as any).objects;
+    const backend = this._getBackend();
+    if (backend) {
+      manager = manager.using(backend);
+    }
+    return manager.getOrCreate(defaultsWithFk, lookupWithFk);
+  }
+
+  /**
+   * Count related objects
+   *
+   * @returns Number of related objects
+   *
+   * @example
+   * ```ts
+   * const count = await role.roleCompetences.count();
+   * ```
+   */
+  async count(): Promise<number> {
+    return this.all().count();
+  }
+
+  /**
+   * Check if any related objects exist
+   *
+   * @returns true if at least one related object exists
+   */
+  async exists(): Promise<boolean> {
+    return this.all().exists();
+  }
+
+  /**
+   * Get the source model instance
+   */
+  get sourceInstance(): unknown {
+    return this._sourceInstance;
+  }
+
+  /**
+   * Get the related model class
+   */
+  get relatedModel(): ModelClass<T> {
+    return this._relatedModel;
+  }
+
+  /**
+   * Get the foreign key field name
+   */
+  get fieldName(): string {
+    return this._fieldName;
+  }
+}
