@@ -7,9 +7,12 @@
  */
 
 import type { Model } from "../models/model.ts";
+import { ModelRegistry } from "../models/model.ts";
+import { ForeignKey } from "../fields/relations.ts";
 import type {
   Aggregations,
   CompiledQuery,
+  LookupType,
   ParsedFilter,
   QueryState,
 } from "../query/types.ts";
@@ -338,7 +341,7 @@ export abstract class DatabaseBackend {
   }
 
   /**
-   * Get a nested value from an object using dot notation
+   * Get a nested value from an object using double-underscore notation
    */
   protected getNestedValue(
     obj: Record<string, unknown>,
@@ -356,6 +359,316 @@ export abstract class DatabaseBackend {
 
     return value;
   }
+
+  // ============================================================================
+  // Nested Lookup Resolution (for NoSQL backends)
+  // ============================================================================
+
+  /**
+   * Check if a filter field contains a nested lookup (FK chain)
+   *
+   * A nested lookup is a field like "projectRole__project" where:
+   * - "projectRole" is a ForeignKey field on the current model
+   * - "project" is a field on the related model (or another FK for deeper nesting)
+   *
+   * @param modelClass - The model class to check against
+   * @param field - The filter field string (e.g., "projectRole__project")
+   * @returns True if this is a nested FK lookup
+   */
+  protected isNestedForeignKeyLookup<T extends Model>(
+    modelClass: new () => T,
+    field: string,
+  ): boolean {
+    if (!field.includes("__")) {
+      return false;
+    }
+
+    const parts = field.split("__");
+    const firstPart = parts[0];
+
+    // Check if the first part is a ForeignKey field
+    const instance = new modelClass();
+    const fields = instance.getFields();
+    const fieldObj = fields[firstPart];
+
+    return fieldObj instanceof ForeignKey;
+  }
+
+  /**
+   * Parse a nested FK lookup into its components
+   *
+   * @param field - The filter field (e.g., "projectRole__project__id")
+   * @returns Object with fkFieldName, remainingPath, and finalField
+   */
+  protected parseNestedLookup(field: string): {
+    fkFieldName: string;
+    remainingPath: string;
+    finalField: string;
+  } {
+    const parts = field.split("__");
+    const fkFieldName = parts[0];
+    const remainingPath = parts.slice(1).join("__");
+    const finalField = parts[parts.length - 1];
+
+    return { fkFieldName, remainingPath, finalField };
+  }
+
+  /**
+   * Resolve nested FK lookups in filters by fetching related IDs
+   *
+   * This transforms filters like `{ projectRole__project: 123 }` into
+   * `{ projectRole: [1, 2, 3] }` where [1,2,3] are the projectRole IDs
+   * that match the condition.
+   *
+   * @param modelClass - The model class for the query
+   * @param filters - Original filters that may contain nested lookups
+   * @returns Resolved filters with nested lookups replaced by ID-based filters
+   */
+  protected async resolveNestedFilters<T extends Model>(
+    modelClass: new () => T,
+    filters: ParsedFilter[],
+  ): Promise<ParsedFilter[]> {
+    const resolvedFilters: ParsedFilter[] = [];
+
+    for (const filter of filters) {
+      if (this.isNestedForeignKeyLookup(modelClass, filter.field)) {
+        // Resolve the nested lookup
+        const resolved = await this.resolveNestedForeignKeyFilter(
+          modelClass,
+          filter,
+        );
+        if (resolved) {
+          resolvedFilters.push(resolved);
+        } else {
+          // No matching IDs found - add impossible filter
+          resolvedFilters.push({
+            field: filter.field.split("__")[0],
+            lookup: "in",
+            value: [],
+            negated: filter.negated,
+          });
+        }
+      } else {
+        // Regular filter, keep as-is
+        resolvedFilters.push(filter);
+      }
+    }
+
+    return resolvedFilters;
+  }
+
+  /**
+   * Resolve a single nested FK filter by traversing the FK chain
+   *
+   * For a filter like `{ projectRole__project: 123 }`:
+   * 1. Find the ForeignKey field "projectRole" and its related model
+   * 2. Query the related model for records where "project" = 123
+   * 3. Collect the IDs of matching related records
+   * 4. Return a filter `{ projectRole__in: [matching_ids] }`
+   *
+   * @param modelClass - The model class for the query
+   * @param filter - The nested filter to resolve
+   * @returns Resolved filter or null if no matches
+   */
+  protected async resolveNestedForeignKeyFilter<T extends Model>(
+    modelClass: new () => T,
+    filter: ParsedFilter,
+  ): Promise<ParsedFilter | null> {
+    const { fkFieldName, remainingPath } = this.parseNestedLookup(filter.field);
+
+    // Get the FK field and its related model
+    const instance = new modelClass();
+    const fields = instance.getFields();
+    const fkField = fields[fkFieldName] as ForeignKey<Model>;
+
+    if (!fkField) {
+      throw new Error(
+        `Field '${fkFieldName}' not found on model '${modelClass.name}'`,
+      );
+    }
+
+    // Get the related model class
+    let relatedModelClass = fkField.getRelatedModel();
+    if (!relatedModelClass && typeof fkField.relatedModel === "string") {
+      relatedModelClass = ModelRegistry.instance.get(fkField.relatedModel);
+    }
+
+    if (!relatedModelClass) {
+      throw new Error(
+        `Could not resolve related model for FK field '${fkFieldName}'`,
+      );
+    }
+
+    // Determine if this is a simple lookup (e.g., "project") or deeper nesting
+    const remainingParts = remainingPath.split("__").filter((p) => p);
+
+    if (remainingParts.length === 1) {
+      // Simple case: projectRole__project = 123
+      // Query related model for records where `project` = 123
+      // and collect their IDs
+      const targetField = remainingParts[0];
+      const matchingIds = await this.fetchMatchingForeignKeyIds(
+        relatedModelClass,
+        targetField,
+        filter.lookup,
+        filter.value,
+      );
+
+      if (matchingIds.length === 0) {
+        return null;
+      }
+
+      // Get the column name for the FK field (e.g., projectRole -> projectRole_id)
+      const fkColumnName = fkField.getColumnName();
+
+      return {
+        field: fkColumnName,
+        lookup: "in",
+        value: matchingIds,
+        negated: filter.negated,
+      };
+    } else {
+      // Deeper nesting: projectRole__project__organisation = 123
+      // Recursively resolve the next level
+      const nestedFilter: ParsedFilter = {
+        field: remainingPath,
+        lookup: filter.lookup,
+        value: filter.value,
+        negated: false, // Handle negation at the top level
+      };
+
+      // Recursively resolve on the related model
+      const resolvedNestedFilters = await this.resolveNestedFilters(
+        relatedModelClass as new () => Model,
+        [nestedFilter],
+      );
+
+      if (resolvedNestedFilters.length === 0) {
+        return null;
+      }
+
+      // Now fetch IDs from the related model that match the resolved filter
+      const matchingIds = await this.fetchIdsMatchingFilters(
+        relatedModelClass,
+        resolvedNestedFilters,
+      );
+
+      if (matchingIds.length === 0) {
+        return null;
+      }
+
+      // Get the column name for the FK field (e.g., projectRole -> projectRole_id)
+      const fkColumnName = fkField.getColumnName();
+
+      return {
+        field: fkColumnName,
+        lookup: "in",
+        value: matchingIds,
+        negated: filter.negated,
+      };
+    }
+  }
+
+  /**
+   * Fetch IDs from a related model where a field matches a condition
+   *
+   * @param modelClass - The related model class
+   * @param targetField - The field to filter on (field name, not column name)
+   * @param lookup - The lookup type
+   * @param value - The value to match
+   * @returns Array of matching primary key values
+   */
+  protected async fetchMatchingForeignKeyIds<T extends Model>(
+    modelClass: new () => T,
+    targetField: string,
+    lookup: LookupType,
+    value: unknown,
+  ): Promise<unknown[]> {
+    const instance = new modelClass();
+    const tableName = instance.getTableName();
+
+    // Translate field name to column name (handles ForeignKey -> _id suffix)
+    const columnName = this.getColumnNameForField(instance, targetField);
+
+    // Create a minimal query state for the related model
+    const filter: ParsedFilter = {
+      field: columnName,
+      lookup,
+      value,
+      negated: false,
+    };
+
+    // Use the backend's own execute method with a simple filter
+    const records = await this.executeSimpleFilter(tableName, [filter]);
+
+    // Extract primary keys
+    const pkField = instance.getPrimaryKeyField();
+    const pkName = pkField?.name ?? "id";
+
+    return records.map((r) => r[pkName]);
+  }
+
+  /**
+   * Get the column name for a field (handles ForeignKey translation)
+   *
+   * For ForeignKey fields, this returns the column name (e.g., "project_id")
+   * instead of the field name (e.g., "project").
+   *
+   * @param instance - A model instance to get fields from
+   * @param fieldName - The field name to translate
+   * @returns The database column name
+   */
+  protected getColumnNameForField<T extends Model>(
+    instance: T,
+    fieldName: string,
+  ): string {
+    const fields = instance.getFields();
+    const field = fields[fieldName];
+
+    if (field instanceof ForeignKey) {
+      return field.getColumnName();
+    }
+
+    return fieldName;
+  }
+
+  /**
+   * Fetch IDs from a model that match a set of filters
+   *
+   * @param modelClass - The model class
+   * @param filters - Filters to apply
+   * @returns Array of matching primary key values
+   */
+  protected async fetchIdsMatchingFilters<T extends Model>(
+    modelClass: new () => T,
+    filters: ParsedFilter[],
+  ): Promise<unknown[]> {
+    const instance = new modelClass();
+    const tableName = instance.getTableName();
+
+    const records = await this.executeSimpleFilter(tableName, filters);
+
+    const pkField = instance.getPrimaryKeyField();
+    const pkName = pkField?.name ?? "id";
+
+    return records.map((r) => r[pkName]);
+  }
+
+  /**
+   * Execute a simple filter query on a table
+   *
+   * This is an abstract method that NoSQL backends should implement
+   * to support nested lookup resolution. It performs a basic filter
+   * operation without the full QueryState machinery.
+   *
+   * @param tableName - The table/collection name
+   * @param filters - Filters to apply
+   * @returns Matching records
+   */
+  protected abstract executeSimpleFilter(
+    tableName: string,
+    filters: ParsedFilter[],
+  ): Promise<Record<string, unknown>[]>;
 
   /**
    * Evaluate a lookup operation
