@@ -111,10 +111,20 @@ export class ModelRegistry {
 
   /**
    * Register a model class
+   *
+   * If the model is already registered, this is a no-op.
+   * This allows safe registration from both Manager constructor
+   * and _initializeFields() fallback.
    */
   // deno-lint-ignore no-explicit-any
   register(model: any): void {
     const name = model.name;
+
+    // Skip if already registered (prevents duplicate _resolveRelations calls)
+    if (this._models.has(name)) {
+      return;
+    }
+
     this._models.set(name, model);
     this._resolveRelations(model);
   }
@@ -287,6 +297,29 @@ export abstract class Model {
   constructor() {
     // Fields are initialized lazily via _ensureFieldsInitialized()
     // This is needed because class fields are set after super() is called
+
+    // Wrap instance in Proxy for dynamic reverse relation access
+    // This allows accessing reverse relations even if the related model
+    // was registered after this instance was created
+    return new Proxy(this, {
+      get(target, prop, receiver) {
+        // First, try to get the property normally
+        const value = Reflect.get(target, prop, receiver);
+        if (value !== undefined) {
+          return value;
+        }
+
+        // If property is a string and not found, check if it's a reverse relation
+        if (typeof prop === "string" && !prop.startsWith("_")) {
+          const manager = target.getRelatedManager(prop);
+          if (manager) {
+            return manager;
+          }
+        }
+
+        return value;
+      },
+    });
   }
 
   /**
@@ -343,46 +376,6 @@ export abstract class Model {
     // Register the model if not already registered
     if (constructor !== Model) {
       ModelRegistry.instance.register(constructor);
-    }
-
-    // Initialize reverse relations (RelatedManagers) using lazy getters
-    this._initializeReverseRelations();
-  }
-
-  /**
-   * Initialize reverse relations (RelatedManagers) on this model instance
-   *
-   * This defines lazy getters for each ForeignKey that points to this model
-   * and has a relatedName defined. The RelatedManager is created on first access.
-   *
-   * Note: This is called during field initialization, but reverse relations
-   * are looked up dynamically to handle cases where related models are
-   * registered after this model.
-   */
-  private _initializeReverseRelations(): void {
-    const constructor = Object.getPrototypeOf(this).constructor;
-    const modelName = constructor.name;
-
-    // Get all reverse relations for this model
-    const reverseRelations = ModelRegistry.instance.getReverseRelations(
-      modelName,
-    );
-
-    for (const def of reverseRelations) {
-      // Skip if already defined (e.g., user defined a getter or property)
-      if (Object.getOwnPropertyDescriptor(this, def.relatedName)) {
-        continue;
-      }
-
-      // Capture def in closure for the getter
-      const relatedName = def.relatedName;
-
-      // Define a lazy getter that creates the RelatedManager on first access
-      Object.defineProperty(this, relatedName, {
-        get: () => this.getRelatedManager(relatedName),
-        enumerable: false,
-        configurable: true, // Allow re-definition if model is re-initialized
-      });
     }
   }
 

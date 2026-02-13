@@ -660,3 +660,134 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// Issue #41: Models registered at class definition time via Manager constructor
+// ============================================================================
+
+/**
+ * Test models for Issue #41
+ * These are defined in a specific order to test that reverse relations work
+ * regardless of which model is defined first.
+ */
+
+// Define the "target" model first (the one that FKs point to)
+class Department extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  // Declare reverse relation (filled at runtime)
+  declare employees: RelatedManager<Employee>;
+
+  static objects = new Manager(Department);
+  static override meta = {
+    dbTable: "departments",
+  };
+}
+
+// Define the "source" model second (the one with the FK)
+class Employee extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+  department = new ForeignKey<Department>("Department", {
+    onDelete: OnDelete.CASCADE,
+    relatedName: "employees",
+  });
+
+  static objects = new Manager(Employee);
+  static override meta = {
+    dbTable: "employees_issue41",
+  };
+}
+
+Deno.test({
+  name: "Issue #41 - Models registered at class definition time via Manager",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  fn() {
+    // This test verifies that models are registered when Manager is created
+    // (at class definition time), not when the first instance is created.
+    //
+    // Before the fix: reverse relations would be undefined if the related model
+    // hadn't been instantiated yet.
+    //
+    // After the fix: models are registered in Manager constructor, so reverse
+    // relations are available immediately.
+
+    // Check that both models are registered in the registry
+    // WITHOUT creating any instances first
+    const departmentClass = ModelRegistry.instance.get("Department");
+    const employeeClass = ModelRegistry.instance.get("Employee");
+
+    assertExists(departmentClass, "Department should be registered");
+    assertExists(employeeClass, "Employee should be registered");
+
+    // Check that reverse relations are already set up
+    const reverseRelations = ModelRegistry.instance.getReverseRelations(
+      "Department",
+    );
+    assertExists(reverseRelations, "Reverse relations should exist");
+    assertEquals(reverseRelations.length, 1, "Should have 1 reverse relation");
+    assertEquals(
+      reverseRelations[0].relatedName,
+      "employees",
+      "relatedName should be 'employees'",
+    );
+    assertEquals(
+      reverseRelations[0].relatedModelName,
+      "Employee",
+      "relatedModelName should be 'Employee'",
+    );
+    assertEquals(
+      reverseRelations[0].fieldName,
+      "department",
+      "fieldName should be 'department'",
+    );
+  },
+});
+
+Deno.test({
+  name: "Issue #41 - Reverse relations work without prior instantiation",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = await setupTestBackend();
+
+    try {
+      // Create data directly via Manager (not via new Model())
+      const dept = await Department.objects.create({ name: "Engineering" });
+
+      await Employee.objects.create({
+        name: "Alice",
+        department: dept,
+      });
+
+      await Employee.objects.create({
+        name: "Bob",
+        department: dept,
+      });
+
+      // Reload department from database
+      const loadedDept = await Department.objects.get({ id: dept.id.get() });
+
+      // The key assertion: reverse relation should be available
+      // even though we never explicitly instantiated Employee with new Employee()
+      assertExists(
+        loadedDept.employees,
+        "Reverse relation should be available",
+      );
+
+      // Use the reverse relation
+      const employees = await loadedDept.employees.all().fetch();
+      assertEquals(employees.length(), 2, "Should have 2 employees");
+
+      const count = await loadedDept.employees.count();
+      assertEquals(count, 2, "Count should be 2");
+
+      const exists = await loadedDept.employees.exists();
+      assertEquals(exists, true, "Employees should exist");
+    } finally {
+      await teardown(backend);
+    }
+  },
+});
