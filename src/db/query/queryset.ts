@@ -837,21 +837,21 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   /**
    * Get the loaded data as an array
    *
-   * @throws Error if fetch() has not been called
+   * If the QuerySet has not been fetched yet, returns an empty array.
+   * This allows synchronous access to cached data in render methods
+   * and RelatedManager access patterns.
    *
    * @example
    * ```ts
    * const projects = await Project.objects.filter({ active: true }).fetch();
    * const arr = projects.array(); // T[]
+   *
+   * // Also safe to call before fetch (returns empty array)
+   * const unfetched = Project.objects.filter({ active: true });
+   * unfetched.array(); // [] (no error)
    * ```
    */
   array(): T[] {
-    if (!this._isFetched) {
-      throw new Error(
-        "QuerySet not fetched. Call fetch() before array(). " +
-          "If you want to get results directly, use: const arr = (await qs.fetch()).array()",
-      );
-    }
     return this._cache ?? [];
   }
 

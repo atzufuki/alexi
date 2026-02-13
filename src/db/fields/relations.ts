@@ -4,6 +4,8 @@
  */
 
 import { Field, FieldOptions } from "./field.ts";
+import type { QuerySet } from "../query/queryset.ts";
+import type { Model } from "../models/model.ts";
 
 // ============================================================================
 // Relation Types
@@ -707,7 +709,7 @@ export class ManyToManyManager<T> {
  * await role.roleCompetences.create({ competence: 10 });
  * ```
  */
-export class RelatedManager<T> {
+export class RelatedManager<T extends Model> {
   private _sourceInstance: unknown;
   private _relatedModel: ModelClass<T>;
   private _fieldName: string;
@@ -758,12 +760,12 @@ export class RelatedManager<T> {
    * const competences = await role.roleCompetences.all().fetch();
    * ```
    */
-  // deno-lint-ignore no-explicit-any
-  all(): any {
+  all(): QuerySet<T> {
+    // deno-lint-ignore no-explicit-any
     const sourcePk = (this._sourceInstance as any).pk;
     const filter = { [this._fieldName]: sourcePk };
     // deno-lint-ignore no-explicit-any
-    let qs = (this._relatedModel as any).objects.filter(filter);
+    let qs: QuerySet<T> = (this._relatedModel as any).objects.filter(filter);
     const backend = this._getBackend();
     if (backend) {
       qs = qs.using(backend);
@@ -782,8 +784,7 @@ export class RelatedManager<T> {
    * const filtered = await role.roleCompetences.filter({ level: 3 }).fetch();
    * ```
    */
-  // deno-lint-ignore no-explicit-any
-  filter(filters: Record<string, unknown>): any {
+  filter(filters: Record<string, unknown>): QuerySet<T> {
     return this.all().filter(filters);
   }
 
@@ -793,8 +794,7 @@ export class RelatedManager<T> {
    * @param filters - Exclusion conditions
    * @returns Filtered QuerySet
    */
-  // deno-lint-ignore no-explicit-any
-  exclude(filters: Record<string, unknown>): any {
+  exclude(filters: Record<string, unknown>): QuerySet<T> {
     return this.all().exclude(filters);
   }
 
