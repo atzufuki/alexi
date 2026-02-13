@@ -192,6 +192,13 @@ class MockRestBackend extends DatabaseBackend {
   ): import("../query/types.ts").CompiledQuery {
     return { sql: "", params: [] };
   }
+
+  protected executeSimpleFilter(
+    _tableName: string,
+    _filters: import("../query/types.ts").ParsedFilter[],
+  ): Promise<Record<string, unknown>[]> {
+    return Promise.resolve([]);
+  }
 }
 
 // ============================================================================
