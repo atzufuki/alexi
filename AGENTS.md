@@ -268,6 +268,70 @@ const result = await drafts.save();
 // result: { inserted: 0, updated: 5, failed: 0, total: 5, errors: [] }
 ```
 
+### Eager Loading with selectRelated
+
+Use `selectRelated()` to eagerly load ForeignKey relations, avoiding N+1 query
+problems. Related objects are fetched in a single batched query.
+
+```typescript
+// Load projects with their organisation pre-loaded
+const projects = await ProjectModel.objects
+  .selectRelated("organisation")
+  .fetch();
+
+for (const project of projects.array()) {
+  // No additional query - organisation is already loaded
+  console.log(project.organisation.isLoaded()); // true
+  console.log(project.organisation.get().name.get()); // Works without fetch()
+}
+```
+
+#### Nested Relations
+
+Use Django's double-underscore syntax for nested relations:
+
+```typescript
+// Load competences with projectRole and projectRole.project pre-loaded
+const competences = await ProjectRoleCompetenceModel.objects
+  .selectRelated("projectRole__project")
+  .fetch();
+
+for (const comp of competences.array()) {
+  // All levels are pre-loaded
+  const role = comp.projectRole.get(); // No fetch needed
+  const project = role.project.get(); // No fetch needed
+  console.log(project.name.get());
+}
+
+// 3-level nesting
+const competences = await ProjectRoleCompetenceModel.objects
+  .selectRelated("projectRole__project__organisation")
+  .fetch();
+
+// Multiple relations
+const items = await Model.objects
+  .selectRelated("author", "category__parent")
+  .fetch();
+```
+
+#### How It Works
+
+1. Initial query fetches the main objects
+2. For each selectRelated field, collects all FK IDs
+3. Fetches related objects in a single batched query (`WHERE id IN [...]`)
+4. Sets related instances on ForeignKey fields via `setRelatedInstance()`
+5. For nested relations, recursively processes each level
+
+#### ForeignKey Methods for Eager Loading
+
+| Method                       | Description                                            |
+| ---------------------------- | ------------------------------------------------------ |
+| `fk.id`                      | Get FK ID without loading (always available)           |
+| `fk.isLoaded()`              | Check if related object is loaded                      |
+| `fk.get()`                   | Get loaded instance (throws if not loaded)             |
+| `fk.fetch()`                 | Lazy-load the related object (returns Promise)         |
+| `fk.setRelatedInstance(obj)` | Set loaded instance (used internally by selectRelated) |
+
 ### Reverse Relations (RelatedManager)
 
 ForeignKey fields can define a `relatedName` to create reverse relations on the
@@ -1334,6 +1398,30 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
 10. **RestBackend `request()` is protected**: Subclasses can use
     `this.request<T>(path, options)` to make authenticated HTTP calls for
     app-specific endpoints without reimplementing token management.
+
+11. **Use selectRelated for ForeignKey eager loading**: Avoid N+1 queries by
+    using `selectRelated()` to batch-load related objects:
+    ```typescript
+    // Without selectRelated - N+1 queries
+    const projects = await ProjectModel.objects.all().fetch();
+    for (const p of projects.array()) {
+      await p.organisation.fetch(); // One query per project!
+    }
+
+    // With selectRelated - 2 queries total
+    const projects = await ProjectModel.objects
+      .selectRelated("organisation")
+      .fetch();
+    for (const p of projects.array()) {
+      p.organisation.get(); // Already loaded, no query
+    }
+
+    // Nested relations with double-underscore syntax
+    .selectRelated("projectRole__project__organisation")
+    ```
+
+12. **ForeignKey.get() throws if not loaded**: Always check `isLoaded()` or use
+    `selectRelated()` / `fetch()` before calling `get()` on ForeignKey fields.
 
 ---
 
