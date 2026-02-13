@@ -476,7 +476,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "QuerySet - .array() throws if not fetched",
+  name: "QuerySet - .array() returns empty array if not fetched",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
@@ -489,16 +489,15 @@ Deno.test({
 
       const qs = Organisation.objects.all(); // Not fetched
 
-      try {
-        qs.array();
-        throw new Error("Expected error was not thrown");
-      } catch (error) {
-        assertEquals(
-          (error as Error).message.includes("not fetched"),
-          true,
-          "Error should mention QuerySet not fetched",
-        );
-      }
+      // Issue #44: array() now returns empty array instead of throwing
+      const arr = qs.array();
+      assertEquals(arr, [], "Should return empty array when not fetched");
+      assertEquals(arr.length, 0, "Array length should be 0");
+
+      // After fetch, array() should return data
+      await qs.fetch();
+      const fetchedArr = qs.array();
+      assertEquals(fetchedArr.length, 1, "Should have 1 item after fetch");
     } finally {
       await reset();
       await backend.disconnect();
@@ -772,20 +771,14 @@ Deno.test({
 
       const qs = await Organisation.objects.all().fetch();
       assertEquals(qs.isFetched(), true);
+      assertEquals(qs.array().length, 1, "Should have 1 item after fetch");
 
       qs.clearCache();
       assertEquals(qs.isFetched(), false);
 
-      // array() should throw now
-      try {
-        qs.array();
-        throw new Error("Expected error was not thrown");
-      } catch (error) {
-        assertEquals(
-          (error as Error).message.includes("not fetched"),
-          true,
-        );
-      }
+      // Issue #44: array() now returns empty array instead of throwing
+      const arr = qs.array();
+      assertEquals(arr, [], "Should return empty array after clearCache()");
     } finally {
       await reset();
       await backend.disconnect();
