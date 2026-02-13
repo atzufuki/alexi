@@ -39,6 +39,7 @@ export {
   ManyToManyManager,
   OnDelete,
   OneToOneField,
+  RelatedManager,
 } from "./relations.ts";
 
 export type {

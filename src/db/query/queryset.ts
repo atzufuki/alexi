@@ -278,12 +278,39 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
       }
     }
 
+    // Translate ForeignKey field names to column names for database filtering
+    // e.g., "projectRole" -> "projectRole_id"
+    const columnField = this._getColumnNameForField(field);
+
     return {
-      field,
+      field: columnField,
       lookup,
       value,
       negated: false,
     };
+  }
+
+  /**
+   * Get the column name for a field (handles ForeignKey translation)
+   *
+   * For ForeignKey fields, this returns the column name (e.g., "projectRole_id")
+   * instead of the field name (e.g., "projectRole").
+   */
+  private _getColumnNameForField(fieldName: string): string {
+    try {
+      const instance = new this._state.model();
+      const fields = instance.getFields();
+      const field = fields[fieldName];
+
+      if (field instanceof ForeignKey) {
+        return field.getColumnName();
+      }
+
+      return fieldName;
+    } catch {
+      // If we can't instantiate the model, just return the field name
+      return fieldName;
+    }
   }
 
   /**

@@ -98,6 +98,7 @@ export {
   ManyToManyManager,
   OnDelete,
   OneToOneField,
+  RelatedManager,
 } from "./fields/mod.ts";
 
 export type {
