@@ -18,7 +18,7 @@ export function generateUiHomeTs(name: string): string {
 
 import { HTMLPropsMixin, prop, ref } from "@html-props/core";
 import { Div, Li, Span, Style, Ul } from "@html-props/built-ins";
-import { Column, Row } from "@html-props/layout";
+import { Column, Container, Expanded, Row } from "@html-props/layout";
 import type { QuerySet } from "@alexi/db";
 import { TodoModel } from "@${name}-ui/models.ts";
 import { rest } from "@${name}-ui/settings.ts";
@@ -118,8 +118,13 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   override render(): Node[] {
     return [
       new Style({ textContent: HOME_STYLES }),
-      new Div({
+      new Container({
         className: "home-container",
+        style: {
+          minHeight: "100vh",
+          background: "var(--bg-color)",
+          padding: "2rem 1.5rem",
+        },
         content: [
           // Header section with theme toggle
           new Row({
@@ -166,37 +171,31 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
             className: "home-card",
             content: [
               // Input section
-              new Div({
+              new Row({
                 dataset: { key: "input-section" },
-                className: "home-input-section",
+                gap: "12px",
+                crossAxisAlignment: "center",
+                style: { padding: "1.5rem" },
                 content: [
-                  new Row({
-                    gap: "12px",
-                    crossAxisAlignment: "stretch",
+                  new Expanded({
+                    onkeydown: this.handleKeyDown,
+                    content: new DSInput({
+                      ref: this.inputRef,
+                      placeholder: "What needs to be done?",
+                      size: "lg",
+                      value: this.newTodoTitle,
+                      onchange: this.handleInputChange,
+                      style: { width: "100%" },
+                    }),
+                  }),
+                  new DSButton({
+                    variant: "primary",
+                    size: "lg",
+                    disabled: !this.newTodoTitle.trim(),
+                    onclick: this.handleSubmit,
                     content: [
-                      new Div({
-                        style: { flex: "1" },
-                        onkeydown: this.handleKeyDown,
-                        content: [
-                          new DSInput({
-                            ref: this.inputRef,
-                            placeholder: "What needs to be done?",
-                            size: "lg",
-                            value: this.newTodoTitle,
-                            onchange: this.handleInputChange,
-                          }),
-                        ],
-                      }),
-                      new DSButton({
-                        variant: "primary",
-                        size: "lg",
-                        disabled: !this.newTodoTitle.trim(),
-                        onclick: this.handleSubmit,
-                        content: [
-                          new DSIcon({ name: "plus", size: "sm" }),
-                          new Span({ textContent: "Add Task" }),
-                        ],
-                      }),
+                      new DSIcon({ name: "plus", size: "sm" }),
+                      new Span({ textContent: "Add Task" }),
                     ],
                   }),
                 ],
@@ -344,6 +343,10 @@ const HOME_STYLES = \`
 
   :host {
     display: block;
+    margin: 0;
+    padding: 0;
+
+    /* Color tokens */
     --alexi-primary-400: #34d399;
     --alexi-primary-500: #10b981;
     --alexi-primary-600: #059669;
@@ -362,24 +365,16 @@ const HOME_STYLES = \`
     --alexi-neutral-900: #18181b;
     --alexi-neutral-950: #09090b;
 
-    /* Background */
-    --bg-color: var(--alexi-neutral-100);
-    --card-bg: var(--alexi-neutral-0);
-    --card-border: var(--alexi-neutral-200);
-    --text-primary: var(--alexi-neutral-900);
-    --text-secondary: var(--alexi-neutral-600);
-    --text-muted: var(--alexi-neutral-500);
-    --divider: var(--alexi-neutral-200);
+    /* Semantic tokens - light mode defaults */
+    --bg-color: var(--alexi-neutral-950);
+    --divider: var(--alexi-neutral-700);
   }
 
   .home-container {
-    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 2rem 1.5rem;
     font-family: "Nunito", system-ui, sans-serif;
-    background: var(--bg-color);
     transition: background-color 200ms ease;
   }
 
@@ -396,9 +391,7 @@ const HOME_STYLES = \`
     max-width: 560px;
   }
 
-  .home-input-section {
-    padding: 1.5rem;
-  }
+
 
   .home-divider {
     height: 1px;
@@ -475,79 +468,31 @@ const HOME_STYLES = \`
      DARK MODE
      ========================================================================= */
 
-  @media (prefers-color-scheme: dark) {
-    :host {
-      --bg-color: var(--alexi-neutral-950);
-      --card-bg: var(--alexi-neutral-800);
-      --card-border: var(--alexi-neutral-700);
-      --text-primary: var(--alexi-neutral-100);
-      --text-secondary: var(--alexi-neutral-400);
-      --text-muted: var(--alexi-neutral-500);
-      --divider: var(--alexi-neutral-700);
-    }
-
-    .home-stats {
-      background: var(--alexi-neutral-900);
-      border-bottom-color: var(--alexi-neutral-700);
-    }
-
-    .home-stats-dot {
-      color: var(--alexi-neutral-600);
-    }
-
-    .todo-item {
-      border-bottom-color: var(--alexi-neutral-700);
-    }
-
-    .todo-item:hover {
-      background-color: var(--alexi-neutral-700);
-    }
-
-    .home-footer-link {
-      color: var(--alexi-primary-400);
-    }
-  }
-
-  /* Explicit theme support via data-theme attribute */
-  :host-context([data-theme="dark"]) {
-    --bg-color: var(--alexi-neutral-950);
-    --card-bg: var(--alexi-neutral-800);
-    --card-border: var(--alexi-neutral-700);
-    --text-primary: var(--alexi-neutral-100);
-    --text-secondary: var(--alexi-neutral-400);
-    --text-muted: var(--alexi-neutral-500);
-    --divider: var(--alexi-neutral-700);
-  }
-
-  :host-context([data-theme="dark"]) .home-stats {
-    background: var(--alexi-neutral-900);
-    border-bottom-color: var(--alexi-neutral-700);
-  }
-
-  :host-context([data-theme="dark"]) .home-stats-dot {
-    color: var(--alexi-neutral-600);
-  }
-
-  :host-context([data-theme="dark"]) .todo-item {
-    border-bottom-color: var(--alexi-neutral-700);
-  }
-
-  :host-context([data-theme="dark"]) .todo-item:hover {
-    background-color: var(--alexi-neutral-700);
-  }
-
-  :host-context([data-theme="dark"]) .home-footer-link {
-    color: var(--alexi-primary-400);
-  }
-
+  /* Light mode via data-theme attribute */
   :host-context([data-theme="light"]) {
     --bg-color: var(--alexi-neutral-100);
-    --card-bg: var(--alexi-neutral-0);
-    --card-border: var(--alexi-neutral-200);
-    --text-primary: var(--alexi-neutral-900);
-    --text-secondary: var(--alexi-neutral-600);
-    --text-muted: var(--alexi-neutral-500);
     --divider: var(--alexi-neutral-200);
+  }
+
+  :host-context([data-theme="light"]) .home-stats {
+    background: var(--alexi-neutral-50);
+    border-bottom-color: var(--alexi-neutral-200);
+  }
+
+  :host-context([data-theme="light"]) .home-stats-dot {
+    color: var(--alexi-neutral-300);
+  }
+
+  :host-context([data-theme="light"]) .todo-item {
+    border-bottom-color: var(--alexi-neutral-100);
+  }
+
+  :host-context([data-theme="light"]) .todo-item:hover {
+    background-color: var(--alexi-neutral-50);
+  }
+
+  :host-context([data-theme="light"]) .home-footer-link {
+    color: var(--alexi-primary-600);
   }
 \`;
 `;
