@@ -149,12 +149,14 @@ const INPUT_STYLES = \`
 
   :host {
     display: block;
+    width: 100%;
   }
 
   .ds-input-wrapper {
     display: flex;
     flex-direction: column;
     gap: 0.375rem;
+    width: 100%;
     font-family: "Nunito", system-ui, -apple-system, sans-serif;
   }
 
