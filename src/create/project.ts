@@ -38,6 +38,7 @@ import { generateUiUrlsTs } from "./templates/ui/urls_ts.ts";
 import { generateUiMainTs } from "./templates/ui/main_ts.ts";
 import { generateUiHomeTs } from "./templates/ui/templates/home_ts.ts";
 import { generateUiComponentsModTs } from "./templates/ui/components/mod_ts.ts";
+import { generateAlexiButtonTs } from "./templates/ui/components/alexi_button_ts.ts";
 
 // Template imports - Desktop app
 import { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
@@ -244,6 +245,10 @@ async function generateFiles(name: string): Promise<void> {
     {
       path: `${name}/src/${name}-ui/components/mod.ts`,
       content: generateUiComponentsModTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/alexi_button.ts`,
+      content: generateAlexiButtonTs(),
     },
     {
       path: `${name}/src/${name}-ui/static/${name}-ui/index.html`,

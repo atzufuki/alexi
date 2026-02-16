@@ -16,7 +16,10 @@ export function generateUiComponentsModTs(): string {
  * @module components
  */
 
-// Add component imports here as you create them
-// Example: import "./my_button.ts";
+// Alexi Design System components
+import "./alexi_button.ts";
+
+// Re-export for convenience
+export { AlexiButton } from "./alexi_button.ts";
 `;
 }
