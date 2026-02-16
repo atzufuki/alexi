@@ -1,7 +1,7 @@
 /**
  * .gitignore template generator
  *
- * @module @alexi/create/templates/gitignore
+ * @module @alexi/create/templates/root/gitignore
  */
 
 /**
@@ -11,16 +11,16 @@ export function generateGitignore(): string {
   return `# Dependencies
 node_modules/
 
-# Deno
-.deno/
-
-# Build outputs
+# Build output
 dist/
-build/
-.bundle/
+.parcel-cache/
 
-# Static files (collected)
-staticfiles/
+# Static files (generated)
+static/
+
+# Database
+*.db
+*.sqlite
 
 # Environment
 .env
@@ -42,20 +42,11 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Test
+# Test coverage
 coverage/
-.playwright/
 
-# Database (local dev)
-*.db
-*.db-shm
-*.db-wal
-.test_db_*
-
-# Compiled binaries
-*.exe
-*.dll
-*.so
-*.dylib
+# Temporary files
+tmp/
+temp/
 `;
 }

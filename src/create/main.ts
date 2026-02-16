@@ -2,11 +2,13 @@
 /**
  * @alexi/create - Project scaffolding CLI for Alexi
  *
- * Creates new Alexi projects with proper structure.
+ * Creates a full-stack Todo application with web, ui, and desktop apps.
  *
  * @example
  * ```bash
- * deno run -A jsr:@alexi/create myproject
+ * deno run -A jsr:@alexi/create my-project
+ * cd my-project
+ * deno task dev
  * ```
  *
  * @module @alexi/create
@@ -16,7 +18,7 @@ import { parseArgs } from "./args.ts";
 import { createProject } from "./project.ts";
 import { printHelp, printVersion } from "./help.ts";
 
-const VERSION = "0.6.0";
+const VERSION = "0.15.0";
 
 async function main(): Promise<number> {
   const args = parseArgs(Deno.args);
@@ -35,7 +37,7 @@ async function main(): Promise<number> {
     console.error("Error: Project name is required.");
     console.error("");
     console.error(
-      "Usage: deno run -A jsr:@alexi/create <project-name> [options]",
+      "Usage: deno run -A jsr:@alexi/create <project-name>",
     );
     console.error("");
     console.error("Run with --help for more options.");
@@ -45,11 +47,6 @@ async function main(): Promise<number> {
   try {
     await createProject({
       name: args.projectName,
-      withRest: args.withRest,
-      withAdmin: args.withAdmin,
-      withAuth: args.withAuth,
-      database: args.database,
-      noInput: args.noInput,
     });
 
     console.log("");
@@ -58,6 +55,11 @@ async function main(): Promise<number> {
     console.log("Next steps:");
     console.log(`  cd ${args.projectName}`);
     console.log("  deno task dev");
+    console.log("");
+    console.log("This will start:");
+    console.log("  • Web server (REST API) on http://localhost:8000");
+    console.log("  • UI server (frontend) on http://localhost:5173");
+    console.log("  • Desktop WebUI window");
     console.log("");
 
     return 0;
