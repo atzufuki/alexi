@@ -39,11 +39,16 @@ jobs:
       - name: Run unit tests
         run: deno task test:unit
 
+      - name: Cache Deno dependencies for E2E
+        run: deno cache --unstable-kv src/create/tests/todo_e2e_test.ts
+
       - name: Install Playwright browsers
         run: deno run -A npm:playwright install chromium
 
       - name: Run E2E tests
         run: deno task test:e2e
+        env:
+          HEADLESS: "true"
 
       - name: Find workspace packages
         id: find-packages
