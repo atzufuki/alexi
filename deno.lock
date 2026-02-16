@@ -1,6 +1,8 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@alexi/db@0.16": "0.16.0",
+    "jsr:@alexi/db@0.16.0": "0.16.0",
     "jsr:@luca/esbuild-deno-loader@~0.11.1": "0.11.1",
     "jsr:@std/assert@*": "1.0.18",
     "jsr:@std/assert@1": "1.0.18",
@@ -18,6 +20,9 @@
     "npm:playwright@^1.48.0": "1.58.2"
   },
   "jsr": {
+    "@alexi/db@0.16.0": {
+      "integrity": "0099d4984ebdbe9deeaf26ec527d5958c17388d519e88f5cdd375e5a40a545fa"
+    },
     "@luca/esbuild-deno-loader@0.11.1": {
       "integrity": "dc020d16d75b591f679f6b9288b10f38bdb4f24345edb2f5732affa1d9885267",
       "dependencies": [

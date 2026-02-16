@@ -396,14 +396,12 @@ describe("Todo App E2E Tests", {
   // ===========================================================================
 
   describe("Toggle Todo", () => {
-    // TODO: This test is skipped due to a complex backend/endpoint resolution issue.
-    // When toggle runs, requests to /apiundefined (404) appear in the logs between
-    // valid REST operations. The issue seems related to how Model instances are
-    // tracked across backends - when saving to IndexedDB after REST, something
-    // triggers malformed HTTP requests. This needs deeper investigation of:
-    // 1. How QuerySet.using() clones state and backend references
-    // 2. Whether Model instances retain backend metadata incorrectly
-    // 3. If there's an observer/hook pattern firing unintended REST calls
+    // TODO: This test is skipped until @alexi/db@0.16.1+ is published to JSR.
+    // The fix (commit 32263a4) is in this PR but not yet released:
+    // - extractData() was calling .get() on _backend property
+    // - This accidentally invoked RestBackend.get() HTTP method
+    // - Resulting in requests to '/apiundefined'
+    // Once this PR is merged and a new version published, unskip this test.
     it.skip("should toggle todo completion when clicking checkbox", async () => {
       await navigateToHome();
 
