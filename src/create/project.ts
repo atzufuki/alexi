@@ -1,31 +1,55 @@
 /**
  * Project generator for @alexi/create CLI
  *
+ * Generates a full-stack Todo application with web, ui, and desktop apps.
+ *
  * @module @alexi/create/project
  */
 
-import type { DatabaseBackend } from "./args.ts";
-import { generateDenoJson } from "./templates/deno_json.ts";
-import { generateManageTs } from "./templates/manage_ts.ts";
-import { generateSettings } from "./templates/settings.ts";
-import { generateAppTs } from "./templates/app_ts.ts";
-import { generateModelsTs } from "./templates/models_ts.ts";
-import { generateUrlsTs } from "./templates/urls_ts.ts";
-import { generateViewsTs } from "./templates/views_ts.ts";
-import { generateGitignore } from "./templates/gitignore.ts";
-import { generateReadme } from "./templates/readme.ts";
+// Template imports - Root files
+import { generateDenoJsonc } from "./templates/root/deno_jsonc.ts";
+import { generateManageTs } from "./templates/root/manage_ts.ts";
+import { generateGitignore } from "./templates/root/gitignore.ts";
+import { generateReadme } from "./templates/root/readme.ts";
+
+// Template imports - Project settings
+import { generateSharedSettings } from "./templates/project/settings_ts.ts";
+import { generateWebSettings } from "./templates/project/web_settings_ts.ts";
+import { generateUiSettings } from "./templates/project/ui_settings_ts.ts";
+import { generateDesktopSettings } from "./templates/project/desktop_settings_ts.ts";
+
+// Template imports - Web app
+import { generateWebAppTs } from "./templates/web/app_ts.ts";
+import { generateWebModTs } from "./templates/web/mod_ts.ts";
+import { generateWebModelsTs } from "./templates/web/models_ts.ts";
+import { generateWebSerializersTs } from "./templates/web/serializers_ts.ts";
+import { generateWebViewsetsTs } from "./templates/web/viewsets_ts.ts";
+import { generateWebUrlsTs } from "./templates/web/urls_ts.ts";
+
+// Template imports - UI app
+import { generateUiAppTs } from "./templates/ui/app_ts.ts";
+import { generateUiModTs } from "./templates/ui/mod_ts.ts";
+import { generateUiModelsTs } from "./templates/ui/models_ts.ts";
+import { generateUiEndpointsTs } from "./templates/ui/endpoints_ts.ts";
+import { generateUiSettingsTs } from "./templates/ui/settings_ts.ts";
+import { generateUiUtilsTs } from "./templates/ui/utils_ts.ts";
+import { generateUiViewsTs } from "./templates/ui/views_ts.ts";
+import { generateUiUrlsTs } from "./templates/ui/urls_ts.ts";
+import { generateUiMainTs } from "./templates/ui/main_ts.ts";
+import { generateUiHomeTs } from "./templates/ui/templates/home_ts.ts";
+import { generateUiComponentsModTs } from "./templates/ui/components/mod_ts.ts";
+
+// Template imports - Desktop app
+import { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
+import { generateDesktopModTs } from "./templates/desktop/mod_ts.ts";
+import { generateDesktopBindingsTs } from "./templates/desktop/bindings_ts.ts";
 
 export interface ProjectOptions {
   name: string;
-  withRest: boolean;
-  withAdmin: boolean;
-  withAuth: boolean;
-  database: DatabaseBackend;
-  noInput: boolean;
 }
 
 /**
- * Create a new Alexi project
+ * Create a new Alexi full-stack project
  */
 export async function createProject(options: ProjectOptions): Promise<void> {
   const { name } = options;
@@ -49,14 +73,14 @@ export async function createProject(options: ProjectOptions): Promise<void> {
     }
   }
 
-  console.log(`Creating project "${name}"...`);
+  console.log(`Creating full-stack project "${name}"...`);
   console.log("");
 
   // Create directory structure
   await createDirectories(name);
 
   // Generate files
-  await generateFiles(name, options);
+  await generateFiles(name);
 
   console.log("✓ Created project structure");
 }
@@ -73,11 +97,22 @@ function isValidProjectName(name: string): boolean {
  */
 async function createDirectories(name: string): Promise<void> {
   const dirs = [
+    // Root
     name,
+    // Project settings
     `${name}/project`,
+    // Source
     `${name}/src`,
-    `${name}/src/${name}`,
-    `${name}/src/${name}/tests`,
+    // Web app
+    `${name}/src/${name}-web`,
+    `${name}/src/${name}-web/tests`,
+    // UI app
+    `${name}/src/${name}-ui`,
+    `${name}/src/${name}-ui/templates`,
+    `${name}/src/${name}-ui/components`,
+    `${name}/src/${name}-ui/static/${name}-ui`,
+    // Desktop app
+    `${name}/src/${name}-desktop`,
   ];
 
   for (const dir of dirs) {
@@ -89,15 +124,14 @@ async function createDirectories(name: string): Promise<void> {
 /**
  * Generate all project files
  */
-async function generateFiles(
-  name: string,
-  options: ProjectOptions,
-): Promise<void> {
+async function generateFiles(name: string): Promise<void> {
   const files: Array<{ path: string; content: string }> = [
+    // ==========================================================================
     // Root files
+    // ==========================================================================
     {
-      path: `${name}/deno.json`,
-      content: generateDenoJson(name, options),
+      path: `${name}/deno.jsonc`,
+      content: generateDenoJsonc(name),
     },
     {
       path: `${name}/manage.ts`,
@@ -111,31 +145,125 @@ async function generateFiles(
       path: `${name}/README.md`,
       content: generateReadme(name),
     },
+
+    // ==========================================================================
     // Project settings
+    // ==========================================================================
     {
       path: `${name}/project/settings.ts`,
-      content: generateSettings(name, options),
-    },
-    // Default app
-    {
-      path: `${name}/src/${name}/app.ts`,
-      content: generateAppTs(name),
+      content: generateSharedSettings(name),
     },
     {
-      path: `${name}/src/${name}/models.ts`,
-      content: generateModelsTs(name),
+      path: `${name}/project/web.settings.ts`,
+      content: generateWebSettings(name),
     },
     {
-      path: `${name}/src/${name}/urls.ts`,
-      content: generateUrlsTs(name),
+      path: `${name}/project/ui.settings.ts`,
+      content: generateUiSettings(name),
     },
     {
-      path: `${name}/src/${name}/views.ts`,
-      content: generateViewsTs(name),
+      path: `${name}/project/desktop.settings.ts`,
+      content: generateDesktopSettings(name),
+    },
+
+    // ==========================================================================
+    // Web app (backend API)
+    // ==========================================================================
+    {
+      path: `${name}/src/${name}-web/app.ts`,
+      content: generateWebAppTs(name),
     },
     {
-      path: `${name}/src/${name}/tests/basic_test.ts`,
-      content: generateBasicTest(name),
+      path: `${name}/src/${name}-web/mod.ts`,
+      content: generateWebModTs(name),
+    },
+    {
+      path: `${name}/src/${name}-web/models.ts`,
+      content: generateWebModelsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-web/serializers.ts`,
+      content: generateWebSerializersTs(name),
+    },
+    {
+      path: `${name}/src/${name}-web/viewsets.ts`,
+      content: generateWebViewsetsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-web/urls.ts`,
+      content: generateWebUrlsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-web/tests/todo_test.ts`,
+      content: generateWebTodoTest(name),
+    },
+
+    // ==========================================================================
+    // UI app (frontend SPA)
+    // ==========================================================================
+    {
+      path: `${name}/src/${name}-ui/app.ts`,
+      content: generateUiAppTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/mod.ts`,
+      content: generateUiModTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/models.ts`,
+      content: generateUiModelsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/endpoints.ts`,
+      content: generateUiEndpointsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/settings.ts`,
+      content: generateUiSettingsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/utils.ts`,
+      content: generateUiUtilsTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/views.ts`,
+      content: generateUiViewsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/urls.ts`,
+      content: generateUiUrlsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/main.ts`,
+      content: generateUiMainTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/templates/home.ts`,
+      content: generateUiHomeTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/mod.ts`,
+      content: generateUiComponentsModTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/static/${name}-ui/index.html`,
+      content: generateIndexHtml(name),
+    },
+
+    // ==========================================================================
+    // Desktop app (WebUI)
+    // ==========================================================================
+    {
+      path: `${name}/src/${name}-desktop/app.ts`,
+      content: generateDesktopAppTs(name),
+    },
+    {
+      path: `${name}/src/${name}-desktop/mod.ts`,
+      content: generateDesktopModTs(name),
+    },
+    {
+      path: `${name}/src/${name}-desktop/bindings.ts`,
+      content: generateDesktopBindingsTs(),
     },
   ];
 
@@ -146,17 +274,109 @@ async function generateFiles(
 }
 
 /**
- * Generate basic test file
+ * Generate basic todo test file
  */
-function generateBasicTest(name: string): string {
+function generateWebTodoTest(name: string): string {
+  const appName = toPascalCase(name);
+
   return `/**
- * Basic tests for ${name}
+ * Todo API tests for ${name}
  */
 
-import { assertEquals } from "jsr:@std/assert@1";
+import { assertEquals, assertExists } from "jsr:@std/assert@1";
+import { reset, setup } from "@alexi/db";
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { TodoModel } from "@${name}-web/models.ts";
 
-Deno.test("${name}: basic test", () => {
-  assertEquals(1 + 1, 2);
+Deno.test({
+  name: "${appName}: TodoModel CRUD",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    // Setup in-memory database
+    const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      // Create
+      const todo = await TodoModel.objects.create({
+        title: "Test Todo",
+        completed: false,
+      });
+
+      assertExists(todo.id.get());
+      assertEquals(todo.title.get(), "Test Todo");
+      assertEquals(todo.completed.get(), false);
+
+      // Update
+      todo.completed.set(true);
+      await todo.save();
+
+      const updated = await TodoModel.objects.get({ id: todo.id.get() });
+      assertEquals(updated.completed.get(), true);
+
+      // Delete
+      await todo.delete();
+      const deleted = await TodoModel.objects
+        .filter({ id: todo.id.get() })
+        .first();
+      assertEquals(deleted, null);
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
 });
 `;
+}
+
+/**
+ * Generate index.html for the UI app
+ */
+function generateIndexHtml(name: string): string {
+  const appName = toPascalCase(name);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${appName}</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background-color: #f5f5f5;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    #app {
+      min-height: 100vh;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">Loading...</div>
+  <script type="module" src="/bundle.js"></script>
+</body>
+</html>
+`;
+}
+
+/**
+ * Convert kebab-case to PascalCase
+ */
+function toPascalCase(str: string): string {
+  return str
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
 }
