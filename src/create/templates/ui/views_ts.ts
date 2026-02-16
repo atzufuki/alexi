@@ -42,8 +42,10 @@ export async function home(
     fetch: async (): Promise<void> => {
       const template = templateRef.current!;
       try {
-        // Fetch fresh data from REST API via sync backend
-        const fresh = await TodoModel.objects.using("sync").all().fetch();
+        // Fetch fresh data from REST API
+        const fresh = await TodoModel.objects.using("rest").all().fetch();
+        // Save to IndexedDB for offline access
+        await fresh.using("indexeddb").save();
         template.todos = fresh;
       } catch (error) {
         console.error("Error fetching todos:", error);
