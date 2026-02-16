@@ -172,6 +172,7 @@ const INPUT_STYLES = \`
 
   .ds-input {
     width: 100%;
+    box-sizing: border-box;
     border: 2px solid #e4e4e7;
     border-radius: 0.75rem;
     font-family: inherit;

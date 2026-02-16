@@ -179,7 +179,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
                       placeholder: "What needs to be done?",
                       size: "lg",
                       value: this.newTodoTitle,
-                      onchange: this.handleInputChange,
+                      oninput: this.handleInputChange,
                       style: { width: "100%" },
                     }),
                   }),
@@ -410,7 +410,7 @@ const HOME_STYLES = \`
   /* Stats bar */
   .home-stats {
     padding: 0.75rem 1.5rem;
-    background: var(--alexi-neutral-50);
+    background: var(--alexi-neutral-900);
     border-bottom: 1px solid var(--divider);
   }
 
@@ -430,12 +430,13 @@ const HOME_STYLES = \`
     align-items: center;
     gap: 0.75rem;
     padding: 1rem 1.5rem;
-    border-bottom: 1px solid var(--alexi-neutral-100);
+    border-bottom: 1px solid var(--alexi-neutral-700);
     transition: background-color 150ms ease;
+    background: transparent;
   }
 
   .todo-item:hover {
-    background-color: var(--alexi-neutral-50);
+    background-color: var(--alexi-neutral-800);
   }
 
   .todo-item-last {
@@ -482,11 +483,11 @@ const HOME_STYLES = \`
   }
 
   :host-context([data-theme="light"]) .todo-item {
-    border-bottom-color: var(--alexi-neutral-100);
+    border-bottom-color: var(--alexi-neutral-200);
   }
 
   :host-context([data-theme="light"]) .todo-item:hover {
-    background-color: var(--alexi-neutral-50);
+    background-color: var(--alexi-neutral-100);
   }
 
   :host-context([data-theme="light"]) .home-footer-link {
