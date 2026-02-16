@@ -166,6 +166,13 @@ export function generateGlobalCss(): string {
 html {
   font-size: 16px;
   scroll-behavior: smooth;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -175,13 +182,8 @@ body {
   font-size: 1rem;
   line-height: 1.5;
   color: var(--alexi-text);
-  background: linear-gradient(
-    135deg,
-    var(--alexi-surface-dim) 0%,
-    var(--alexi-surface) 50%,
-    var(--alexi-surface-dim) 100%
-  );
-  min-height: 100vh;
+  background: var(--alexi-surface-dim);
+  min-height: 100%;
   transition:
     background-color var(--alexi-duration-normal) var(--alexi-ease-smooth),
     color var(--alexi-duration-normal) var(--alexi-ease-smooth);
