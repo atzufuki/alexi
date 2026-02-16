@@ -38,7 +38,9 @@ import { generateUiUrlsTs } from "./templates/ui/urls_ts.ts";
 import { generateUiMainTs } from "./templates/ui/main_ts.ts";
 import { generateUiHomeTs } from "./templates/ui/templates/home_ts.ts";
 import { generateUiComponentsModTs } from "./templates/ui/components/mod_ts.ts";
-import { generateAlexiButtonTs } from "./templates/ui/components/alexi_button_ts.ts";
+import { generateDSButtonTs } from "./templates/ui/components/ds_button_ts.ts";
+import { generateDSInputTs } from "./templates/ui/components/ds_input_ts.ts";
+import { generateDSCheckboxTs } from "./templates/ui/components/ds_checkbox_ts.ts";
 
 // Template imports - Desktop app
 import { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
@@ -247,8 +249,16 @@ async function generateFiles(name: string): Promise<void> {
       content: generateUiComponentsModTs(),
     },
     {
-      path: `${name}/src/${name}-ui/components/alexi_button.ts`,
-      content: generateAlexiButtonTs(),
+      path: `${name}/src/${name}-ui/components/ds_button.ts`,
+      content: generateDSButtonTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_input.ts`,
+      content: generateDSInputTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_checkbox.ts`,
+      content: generateDSCheckboxTs(),
     },
     {
       path: `${name}/src/${name}-ui/static/${name}-ui/index.html`,

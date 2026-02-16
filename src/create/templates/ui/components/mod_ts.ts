@@ -11,15 +11,19 @@ export function generateUiComponentsModTs(): string {
   return `/**
  * UI Components Module
  *
- * Import this module to register all custom elements.
+ * Design System components for the application.
  *
  * @module components
  */
 
-// Alexi Design System components
-import "./alexi_button.ts";
+// Design System components
+import "./ds_button.ts";
+import "./ds_input.ts";
+import "./ds_checkbox.ts";
 
 // Re-export for convenience
-export { AlexiButton } from "./alexi_button.ts";
+export { DSButton } from "./ds_button.ts";
+export { DSInput } from "./ds_input.ts";
+export { DSCheckbox } from "./ds_checkbox.ts";
 `;
 }
