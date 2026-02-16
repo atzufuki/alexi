@@ -18,7 +18,6 @@ export function generateUiSettingsTs(name: string): string {
 
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
 import { RestBackend } from "@alexi/db/backends/rest";
-import { SyncBackend } from "@alexi/db/backends/sync";
 import { ENDPOINTS } from "@${name}-ui/endpoints.ts";
 
 // =============================================================================
@@ -48,7 +47,7 @@ export const TOKEN_STORAGE_KEY = "${name}_auth_tokens";
 // =============================================================================
 
 /**
- * IndexedDB backend for local storage
+ * IndexedDB backend for local storage (cache)
  */
 export const indexeddb = new IndexedDBBackend({ name: DATABASE_NAME });
 
@@ -62,26 +61,22 @@ export const rest = new RestBackend({
   endpoints: ENDPOINTS,
 });
 
-/**
- * Sync backend - orchestrates IndexedDB + REST for offline-first
- */
-export const sync = new SyncBackend(indexeddb, rest, {
-  debug: DEBUG,
-  failSilently: true,
-});
-
 // =============================================================================
 // Named Backends (Django-style DATABASES)
 // =============================================================================
 
 /**
  * Named backends for use with Model.objects.using("name")
+ *
+ * Pattern for data syncing:
+ * 1. Load cached data from "indexeddb" first (instant, works offline)
+ * 2. Fetch fresh data from "rest"
+ * 3. Save the QuerySet to "indexeddb": await querySet.using("indexeddb").save()
  */
 export const DATABASES = {
-  default: sync,
+  default: indexeddb,
   indexeddb: indexeddb,
   rest: rest,
-  sync: sync,
 };
 
 // =============================================================================

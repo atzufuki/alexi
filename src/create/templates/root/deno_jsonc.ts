@@ -33,7 +33,6 @@ export function generateDenoJsonc(name: string): string {
       "@alexi/db/backends/denokv": "jsr:@alexi/db@^0.15/backends/denokv",
       "@alexi/db/backends/indexeddb": "jsr:@alexi/db@^0.15/backends/indexeddb",
       "@alexi/db/backends/rest": "jsr:@alexi/db@^0.15/backends/rest",
-      "@alexi/db/backends/sync": "jsr:@alexi/db@^0.15/backends/sync",
       "@alexi/urls": "jsr:@alexi/urls@^0.15",
       "@alexi/http": "jsr:@alexi/http@^0.15",
       "@alexi/middleware": "jsr:@alexi/middleware@^0.15",
