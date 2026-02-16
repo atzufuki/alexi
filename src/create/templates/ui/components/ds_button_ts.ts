@@ -1,0 +1,245 @@
+/**
+ * UI components/ds_button.ts template generator
+ *
+ * Generates the DSButton component that implements the Alexi Design System.
+ *
+ * @module @alexi/create/templates/ui/components/ds_button_ts
+ */
+
+/**
+ * Generate components/ds_button.ts content for the UI app
+ */
+export function generateDSButtonTs(): string {
+  return `/**
+ * Design System Button Component
+ *
+ * A playful, bouncy button implementing the Alexi Design System.
+ *
+ * @module components/ds_button
+ */
+
+import { HTMLPropsMixin, prop } from "@html-props/core";
+import { Button, Slot, Style } from "@html-props/built-ins";
+
+/**
+ * Button variant types
+ */
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "accent" | "danger";
+
+/**
+ * Button size types
+ */
+export type ButtonSize = "sm" | "md" | "lg";
+
+/**
+ * DSButton - A styled button component
+ *
+ * @example
+ * \`\`\`typescript
+ * new DSButton({
+ *   variant: "primary",
+ *   size: "md",
+ *   content: ["Click me"],
+ *   onclick: () => console.log("Clicked!"),
+ * });
+ * \`\`\`
+ */
+export class DSButton extends HTMLPropsMixin(HTMLElement, {
+  /** Button style variant */
+  variant: prop<ButtonVariant>("primary"),
+  /** Button size */
+  size: prop<ButtonSize>("md"),
+  /** Disabled state */
+  disabled: prop(false),
+  /** Button type (submit, button, reset) */
+  type: prop<"submit" | "button" | "reset">("button"),
+}) {
+  override connectedCallback(): void {
+    this.attachShadow({ mode: "open" });
+    super.connectedCallback();
+  }
+
+  override render(): Node[] {
+    return [
+      new Style({ textContent: BUTTON_STYLES }),
+      new Button({
+        type: this.type,
+        disabled: this.disabled,
+        className: \`ds-btn ds-btn-\${this.variant} ds-btn-\${this.size}\`,
+        content: [new Slot({})],
+      }),
+    ];
+  }
+}
+
+// Register the custom element
+DSButton.define("ds-button");
+
+/**
+ * Button component styles
+ */
+const BUTTON_STYLES = \`
+  /* Import fonts */
+  @import url("https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap");
+
+  :host {
+    display: inline-block;
+  }
+
+  /* Base button styles */
+  .ds-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-family: "Nunito", system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+    line-height: 1;
+    text-decoration: none;
+    border: 2px solid transparent;
+    border-radius: 1rem;
+    cursor: pointer;
+    transition: all 150ms cubic-bezier(0.34, 1.56, 0.64, 1);
+    user-select: none;
+    white-space: nowrap;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ds-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.4);
+  }
+
+  .ds-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .ds-btn:active:not(:disabled) {
+    transform: scale(0.96);
+  }
+
+  /* Size variants */
+  .ds-btn-sm {
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    border-radius: 0.75rem;
+  }
+
+  .ds-btn-md {
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+  }
+
+  .ds-btn-lg {
+    padding: 1rem 1.75rem;
+    font-size: 1rem;
+    border-radius: 1.25rem;
+  }
+
+  /* Primary button */
+  .ds-btn-primary {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #ffffff;
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15), 0 2px 0 #047857;
+  }
+
+  .ds-btn-primary:hover:not(:disabled) {
+    background: linear-gradient(135deg, #34d399, #10b981);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.2), 0 4px 0 #047857;
+  }
+
+  .ds-btn-primary:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15), 0 1px 0 #047857;
+  }
+
+  /* Secondary button */
+  .ds-btn-secondary {
+    background: #ffffff;
+    color: #059669;
+    border-color: #d4d4d8;
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15);
+  }
+
+  .ds-btn-secondary:hover:not(:disabled) {
+    background: #d1fae5;
+    border-color: #059669;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Ghost button */
+  .ds-btn-ghost {
+    background: transparent;
+    color: #059669;
+    border-color: transparent;
+  }
+
+  .ds-btn-ghost:hover:not(:disabled) {
+    background: #d1fae5;
+  }
+
+  /* Accent button */
+  .ds-btn-accent {
+    background: linear-gradient(135deg, #7e57c2, #673ab7);
+    color: #ffffff;
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15), 0 2px 0 #512da8;
+  }
+
+  .ds-btn-accent:hover:not(:disabled) {
+    background: linear-gradient(135deg, #b39ddb, #7e57c2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.2), 0 4px 0 #512da8;
+  }
+
+  .ds-btn-accent:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15), 0 1px 0 #512da8;
+  }
+
+  /* Danger button */
+  .ds-btn-danger {
+    background: linear-gradient(135deg, #fb7185, #f43f5e);
+    color: #ffffff;
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15), 0 2px 0 #be123c;
+  }
+
+  .ds-btn-danger:hover:not(:disabled) {
+    background: linear-gradient(135deg, #fda4af, #fb7185);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px -4px rgba(0, 0, 0, 0.2), 0 4px 0 #be123c;
+  }
+
+  .ds-btn-danger:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.15), 0 1px 0 #be123c;
+  }
+
+  /* Dark mode support */
+  @media (prefers-color-scheme: dark) {
+    .ds-btn-secondary {
+      background: #27272a;
+      color: #34d399;
+      border-color: #3f3f46;
+    }
+
+    .ds-btn-secondary:hover:not(:disabled) {
+      background: #064e3b;
+      border-color: #10b981;
+    }
+
+    .ds-btn-ghost {
+      color: #34d399;
+    }
+
+    .ds-btn-ghost:hover:not(:disabled) {
+      background: #064e3b;
+    }
+  }
+\`;
+`;
+}
