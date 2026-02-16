@@ -24,6 +24,7 @@ export function generateUiViewsTs(name: string): string {
  */
 
 import { ref } from "@html-props/core";
+import { getBackendByName } from "@alexi/db";
 import type { ViewContext } from "@${name}-ui/utils.ts";
 import { TodoModel } from "@${name}-ui/models.ts";
 
@@ -140,7 +141,9 @@ export async function home(
   /**
    * Delete callback - deletes a todo
    *
-   * Uses ORM pattern for deletion
+   * Uses backend.delete() for single instance deletion.
+   * Note: RestBackend doesn't support QuerySet.delete() (deleteMany),
+   * so we use the backend directly for delete operations.
    */
   const deleteTodo = async (todo: TodoModel): Promise<void> => {
     const template = templateRef.current;
@@ -149,12 +152,35 @@ export async function home(
     try {
       const todoId = todo.id.get();
 
-      // Delete from REST API
-      await TodoModel.objects.using("rest").filter({ id: todoId }).delete();
+      // Get backends for direct delete operations
+      const restBackend = getBackendByName("rest");
+      const indexeddbBackend = getBackendByName("indexeddb");
+
+      if (!restBackend || !indexeddbBackend) {
+        console.error("Backends not configured");
+        return;
+      }
+
+      // Fetch fresh instance from REST to ensure proper backend binding
+      const freshTodo = await TodoModel.objects
+        .using("rest")
+        .filter({ id: todoId })
+        .first();
+
+      if (freshTodo) {
+        // Delete from REST API using backend.delete()
+        await restBackend.delete(freshTodo);
+      }
 
       // Delete from IndexedDB cache
-      await TodoModel.objects.using("indexeddb").filter({ id: todoId })
-        .delete();
+      const cachedTodo = await TodoModel.objects
+        .using("indexeddb")
+        .filter({ id: todoId })
+        .first();
+
+      if (cachedTodo) {
+        await indexeddbBackend.delete(cachedTodo);
+      }
 
       // Refresh the list
       await fetch();
