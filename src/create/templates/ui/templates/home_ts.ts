@@ -21,7 +21,7 @@ import { Button, Div, Form, H1, Input, Li, Span, Ul } from "@html-props/built-in
 import { Column, Container, Row } from "@html-props/layout";
 import type { QuerySet } from "@alexi/db";
 import { TodoModel } from "@${name}-ui/models.ts";
-import { sync } from "@${name}-ui/settings.ts";
+import { rest } from "@${name}-ui/settings.ts";
 
 /**
  * Home page - displays and manages the todo list
@@ -47,11 +47,14 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     const title = input.value.trim();
     input.value = "";
 
-    // Create new todo via sync backend
-    await TodoModel.objects.using("sync").create({
+    // Create new todo via REST backend
+    const newTodo = await TodoModel.objects.using("rest").create({
       title,
       completed: false,
     });
+
+    // Save to IndexedDB for offline cache
+    await newTodo.using("indexeddb").save();
 
     // Refresh the list
     if (this.fetch) {
@@ -61,7 +64,10 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
 
   private handleToggle = async (todo: TodoModel): Promise<void> => {
     todo.toggle();
-    await sync.update(todo);
+    await rest.update(todo);
+
+    // Update local cache
+    await todo.using("indexeddb").save();
 
     // Refresh the list
     if (this.fetch) {
@@ -70,7 +76,11 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   };
 
   private handleDelete = async (todo: TodoModel): Promise<void> => {
-    await sync.delete(todo);
+    const todoId = todo.id.get();
+    await rest.delete(todo);
+
+    // Remove from local cache
+    await TodoModel.objects.using("indexeddb").filter({ id: todoId }).delete();
 
     // Refresh the list
     if (this.fetch) {

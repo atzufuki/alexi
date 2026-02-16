@@ -19,7 +19,7 @@ A full-stack Todo application built with [Alexi](https://github.com/atzufuki/ale
 - **REST API Backend** - Django-style REST framework with DenoKV
 - **Frontend SPA** - Built with HTML Props custom elements
 - **Desktop App** - Native-like window using WebUI
-- **Offline-first** - SyncBackend with IndexedDB + REST API
+- **Offline-first** - IndexedDB cache with REST API sync
 
 ## Quick Start
 

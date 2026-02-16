@@ -12,7 +12,7 @@ export function generateUiModelsTs(name: string): string {
  * ${toPascalCase(name)} UI Models
  *
  * Frontend ORM models for the Todo application.
- * These mirror the backend models for use with SyncBackend.
+ * These mirror the backend models for use with IndexedDB and REST backends.
  *
  * @module ${name}-ui/models
  */
