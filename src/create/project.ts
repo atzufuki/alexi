@@ -386,6 +386,11 @@ function generateIndexHtml(name: string): string {
   <title>${appName}</title>
   <link rel="stylesheet" href="/styles/global.css">
   <style>
+    /* Critical reset - must load before external CSS */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body { background: #09090b; }
+
     /* Loading state styles (before JS loads) */
     .alexi-loading {
       display: flex;
