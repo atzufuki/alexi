@@ -319,9 +319,12 @@ See the [docs/](./docs/) directory for detailed guides:
 - [Getting Started](./docs/getting-started.md)
 - [URL Routing](./docs/urls.md)
 - [Views](./docs/views.md)
-- [ORM Guide](./docs/db/models.md)
+- [ORM Models](./docs/db/models.md)
+- [Database Backends](./docs/db/backends.md)
 - [REST Framework ViewSets](./docs/restframework/viewsets.md)
+- [Serializers](./docs/restframework/serializers.md)
 - [Filtering](./docs/restframework/filtering.md)
+- [HTTP Application & Middleware](./docs/http/application.md)
 
 ## Contributing
 
