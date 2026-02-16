@@ -56,6 +56,11 @@
   },
   "tasks": {
     "test": "deno test -A --unstable-kv --no-check",
+    "test:scaffold": "deno test -A --unstable-kv --no-check src/create/tests/scaffold_test.ts",
+    "test:e2e": "deno test -A --unstable-kv --no-check src/create/tests/todo_e2e_test.ts",
+    "test:e2e:headed": "HEADLESS=false deno test -A --unstable-kv --no-check src/create/tests/todo_e2e_test.ts",
+    "test:create": "deno test -A --unstable-kv --no-check src/create/tests/",
+    "playwright:install": "npx playwright install chromium",
     "check": "deno check src/**/mod.ts",
     "lint": "deno lint",
     "fmt": "deno fmt",
@@ -87,7 +92,8 @@
     "@std/path": "jsr:@std/path@1",
     "esbuild": "npm:esbuild@^0.24.0",
     "esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
-    "fake-indexeddb": "npm:fake-indexeddb@^6.0.0"
+    "fake-indexeddb": "npm:fake-indexeddb@^6.0.0",
+    "playwright": "npm:playwright@^1.48.0"
   },
   "lint": {
     "rules": {

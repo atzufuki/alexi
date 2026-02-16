@@ -64,6 +64,18 @@ export class DSInput extends HTMLPropsMixin(HTMLElement, {
   private isHandlingInput = false;
   private lastPropValue = "";
 
+  /**
+   * Clear the input value immediately.
+   * This method syncs the native input synchronously, avoiding async update delays.
+   */
+  clear(): void {
+    this.value = "";
+    this.lastPropValue = "";
+    if (this.inputRef.current) {
+      this.inputRef.current.value = "";
+    }
+  }
+
   override connectedCallback(): void {
     this.attachShadow({ mode: "open" });
     super.connectedCallback();
@@ -77,11 +89,15 @@ export class DSInput extends HTMLPropsMixin(HTMLElement, {
   }
 
   override requestUpdate(): void {
+    // Always sync value prop to native input when not handling user input
+    // This ensures programmatic value changes (like clearing the input) are reflected
     if (!this.isHandlingInput && this.inputRef.current) {
-      if (this.value !== this.lastPropValue) {
+      // Always sync if the native input's value differs from the prop
+      // This handles both prop changes and external value resets
+      if (this.inputRef.current.value !== this.value) {
         this.inputRef.current.value = this.value;
-        this.lastPropValue = this.value;
       }
+      this.lastPropValue = this.value;
     }
     super.requestUpdate();
   }

@@ -32,8 +32,15 @@ export const DEBUG = true;
 
 /**
  * Get API URL based on environment
+ *
+ * Can be overridden by setting window.__ALEXI_API_URL__ before app loads.
+ * This is useful for testing with different ports.
  */
 function getApiUrl(): string {
+  // Check for test/override URL first
+  if (typeof globalThis !== "undefined" && (globalThis as any).__ALEXI_API_URL__) {
+    return (globalThis as any).__ALEXI_API_URL__;
+  }
   // In production, you might want to use a different URL
   return "http://localhost:8000/api";
 }

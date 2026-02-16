@@ -12,6 +12,8 @@ export function generateUiHomeTs(name: string): string {
  * ${toPascalCase(name)} Home Page
  *
  * Todo list UI component implementing the Alexi Design System.
+ * This template is purely presentational - all CRUD operations
+ * are handled via callbacks passed from the view.
  *
  * @module ${name}-ui/templates/home
  */
@@ -21,7 +23,6 @@ import { Div, Li, Span, Style, Ul } from "@html-props/built-ins";
 import { Column, Expanded, Row } from "@html-props/layout";
 import type { QuerySet } from "@alexi/db";
 import { TodoModel } from "@${name}-ui/models.ts";
-import { rest } from "@${name}-ui/settings.ts";
 import {
   DSButton,
   DSCard,
@@ -34,11 +35,24 @@ import {
 
 /**
  * Home page - displays and manages the todo list
+ *
+ * Follows the MVT (Model-View-Template) pattern:
+ * - Template is purely presentational
+ * - All CRUD operations are callbacks passed from the view
+ * - Template only manages UI state (input text, etc.)
  */
 export class HomePage extends HTMLPropsMixin(HTMLElement, {
+  // Data props
   loading: prop(false),
   todos: prop<QuerySet<TodoModel> | null>(null),
+
+  // Callback props from view
   fetch: prop<(() => Promise<void>) | null>(null),
+  createTodo: prop<((title: string) => Promise<void>) | null>(null),
+  toggleTodo: prop<((todo: TodoModel) => Promise<void>) | null>(null),
+  deleteTodo: prop<((todo: TodoModel) => Promise<void>) | null>(null),
+
+  // UI state
   newTodoTitle: prop(""),
 }) {
   private inputRef = ref<InstanceType<typeof DSInput>>(null);
@@ -54,33 +68,32 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     }
   }
 
-  private handleInputChange = (e: CustomEvent): void => {
-    this.newTodoTitle = e.detail.value;
+  private handleInputChange = (e: Event): void => {
+    // Support both CustomEvent (from DSInput) and native InputEvent
+    const customEvent = e as CustomEvent;
+    if (customEvent.detail?.value !== undefined) {
+      this.newTodoTitle = customEvent.detail.value;
+    } else {
+      // Fallback for native input events
+      const target = e.target as HTMLInputElement | null;
+      if (target?.value !== undefined) {
+        this.newTodoTitle = target.value;
+      }
+    }
   };
 
   private handleSubmit = async (): Promise<void> => {
-    const title = this.newTodoTitle.trim();
-    if (!title) return;
+    const title = (this.newTodoTitle ?? "").trim();
+    if (!title || !this.createTodo) return;
 
-    // Clear input
+    // Clear input immediately using the clear() method
     this.newTodoTitle = "";
     if (this.inputRef.current) {
-      this.inputRef.current.value = "";
+      this.inputRef.current.clear();
     }
 
-    // Create new todo via REST backend
-    const newTodo = await TodoModel.objects.using("rest").create({
-      title,
-      completed: false,
-    });
-
-    // Save to IndexedDB for offline cache
-    await newTodo.using("indexeddb").save();
-
-    // Refresh the list
-    if (this.fetch) {
-      await this.fetch();
-    }
+    // Call the create callback from view
+    await this.createTodo(title);
   };
 
   private handleKeyDown = (e: KeyboardEvent): void => {
@@ -90,28 +103,14 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   };
 
   private handleToggle = async (todo: TodoModel): Promise<void> => {
-    todo.toggle();
-    await rest.update(todo);
-
-    // Update local cache
-    await todo.using("indexeddb").save();
-
-    // Refresh the list
-    if (this.fetch) {
-      await this.fetch();
+    if (this.toggleTodo) {
+      await this.toggleTodo(todo);
     }
   };
 
   private handleDelete = async (todo: TodoModel): Promise<void> => {
-    const todoId = todo.id.get();
-    await rest.delete(todo);
-
-    // Remove from local cache
-    await TodoModel.objects.using("indexeddb").filter({ id: todoId }).delete();
-
-    // Refresh the list
-    if (this.fetch) {
-      await this.fetch();
+    if (this.deleteTodo) {
+      await this.deleteTodo(todo);
     }
   };
 
@@ -186,7 +185,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
                   new DSButton({
                     variant: "primary",
                     size: "lg",
-                    disabled: !this.newTodoTitle.trim(),
+                    disabled: !(this.newTodoTitle ?? "").trim(),
                     onclick: this.handleSubmit,
                     content: [
                       new DSIcon({ name: "plus", size: "sm" }),

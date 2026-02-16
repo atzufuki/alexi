@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@luca/esbuild-deno-loader@~0.11.1": "0.11.1",
     "jsr:@std/assert@*": "1.0.18",
+    "jsr:@std/assert@1": "1.0.18",
     "jsr:@std/bytes@^1.0.2": "1.0.6",
     "jsr:@std/encoding@^1.0.5": "1.0.10",
     "jsr:@std/fs@^1.0.19": "1.0.22",
@@ -13,7 +14,8 @@
     "jsr:@webui/deno-webui@^2.5.13": "2.5.13",
     "jsr:@zip-js/zip-js@^2.8.7": "2.8.20",
     "npm:esbuild@0.24": "0.24.2",
-    "npm:fake-indexeddb@6": "6.2.5"
+    "npm:fake-indexeddb@6": "6.2.5",
+    "npm:playwright@^1.48.0": "1.58.2"
   },
   "jsr": {
     "@luca/esbuild-deno-loader@0.11.1": {
@@ -224,7 +226,30 @@
     },
     "fake-indexeddb@6.2.5": {
       "integrity": "sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w=="
+    },
+    "fsevents@2.3.2": {
+      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
+      "os": ["darwin"],
+      "scripts": true
+    },
+    "playwright-core@1.58.2": {
+      "integrity": "sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg==",
+      "bin": true
+    },
+    "playwright@1.58.2": {
+      "integrity": "sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A==",
+      "dependencies": [
+        "playwright-core"
+      ],
+      "optionalDependencies": [
+        "fsevents"
+      ],
+      "bin": true
     }
+  },
+  "remote": {
+    "https://deno.land/std@0.208.0/testing/_test_suite.ts": "30f018feeb3835f12ab198d8a518f9089b1bcb2e8c838a8b615ab10d5005465c",
+    "https://deno.land/std@0.208.0/testing/bdd.ts": "c41f019786c4a9112aadb7e5a7bbcc711f58429ac5904b3855fa248ba5fa0ba6"
   },
   "workspace": {
     "dependencies": [
@@ -232,7 +257,8 @@
       "jsr:@std/assert@1",
       "jsr:@std/path@1",
       "npm:esbuild@0.24",
-      "npm:fake-indexeddb@6"
+      "npm:fake-indexeddb@6",
+      "npm:playwright@^1.48.0"
     ],
     "members": {
       "src/auth": {
