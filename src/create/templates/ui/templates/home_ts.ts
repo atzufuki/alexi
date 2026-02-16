@@ -18,7 +18,7 @@ export function generateUiHomeTs(name: string): string {
 
 import { HTMLPropsMixin, prop, ref } from "@html-props/core";
 import { Div, Li, Span, Style, Ul } from "@html-props/built-ins";
-import { Column, Container, Expanded, Row } from "@html-props/layout";
+import { Column, Expanded, Row } from "@html-props/layout";
 import type { QuerySet } from "@alexi/db";
 import { TodoModel } from "@${name}-ui/models.ts";
 import { rest } from "@${name}-ui/settings.ts";
@@ -118,13 +118,8 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   override render(): Node[] {
     return [
       new Style({ textContent: HOME_STYLES }),
-      new Container({
+      new Div({
         className: "home-container",
-        style: {
-          minHeight: "100vh",
-          background: "var(--bg-color)",
-          padding: "2rem 1.5rem",
-        },
         content: [
           // Header section with theme toggle
           new Row({
@@ -371,10 +366,13 @@ const HOME_STYLES = \`
   }
 
   .home-container {
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     align-items: center;
+    padding: 2rem 1.5rem;
     font-family: "Nunito", system-ui, sans-serif;
+    background: var(--bg-color);
     transition: background-color 200ms ease;
   }
 
