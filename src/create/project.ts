@@ -38,6 +38,14 @@ import { generateUiUrlsTs } from "./templates/ui/urls_ts.ts";
 import { generateUiMainTs } from "./templates/ui/main_ts.ts";
 import { generateUiHomeTs } from "./templates/ui/templates/home_ts.ts";
 import { generateUiComponentsModTs } from "./templates/ui/components/mod_ts.ts";
+import { generateDSButtonTs } from "./templates/ui/components/ds_button_ts.ts";
+import { generateDSInputTs } from "./templates/ui/components/ds_input_ts.ts";
+import { generateDSCheckboxTs } from "./templates/ui/components/ds_checkbox_ts.ts";
+import { generateDSIconTs } from "./templates/ui/components/ds_icon_ts.ts";
+import { generateDSTextTs } from "./templates/ui/components/ds_text_ts.ts";
+import { generateDSCardTs } from "./templates/ui/components/ds_card_ts.ts";
+import { generateDSThemeToggleTs } from "./templates/ui/components/ds_theme_toggle_ts.ts";
+import { generateGlobalCss } from "./templates/ui/styles_css.ts";
 
 // Template imports - Desktop app
 import { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
@@ -110,6 +118,7 @@ async function createDirectories(name: string): Promise<void> {
     `${name}/src/${name}-ui`,
     `${name}/src/${name}-ui/templates`,
     `${name}/src/${name}-ui/components`,
+    `${name}/src/${name}-ui/styles`,
     `${name}/src/${name}-ui/static/${name}-ui`,
     // Desktop app
     `${name}/src/${name}-desktop`,
@@ -246,6 +255,38 @@ async function generateFiles(name: string): Promise<void> {
       content: generateUiComponentsModTs(),
     },
     {
+      path: `${name}/src/${name}-ui/components/ds_button.ts`,
+      content: generateDSButtonTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_input.ts`,
+      content: generateDSInputTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_checkbox.ts`,
+      content: generateDSCheckboxTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_icon.ts`,
+      content: generateDSIconTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_text.ts`,
+      content: generateDSTextTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_card.ts`,
+      content: generateDSCardTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_theme_toggle.ts`,
+      content: generateDSThemeToggleTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/styles/global.css`,
+      content: generateGlobalCss(),
+    },
+    {
       path: `${name}/src/${name}-ui/static/${name}-ui/index.html`,
       content: generateIndexHtml(name),
     },
@@ -343,28 +384,50 @@ function generateIndexHtml(name: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${appName}</title>
+  <link rel="stylesheet" href="/styles/global.css">
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    /* Critical reset - must load before external CSS */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; height: 100%; }
+    body { background: #09090b; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-        Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
-      background-color: #f5f5f5;
-      color: #333;
-      line-height: 1.6;
-    }
-
-    #app {
+    /* Loading state styles (before JS loads) */
+    .alexi-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       min-height: 100vh;
+      gap: 1rem;
+    }
+
+    .alexi-loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--alexi-border, #e4e4e7);
+      border-top-color: var(--alexi-primary, #10b981);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .alexi-loading-text {
+      font-family: "Nunito", system-ui, sans-serif;
+      font-size: 1rem;
+      color: var(--alexi-text-secondary, #71717a);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
-  <div id="app">Loading...</div>
+  <div id="app">
+    <div class="alexi-loading">
+      <div class="alexi-loading-spinner"></div>
+      <p class="alexi-loading-text">Loading ${appName}...</p>
+    </div>
+  </div>
   <script type="module" src="/bundle.js"></script>
 </body>
 </html>

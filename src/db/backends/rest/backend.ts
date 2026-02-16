@@ -1240,7 +1240,10 @@ export class RestBackend extends DatabaseBackend {
 
     for (const key of Object.keys(fields)) {
       const field = fields[key];
-      if (key === "objects" || key === "meta") continue;
+      if (
+        key === "objects" || key === "meta" || key === "_backend" ||
+        key === "_relatedManagers"
+      ) continue;
 
       if (field && typeof field === "object") {
         // Check if this is a ForeignKey field (has .id property and .isLoaded method)
