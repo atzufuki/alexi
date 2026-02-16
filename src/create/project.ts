@@ -41,6 +41,10 @@ import { generateUiComponentsModTs } from "./templates/ui/components/mod_ts.ts";
 import { generateDSButtonTs } from "./templates/ui/components/ds_button_ts.ts";
 import { generateDSInputTs } from "./templates/ui/components/ds_input_ts.ts";
 import { generateDSCheckboxTs } from "./templates/ui/components/ds_checkbox_ts.ts";
+import { generateDSIconTs } from "./templates/ui/components/ds_icon_ts.ts";
+import { generateDSTextTs } from "./templates/ui/components/ds_text_ts.ts";
+import { generateDSCardTs } from "./templates/ui/components/ds_card_ts.ts";
+import { generateDSThemeToggleTs } from "./templates/ui/components/ds_theme_toggle_ts.ts";
 import { generateGlobalCss } from "./templates/ui/styles_css.ts";
 
 // Template imports - Desktop app
@@ -261,6 +265,22 @@ async function generateFiles(name: string): Promise<void> {
     {
       path: `${name}/src/${name}-ui/components/ds_checkbox.ts`,
       content: generateDSCheckboxTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_icon.ts`,
+      content: generateDSIconTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_text.ts`,
+      content: generateDSTextTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_card.ts`,
+      content: generateDSCardTs(),
+    },
+    {
+      path: `${name}/src/${name}-ui/components/ds_theme_toggle.ts`,
+      content: generateDSThemeToggleTs(),
     },
     {
       path: `${name}/src/${name}-ui/styles/global.css`,
