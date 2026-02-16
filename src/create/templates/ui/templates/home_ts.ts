@@ -17,12 +17,20 @@ export function generateUiHomeTs(name: string): string {
  */
 
 import { HTMLPropsMixin, prop, ref } from "@html-props/core";
-import { Div, H1, Li, Span, Style, Ul } from "@html-props/built-ins";
-import { Column, Container, Row } from "@html-props/layout";
+import { Div, Li, Span, Style, Ul } from "@html-props/built-ins";
+import { Column, Row } from "@html-props/layout";
 import type { QuerySet } from "@alexi/db";
 import { TodoModel } from "@${name}-ui/models.ts";
 import { rest } from "@${name}-ui/settings.ts";
-import { DSButton, DSCheckbox, DSInput } from "@${name}-ui/components/mod.ts";
+import {
+  DSButton,
+  DSCard,
+  DSCheckbox,
+  DSIcon,
+  DSInput,
+  DSText,
+  DSThemeToggle,
+} from "@${name}-ui/components/mod.ts";
 
 /**
  * Home page - displays and manages the todo list
@@ -113,28 +121,48 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
       new Div({
         className: "home-container",
         content: [
-          // Header section
-          new Div({
+          // Header section with theme toggle
+          new Row({
             dataset: { key: "header" },
             className: "home-header",
+            mainAxisAlignment: "spaceBetween",
+            crossAxisAlignment: "start",
             content: [
-              new Div({ className: "home-logo", textContent: "✨" }),
-              new H1({
-                className: "home-title",
+              // Spacer for centering
+              new Div({ style: { width: "40px" } }),
+
+              // Logo and title
+              new Column({
+                crossAxisAlignment: "center",
+                gap: "8px",
                 content: [
-                  new Span({ textContent: "Todo " }),
-                  new Span({ className: "home-title-accent", textContent: "App" }),
+                  new DSIcon({
+                    name: "sparkles",
+                    size: "xl",
+                    color: "var(--alexi-accent-500)",
+                  }),
+                  new DSText({
+                    variant: "h1",
+                    gradient: true,
+                    content: ["Todo App"],
+                  }),
+                  new DSText({
+                    variant: "caption",
+                    color: "muted",
+                    content: ["Built with Alexi Framework"],
+                  }),
                 ],
               }),
-              new Span({
-                className: "home-subtitle",
-                textContent: "Built with Alexi Framework",
-              }),
+
+              // Theme toggle
+              new DSThemeToggle({}),
             ],
           }),
 
           // Main card
-          new Div({
+          new DSCard({
+            variant: "raised",
+            padding: "none",
             className: "home-card",
             content: [
               // Input section
@@ -164,7 +192,10 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
                         size: "lg",
                         disabled: !this.newTodoTitle.trim(),
                         onclick: this.handleSubmit,
-                        content: ["Add Task"],
+                        content: [
+                          new DSIcon({ name: "plus", size: "sm" }),
+                          new Span({ textContent: "Add Task" }),
+                        ],
                       }),
                     ],
                   }),
@@ -183,10 +214,16 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
           new Div({
             className: "home-footer",
             content: [
-              new Span({ textContent: "Powered by " }),
-              new Span({ className: "home-footer-link", textContent: "Alexi" }),
-              new Span({ textContent: " + " }),
-              new Span({ className: "home-footer-link", textContent: "HTML Props" }),
+              new DSText({
+                variant: "caption",
+                color: "muted",
+                content: [
+                  "Powered by ",
+                  new Span({ className: "home-footer-link", textContent: "Alexi" }),
+                  " + ",
+                  new Span({ className: "home-footer-link", textContent: "HTML Props" }),
+                ],
+              }),
             ],
           }),
         ],
@@ -195,12 +232,14 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   }
 
   private renderLoading(): Node {
-    return new Div({
+    return new Column({
       dataset: { key: "loading" },
       className: "home-loading",
+      crossAxisAlignment: "center",
+      gap: "16px",
       content: [
-        new Div({ className: "home-loading-spinner" }),
-        new Span({ textContent: "Loading todos..." }),
+        new DSIcon({ name: "loader", size: "lg", color: "var(--alexi-primary-500)" }),
+        new DSText({ variant: "body", color: "muted", content: ["Loading todos..."] }),
       ],
     });
   }
@@ -209,33 +248,48 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     const todos = this.todos?.array() ?? [];
 
     if (todos.length === 0) {
-      return new Div({
+      return new Column({
         dataset: { key: "empty" },
         className: "home-empty",
+        crossAxisAlignment: "center",
+        gap: "12px",
         content: [
-          new Div({ className: "home-empty-icon", textContent: "📋" }),
-          new Span({ className: "home-empty-title", textContent: "No tasks yet" }),
-          new Span({ className: "home-empty-subtitle", textContent: "Add your first task above to get started!" }),
+          new DSIcon({ name: "clipboard", size: "xl", color: "var(--alexi-neutral-400)" }),
+          new DSText({ variant: "h4", content: ["No tasks yet"] }),
+          new DSText({
+            variant: "body",
+            color: "muted",
+            content: ["Add your first task above to get started!"],
+          }),
         ],
       });
     }
 
-    const completedCount = todos.filter(t => t.completed.get()).length;
+    const completedCount = todos.filter((t) => t.completed.get()).length;
     const totalCount = todos.length;
 
     return new Column({
       gap: "0",
       content: [
         // Stats bar
-        new Div({
+        new Row({
           dataset: { key: "stats" },
           className: "home-stats",
+          gap: "8px",
+          crossAxisAlignment: "center",
           content: [
-            new Span({ textContent: \`\${totalCount} task\${totalCount !== 1 ? "s" : ""}\` }),
+            new DSIcon({ name: "clipboard-check", size: "sm", color: "var(--alexi-neutral-500)" }),
+            new DSText({
+              variant: "caption",
+              color: "muted",
+              content: [\`\${totalCount} task\${totalCount !== 1 ? "s" : ""}\`],
+            }),
             new Span({ className: "home-stats-dot", textContent: "•" }),
-            new Span({
-              className: "home-stats-completed",
-              textContent: \`\${completedCount} completed\`,
+            new DSText({
+              variant: "caption",
+              color: "primary",
+              weight: "semibold",
+              content: [\`\${completedCount} completed\`],
             }),
           ],
         }),
@@ -244,7 +298,9 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
         new Ul({
           dataset: { key: "todo-list" },
           className: "todo-list",
-          content: todos.map((todo, index) => this.renderTodoItem(todo, index === todos.length - 1)),
+          content: todos.map((todo, index) =>
+            this.renderTodoItem(todo, index === todos.length - 1)
+          ),
         }),
       ],
     });
@@ -261,15 +317,16 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
           checked: completed,
           onchange: () => this.handleToggle(todo),
         }),
-        new Span({
+        new DSText({
+          variant: "body",
           className: "todo-text",
-          textContent: todo.title.get() as string,
+          content: [todo.title.get() as string],
         }),
         new DSButton({
           variant: "ghost",
           size: "sm",
           onclick: () => this.handleDelete(todo),
-          content: ["✕"],
+          content: [new DSIcon({ name: "trash", size: "sm" })],
         }),
       ],
     });
@@ -303,6 +360,16 @@ const HOME_STYLES = \`
     --alexi-neutral-700: #3f3f46;
     --alexi-neutral-800: #27272a;
     --alexi-neutral-900: #18181b;
+    --alexi-neutral-950: #09090b;
+
+    /* Background */
+    --bg-color: var(--alexi-neutral-100);
+    --card-bg: var(--alexi-neutral-0);
+    --card-border: var(--alexi-neutral-200);
+    --text-primary: var(--alexi-neutral-900);
+    --text-secondary: var(--alexi-neutral-600);
+    --text-muted: var(--alexi-neutral-500);
+    --divider: var(--alexi-neutral-200);
   }
 
   .home-container {
@@ -310,63 +377,23 @@ const HOME_STYLES = \`
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 3rem 1.5rem;
+    padding: 2rem 1.5rem;
     font-family: "Nunito", system-ui, sans-serif;
+    background: var(--bg-color);
+    transition: background-color 200ms ease;
   }
 
   /* Header */
   .home-header {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    width: 100%;
+    max-width: 560px;
     margin-bottom: 2rem;
-    text-align: center;
-  }
-
-  .home-logo {
-    font-size: 3rem;
-    margin-bottom: 0.5rem;
-    animation: float 3s ease-in-out infinite;
-  }
-
-  @keyframes float {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-8px); }
-  }
-
-  .home-title {
-    font-family: "Fredoka", system-ui, sans-serif;
-    font-size: 2.5rem;
-    font-weight: 600;
-    color: var(--alexi-neutral-900);
-    margin: 0;
-    line-height: 1.2;
-  }
-
-  .home-title-accent {
-    background: linear-gradient(135deg, var(--alexi-primary-500), var(--alexi-accent-500));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .home-subtitle {
-    font-size: 0.875rem;
-    color: var(--alexi-neutral-500);
-    margin-top: 0.5rem;
   }
 
   /* Main card */
   .home-card {
     width: 100%;
     max-width: 560px;
-    background: var(--alexi-neutral-0);
-    border: 1px solid var(--alexi-neutral-200);
-    border-radius: 1.5rem;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.05),
-      0 10px 15px -3px rgba(0, 0, 0, 0.08);
-    overflow: hidden;
   }
 
   .home-input-section {
@@ -375,81 +402,29 @@ const HOME_STYLES = \`
 
   .home-divider {
     height: 1px;
-    background: var(--alexi-neutral-200);
+    background: var(--divider);
   }
 
   /* Loading state */
   .home-loading {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     padding: 3rem;
-    gap: 1rem;
-    color: var(--alexi-neutral-500);
-  }
-
-  .home-loading-spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid var(--alexi-neutral-200);
-    border-top-color: var(--alexi-primary-500);
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-  }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
   }
 
   /* Empty state */
   .home-empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
     padding: 3rem;
     text-align: center;
   }
 
-  .home-empty-icon {
-    font-size: 3rem;
-    margin-bottom: 1rem;
-    opacity: 0.7;
-  }
-
-  .home-empty-title {
-    font-family: "Fredoka", system-ui, sans-serif;
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--alexi-neutral-700);
-    margin-bottom: 0.25rem;
-  }
-
-  .home-empty-subtitle {
-    font-size: 0.875rem;
-    color: var(--alexi-neutral-500);
-  }
-
   /* Stats bar */
   .home-stats {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
     padding: 0.75rem 1.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--alexi-neutral-500);
     background: var(--alexi-neutral-50);
-    border-bottom: 1px solid var(--alexi-neutral-200);
+    border-bottom: 1px solid var(--divider);
   }
 
   .home-stats-dot {
     color: var(--alexi-neutral-300);
-  }
-
-  .home-stats-completed {
-    color: var(--alexi-primary-600);
   }
 
   /* Todo list */
@@ -478,21 +453,17 @@ const HOME_STYLES = \`
 
   .todo-text {
     flex: 1;
-    font-size: 1rem;
-    color: var(--alexi-neutral-800);
     transition: all 150ms ease;
   }
 
   .todo-item-completed .todo-text {
     text-decoration: line-through;
-    color: var(--alexi-neutral-400);
+    opacity: 0.5;
   }
 
   /* Footer */
   .home-footer {
     margin-top: 2rem;
-    font-size: 0.75rem;
-    color: var(--alexi-neutral-400);
   }
 
   .home-footer-link {
@@ -505,55 +476,23 @@ const HOME_STYLES = \`
      ========================================================================= */
 
   @media (prefers-color-scheme: dark) {
-    .home-title {
-      color: var(--alexi-neutral-100);
-    }
-
-    .home-subtitle {
-      color: var(--alexi-neutral-500);
-    }
-
-    .home-card {
-      background: var(--alexi-neutral-800);
-      border-color: var(--alexi-neutral-700);
-      box-shadow:
-        0 4px 6px -1px rgba(0, 0, 0, 0.2),
-        0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    }
-
-    .home-divider {
-      background: var(--alexi-neutral-700);
-    }
-
-    .home-loading {
-      color: var(--alexi-neutral-400);
-    }
-
-    .home-loading-spinner {
-      border-color: var(--alexi-neutral-700);
-      border-top-color: var(--alexi-primary-400);
-    }
-
-    .home-empty-title {
-      color: var(--alexi-neutral-200);
-    }
-
-    .home-empty-subtitle {
-      color: var(--alexi-neutral-500);
+    :host {
+      --bg-color: var(--alexi-neutral-950);
+      --card-bg: var(--alexi-neutral-800);
+      --card-border: var(--alexi-neutral-700);
+      --text-primary: var(--alexi-neutral-100);
+      --text-secondary: var(--alexi-neutral-400);
+      --text-muted: var(--alexi-neutral-500);
+      --divider: var(--alexi-neutral-700);
     }
 
     .home-stats {
       background: var(--alexi-neutral-900);
       border-bottom-color: var(--alexi-neutral-700);
-      color: var(--alexi-neutral-400);
     }
 
     .home-stats-dot {
       color: var(--alexi-neutral-600);
-    }
-
-    .home-stats-completed {
-      color: var(--alexi-primary-400);
     }
 
     .todo-item {
@@ -564,21 +503,51 @@ const HOME_STYLES = \`
       background-color: var(--alexi-neutral-700);
     }
 
-    .todo-text {
-      color: var(--alexi-neutral-100);
-    }
-
-    .todo-item-completed .todo-text {
-      color: var(--alexi-neutral-500);
-    }
-
-    .home-footer {
-      color: var(--alexi-neutral-500);
-    }
-
     .home-footer-link {
       color: var(--alexi-primary-400);
     }
+  }
+
+  /* Explicit theme support via data-theme attribute */
+  :host-context([data-theme="dark"]) {
+    --bg-color: var(--alexi-neutral-950);
+    --card-bg: var(--alexi-neutral-800);
+    --card-border: var(--alexi-neutral-700);
+    --text-primary: var(--alexi-neutral-100);
+    --text-secondary: var(--alexi-neutral-400);
+    --text-muted: var(--alexi-neutral-500);
+    --divider: var(--alexi-neutral-700);
+  }
+
+  :host-context([data-theme="dark"]) .home-stats {
+    background: var(--alexi-neutral-900);
+    border-bottom-color: var(--alexi-neutral-700);
+  }
+
+  :host-context([data-theme="dark"]) .home-stats-dot {
+    color: var(--alexi-neutral-600);
+  }
+
+  :host-context([data-theme="dark"]) .todo-item {
+    border-bottom-color: var(--alexi-neutral-700);
+  }
+
+  :host-context([data-theme="dark"]) .todo-item:hover {
+    background-color: var(--alexi-neutral-700);
+  }
+
+  :host-context([data-theme="dark"]) .home-footer-link {
+    color: var(--alexi-primary-400);
+  }
+
+  :host-context([data-theme="light"]) {
+    --bg-color: var(--alexi-neutral-100);
+    --card-bg: var(--alexi-neutral-0);
+    --card-border: var(--alexi-neutral-200);
+    --text-primary: var(--alexi-neutral-900);
+    --text-secondary: var(--alexi-neutral-600);
+    --text-muted: var(--alexi-neutral-500);
+    --divider: var(--alexi-neutral-200);
   }
 \`;
 `;

@@ -24,7 +24,7 @@ import { Slot, Style } from "@html-props/built-ins";
 /**
  * Card variant types
  */
-export type CardVariant = "default" | "outlined" | "elevated" | "filled";
+export type CardVariant = "default" | "outlined" | "elevated" | "raised" | "filled";
 
 /**
  * Card padding types
@@ -124,10 +124,13 @@ const CARD_STYLES = \`
     border: 2px solid var(--ds-border);
   }
 
-  .ds-card-elevated {
+  .ds-card-elevated,
+  .ds-card-raised {
     background: var(--ds-surface);
     border: 1px solid transparent;
     box-shadow: var(--ds-shadow-md);
+    border-radius: 1.5rem;
+    overflow: hidden;
   }
 
   .ds-card-filled {
