@@ -108,10 +108,95 @@ export async function createTestProject(
   const projectPath = `${tempDir}/${projectName}`;
   console.log(`[e2e] Project created at ${projectPath}`);
 
+  // Patch the project to use local Alexi instead of JSR
+  await patchProjectForLocalAlexi(projectPath);
+
   return {
     name: projectName,
     path: projectPath,
   };
+}
+
+/**
+ * Patch a generated project to use local Alexi packages instead of JSR.
+ *
+ * This allows E2E tests to run against the current codebase without
+ * requiring the packages to be published to JSR first.
+ *
+ * @param projectPath - Path to the generated project
+ */
+async function patchProjectForLocalAlexi(projectPath: string): Promise<void> {
+  console.log(`[e2e] Patching project to use local Alexi...`);
+
+  const denoJsonPath = `${projectPath}/deno.jsonc`;
+
+  // Read the generated deno.jsonc
+  const content = await Deno.readTextFile(denoJsonPath);
+  const config = JSON.parse(content);
+
+  // Get the path to the alexi repo root as a file:// URL
+  // We're at: alexi/src/create/tests/e2e_utils.ts
+  // Alexi root is at: alexi/
+  const alexiRootUrl = new URL("../../../", import.meta.url);
+  // Use href to get the full file:// URL (works cross-platform)
+  const alexiRoot = alexiRootUrl.href;
+
+  // Replace JSR imports with local file:// URLs
+  const localImports: Record<string, string> = {
+    // Alexi framework modules
+    "@alexi/core": `${alexiRoot}src/core/mod.ts`,
+    "@alexi/db": `${alexiRoot}src/db/mod.ts`,
+    "@alexi/db/backends/denokv": `${alexiRoot}src/db/backends/denokv/mod.ts`,
+    "@alexi/db/backends/indexeddb":
+      `${alexiRoot}src/db/backends/indexeddb/mod.ts`,
+    "@alexi/db/backends/rest": `${alexiRoot}src/db/backends/rest/mod.ts`,
+    "@alexi/db/backends/sync": `${alexiRoot}src/db/backends/sync/mod.ts`,
+    "@alexi/urls": `${alexiRoot}src/urls/mod.ts`,
+    "@alexi/http": `${alexiRoot}src/http/mod.ts`,
+    "@alexi/middleware": `${alexiRoot}src/middleware/mod.ts`,
+    "@alexi/views": `${alexiRoot}src/views/mod.ts`,
+    "@alexi/web": `${alexiRoot}src/web/mod.ts`,
+    "@alexi/webui": `${alexiRoot}src/webui/mod.ts`,
+    "@alexi/webui/launcher": `${alexiRoot}src/webui/launcher.ts`,
+    "@alexi/webui/bindings": `${alexiRoot}src/webui/bindings.ts`,
+    "@alexi/staticfiles": `${alexiRoot}src/staticfiles/mod.ts`,
+    "@alexi/restframework": `${alexiRoot}src/restframework/mod.ts`,
+    "@alexi/auth": `${alexiRoot}src/auth/mod.ts`,
+    "@alexi/admin": `${alexiRoot}src/admin/mod.ts`,
+    "@alexi/capacitor": `${alexiRoot}src/capacitor/mod.ts`,
+    "@alexi/types": `${alexiRoot}src/types/mod.ts`,
+  };
+
+  // Transitive dependencies required by local Alexi modules
+  // These are defined in the Alexi repo's deno.json and must be available
+  // for the local file:// imports to resolve their dependencies
+  const transitiveDependencies: Record<string, string> = {
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/path": "jsr:@std/path@1",
+    "esbuild": "npm:esbuild@^0.24.0",
+    "esbuild-deno-loader": "jsr:@luca/esbuild-deno-loader@^0.11.1",
+    "fake-indexeddb": "npm:fake-indexeddb@^6.0.0",
+  };
+
+  // Update Alexi imports to use local paths
+  for (const [key, localPath] of Object.entries(localImports)) {
+    config.imports[key] = localPath;
+  }
+
+  // Add transitive dependencies that Alexi modules need
+  for (const [key, value] of Object.entries(transitiveDependencies)) {
+    if (!config.imports[key]) {
+      config.imports[key] = value;
+    }
+  }
+
+  // Write back the patched config
+  await Deno.writeTextFile(
+    denoJsonPath,
+    JSON.stringify(config, null, 2) + "\n",
+  );
+
+  console.log(`[e2e] Project patched to use local Alexi from ${alexiRoot}`);
 }
 
 /**
