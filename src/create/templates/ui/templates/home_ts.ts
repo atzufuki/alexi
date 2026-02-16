@@ -262,6 +262,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     const totalCount = todos.length;
 
     return new Column({
+      dataset: { key: "todo-list-container" },
       gap: "0",
       content: [
         // Stats bar
