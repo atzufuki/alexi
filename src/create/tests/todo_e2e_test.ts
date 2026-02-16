@@ -396,13 +396,7 @@ describe("Todo App E2E Tests", {
   // ===========================================================================
 
   describe("Toggle Todo", () => {
-    // TODO: This test is skipped until @alexi/db@0.16.1+ is published to JSR.
-    // The fix (commit 32263a4) is in this PR but not yet released:
-    // - extractData() was calling .get() on _backend property
-    // - This accidentally invoked RestBackend.get() HTTP method
-    // - Resulting in requests to '/apiundefined'
-    // Once this PR is merged and a new version published, unskip this test.
-    it.skip("should toggle todo completion when clicking checkbox", async () => {
+    it("should toggle todo completion when clicking checkbox", async () => {
       await navigateToHome();
 
       // Add a todo first
