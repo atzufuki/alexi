@@ -17,13 +17,15 @@ export function generateUiViewsTs(name: string): string {
  * - Templates are purely presentational
  * - Views pass callbacks to templates for user interactions
  *
+ * Uses ORM .using("backendName") pattern for all database operations.
+ * Backend names are defined in DATABASES setting.
+ *
  * @module ${name}-ui/views
  */
 
 import { ref } from "@html-props/core";
 import type { ViewContext } from "@${name}-ui/utils.ts";
 import { TodoModel } from "@${name}-ui/models.ts";
-import { indexeddb, rest } from "@${name}-ui/settings.ts";
 
 /**
  * Home view - displays the todo list
@@ -31,7 +33,7 @@ import { indexeddb, rest } from "@${name}-ui/settings.ts";
  * Implements the MVT pattern:
  * - Fetches data from REST API and caches to IndexedDB
  * - Provides CRUD callbacks to the template
- * - Handles all backend interactions
+ * - Handles all backend interactions via ORM
  */
 export async function home(
   _ctx: ViewContext,
@@ -42,11 +44,11 @@ export async function home(
   const templateRef = ref<InstanceType<typeof HomePage>>();
 
   // Load cached data from IndexedDB (instant, works offline)
-  const cachedTodos = await TodoModel.objects.using(indexeddb).all().fetch();
+  const cachedTodos = await TodoModel.objects.using("indexeddb").all().fetch();
   const count = await cachedTodos.count();
 
   /**
-   * Fetch callback - loads fresh data from REST API
+   * Fetch callback - loads fresh data from REST API and syncs to cache
    */
   const fetch = async (): Promise<void> => {
     const template = templateRef.current;
@@ -54,10 +56,13 @@ export async function home(
 
     try {
       // Fetch fresh data from REST API
-      const fresh = await TodoModel.objects.using(rest).all().fetch();
-      // Save to IndexedDB for offline access
-      await fresh.using(indexeddb).save();
-      template.todos = fresh;
+      const freshQs = await TodoModel.objects.using("rest").all().fetch();
+
+      // Sync to IndexedDB using QuerySet.save()
+      await freshQs.using("indexeddb").save();
+
+      // Update template with fresh data
+      template.todos = freshQs;
     } catch (error) {
       console.error("Error fetching todos:", error);
     } finally {
@@ -73,14 +78,17 @@ export async function home(
     if (!template) return;
 
     try {
-      // Create via REST API
-      const newTodo = await TodoModel.objects.using(rest).create({
+      // Create via REST API using ORM
+      const newTodo = await TodoModel.objects.using("rest").create({
         title,
         completed: false,
       });
 
-      // Cache to IndexedDB using instance insert
-      await indexeddb.insert(newTodo);
+      // Fetch the new todo and save to cache
+      const cacheQs = await TodoModel.objects.using("rest").filter({
+        id: newTodo.id.get(),
+      }).fetch();
+      await cacheQs.using("indexeddb").save();
 
       // Refresh the list
       await fetch();
@@ -92,22 +100,35 @@ export async function home(
   /**
    * Toggle callback - toggles todo completion status
    *
-   * Uses backend instance methods (rest.update) instead of QuerySet.update()
-   * because RestBackend doesn't support updateMany.
+   * Uses ORM pattern: fetch from REST, modify, save back to REST, sync to cache
    */
   const toggleTodo = async (todo: TodoModel): Promise<void> => {
     const template = templateRef.current;
     if (!template) return;
 
     try {
-      // Toggle the completed status on the instance
-      todo.toggle();
+      const todoId = todo.id.get();
 
-      // Update via REST API using instance method
-      await rest.update(todo);
+      // Fetch fresh instance from REST to ensure proper backend binding
+      const freshQs = await TodoModel.objects
+        .using("rest")
+        .filter({ id: todoId })
+        .fetch();
 
-      // Update local cache
-      await indexeddb.update(todo);
+      const freshTodo = await freshQs.first();
+      if (!freshTodo) {
+        console.error("Todo not found on server:", todoId);
+        return;
+      }
+
+      // Toggle the completed status
+      freshTodo.toggle();
+
+      // Save back to REST API
+      await freshQs.using("rest").save();
+
+      // Sync to IndexedDB cache
+      await freshQs.using("indexeddb").save();
 
       // Refresh the list
       await fetch();
@@ -119,8 +140,7 @@ export async function home(
   /**
    * Delete callback - deletes a todo
    *
-   * Uses backend instance methods (rest.delete) instead of QuerySet.delete()
-   * because RestBackend doesn't support deleteMany.
+   * Uses ORM pattern for deletion
    */
   const deleteTodo = async (todo: TodoModel): Promise<void> => {
     const template = templateRef.current;
@@ -129,11 +149,12 @@ export async function home(
     try {
       const todoId = todo.id.get();
 
-      // Delete from REST API using instance method
-      await rest.delete(todo);
+      // Delete from REST API
+      await TodoModel.objects.using("rest").filter({ id: todoId }).delete();
 
-      // Delete from local cache
-      await indexeddb.deleteById(TodoModel.meta.dbTable, todoId);
+      // Delete from IndexedDB cache
+      await TodoModel.objects.using("indexeddb").filter({ id: todoId })
+        .delete();
 
       // Refresh the list
       await fetch();
