@@ -396,11 +396,14 @@ describe("Todo App E2E Tests", {
   // ===========================================================================
 
   describe("Toggle Todo", () => {
-    // TODO: This test is skipped because Model instances fetched from IndexedDB
-    // lose their endpoint mapping when passed to RestBackend.update().
-    // The endpoint resolution relies on modelClass.name matching the registered
-    // ModelEndpoint, but the mapping may not be preserved across backend boundaries.
-    // This is a known architectural issue to be addressed in the ORM layer.
+    // TODO: This test is skipped due to a complex backend/endpoint resolution issue.
+    // When toggle runs, requests to /apiundefined (404) appear in the logs between
+    // valid REST operations. The issue seems related to how Model instances are
+    // tracked across backends - when saving to IndexedDB after REST, something
+    // triggers malformed HTTP requests. This needs deeper investigation of:
+    // 1. How QuerySet.using() clones state and backend references
+    // 2. Whether Model instances retain backend metadata incorrectly
+    // 3. If there's an observer/hook pattern firing unintended REST calls
     it.skip("should toggle todo completion when clicking checkbox", async () => {
       await navigateToHome();
 
