@@ -317,8 +317,10 @@ my-project/
 See the [docs/](./docs/) directory for detailed guides:
 
 - [Getting Started](./docs/getting-started.md)
+- [URL Routing](./docs/urls.md)
+- [Views](./docs/views.md)
 - [ORM Guide](./docs/db/models.md)
-- [REST Framework](./docs/restframework/viewsets.md)
+- [REST Framework ViewSets](./docs/restframework/viewsets.md)
 - [Filtering](./docs/restframework/filtering.md)
 
 ## Contributing
