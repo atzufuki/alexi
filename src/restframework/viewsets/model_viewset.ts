@@ -8,6 +8,10 @@
 
 import type { DatabaseBackend, Model, QuerySet } from "@alexi/db";
 import { getBackend, isInitialized } from "@alexi/db";
+import type {
+  FilterableViewSet,
+  FilterBackend,
+} from "../filters/filter_backend.ts";
 import type { ModelSerializer } from "../serializers/model_serializer.ts";
 import {
   Serializer,
@@ -77,7 +81,8 @@ export type SerializerClass = new (options?: {
  * }
  * ```
  */
-export abstract class ModelViewSet extends ViewSet {
+export abstract class ModelViewSet extends ViewSet
+  implements FilterableViewSet {
   /**
    * The model class for this ViewSet
    */
@@ -102,6 +107,60 @@ export abstract class ModelViewSet extends ViewSet {
    * The URL parameter name for the lookup (default: "id")
    */
   lookupUrlKwarg = "id";
+
+  // ==========================================================================
+  // Filtering Configuration (similar to DRF)
+  // ==========================================================================
+
+  /**
+   * Filter backends to apply to the queryset
+   *
+   * @example
+   * ```ts
+   * import { QueryParamFilterBackend, OrderingFilter } from "@alexi/restframework";
+   *
+   * class TodoViewSet extends ModelViewSet {
+   *   filterBackends = [new QueryParamFilterBackend(), new OrderingFilter()];
+   *   filtersetFields = ['id', 'completed'];
+   *   orderingFields = ['createdAt', 'title'];
+   * }
+   * ```
+   */
+  filterBackends?: FilterBackend[];
+
+  /**
+   * Fields that can be filtered via query parameters
+   *
+   * Used by QueryParamFilterBackend to determine which fields
+   * are allowed in query parameter filters.
+   *
+   * @example
+   * ```ts
+   * filtersetFields = ['id', 'completed', 'title'];
+   * // Allows: ?id=1, ?completed=true, ?title__contains=test
+   * ```
+   */
+  filtersetFields?: string[];
+
+  /**
+   * Fields that can be used for text search
+   *
+   * Used by SearchFilter to determine which fields to search.
+   */
+  searchFields?: string[];
+
+  /**
+   * Fields that can be used for ordering
+   *
+   * Used by OrderingFilter to determine which fields are allowed
+   * in the ordering query parameter.
+   */
+  orderingFields?: string[];
+
+  /**
+   * Default ordering to apply when no ordering is specified
+   */
+  ordering?: string[];
 
   // ==========================================================================
   // Queryset Methods
@@ -131,6 +190,32 @@ export abstract class ModelViewSet extends ViewSet {
       return this.model.objects.using(this.backend).all();
     }
     return this.model.objects.all();
+  }
+
+  /**
+   * Apply all configured filter backends to the queryset
+   *
+   * This method is called by list() to filter the queryset based on
+   * the request query parameters and configured filter backends.
+   *
+   * @param queryset - The base queryset to filter
+   * @param context - The ViewSet context containing the request
+   * @returns The filtered queryset
+   */
+  filterQueryset<T extends Model>(
+    queryset: QuerySet<T>,
+    context: ViewSetContext,
+  ): QuerySet<T> {
+    if (!this.filterBackends || this.filterBackends.length === 0) {
+      return queryset;
+    }
+
+    let filteredQs = queryset;
+    for (const backend of this.filterBackends) {
+      filteredQs = backend.filterQueryset(filteredQs, context, this);
+    }
+
+    return filteredQs;
   }
 
   /**
@@ -213,10 +298,27 @@ export abstract class ModelViewSet extends ViewSet {
 
   /**
    * List all objects (GET /)
+   *
+   * Applies configured filter backends before fetching results.
+   * Use `filter_backends` and `filterset_fields` to enable query parameter filtering.
+   *
+   * @example
+   * ```ts
+   * class TodoViewSet extends ModelViewSet {
+   *   model = TodoModel;
+   *   serializer_class = TodoSerializer;
+   *   filterBackends = [new QueryParamFilterBackend()];
+   *   filtersetFields = ['id', 'completed'];
+   * }
+   *
+   * // GET /api/todos/?id=18 -> returns only todo with id=18
+   * // GET /api/todos/?completed=true -> returns completed todos
+   * ```
    */
   override async list(context: ViewSetContext): Promise<Response> {
-    const queryset = await this.getQueryset(context);
-    const qs = await queryset.fetch();
+    const baseQueryset = await this.getQueryset(context);
+    const filteredQueryset = this.filterQueryset(baseQueryset, context);
+    const qs = await filteredQueryset.fetch();
     const instances = qs.array();
 
     const serializer = this.getSerializer({

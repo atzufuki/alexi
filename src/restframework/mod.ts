@@ -131,3 +131,15 @@ export type {
 export { DefaultRouter, SimpleRouter } from "./routers/mod.ts";
 
 export type { RegisterOptions } from "./routers/mod.ts";
+
+// ============================================================================
+// Filters
+// ============================================================================
+
+export {
+  OrderingFilter,
+  QueryParamFilterBackend,
+  SearchFilter,
+} from "./filters/mod.ts";
+
+export type { FilterableViewSet, FilterBackend } from "./filters/mod.ts";
