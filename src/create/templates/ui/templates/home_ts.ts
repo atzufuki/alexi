@@ -17,11 +17,14 @@ export function generateUiHomeTs(name: string): string {
  */
 
 import { HTMLPropsMixin, prop, ref } from "@html-props/core";
-import { Button, Div, Form, H1, Input, Li, Span, Ul } from "@html-props/built-ins";
+import { Div, Form, H1, Li, Span, Style, Ul } from "@html-props/built-ins";
 import { Column, Container, Row } from "@html-props/layout";
 import type { QuerySet } from "@alexi/db";
 import { TodoModel } from "@${name}-ui/models.ts";
 import { rest } from "@${name}-ui/settings.ts";
+import { DSButton } from "@${name}-ui/components/mod.ts";
+import { DSInput } from "@${name}-ui/components/mod.ts";
+import { DSCheckbox } from "@${name}-ui/components/mod.ts";
 
 /**
  * Home page - displays and manages the todo list
@@ -31,7 +34,12 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   todos: prop<QuerySet<TodoModel> | null>(null),
   fetch: prop<(() => Promise<void>) | null>(null),
 }) {
-  private inputRef = ref<HTMLInputElement>(null);
+  private inputRef = ref<InstanceType<typeof DSInput>>(null);
+
+  override connectedCallback(): void {
+    this.attachShadow({ mode: "open" });
+    super.connectedCallback();
+  }
 
   override async mountedCallback(): Promise<void> {
     if (this.fetch) {
@@ -88,35 +96,34 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     }
   };
 
-  override render(): Node {
-    return new Container({
-      padding: "24px",
-      style: {
-        maxWidth: "600px",
-        margin: "0 auto",
-      },
-      content: [
-        new Column({
-          gap: "24px",
-          content: [
-            this.renderHeader(),
-            this.renderForm(),
-            this.loading ? this.renderLoading() : this.renderTodoList(),
-          ],
-        }),
-      ],
-    });
+  override render(): Node[] {
+    return [
+      new Style({ textContent: HOME_STYLES }),
+      new Container({
+        padding: "24px",
+        style: {
+          maxWidth: "600px",
+          margin: "0 auto",
+        },
+        content: [
+          new Column({
+            gap: "24px",
+            content: [
+              this.renderHeader(),
+              this.renderForm(),
+              this.loading ? this.renderLoading() : this.renderTodoList(),
+            ],
+          }),
+        ],
+      }),
+    ];
   }
 
   private renderHeader(): Node {
     return new H1({
       dataset: { key: "header" },
       textContent: "📝 Todo App",
-      style: {
-        margin: "0",
-        fontSize: "2rem",
-        textAlign: "center",
-      },
+      className: "home-title",
     });
   }
 
@@ -126,32 +133,24 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
       onsubmit: this.handleSubmit,
       content: [
         new Row({
-          gap: "8px",
+          gap: "12px",
+          crossAxisAlignment: "end",
           content: [
-            new Input({
-              ref: this.inputRef,
-              type: "text",
-              placeholder: "What needs to be done?",
-              style: {
-                flex: "1",
-                padding: "12px",
-                fontSize: "1rem",
-                border: "1px solid #ddd",
-                borderRadius: "4px",
-              },
+            new Div({
+              style: { flex: "1" },
+              content: [
+                new DSInput({
+                  ref: this.inputRef,
+                  placeholder: "What needs to be done?",
+                  size: "md",
+                }),
+              ],
             }),
-            new Button({
+            new DSButton({
               type: "submit",
-              textContent: "Add",
-              style: {
-                padding: "12px 24px",
-                fontSize: "1rem",
-                backgroundColor: "#4CAF50",
-                color: "white",
-                border: "none",
-                borderRadius: "4px",
-                cursor: "pointer",
-              },
+              variant: "primary",
+              size: "md",
+              content: ["Add"],
             }),
           ],
         }),
@@ -162,12 +161,8 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   private renderLoading(): Node {
     return new Div({
       dataset: { key: "loading" },
+      className: "home-empty",
       textContent: "Loading...",
-      style: {
-        textAlign: "center",
-        color: "#666",
-        padding: "24px",
-      },
     });
   }
 
@@ -177,22 +172,14 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     if (todos.length === 0) {
       return new Div({
         dataset: { key: "empty" },
+        className: "home-empty",
         textContent: "No todos yet. Add one above!",
-        style: {
-          textAlign: "center",
-          color: "#666",
-          padding: "24px",
-        },
       });
     }
 
     return new Ul({
       dataset: { key: "todo-list" },
-      style: {
-        listStyle: "none",
-        padding: "0",
-        margin: "0",
-      },
+      className: "todo-list",
       content: todos.map((todo) => this.renderTodoItem(todo)),
     });
   }
@@ -202,42 +189,21 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
 
     return new Li({
       dataset: { key: \`todo-\${todo.id.get()}\` },
-      style: {
-        display: "flex",
-        alignItems: "center",
-        gap: "12px",
-        padding: "12px",
-        borderBottom: "1px solid #eee",
-      },
+      className: "todo-item",
       content: [
-        new Input({
-          type: "checkbox",
+        new DSCheckbox({
           checked: completed,
           onchange: () => this.handleToggle(todo),
-          style: {
-            width: "20px",
-            height: "20px",
-            cursor: "pointer",
-          },
         }),
         new Span({
           textContent: todo.title.get() as string,
-          style: {
-            flex: "1",
-            textDecoration: completed ? "line-through" : "none",
-            color: completed ? "#999" : "#333",
-          },
+          className: completed ? "todo-text todo-completed" : "todo-text",
         }),
-        new Button({
-          textContent: "🗑️",
+        new DSButton({
+          variant: "ghost",
+          size: "sm",
           onclick: () => this.handleDelete(todo),
-          style: {
-            padding: "4px 8px",
-            backgroundColor: "transparent",
-            border: "none",
-            cursor: "pointer",
-            fontSize: "1rem",
-          },
+          content: ["🗑️"],
         }),
       ],
     });
@@ -246,6 +212,97 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
 
 // Register the custom element
 HomePage.define("home-page");
+
+/**
+ * Home page styles
+ */
+const HOME_STYLES = \`
+  @import url("https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700&display=swap");
+
+  :host {
+    display: block;
+  }
+
+  .home-title {
+    margin: 0;
+    font-family: "Fredoka", system-ui, sans-serif;
+    font-size: 2.5rem;
+    font-weight: 600;
+    text-align: center;
+    color: #18181b;
+  }
+
+  .home-empty {
+    text-align: center;
+    color: #71717a;
+    padding: 32px;
+    font-family: "Nunito", system-ui, sans-serif;
+    font-size: 1rem;
+  }
+
+  .todo-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .todo-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    border-bottom: 1px solid #e4e4e7;
+    transition: background-color 150ms ease;
+  }
+
+  .todo-item:hover {
+    background-color: #fafafa;
+  }
+
+  .todo-item:last-child {
+    border-bottom: none;
+  }
+
+  .todo-text {
+    flex: 1;
+    font-family: "Nunito", system-ui, sans-serif;
+    font-size: 1rem;
+    color: #18181b;
+    transition: all 150ms ease;
+  }
+
+  .todo-completed {
+    text-decoration: line-through;
+    color: #a1a1aa;
+  }
+
+  /* Dark mode */
+  @media (prefers-color-scheme: dark) {
+    .home-title {
+      color: #fafafa;
+    }
+
+    .home-empty {
+      color: #a1a1aa;
+    }
+
+    .todo-item {
+      border-bottom-color: #3f3f46;
+    }
+
+    .todo-item:hover {
+      background-color: #27272a;
+    }
+
+    .todo-text {
+      color: #fafafa;
+    }
+
+    .todo-completed {
+      color: #71717a;
+    }
+  }
+\`;
 `;
 }
 

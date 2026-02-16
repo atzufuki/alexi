@@ -46,7 +46,7 @@ export function generateDenoJsonc(name: string): string {
 
       // HTML Props (frontend)
       "@html-props/core": "jsr:@html-props/core@^1.0.0-beta.6",
-      "@html-props/built-ins": "jsr:@html-props/built-ins@^1.0.0-beta.6",
+      "@html-props/built-ins": "jsr:@html-props/built-ins@^1.0.0-beta.7",
       "@html-props/layout": "jsr:@html-props/layout@^1.0.0-beta.7",
       "@html-props/signals": "jsr:@html-props/signals@^1.0.0-beta.2",
 
