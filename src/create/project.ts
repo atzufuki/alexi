@@ -53,7 +53,11 @@ import { generateDesktopModTs } from "./templates/desktop/mod_ts.ts";
 import { generateDesktopBindingsTs } from "./templates/desktop/bindings_ts.ts";
 
 // Template imports - Skills (Agent Skills for AI coding assistants)
+import { generateAlexiAuthSkillMd } from "./templates/skills/alexi_auth_skill_md.ts";
+import { generateAlexiCoreSkillMd } from "./templates/skills/alexi_core_skill_md.ts";
 import { generateAlexiDbSkillMd } from "./templates/skills/alexi_db_skill_md.ts";
+import { generateAlexiRestframeworkSkillMd } from "./templates/skills/alexi_restframework_skill_md.ts";
+import { generateAlexiUrlsSkillMd } from "./templates/skills/alexi_urls_skill_md.ts";
 
 export interface ProjectOptions {
   name: string;
@@ -115,15 +119,26 @@ export async function installSkills(
   console.log("Installing Alexi Agent Skills...");
   console.log("");
 
-  // Create skills directory
-  const skillsDir = `${targetDir}/.opencode/skills/alexi-db`;
-  await Deno.mkdir(skillsDir, { recursive: true });
-  console.log(`  Created ${skillsDir}/`);
+  // All skills to install
+  const skills = [
+    { name: "alexi-auth", generator: generateAlexiAuthSkillMd },
+    { name: "alexi-core", generator: generateAlexiCoreSkillMd },
+    { name: "alexi-db", generator: generateAlexiDbSkillMd },
+    {
+      name: "alexi-restframework",
+      generator: generateAlexiRestframeworkSkillMd,
+    },
+    { name: "alexi-urls", generator: generateAlexiUrlsSkillMd },
+  ];
 
-  // Write skill file
-  const skillPath = `${skillsDir}/SKILL.md`;
-  await Deno.writeTextFile(skillPath, generateAlexiDbSkillMd());
-  console.log(`  Created ${skillPath}`);
+  for (const skill of skills) {
+    const skillDir = `${targetDir}/.opencode/skills/${skill.name}`;
+    await Deno.mkdir(skillDir, { recursive: true });
+
+    const skillPath = `${skillDir}/SKILL.md`;
+    await Deno.writeTextFile(skillPath, skill.generator());
+    console.log(`  Created ${skillPath}`);
+  }
 
   console.log("");
   console.log("✓ Agent Skills installed");
@@ -159,7 +174,11 @@ async function createDirectories(name: string): Promise<void> {
     // Desktop app
     `${name}/src/${name}-desktop`,
     // Agent Skills (for AI coding assistants)
+    `${name}/.opencode/skills/alexi-auth`,
+    `${name}/.opencode/skills/alexi-core`,
     `${name}/.opencode/skills/alexi-db`,
+    `${name}/.opencode/skills/alexi-restframework`,
+    `${name}/.opencode/skills/alexi-urls`,
   ];
 
   for (const dir of dirs) {
@@ -349,8 +368,24 @@ async function generateFiles(name: string): Promise<void> {
     // Agent Skills (for AI coding assistants like OpenCode, Claude, Cursor)
     // ==========================================================================
     {
+      path: `${name}/.opencode/skills/alexi-auth/SKILL.md`,
+      content: generateAlexiAuthSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-core/SKILL.md`,
+      content: generateAlexiCoreSkillMd(),
+    },
+    {
       path: `${name}/.opencode/skills/alexi-db/SKILL.md`,
       content: generateAlexiDbSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-restframework/SKILL.md`,
+      content: generateAlexiRestframeworkSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-urls/SKILL.md`,
+      content: generateAlexiUrlsSkillMd(),
     },
   ];
 
