@@ -52,6 +52,9 @@ import { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
 import { generateDesktopModTs } from "./templates/desktop/mod_ts.ts";
 import { generateDesktopBindingsTs } from "./templates/desktop/bindings_ts.ts";
 
+// Template imports - Skills (Agent Skills for AI coding assistants)
+import { generateAlexiDbSkillMd } from "./templates/skills/alexi_db_skill_md.ts";
+
 export interface ProjectOptions {
   name: string;
 }
@@ -122,6 +125,8 @@ async function createDirectories(name: string): Promise<void> {
     `${name}/src/${name}-ui/static/${name}-ui`,
     // Desktop app
     `${name}/src/${name}-desktop`,
+    // Agent Skills (for AI coding assistants)
+    `${name}/.opencode/skills/alexi-db`,
   ];
 
   for (const dir of dirs) {
@@ -305,6 +310,14 @@ async function generateFiles(name: string): Promise<void> {
     {
       path: `${name}/src/${name}-desktop/bindings.ts`,
       content: generateDesktopBindingsTs(),
+    },
+
+    // ==========================================================================
+    // Agent Skills (for AI coding assistants like OpenCode, Claude, Cursor)
+    // ==========================================================================
+    {
+      path: `${name}/.opencode/skills/alexi-db/SKILL.md`,
+      content: generateAlexiDbSkillMd(),
     },
   ];
 

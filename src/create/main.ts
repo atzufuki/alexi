@@ -61,6 +61,10 @@ async function main(): Promise<number> {
     console.log("  • UI server (frontend) on http://localhost:5173");
     console.log("  • Desktop WebUI window");
     console.log("");
+    console.log("AI Coding Assistant:");
+    console.log("  • Agent Skills installed in .opencode/skills/");
+    console.log("  • Compatible with OpenCode, Claude Code, Cursor");
+    console.log("");
 
     return 0;
   } catch (error) {
