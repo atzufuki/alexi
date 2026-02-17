@@ -59,6 +59,11 @@ export interface ProjectOptions {
   name: string;
 }
 
+export interface InstallSkillsOptions {
+  /** Target directory (defaults to current working directory) */
+  targetDir?: string;
+}
+
 /**
  * Create a new Alexi full-stack project
  */
@@ -94,6 +99,34 @@ export async function createProject(options: ProjectOptions): Promise<void> {
   await generateFiles(name);
 
   console.log("✓ Created project structure");
+}
+
+/**
+ * Install Agent Skills to an existing project
+ *
+ * This installs Alexi's Agent Skills for AI coding assistants
+ * (OpenCode, Claude Code, Cursor) into the current project.
+ */
+export async function installSkills(
+  options: InstallSkillsOptions = {},
+): Promise<void> {
+  const targetDir = options.targetDir ?? ".";
+
+  console.log("Installing Alexi Agent Skills...");
+  console.log("");
+
+  // Create skills directory
+  const skillsDir = `${targetDir}/.opencode/skills/alexi-db`;
+  await Deno.mkdir(skillsDir, { recursive: true });
+  console.log(`  Created ${skillsDir}/`);
+
+  // Write skill file
+  const skillPath = `${skillsDir}/SKILL.md`;
+  await Deno.writeTextFile(skillPath, generateAlexiDbSkillMd());
+  console.log(`  Created ${skillPath}`);
+
+  console.log("");
+  console.log("✓ Agent Skills installed");
 }
 
 /**

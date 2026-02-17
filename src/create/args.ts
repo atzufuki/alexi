@@ -8,6 +8,7 @@ export interface CreateArgs {
   projectName: string | null;
   help: boolean;
   version: boolean;
+  skillsOnly: boolean;
 }
 
 /**
@@ -18,6 +19,7 @@ export function parseArgs(args: string[]): CreateArgs {
     projectName: null,
     help: false,
     version: false,
+    skillsOnly: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -31,6 +33,11 @@ export function parseArgs(args: string[]): CreateArgs {
 
     if (arg === "--version" || arg === "-v") {
       result.version = true;
+      continue;
+    }
+
+    if (arg === "--skills-only") {
+      result.skillsOnly = true;
       continue;
     }
 
