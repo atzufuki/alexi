@@ -28,4 +28,5 @@ export const urlpatterns = [
 
 ## Documentation
 
-See [Authentication Documentation](../../docs/auth/authentication.md) for details.
+See [Authentication Documentation](../../docs/auth/authentication.md) for
+details.

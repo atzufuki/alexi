@@ -18,7 +18,11 @@ deno add jsr:@alexi/restframework
 ## Quick Example
 
 ```typescript
-import { ModelSerializer, ModelViewSet, DefaultRouter } from "@alexi/restframework";
+import {
+  DefaultRouter,
+  ModelSerializer,
+  ModelViewSet,
+} from "@alexi/restframework";
 import { TodoModel } from "./models.ts";
 
 class TodoSerializer extends ModelSerializer {

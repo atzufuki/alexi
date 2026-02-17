@@ -29,7 +29,8 @@ const app = new Application({
 
 ## Documentation
 
-See the full documentation at [docs/staticfiles/staticfiles.md](../../docs/staticfiles/staticfiles.md).
+See the full documentation at
+[docs/staticfiles/staticfiles.md](../../docs/staticfiles/staticfiles.md).
 
 ## License
 
