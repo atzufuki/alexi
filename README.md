@@ -319,7 +319,9 @@ See the [docs/](./docs/) directory for detailed guides:
 ### Getting Started
 
 - [Getting Started](./docs/getting-started.md)
+- [Tutorial: Build a Todo App](./docs/tutorial.md)
 - [Project Scaffolding](./docs/create/scaffolding.md)
+- [Deployment Guide](./docs/deployment.md)
 
 ### Core Concepts
 
