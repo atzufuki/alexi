@@ -254,7 +254,126 @@ await backend.logout();
 | `save()` (existing)       | PUT         | `/todos/1/`    |
 | `delete()`                | DELETE      | `/todos/1/`    |
 
-### Custom Actions
+### ModelEndpoint (Declarative Endpoints)
+
+ModelEndpoint provides a declarative, DRF-style way to configure REST endpoints
+with custom actions and special queries.
+
+#### Basic Setup
+
+```typescript
+import {
+  DetailAction,
+  ListAction,
+  ModelEndpoint,
+  RestBackend,
+  SingletonQuery,
+} from "@alexi/db/backends/rest";
+import { OrganisationModel, ProjectModel } from "./models.ts";
+
+// Define endpoint for ProjectModel
+class ProjectEndpoint extends ModelEndpoint {
+  model = ProjectModel;
+  path = "/projects/"; // Required - explicit full path
+
+  // POST /projects/:id/publish/
+  publish = new DetailAction();
+  unpublish = new DetailAction();
+
+  // DELETE /projects/:id/archive/
+  archive = new DetailAction({ method: "DELETE" });
+
+  // GET /projects/published/ → returns array
+  published = new ListAction({ method: "GET" });
+
+  // GET /projects/statistics/ → returns single object
+  statistics = new ListAction({ method: "GET", single: true });
+}
+
+// Define endpoint for OrganisationModel
+class OrganisationEndpoint extends ModelEndpoint {
+  model = OrganisationModel;
+  path = "/organisations/";
+
+  // filter({current: true}) → GET /organisations/current/
+  current = new SingletonQuery();
+
+  // POST /organisations/:id/activate/
+  activate = new DetailAction();
+  deactivate = new DetailAction();
+}
+
+// Register endpoints with RestBackend
+const backend = new RestBackend({
+  apiUrl: "https://api.example.com/api",
+  endpoints: [ProjectEndpoint, OrganisationEndpoint],
+});
+```
+
+#### Descriptor Types
+
+| Descriptor       | DRF Equivalent          | Generates                                        |
+| ---------------- | ----------------------- | ------------------------------------------------ |
+| `DetailAction`   | `@action(detail=True)`  | `POST /endpoint/:id/action_name/`                |
+| `ListAction`     | `@action(detail=False)` | `GET\|POST /endpoint/action_name/`               |
+| `SingletonQuery` | Custom queryset / mixin | `filter({field: true})` → `GET /endpoint/field/` |
+
+#### Descriptor Options
+
+```typescript
+// DetailAction options
+new DetailAction(); // POST (default)
+new DetailAction({ method: "DELETE" }); // DELETE
+new DetailAction({ method: "PUT" }); // PUT
+new DetailAction({ urlSegment: "do-something" }); // Custom URL segment
+
+// ListAction options
+new ListAction(); // POST (default)
+new ListAction({ method: "GET" }); // GET
+new ListAction({ method: "GET", single: true }); // GET, returns single object
+
+// SingletonQuery options
+new SingletonQuery(); // filter({field: true})
+new SingletonQuery({ urlSegment: "me" }); // Custom URL: /path/me/
+new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
+```
+
+#### Naming Conventions
+
+camelCase property names are automatically converted to kebab-case URL segments:
+
+| Property Name    | URL Segment       | Full URL                                 |
+| ---------------- | ----------------- | ---------------------------------------- |
+| `publish`        | `publish`         | `POST /projects/:id/publish/`            |
+| `shareProject`   | `share-project`   | `POST /connections/:id/share-project/`   |
+| `shareEmployees` | `share-employees` | `POST /connections/:id/share-employees/` |
+
+#### Using Endpoints
+
+```typescript
+// ORM with SingletonQuery (automatic)
+const org = await OrganisationModel.objects
+  .using(backend)
+  .filter({ current: true })
+  .first();
+// → GET /organisations/current/
+
+// Type-safe action calls
+await backend.action(ProjectEndpoint, "publish", 42);
+// → POST /projects/42/publish/
+
+await backend.action(ProjectEndpoint, "publish", 42, { notify: true });
+// → POST /projects/42/publish/ with body
+
+// List actions
+const published = await backend.action(ProjectEndpoint, "published");
+// → GET /projects/published/
+
+// Old callModelAction still works (backwards compatible)
+await backend.callModelAction("projects", 42, "publish");
+```
+
+### Custom Actions (Legacy)
 
 ```typescript
 // Call custom ViewSet action
