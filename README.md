@@ -322,6 +322,7 @@ See the [docs/](./docs/) directory for detailed guides:
 - [Tutorial: Build a Todo App](./docs/tutorial.md)
 - [Project Scaffolding](./docs/create/scaffolding.md)
 - [Deployment Guide](./docs/deployment.md)
+- [Django vs Alexi](./docs/django-comparison.md)
 
 ### Core Concepts
 
