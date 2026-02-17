@@ -39,16 +39,15 @@ differences, and features unique to Alexi.
 
 ### Database Backends
 
-| Backend        | Django | Alexi                             |
-| -------------- | ------ | --------------------------------- |
-| PostgreSQL     | ✅     | ❌                                |
-| MySQL          | ✅     | ❌                                |
-| SQLite         | ✅     | ✅ (via DenoKV)                   |
-| Oracle         | ✅     | ❌                                |
-| DenoKV         | ❌     | ✅                                |
-| IndexedDB      | ❌     | ✅ (browser)                      |
-| REST API       | ❌     | ✅ (browser, maps ORM to HTTP)    |
-| Sync (offline) | ❌     | ✅ (local + remote orchestration) |
+| Backend    | Django | Alexi                          |
+| ---------- | ------ | ------------------------------ |
+| PostgreSQL | ✅     | ❌                             |
+| MySQL      | ✅     | ❌                             |
+| SQLite     | ✅     | ✅ (via DenoKV)                |
+| Oracle     | ✅     | ❌                             |
+| DenoKV     | ❌     | ✅                             |
+| IndexedDB  | ❌     | ✅ (browser)                   |
+| REST API   | ❌     | ✅ (browser, maps ORM to HTTP) |
 
 ### REST Framework
 
@@ -153,8 +152,7 @@ Features available in Alexi that Django does not provide out of the box:
 | --------------------- | ----------------------------------------------------------------- |
 | **Isomorphic models** | Same ORM API runs on server (DenoKV) and browser (IndexedDB/REST) |
 | **REST backend**      | ORM queries automatically map to REST API calls in the browser    |
-| **Sync backend**      | Offline-first with automatic local/remote synchronization         |
-| **QuerySet.save()**   | Bulk persist fetched objects, enables cross-backend sync          |
+| **QuerySet.save()**   | Bulk persist fetched objects                                      |
 | **ModelEndpoint**     | Declarative REST endpoint configuration (DRF `@action` style)     |
 | **WebUI integration** | Desktop application support using system browser                  |
 | **Capacitor support** | Mobile app packaging for iOS/Android (placeholder)                |
