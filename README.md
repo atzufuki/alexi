@@ -316,15 +316,37 @@ my-project/
 
 See the [docs/](./docs/) directory for detailed guides:
 
+### Getting Started
+
 - [Getting Started](./docs/getting-started.md)
+- [Project Scaffolding](./docs/create/scaffolding.md)
+
+### Core Concepts
+
 - [URL Routing](./docs/urls.md)
 - [Views](./docs/views.md)
+- [Middleware](./docs/middleware/middleware.md)
+- [Management Commands](./docs/core/management.md)
+
+### Database
+
 - [ORM Models](./docs/db/models.md)
 - [Database Backends](./docs/db/backends.md)
-- [REST Framework ViewSets](./docs/restframework/viewsets.md)
+
+### REST Framework
+
+- [ViewSets](./docs/restframework/viewsets.md)
 - [Serializers](./docs/restframework/serializers.md)
 - [Filtering](./docs/restframework/filtering.md)
-- [HTTP Application & Middleware](./docs/http/application.md)
+
+### Additional Modules
+
+- [HTTP Application](./docs/http/application.md)
+- [Static Files](./docs/staticfiles/staticfiles.md)
+- [Authentication](./docs/auth/authentication.md)
+- [Admin Panel](./docs/admin/admin.md)
+- [WebUI (Desktop)](./docs/webui/webui.md)
+- [Capacitor (Mobile)](./docs/capacitor/capacitor.md)
 
 ## Contributing
 
