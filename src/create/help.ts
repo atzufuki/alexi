@@ -25,10 +25,12 @@ ARGUMENTS:
 OPTIONS:
   -h, --help        Show this help message
   -v, --version     Show version number
+  --skills-only     Install Agent Skills to current directory (no project creation)
 
 EXAMPLES:
   deno run -A jsr:@alexi/create my-todo-app
   deno run -A jsr:@alexi/create awesome-project
+  deno run -A jsr:@alexi/create --skills-only   # Add skills to existing project
 
 AFTER CREATION:
   cd <project-name>

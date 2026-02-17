@@ -52,8 +52,27 @@ import { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
 import { generateDesktopModTs } from "./templates/desktop/mod_ts.ts";
 import { generateDesktopBindingsTs } from "./templates/desktop/bindings_ts.ts";
 
+// Template imports - Skills (Agent Skills for AI coding assistants)
+import { generateAlexiAdminSkillMd } from "./templates/skills/alexi_admin_skill_md.ts";
+import { generateAlexiAuthSkillMd } from "./templates/skills/alexi_auth_skill_md.ts";
+import { generateAlexiCapacitorSkillMd } from "./templates/skills/alexi_capacitor_skill_md.ts";
+import { generateAlexiCoreSkillMd } from "./templates/skills/alexi_core_skill_md.ts";
+import { generateAlexiDbSkillMd } from "./templates/skills/alexi_db_skill_md.ts";
+import { generateAlexiMiddlewareSkillMd } from "./templates/skills/alexi_middleware_skill_md.ts";
+import { generateAlexiRestframeworkSkillMd } from "./templates/skills/alexi_restframework_skill_md.ts";
+import { generateAlexiStaticfilesSkillMd } from "./templates/skills/alexi_staticfiles_skill_md.ts";
+import { generateAlexiUrlsSkillMd } from "./templates/skills/alexi_urls_skill_md.ts";
+import { generateAlexiViewsSkillMd } from "./templates/skills/alexi_views_skill_md.ts";
+import { generateAlexiWebSkillMd } from "./templates/skills/alexi_web_skill_md.ts";
+import { generateAlexiWebuiSkillMd } from "./templates/skills/alexi_webui_skill_md.ts";
+
 export interface ProjectOptions {
   name: string;
+}
+
+export interface InstallSkillsOptions {
+  /** Target directory (defaults to current working directory) */
+  targetDir?: string;
 }
 
 /**
@@ -94,6 +113,52 @@ export async function createProject(options: ProjectOptions): Promise<void> {
 }
 
 /**
+ * Install Agent Skills to an existing project
+ *
+ * This installs Alexi's Agent Skills for AI coding assistants
+ * (OpenCode, Claude Code, Cursor) into the current project.
+ */
+export async function installSkills(
+  options: InstallSkillsOptions = {},
+): Promise<void> {
+  const targetDir = options.targetDir ?? ".";
+
+  console.log("Installing Alexi Agent Skills...");
+  console.log("");
+
+  // All skills to install
+  const skills = [
+    { name: "alexi-admin", generator: generateAlexiAdminSkillMd },
+    { name: "alexi-auth", generator: generateAlexiAuthSkillMd },
+    { name: "alexi-capacitor", generator: generateAlexiCapacitorSkillMd },
+    { name: "alexi-core", generator: generateAlexiCoreSkillMd },
+    { name: "alexi-db", generator: generateAlexiDbSkillMd },
+    { name: "alexi-middleware", generator: generateAlexiMiddlewareSkillMd },
+    {
+      name: "alexi-restframework",
+      generator: generateAlexiRestframeworkSkillMd,
+    },
+    { name: "alexi-staticfiles", generator: generateAlexiStaticfilesSkillMd },
+    { name: "alexi-urls", generator: generateAlexiUrlsSkillMd },
+    { name: "alexi-views", generator: generateAlexiViewsSkillMd },
+    { name: "alexi-web", generator: generateAlexiWebSkillMd },
+    { name: "alexi-webui", generator: generateAlexiWebuiSkillMd },
+  ];
+
+  for (const skill of skills) {
+    const skillDir = `${targetDir}/.opencode/skills/${skill.name}`;
+    await Deno.mkdir(skillDir, { recursive: true });
+
+    const skillPath = `${skillDir}/SKILL.md`;
+    await Deno.writeTextFile(skillPath, skill.generator());
+    console.log(`  Created ${skillPath}`);
+  }
+
+  console.log("");
+  console.log("✓ Agent Skills installed");
+}
+
+/**
  * Validate project name
  */
 function isValidProjectName(name: string): boolean {
@@ -122,6 +187,19 @@ async function createDirectories(name: string): Promise<void> {
     `${name}/src/${name}-ui/static/${name}-ui`,
     // Desktop app
     `${name}/src/${name}-desktop`,
+    // Agent Skills (for AI coding assistants)
+    `${name}/.opencode/skills/alexi-admin`,
+    `${name}/.opencode/skills/alexi-auth`,
+    `${name}/.opencode/skills/alexi-capacitor`,
+    `${name}/.opencode/skills/alexi-core`,
+    `${name}/.opencode/skills/alexi-db`,
+    `${name}/.opencode/skills/alexi-middleware`,
+    `${name}/.opencode/skills/alexi-restframework`,
+    `${name}/.opencode/skills/alexi-staticfiles`,
+    `${name}/.opencode/skills/alexi-urls`,
+    `${name}/.opencode/skills/alexi-views`,
+    `${name}/.opencode/skills/alexi-web`,
+    `${name}/.opencode/skills/alexi-webui`,
   ];
 
   for (const dir of dirs) {
@@ -305,6 +383,58 @@ async function generateFiles(name: string): Promise<void> {
     {
       path: `${name}/src/${name}-desktop/bindings.ts`,
       content: generateDesktopBindingsTs(),
+    },
+
+    // ==========================================================================
+    // Agent Skills (for AI coding assistants like OpenCode, Claude, Cursor)
+    // ==========================================================================
+    {
+      path: `${name}/.opencode/skills/alexi-admin/SKILL.md`,
+      content: generateAlexiAdminSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-auth/SKILL.md`,
+      content: generateAlexiAuthSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-capacitor/SKILL.md`,
+      content: generateAlexiCapacitorSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-core/SKILL.md`,
+      content: generateAlexiCoreSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-db/SKILL.md`,
+      content: generateAlexiDbSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-middleware/SKILL.md`,
+      content: generateAlexiMiddlewareSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-restframework/SKILL.md`,
+      content: generateAlexiRestframeworkSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-staticfiles/SKILL.md`,
+      content: generateAlexiStaticfilesSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-urls/SKILL.md`,
+      content: generateAlexiUrlsSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-views/SKILL.md`,
+      content: generateAlexiViewsSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-web/SKILL.md`,
+      content: generateAlexiWebSkillMd(),
+    },
+    {
+      path: `${name}/.opencode/skills/alexi-webui/SKILL.md`,
+      content: generateAlexiWebuiSkillMd(),
     },
   ];
 
