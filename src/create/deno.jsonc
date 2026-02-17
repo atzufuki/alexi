@@ -3,7 +3,8 @@
   "version": "0.20.0",
   "license": "MIT",
   "exports": {
-    ".": "./mod.ts"
+    ".": "./main.ts",
+    "./mod": "./mod.ts"
   },
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.20.0",
