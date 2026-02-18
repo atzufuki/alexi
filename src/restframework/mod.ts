@@ -178,3 +178,18 @@ export type {
   PaginationClass,
   PaginationContext,
 } from "./pagination/mod.ts";
+
+// ============================================================================
+// Throttling
+// ============================================================================
+
+export {
+  AnonRateThrottle,
+  BaseThrottle,
+  clearThrottleCache,
+  parseRate,
+  ScopedRateThrottle,
+  UserRateThrottle,
+} from "./throttling/mod.ts";
+
+export type { ParsedRate, ThrottleClass } from "./throttling/mod.ts";
