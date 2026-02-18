@@ -41,7 +41,7 @@ differences, and features unique to Alexi.
 
 | Backend    | Django | Alexi                          |
 | ---------- | ------ | ------------------------------ |
-| PostgreSQL | ✅     | ❌                             |
+| PostgreSQL | ✅     | ✅                             |
 | MySQL      | ✅     | ❌                             |
 | SQLite     | ✅     | ✅ (via DenoKV)                |
 | Oracle     | ✅     | ❌                             |
