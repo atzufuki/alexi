@@ -63,7 +63,7 @@ differences, and features unique to Alexi.
 | Search              | ✅                    | ✅                   | SearchFilter                       |
 | Pagination          | ✅                    | ✅                   | PageNumber, LimitOffset, Cursor    |
 | Throttling          | ✅                    | ❌                   | —                                  |
-| Permissions         | ✅                    | ⚠️ (partial)         | Via decorators                     |
+| Permissions         | ✅                    | ✅                   | ViewSet permission_classes         |
 | Versioning          | ✅                    | ❌                   | —                                  |
 | Content negotiation | ✅                    | ❌                   | JSON only                          |
 | Browsable API       | ✅                    | ❌                   | —                                  |

@@ -7,6 +7,8 @@
  */
 
 import type { View } from "@alexi/urls";
+import type { BasePermission, PermissionClass } from "../permissions/mod.ts";
+import { ForbiddenError, UnauthorizedError } from "@alexi/middleware";
 
 // ============================================================================
 // Types
@@ -162,8 +164,27 @@ export function getActions(instance: object): Map<string, ActionMetadata> {
  *   }
  * }
  * ```
+ *
+ * @example With permissions
+ * ```ts
+ * class ProtectedViewSet extends ViewSet {
+ *   permission_classes = [IsAuthenticated];
+ *
+ *   async list(context: ViewSetContext): Promise<Response> {
+ *     return Response.json({ data: "secret" });
+ *   }
+ * }
+ * ```
  */
 export class ViewSet {
+  /**
+   * Permission classes to check before each action
+   *
+   * All permissions must pass (AND logic). Override getPermissions()
+   * for per-action control.
+   */
+  permission_classes?: PermissionClass[];
+
   /**
    * The current action being performed
    */
@@ -182,7 +203,7 @@ export class ViewSet {
   /**
    * Additional context
    */
-  protected context: Record<string, unknown> = {};
+  protected context: ViewSetContext = {} as ViewSetContext;
 
   /**
    * Set up the ViewSet for handling a request
@@ -192,6 +213,85 @@ export class ViewSet {
     this.request = context.request;
     this.params = context.params;
     this.context = context;
+  }
+
+  /**
+   * Get permission instances for the current action
+   *
+   * Override this method to return different permissions per action.
+   *
+   * @example
+   * ```ts
+   * getPermissions(): BasePermission[] {
+   *   if (this.action === "destroy") {
+   *     return [new IsAdminUser()];
+   *   }
+   *   return [new IsAuthenticatedOrReadOnly()];
+   * }
+   * ```
+   */
+  getPermissions(): BasePermission[] {
+    if (!this.permission_classes) {
+      return [];
+    }
+    return this.permission_classes.map((cls) => new cls());
+  }
+
+  /**
+   * Check all permissions for the current request
+   *
+   * Throws UnauthorizedError (401) if user is not authenticated when required.
+   * Throws ForbiddenError (403) if user doesn't have permission.
+   */
+  async checkPermissions(context: ViewSetContext): Promise<void> {
+    const permissions = this.getPermissions();
+
+    for (const permission of permissions) {
+      const hasPermission = await permission.hasPermission(context);
+
+      if (!hasPermission) {
+        // Determine if it's an auth issue (401) or permission issue (403)
+        if (context.user == null) {
+          throw new UnauthorizedError(
+            permission.message || "Authentication required.",
+          );
+        }
+        throw new ForbiddenError(
+          permission.message || "Permission denied.",
+        );
+      }
+    }
+  }
+
+  /**
+   * Check object-level permissions
+   *
+   * Call this in retrieve, update, partial_update, destroy actions
+   * after fetching the object.
+   *
+   * @param context - The ViewSet context
+   * @param obj - The object being accessed
+   */
+  async checkObjectPermissions(
+    context: ViewSetContext,
+    obj: unknown,
+  ): Promise<void> {
+    const permissions = this.getPermissions();
+
+    for (const permission of permissions) {
+      const hasPermission = await permission.hasObjectPermission(context, obj);
+
+      if (!hasPermission) {
+        if (context.user == null) {
+          throw new UnauthorizedError(
+            permission.message || "Authentication required.",
+          );
+        }
+        throw new ForbiddenError(
+          permission.message || "Permission denied.",
+        );
+      }
+    }
   }
 
   /**
@@ -222,12 +322,34 @@ export class ViewSet {
       // Create a new instance for each request
       const viewset = new ViewSetClass();
 
-      // Initialize with context
-      viewset.initialize({
+      // Build context with user info (if available from request)
+      const context: ViewSetContext = {
         request,
         params,
         action: actionName,
-      });
+      };
+
+      // Initialize with context
+      viewset.initialize(context);
+
+      // Check permissions before executing the action
+      try {
+        await viewset.checkPermissions(context);
+      } catch (error) {
+        if (error instanceof UnauthorizedError) {
+          return Response.json(
+            { error: error.message },
+            { status: 401 },
+          );
+        }
+        if (error instanceof ForbiddenError) {
+          return Response.json(
+            { error: error.message },
+            { status: 403 },
+          );
+        }
+        throw error;
+      }
 
       // Get the action method
       const actionMethod =
@@ -241,12 +363,19 @@ export class ViewSet {
 
       // Call the action
       try {
-        return await actionMethod.call(viewset, {
-          request,
-          params,
-          action: actionName,
-        });
+        return await actionMethod.call(viewset, context);
       } catch (error) {
+        // Re-throw permission errors to return proper status codes
+        if (
+          error instanceof UnauthorizedError ||
+          error instanceof ForbiddenError
+        ) {
+          const status = error instanceof UnauthorizedError ? 401 : 403;
+          return Response.json(
+            { error: error.message },
+            { status },
+          );
+        }
         console.error(`Error in ${actionName}:`, error);
         return Response.json(
           { error: "Internal server error" },
