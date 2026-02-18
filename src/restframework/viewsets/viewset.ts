@@ -8,6 +8,12 @@
 
 import type { View } from "@alexi/urls";
 import type { BasePermission, PermissionClass } from "../permissions/mod.ts";
+import {
+  applyVersioning,
+  type BaseVersioning,
+  type VersioningClass,
+  type VersioningConfig,
+} from "../versioning/mod.ts";
 import { ForbiddenError, UnauthorizedError } from "@alexi/middleware";
 
 // ============================================================================
@@ -83,6 +89,9 @@ export interface ViewSetContext {
     isAdmin?: boolean;
     [key: string]: unknown;
   };
+
+  /** The API version determined by the versioning class (if any) */
+  version?: string | null;
 
   /** Additional context data */
   [key: string]: unknown;
@@ -186,6 +195,39 @@ export class ViewSet {
   permission_classes?: PermissionClass[];
 
   /**
+   * Versioning class to use for this ViewSet
+   *
+   * When set, the API version is determined from the request and stored
+   * in `context.version`. Returns 400 if the version is not allowed.
+   *
+   * @example
+   * ```ts
+   * class UserViewSet extends ModelViewSet {
+   *   versioning_class = URLPathVersioning;
+   *   versioning_config = {
+   *     defaultVersion: "v1",
+   *     allowedVersions: ["v1", "v2"],
+   *   };
+   * }
+   * ```
+   */
+  versioning_class?: VersioningClass;
+
+  /**
+   * Configuration for the versioning class
+   *
+   * @example
+   * ```ts
+   * versioning_config = {
+   *   defaultVersion: "v1",
+   *   allowedVersions: ["v1", "v2"],
+   *   versionParam: "ver",  // for QueryParameterVersioning
+   * };
+   * ```
+   */
+  versioning_config?: VersioningConfig;
+
+  /**
    * The current action being performed
    */
   action?: ActionType;
@@ -235,6 +277,39 @@ export class ViewSet {
       return [];
     }
     return this.permission_classes.map((cls) => new cls());
+  }
+
+  /**
+   * Get the versioning instance for the current request
+   *
+   * Override to provide a custom versioning scheme.
+   *
+   * @returns A configured BaseVersioning instance, or null if no versioning
+   */
+  getVersioning(): BaseVersioning | null {
+    if (!this.versioning_class) {
+      return null;
+    }
+    const versioning = new this.versioning_class();
+    if (this.versioning_config) {
+      if (this.versioning_config.defaultVersion !== undefined) {
+        versioning.defaultVersion = this.versioning_config.defaultVersion ??
+          null;
+      }
+      if (this.versioning_config.allowedVersions !== undefined) {
+        versioning.allowedVersions = this.versioning_config.allowedVersions ??
+          null;
+      }
+      if (
+        this.versioning_config.versionParam !== undefined
+      ) {
+        const v = versioning as BaseVersioning & { versionParam?: string };
+        if ("versionParam" in v) {
+          v.versionParam = this.versioning_config.versionParam;
+        }
+      }
+    }
+    return versioning;
   }
 
   /**
@@ -331,6 +406,15 @@ export class ViewSet {
 
       // Initialize with context
       viewset.initialize(context);
+
+      // Determine API version (before permissions)
+      const versioningResponse = applyVersioning(
+        viewset.getVersioning(),
+        context,
+      );
+      if (versioningResponse) {
+        return versioningResponse;
+      }
 
       // Check permissions before executing the action
       try {

@@ -51,22 +51,22 @@ differences, and features unique to Alexi.
 
 ### REST Framework
 
-| Feature             | Django REST Framework | Alexi REST Framework | Notes                              |
-| ------------------- | --------------------- | -------------------- | ---------------------------------- |
-| Serializers         | ✅                    | ✅                   | Similar API                        |
-| ModelSerializer     | ✅                    | ✅                   | Auto-generates fields from model   |
-| ViewSets            | ✅                    | ✅                   | ModelViewSet, ReadOnlyModelViewSet |
-| Routers             | ✅                    | ✅                   | DefaultRouter                      |
-| `@action` decorator | ✅                    | ✅                   | Custom actions on ViewSets         |
-| Filter backends     | ✅                    | ✅                   | QueryParamFilterBackend, etc.      |
-| Ordering            | ✅                    | ✅                   | OrderingFilter                     |
-| Search              | ✅                    | ✅                   | SearchFilter                       |
-| Pagination          | ✅                    | ✅                   | PageNumber, LimitOffset, Cursor    |
-| Throttling          | ✅                    | ❌                   | —                                  |
-| Permissions         | ✅                    | ✅                   | ViewSet permission_classes         |
-| Versioning          | ✅                    | ❌                   | —                                  |
-| Content negotiation | ✅                    | ❌                   | JSON only                          |
-| Browsable API       | ✅                    | ❌                   | —                                  |
+| Feature             | Django REST Framework | Alexi REST Framework | Notes                                 |
+| ------------------- | --------------------- | -------------------- | ------------------------------------- |
+| Serializers         | ✅                    | ✅                   | Similar API                           |
+| ModelSerializer     | ✅                    | ✅                   | Auto-generates fields from model      |
+| ViewSets            | ✅                    | ✅                   | ModelViewSet, ReadOnlyModelViewSet    |
+| Routers             | ✅                    | ✅                   | DefaultRouter                         |
+| `@action` decorator | ✅                    | ✅                   | Custom actions on ViewSets            |
+| Filter backends     | ✅                    | ✅                   | QueryParamFilterBackend, etc.         |
+| Ordering            | ✅                    | ✅                   | OrderingFilter                        |
+| Search              | ✅                    | ✅                   | SearchFilter                          |
+| Pagination          | ✅                    | ✅                   | PageNumber, LimitOffset, Cursor       |
+| Throttling          | ✅                    | ❌                   | —                                     |
+| Permissions         | ✅                    | ✅                   | ViewSet permission_classes            |
+| Versioning          | ✅                    | ✅                   | URLPath, QueryParameter, AcceptHeader |
+| Content negotiation | ✅                    | ❌                   | JSON only                             |
+| Browsable API       | ✅                    | ❌                   | —                                     |
 
 ### URL Routing
 

@@ -178,3 +178,17 @@ export type {
   PaginationClass,
   PaginationContext,
 } from "./pagination/mod.ts";
+
+// ============================================================================
+// Versioning
+// ============================================================================
+
+export {
+  AcceptHeaderVersioning,
+  BaseVersioning,
+  QueryParameterVersioning,
+  URLPathVersioning,
+  VersionNotAllowedError,
+} from "./versioning/mod.ts";
+
+export type { VersioningClass, VersioningConfig } from "./versioning/mod.ts";

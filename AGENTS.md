@@ -147,6 +147,13 @@ import {
   Not,
   Or,
 } from "@alexi/restframework";
+import {
+  AcceptHeaderVersioning,
+  BaseVersioning,
+  QueryParameterVersioning,
+  URLPathVersioning,
+  VersionNotAllowedError,
+} from "@alexi/restframework";
 
 // Authentication
 import { adminRequired, loginRequired, optionalLogin } from "@alexi/auth";
@@ -1058,6 +1065,86 @@ expensive for cursor-based pagination.
 | `PageNumberPagination`  | `?page=N`           | Traditional page-based navigation |
 | `LimitOffsetPagination` | `?limit=N&offset=M` | Flexible offset-based access      |
 | `CursorPagination`      | `?cursor=<token>`   | Infinite scroll, real-time feeds  |
+
+---
+
+### API Versioning
+
+Versioning allows multiple API versions to coexist. The detected version is
+available as `context.version` in ViewSet actions.
+
+```typescript
+import {
+  AcceptHeaderVersioning,
+  QueryParameterVersioning,
+  URLPathVersioning,
+} from "@alexi/restframework";
+
+// URL path versioning: /api/v1/users/, /api/v2/users/
+class UserViewSet extends ModelViewSet {
+  versioning_class = URLPathVersioning;
+  versioning_config = {
+    defaultVersion: "v1",
+    allowedVersions: ["v1", "v2"],
+  };
+
+  override async list(context: ViewSetContext): Promise<Response> {
+    if (context.version === "v2") {
+      // return v2 format
+    }
+    return super.list(context);
+  }
+}
+
+// URL setup for URLPathVersioning
+// path("api/:version/", include(router.urls))
+
+// Query parameter versioning: /api/users/?version=v2
+class ArticleViewSet extends ModelViewSet {
+  versioning_class = QueryParameterVersioning;
+  versioning_config = { defaultVersion: "v1", allowedVersions: ["v1", "v2"] };
+}
+
+// Accept header versioning: Accept: application/json; version=2.0
+class ProductViewSet extends ModelViewSet {
+  versioning_class = AcceptHeaderVersioning;
+  versioning_config = {
+    defaultVersion: "1.0",
+    allowedVersions: ["1.0", "2.0"],
+  };
+}
+```
+
+#### Built-in Versioning Classes
+
+| Class                      | Source                         | Description                      |
+| -------------------------- | ------------------------------ | -------------------------------- |
+| `URLPathVersioning`        | `:version` URL param           | Version embedded in the URL path |
+| `QueryParameterVersioning` | `?version=` query param        | Version in query string          |
+| `AcceptHeaderVersioning`   | `Accept: ...; version=` header | Version in the Accept header     |
+
+#### Response
+
+When the requested version is not in `allowedVersions`:
+
+- **Status**: `400 Bad Request`
+- **Body**: `{ "error": "...", "allowedVersions": ["v1", "v2"] }`
+
+#### Custom Versioning
+
+```typescript
+import { BaseVersioning } from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
+
+class HeaderVersioning extends BaseVersioning {
+  determineVersion(
+    request: Request,
+    _params: Record<string, string>,
+  ): string | null {
+    return request.headers.get("X-API-Version");
+  }
+}
+```
 
 ---
 
