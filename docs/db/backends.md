@@ -417,11 +417,75 @@ Run with `--unstable-kv` flag:
 deno run --unstable-kv --allow-read --allow-write app.ts
 ```
 
-## Sync Backend
+## Sync Backend (DEPRECATED)
 
-Combines local and remote backends for offline-first applications.
+> **⚠️ DEPRECATED**: `SyncBackend` is deprecated and will be removed in v1.0.0.
+> Use explicit sync with `QuerySet.save()` instead.
 
-### Configuration
+### Why Deprecated?
+
+1. **SingletonQuery mismatch**: Special queries like `filter({ current: true })`
+   work on REST but fail when re-executed against IndexedDB.
+2. **Magic behavior**: Automatic sync is hard to debug and reason about.
+3. **QuerySet.save()**: Provides explicit, predictable cross-backend sync.
+
+### Recommended Pattern: Explicit Sync
+
+Instead of using SyncBackend, use the explicit sync pattern with
+`QuerySet.save()`:
+
+```typescript
+import { setup } from "@alexi/db";
+import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
+import { RestBackend } from "@alexi/db/backends/rest";
+
+// 1. Create backends
+const indexeddb = new IndexedDBBackend({ name: "myapp" });
+await indexeddb.connect();
+
+const rest = new RestBackend({
+  apiUrl: "https://api.example.com/api",
+  tokenStorageKey: "myapp_auth_tokens",
+});
+await rest.connect();
+
+// 2. Setup with named backends
+await setup({
+  databases: {
+    default: indexeddb,
+    indexeddb: indexeddb,
+    rest: rest,
+  },
+});
+
+// 3. Explicit sync: fetch from REST, save to IndexedDB
+async function fetchAndSync() {
+  const qs = await TaskModel.objects.using("rest").all().fetch();
+  const result = await qs.using("indexeddb").save();
+  console.log(`Synced: ${result.inserted} inserted, ${result.updated} updated`);
+  return qs.array();
+}
+
+// 4. Read from cache when offline
+async function readFromCache() {
+  return await TaskModel.objects.using("indexeddb").all().fetch();
+}
+```
+
+### Migration Guide
+
+```typescript
+// ❌ OLD: Automatic sync (deprecated)
+const sync = new SyncBackend(indexeddb, rest);
+const data = await Model.objects.using(sync).all().fetch();
+
+// ✅ NEW: Explicit sync with QuerySet.save()
+const qs = await Model.objects.using("rest").all().fetch();
+await qs.using("indexeddb").save(); // Explicitly sync to local
+return qs.array();
+```
+
+### Legacy Configuration (Deprecated)
 
 ```typescript
 import { SyncBackend } from "@alexi/db/backends/sync";
@@ -431,35 +495,22 @@ import { RestBackend } from "@alexi/db/backends/rest";
 const local = new IndexedDBBackend({ name: "myapp-cache" });
 const remote = new RestBackend({ apiUrl: "http://localhost:8000/api" });
 
+// ⚠️ Will show deprecation warning in console
 const sync = new SyncBackend(local, remote, {
-  syncOnConnect: true, // Sync when coming online
-  conflictResolution: "remote-wins", // Conflict strategy
+  debug: false,
+  failSilently: true,
 });
 
 await sync.connect();
 ```
 
-### Sync Strategies
+### Legacy Error Handling
 
-| Strategy      | Description                  |
-| ------------- | ---------------------------- |
-| `remote-wins` | Remote data overwrites local |
-| `local-wins`  | Local data overwrites remote |
-| `newest-wins` | Most recently modified wins  |
-
-### Manual Sync
-
-```typescript
-// Sync all data
-await sync.syncAll();
-
-// Sync specific model
-await sync.syncModel(TodoModel);
-
-// Check sync status
-const status = sync.getSyncStatus();
-console.log(status.pendingChanges);
-```
+| Error Type                     | `failSilently: true` (default)         | `failSilently: false`                 |
+| ------------------------------ | -------------------------------------- | ------------------------------------- |
+| Auth errors (401/403)          | **Always thrown** — user must re-login | **Always thrown**                     |
+| Network/server errors on write | Local write succeeds, remote deferred  | Local write rolled back, error thrown |
+| Network/server errors on read  | Falls back to local backend            | Error thrown                          |
 
 ## Switching Backends
 

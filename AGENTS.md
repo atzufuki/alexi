@@ -784,7 +784,10 @@ new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 | `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint     |
 | `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
 
-### Sync Backend (Browser)
+### Sync Backend (Browser) - DEPRECATED
+
+> **⚠️ DEPRECATED**: `SyncBackend` is deprecated and will be removed in v1.0.0.
+> Use explicit sync with `QuerySet.save()` instead (see below).
 
 The Sync backend orchestrates a local backend (typically IndexedDB) and a remote
 backend (typically RestBackend) for offline-first operation:
@@ -793,6 +796,73 @@ backend (typically RestBackend) for offline-first operation:
 - **Writes**: Write to local first, then sync to remote
 - **Reconciliation**: Server-generated IDs and timestamps are synced back to
   local
+
+#### Why Deprecated?
+
+1. **SingletonQuery mismatch**: Special queries like `filter({ current: true })`
+   work on REST but fail when re-executed against IndexedDB.
+2. **Magic behavior**: Automatic sync is hard to debug and reason about.
+3. **QuerySet.save()**: Provides explicit, predictable cross-backend sync.
+
+#### Recommended Pattern: Explicit Sync with QuerySet.save()
+
+```typescript
+import { setup } from "@alexi/db";
+import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
+import { RestBackend } from "@alexi/db/backends/rest";
+
+// 1. Create backends
+const indexeddb = new IndexedDBBackend({ name: "myapp" });
+await indexeddb.connect();
+
+const rest = new RestBackend({
+  apiUrl: "https://api.example.com/api",
+  tokenStorageKey: "myapp_auth_tokens",
+});
+await rest.connect();
+
+// 2. Setup with named backends
+await setup({
+  databases: {
+    default: indexeddb,
+    indexeddb: indexeddb,
+    rest: rest,
+  },
+});
+
+// 3. Explicit sync pattern
+async function fetchAndSync() {
+  // Fetch from REST API
+  const qs = await TaskModel.objects.using("rest").all().fetch();
+
+  // Sync to IndexedDB (cache remotely)
+  const result = await qs.using("indexeddb").save();
+  console.log(`Synced: ${result.inserted} inserted, ${result.updated} updated`);
+
+  // Return fresh data
+  return qs.array();
+}
+
+// 4. Read from cache when offline
+async function readFromCache() {
+  return await TaskModel.objects.using("indexeddb").all().fetch();
+}
+```
+
+#### Migration from SyncBackend
+
+```typescript
+// ❌ OLD: Automatic sync (deprecated)
+const sync = new SyncBackend(indexeddb, rest);
+const data = await Model.objects.using(sync).all().fetch();
+
+// ✅ NEW: Explicit sync with QuerySet.save()
+const qs = await Model.objects.using("rest").all().fetch();
+await qs.using("indexeddb").save(); // Explicitly sync to local
+return qs.array();
+```
+
+#### Legacy SyncBackend Usage (Deprecated)
 
 ```typescript
 import { getBackend, setBackend, setup } from "@alexi/db";
@@ -1514,12 +1584,12 @@ abstract class DatabaseBackend {
 
 ### Available Backends
 
-| Backend            | Import                         | Environment   | Use Case                                       |
-| ------------------ | ------------------------------ | ------------- | ---------------------------------------------- |
-| `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server (Deno) | Server-side apps with Deno's built-in KV store |
-| `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser       | Browser-only local storage                     |
-| `RestBackend`      | `@alexi/db/backends/rest`      | Browser       | Maps ORM operations to REST API calls          |
-| `SyncBackend`      | `@alexi/db/backends/sync`      | Browser       | Orchestrates local + remote for offline-first  |
+| Backend            | Import                         | Environment   | Use Case                                                |
+| ------------------ | ------------------------------ | ------------- | ------------------------------------------------------- |
+| `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server (Deno) | Server-side apps with Deno's built-in KV store          |
+| `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser       | Browser-only local storage                              |
+| `RestBackend`      | `@alexi/db/backends/rest`      | Browser       | Maps ORM operations to REST API calls                   |
+| `SyncBackend`      | `@alexi/db/backends/sync`      | Browser       | **DEPRECATED** - Use explicit `QuerySet.save()` instead |
 
 ---
 
@@ -1576,8 +1646,9 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
    full API path with leading/trailing slashes (e.g., `/projects/`). No
    auto-derivation from model name or `dbTable`.
 
-9. **SyncBackend propagates auth errors**: Even in `failSilently` mode, 401/403
-   errors are always thrown so the UI can redirect to login.
+9. **SyncBackend is deprecated**: Use explicit sync with `QuerySet.save()`
+   instead. SyncBackend will be removed in v1.0.0. See the "Sync Backend"
+   section above for the recommended migration pattern.
 
 10. **RestBackend `request()` is protected**: Subclasses can use
     `this.request<T>(path, options)` to make authenticated HTTP calls for

@@ -117,8 +117,34 @@ export interface SyncResult<T = Record<string, unknown>> {
 /**
  * SyncBackend - Orchestrates local and remote database operations
  *
+ * @deprecated SyncBackend is deprecated and will be removed in v1.0.0.
+ * Use explicit sync with `QuerySet.save()` instead. See issue #34.
+ *
  * This backend is fully generic and doesn't contain any application-specific
  * logic. It delegates all actual storage to the local and remote backends.
+ *
+ * ### Migration
+ *
+ * Instead of SyncBackend's automatic synchronization, use the explicit
+ * pattern with `QuerySet.save()`:
+ *
+ * ```ts
+ * // OLD: Automatic sync (deprecated)
+ * const sync = new SyncBackend(indexeddb, rest);
+ * const data = await Model.objects.using(sync).all().fetch();
+ *
+ * // NEW: Explicit sync with QuerySet.save()
+ * const qs = await Model.objects.using("rest").all().fetch();
+ * await qs.using("indexeddb").save();  // Explicitly sync to local
+ * return qs.array();
+ * ```
+ *
+ * ### Why Deprecated?
+ *
+ * 1. **SingletonQuery mismatch**: Special queries like `filter({ current: true })`
+ *    work on REST but fail when re-executed against IndexedDB.
+ * 2. **Magic behavior**: Automatic sync is hard to debug and reason about.
+ * 3. **QuerySet.save()**: Provides explicit, predictable cross-backend sync.
  *
  * ### Error Handling
  *
@@ -140,6 +166,28 @@ export class SyncBackend extends DatabaseBackend {
   private _debug: boolean;
   private _failSilently: boolean;
 
+  /**
+   * @deprecated SyncBackend is deprecated and will be removed in v1.0.0.
+   *
+   * Use explicit sync with `QuerySet.save()` instead:
+   *
+   * ```ts
+   * // Setup named backends
+   * await setup({
+   *   databases: {
+   *     default: indexeddb,
+   *     indexeddb: indexeddb,
+   *     rest: restBackend,
+   *   }
+   * });
+   *
+   * // Fetch from REST and sync to IndexedDB
+   * const qs = await Model.objects.using("rest").all().fetch();
+   * await qs.using("indexeddb").save();
+   * ```
+   *
+   * See https://github.com/atzufuki/alexi/issues/34 for migration details.
+   */
   constructor(
     localBackend: DatabaseBackend,
     restBackend: RestBackend,
@@ -149,6 +197,13 @@ export class SyncBackend extends DatabaseBackend {
       engine: "sync",
       name: localBackend.config.name,
     });
+
+    // Deprecation warning
+    console.warn(
+      "[DEPRECATED] SyncBackend is deprecated and will be removed in v1.0.0. " +
+        "Use explicit sync with QuerySet.save() instead. " +
+        "See https://github.com/atzufuki/alexi/issues/34 for migration details.",
+    );
 
     this._localBackend = localBackend;
     this._restBackend = restBackend;
