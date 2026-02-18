@@ -11,8 +11,7 @@
     "./backends/denokv": "./backends/denokv/mod.ts",
     "./backends/indexeddb": "./backends/indexeddb/mod.ts",
     "./backends/postgres": "./backends/postgres/mod.ts",
-    "./backends/rest": "./backends/rest/mod.ts",
-    "./backends/sync": "./backends/sync/mod.ts"
+    "./backends/rest": "./backends/rest/mod.ts"
   },
   "imports": {
     "@alexi/types": "jsr:@alexi/types@0.22.0",

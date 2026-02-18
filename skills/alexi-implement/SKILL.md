@@ -53,7 +53,7 @@ alexi/
 │   ├── core/            # @alexi/core - Management commands
 │   │   └── commands/    # Built-in commands
 │   ├── db/              # @alexi/db - ORM
-│   │   ├── backends/    # Database backends (denokv, indexeddb, rest, sync)
+│   │   ├── backends/    # Database backends (denokv, indexeddb, rest)
 │   │   ├── fields/      # Field types
 │   │   ├── models/      # Model, Manager classes
 │   │   └── query/       # QuerySet, Q objects
