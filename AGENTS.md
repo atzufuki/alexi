@@ -138,6 +138,17 @@ import {
   PrimaryKeyRelatedField,
   SerializerMethodField,
 } from "@alexi/restframework";
+import {
+  AllowAny,
+  And,
+  BasePermission,
+  DenyAll,
+  IsAdminUser,
+  IsAuthenticated,
+  IsAuthenticatedOrReadOnly,
+  Not,
+  Or,
+} from "@alexi/restframework";
 
 // Authentication
 import { adminRequired, loginRequired, optionalLogin } from "@alexi/auth";
@@ -926,6 +937,116 @@ router.register("tasks", TaskViewSet);
 router.register("health", HealthViewSet, { basename: "health" });
 
 export const urlpatterns = router.urls;
+```
+
+### Permissions
+
+ViewSet-level permission classes control access to API endpoints. Permissions
+are checked before each action and can also check object-level access.
+
+```typescript
+import {
+  AllowAny,
+  BasePermission,
+  IsAdminUser,
+  IsAuthenticated,
+  IsAuthenticatedOrReadOnly,
+  ModelViewSet,
+} from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
+
+// ViewSet with permission classes
+export class ArticleViewSet extends ModelViewSet {
+  model = ArticleModel;
+  serializer_class = ArticleSerializer;
+  permission_classes = [IsAuthenticatedOrReadOnly];
+}
+
+// Admin-only ViewSet
+export class AdminViewSet extends ModelViewSet {
+  model = UserModel;
+  serializer_class = UserSerializer;
+  permission_classes = [IsAdminUser];
+}
+
+// Per-action permissions
+export class CommentViewSet extends ModelViewSet {
+  model = CommentModel;
+  serializer_class = CommentSerializer;
+
+  override getPermissions(): BasePermission[] {
+    if (this.action === "destroy") {
+      return [new IsAdminUser()];
+    }
+    return [new IsAuthenticatedOrReadOnly()];
+  }
+}
+
+// Custom permission with object-level check
+class IsOwnerOrReadOnly extends BasePermission {
+  override message = "You must be the owner to modify this object.";
+
+  hasPermission(context: ViewSetContext): boolean {
+    // Allow read operations for anyone
+    if (["GET", "HEAD", "OPTIONS"].includes(context.request.method)) {
+      return true;
+    }
+    // Write operations require authentication
+    return context.user != null;
+  }
+
+  override hasObjectPermission(
+    context: ViewSetContext,
+    obj: unknown,
+  ): boolean {
+    // Allow read operations for anyone
+    if (["GET", "HEAD", "OPTIONS"].includes(context.request.method)) {
+      return true;
+    }
+    // Write operations require ownership
+    const record = obj as { ownerId?: number };
+    return record.ownerId === context.user?.id;
+  }
+}
+```
+
+#### Built-in Permission Classes
+
+| Permission Class            | Description                                |
+| --------------------------- | ------------------------------------------ |
+| `AllowAny`                  | Allow all access (no restrictions)         |
+| `DenyAll`                   | Deny all access                            |
+| `IsAuthenticated`           | Require authenticated user                 |
+| `IsAdminUser`               | Require admin user (`isAdmin: true`)       |
+| `IsAuthenticatedOrReadOnly` | Allow read for anyone, write requires auth |
+
+#### Permission Operators
+
+Combine permissions with logical operators:
+
+```typescript
+import {
+  And,
+  IsAdminUser,
+  IsAuthenticated,
+  Not,
+  Or,
+} from "@alexi/restframework";
+
+// User must be authenticated AND admin
+class StrictAdminViewSet extends ModelViewSet {
+  permission_classes = [And.of(IsAuthenticated, IsAdminUser)];
+}
+
+// User can be admin OR owner
+class FlexibleViewSet extends ModelViewSet {
+  permission_classes = [Or.of(IsAdminUser, IsOwner)];
+}
+
+// Only non-admin users (e.g., self-service)
+class UserOnlyViewSet extends ModelViewSet {
+  permission_classes = [Not.of(IsAdminUser)];
+}
 ```
 
 ### Pagination
