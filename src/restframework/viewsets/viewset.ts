@@ -14,6 +14,7 @@ import {
   type VersioningClass,
   type VersioningConfig,
 } from "../versioning/mod.ts";
+import type { BaseThrottle, ThrottleClass } from "../throttling/mod.ts";
 import { ForbiddenError, UnauthorizedError } from "@alexi/middleware";
 
 // ============================================================================
@@ -228,6 +229,39 @@ export class ViewSet {
   versioning_config?: VersioningConfig;
 
   /**
+   * Throttle classes to apply to this ViewSet
+   *
+   * All throttles are checked (any denial stops the request).
+   * Override getThrottles() for per-action control.
+   *
+   * @example
+   * ```ts
+   * class MyViewSet extends ModelViewSet {
+   *   throttle_classes = [AnonRateThrottle, UserRateThrottle];
+   *   throttle_rates = { anon: "100/day", user: "1000/day" };
+   * }
+   * ```
+   */
+  throttle_classes?: ThrottleClass[];
+
+  /**
+   * Rate limits for each throttle scope
+   *
+   * Keys correspond to the `scope` property of throttle classes.
+   * Values are rate strings like "100/day", "10/minute", "5/second".
+   *
+   * @example
+   * ```ts
+   * throttle_rates = {
+   *   anon: "100/day",
+   *   user: "1000/hour",
+   *   burst: "60/minute",
+   * };
+   * ```
+   */
+  throttle_rates?: Record<string, string>;
+
+  /**
    * The current action being performed
    */
   action?: ActionType;
@@ -282,6 +316,7 @@ export class ViewSet {
   /**
    * Get the versioning instance for the current request
    *
+
    * Override to provide a custom versioning scheme.
    *
    * @returns A configured BaseVersioning instance, or null if no versioning
@@ -310,6 +345,79 @@ export class ViewSet {
       }
     }
     return versioning;
+  }
+
+  /**
+   * Get throttle instances for the current action
+   *
+   * Override this method to return different throttles per action.
+   * Rates from `throttle_rates` are automatically applied to throttles
+   * that have a matching `scope` property.
+   *
+   * @example
+   * ```ts
+   * getThrottles(): BaseThrottle[] {
+   *   if (this.action === "create") {
+   *     return [new AnonRateThrottle()];
+   *   }
+   *   return [];
+   * }
+   * ```
+   */
+  getThrottles(): BaseThrottle[] {
+    if (!this.throttle_classes) {
+      return [];
+    }
+    return this.throttle_classes.map((cls) => {
+      const throttle = new cls();
+      // Apply rate from throttle_rates if the throttle has a scope
+      const scopedThrottle = throttle as BaseThrottle & {
+        scope?: string;
+        setRate?: (rate: string) => void;
+      };
+      if (
+        this.throttle_rates &&
+        scopedThrottle.scope &&
+        scopedThrottle.setRate
+      ) {
+        const rate = this.throttle_rates[scopedThrottle.scope];
+        if (rate) {
+          scopedThrottle.setRate(rate);
+        }
+      }
+      return throttle;
+    });
+  }
+
+  /**
+   * Check all throttles for the current request
+   *
+   * Returns a Response with status 429 and Retry-After header if throttled,
+   * or null if the request is allowed.
+   *
+   * @param context - The ViewSet context
+   * @returns 429 Response if throttled, null if allowed
+   */
+  checkThrottles(context: ViewSetContext): Response | null {
+    const throttles = this.getThrottles();
+
+    for (const throttle of throttles) {
+      if (!throttle.allowRequest(context)) {
+        const retryAfter = throttle.waitTime(context);
+        const headers: Record<string, string> = {
+          "Content-Type": "application/json",
+        };
+        if (retryAfter != null) {
+          headers["Retry-After"] = String(retryAfter);
+        }
+        return new Response(
+          JSON.stringify({ error: throttle.message }),
+          { status: 429, headers },
+        );
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -414,6 +522,12 @@ export class ViewSet {
       );
       if (versioningResponse) {
         return versioningResponse;
+      }
+
+      // Check throttles before permissions
+      const throttleResponse = viewset.checkThrottles(context);
+      if (throttleResponse) {
+        return throttleResponse;
       }
 
       // Check permissions before executing the action
