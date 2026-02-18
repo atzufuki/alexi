@@ -10,21 +10,21 @@ It brings Django's developer-friendly patterns to the Deno ecosystem.
 Alexi follows Django's modular architecture. Each module provides specific
 functionality:
 
-| Module                 | Django Equivalent            | Description                                         |
-| ---------------------- | ---------------------------- | --------------------------------------------------- |
-| `@alexi/core`          | `django.core.management`     | Management commands, Application handler            |
-| `@alexi/db`            | `django.db`                  | ORM with DenoKV, IndexedDB, REST, and Sync backends |
-| `@alexi/urls`          | `django.urls`                | URL routing with `path()`, `include()`              |
-| `@alexi/middleware`    | `django.middleware.*`        | CORS, logging, error handling                       |
-| `@alexi/views`         | `django.views`               | Template views                                      |
-| `@alexi/web`           | `django.core.handlers.wsgi`  | Web server (HTTP API)                               |
-| `@alexi/staticfiles`   | `django.contrib.staticfiles` | Static file handling, bundling                      |
-| `@alexi/restframework` | `djangorestframework`        | REST API: Serializers, ViewSets, Routers            |
-| `@alexi/auth`          | `django.contrib.auth`        | Authentication (JWT-based)                          |
-| `@alexi/admin`         | `django.contrib.admin`       | Auto-generated admin panel                          |
-| `@alexi/webui`         | -                            | Desktop app support via WebUI                       |
-| `@alexi/capacitor`     | -                            | Mobile app support (placeholder)                    |
-| `@alexi/types`         | -                            | Shared TypeScript type definitions                  |
+| Module                 | Django Equivalent            | Description                                   |
+| ---------------------- | ---------------------------- | --------------------------------------------- |
+| `@alexi/core`          | `django.core.management`     | Management commands, Application handler      |
+| `@alexi/db`            | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends |
+| `@alexi/urls`          | `django.urls`                | URL routing with `path()`, `include()`        |
+| `@alexi/middleware`    | `django.middleware.*`        | CORS, logging, error handling                 |
+| `@alexi/views`         | `django.views`               | Template views                                |
+| `@alexi/web`           | `django.core.handlers.wsgi`  | Web server (HTTP API)                         |
+| `@alexi/staticfiles`   | `django.contrib.staticfiles` | Static file handling, bundling                |
+| `@alexi/restframework` | `djangorestframework`        | REST API: Serializers, ViewSets, Routers      |
+| `@alexi/auth`          | `django.contrib.auth`        | Authentication (JWT-based)                    |
+| `@alexi/admin`         | `django.contrib.admin`       | Auto-generated admin panel                    |
+| `@alexi/webui`         | -                            | Desktop app support via WebUI                 |
+| `@alexi/capacitor`     | -                            | Mobile app support (placeholder)              |
+| `@alexi/types`         | -                            | Shared TypeScript type definitions            |
 
 ---
 
@@ -47,8 +47,7 @@ alexi/
 │   │   │   ├── backend.ts      # Abstract base class
 │   │   │   ├── denokv/         # DenoKV backend (server)
 │   │   │   ├── indexeddb/      # IndexedDB backend (browser)
-│   │   │   ├── rest/           # REST API backend (browser, extensible)
-│   │   │   └── sync/           # Sync backend (local + remote orchestration)
+│   │   │   └── rest/           # REST API backend (browser, extensible)
 │   │   ├── fields/      # Field types (CharField, IntegerField, etc.)
 │   │   ├── models/      # Model, Manager classes
 │   │   ├── query/       # QuerySet, Q objects, aggregations
@@ -111,7 +110,6 @@ import type {
   RestBackendConfig,
   SpecialQueryHandler,
 } from "@alexi/db/backends/rest";
-import { SyncBackend } from "@alexi/db/backends/sync";
 
 // URL Routing
 import { include, path } from "@alexi/urls";
@@ -783,57 +781,6 @@ new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 | `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                   |
 | `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint     |
 | `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
-
-### Sync Backend (Browser)
-
-The Sync backend orchestrates a local backend (typically IndexedDB) and a remote
-backend (typically RestBackend) for offline-first operation:
-
-- **Reads**: Try remote first, fall back to local
-- **Writes**: Write to local first, then sync to remote
-- **Reconciliation**: Server-generated IDs and timestamps are synced back to
-  local
-
-```typescript
-import { getBackend, setBackend, setup } from "@alexi/db";
-import { RestBackend } from "@alexi/db/backends/rest";
-import { SyncBackend } from "@alexi/db/backends/sync";
-
-// 1. Setup local backend (IndexedDB)
-await setup({
-  database: { engine: "indexeddb", name: "myapp" },
-});
-const localBackend = getBackend();
-
-// 2. Create REST backend
-const restBackend = new RestBackend({
-  apiUrl: "https://api.example.com/api",
-  tokenStorageKey: "myapp_auth_tokens",
-});
-await restBackend.connect();
-
-// 3. Create Sync backend and replace global
-const syncBackend = new SyncBackend(localBackend, restBackend, {
-  debug: false,
-  failSilently: true, // Swallow network errors (offline-friendly)
-});
-await syncBackend.connect();
-setBackend(syncBackend);
-
-// Now all ORM operations sync automatically
-const task = await TaskModel.objects.create({ title: "Works offline too" });
-
-// Auth operations go through RestBackend
-await restBackend.login({ email: "user@example.com", password: "secret" });
-```
-
-#### SyncBackend Error Handling
-
-| Error Type                     | `failSilently: true` (default)         | `failSilently: false`                 |
-| ------------------------------ | -------------------------------------- | ------------------------------------- |
-| Auth errors (401/403)          | **Always thrown** — user must re-login | **Always thrown**                     |
-| Network/server errors on write | Local write succeeds, remote deferred  | Local write rolled back, error thrown |
-| Network/server errors on read  | Falls back to local backend            | Error thrown                          |
 
 ---
 
@@ -1519,7 +1466,6 @@ abstract class DatabaseBackend {
 | `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server (Deno) | Server-side apps with Deno's built-in KV store |
 | `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser       | Browser-only local storage                     |
 | `RestBackend`      | `@alexi/db/backends/rest`      | Browser       | Maps ORM operations to REST API calls          |
-| `SyncBackend`      | `@alexi/db/backends/sync`      | Browser       | Orchestrates local + remote for offline-first  |
 
 ---
 
@@ -1576,14 +1522,11 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
    full API path with leading/trailing slashes (e.g., `/projects/`). No
    auto-derivation from model name or `dbTable`.
 
-9. **SyncBackend propagates auth errors**: Even in `failSilently` mode, 401/403
-   errors are always thrown so the UI can redirect to login.
+9. **RestBackend `request()` is protected**: Subclasses can use
+   `this.request<T>(path, options)` to make authenticated HTTP calls for
+   app-specific endpoints without reimplementing token management.
 
-10. **RestBackend `request()` is protected**: Subclasses can use
-    `this.request<T>(path, options)` to make authenticated HTTP calls for
-    app-specific endpoints without reimplementing token management.
-
-11. **Use selectRelated for ForeignKey eager loading**: Avoid N+1 queries by
+10. **Use selectRelated for ForeignKey eager loading**: Avoid N+1 queries by
     using `selectRelated()` to batch-load related objects:
     ```typescript
     // Without selectRelated - N+1 queries
@@ -1604,7 +1547,7 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
     .selectRelated("projectRole__project__organisation")
     ```
 
-12. **ForeignKey.get() throws if not loaded**: Always check `isLoaded()` or use
+11. **ForeignKey.get() throws if not loaded**: Always check `isLoaded()` or use
     `selectRelated()` / `fetch()` before calling `get()` on ForeignKey fields.
 
 ---

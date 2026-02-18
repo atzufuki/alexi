@@ -29,24 +29,21 @@
  * import { setup } from '@alexi/db';
  * import { IndexedDBBackend } from '@alexi/db/backends/indexeddb';
  * import { RestBackend } from '@alexi/db/backends/rest';
- * import { SyncBackend } from '@alexi/db/backends/sync';
  *
  * const indexeddb = new IndexedDBBackend({ name: 'myapp' });
  * const rest = new RestBackend({ apiUrl: 'http://localhost:8000/api' });
- * const sync = new SyncBackend(indexeddb, rest);
  *
  * await setup({
  *   databases: {
- *     default: sync,
+ *     default: indexeddb,
  *     indexeddb: indexeddb,
  *     rest: rest,
- *     sync: sync,
  *   },
  * });
  *
  * // Then use by name
  * const cached = await Article.objects.using('indexeddb').all().fetch();
- * const fresh = await Article.objects.using('sync').all().fetch();
+ * const fresh = await Article.objects.using('rest').all().fetch();
  * ```
  */
 
@@ -94,7 +91,7 @@ export interface AlexiSettings {
    * @example
    * ```ts
    * databases: {
-   *   default: syncBackend,
+   *   default: indexedDBBackend,
    *   indexeddb: indexedDBBackend,
    *   rest: restBackend,
    * }
@@ -349,18 +346,16 @@ export function getBackendNames(): string[] {
 /**
  * Replace the current database backend
  *
- * This is useful for wrapping the backend with additional functionality,
- * such as the SyncBackend which intercepts operations for synchronization.
+ * This is useful for swapping backends at runtime.
  *
  * @param backend - The new backend to use
  *
  * @example
  * ```ts
- * // Wrap the current backend with SyncBackend
- * const localBackend = getBackend();
- * const syncBackend = new SyncBackend(localBackend, syncConfig);
- * await syncBackend.connect();
- * setBackend(syncBackend);
+ * // Switch to a different backend
+ * const newBackend = new IndexedDBBackend({ name: 'myapp-v2' });
+ * await newBackend.connect();
+ * setBackend(newBackend);
  * ```
  */
 export function setBackend(backend: DatabaseBackend): void {

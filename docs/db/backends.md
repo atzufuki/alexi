@@ -417,50 +417,6 @@ Run with `--unstable-kv` flag:
 deno run --unstable-kv --allow-read --allow-write app.ts
 ```
 
-## Sync Backend
-
-Combines local and remote backends for offline-first applications.
-
-### Configuration
-
-```typescript
-import { SyncBackend } from "@alexi/db/backends/sync";
-import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
-import { RestBackend } from "@alexi/db/backends/rest";
-
-const local = new IndexedDBBackend({ name: "myapp-cache" });
-const remote = new RestBackend({ apiUrl: "http://localhost:8000/api" });
-
-const sync = new SyncBackend(local, remote, {
-  syncOnConnect: true, // Sync when coming online
-  conflictResolution: "remote-wins", // Conflict strategy
-});
-
-await sync.connect();
-```
-
-### Sync Strategies
-
-| Strategy      | Description                  |
-| ------------- | ---------------------------- |
-| `remote-wins` | Remote data overwrites local |
-| `local-wins`  | Local data overwrites remote |
-| `newest-wins` | Most recently modified wins  |
-
-### Manual Sync
-
-```typescript
-// Sync all data
-await sync.syncAll();
-
-// Sync specific model
-await sync.syncModel(TodoModel);
-
-// Check sync status
-const status = sync.getSyncStatus();
-console.log(status.pendingChanges);
-```
-
 ## Switching Backends
 
 ### In Views

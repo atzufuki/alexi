@@ -27,9 +27,8 @@ Django's ORM patterns.
 
 - Defining data models with typed fields
 - Querying and filtering data using QuerySets
-- Setting up database backends (DenoKV, IndexedDB, REST, Sync)
+- Setting up database backends (DenoKV, IndexedDB, REST)
 - Working with ForeignKey relationships and eager loading
-- Implementing offline-first patterns with SyncBackend
 
 ## Installation
 
@@ -272,31 +271,6 @@ const tasks = await TaskModel.objects.using(backend).all().fetch();
 await backend.login({ email: "user@example.com", password: "secret" });
 \`\`\`
 
-### Sync Backend (Offline-First)
-
-Orchestrates local + remote backends:
-
-\`\`\`typescript
-import { getBackend, setBackend, setup } from "@alexi/db";
-import { RestBackend } from "@alexi/db/backends/rest";
-import { SyncBackend } from "@alexi/db/backends/sync";
-
-// Setup local backend (IndexedDB)
-await setup({ database: { engine: "indexeddb", name: "myapp" } });
-const localBackend = getBackend();
-
-// Create REST backend
-const restBackend = new RestBackend({ apiUrl: "https://api.example.com/api" });
-await restBackend.connect();
-
-// Create Sync backend
-const syncBackend = new SyncBackend(localBackend, restBackend, {
-  failSilently: true, // Offline-friendly
-});
-await syncBackend.connect();
-setBackend(syncBackend);
-\`\`\`
-
 ## QuerySet.save() - Bulk Persistence
 
 Save all loaded instances in a QuerySet:
@@ -375,7 +349,6 @@ import { Count, Q, QuerySet, RelatedManager, Sum } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
 import { RestBackend } from "@alexi/db/backends/rest";
-import { SyncBackend } from "@alexi/db/backends/sync";
 
 // REST Backend extras
 import {
