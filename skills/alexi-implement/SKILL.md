@@ -312,11 +312,16 @@ deno test -A --unstable-kv --filter "PostgresBackend"
 Before committing:
 
 ```bash
-deno task fmt      # Format code
+deno task fmt      # Format ENTIRE codebase (required)
 deno task lint     # Lint code  
 deno task check    # Type check
 deno task test     # Run tests
 ```
+
+**IMPORTANT:** Always run `deno task fmt` from the project root. This formats
+the entire codebase, not just your changed files. CI runs `deno task fmt --check`
+and will fail if ANY file in the project needs formatting. Do NOT run `deno fmt`
+only on your changed directory - it must be run on the entire project.
 
 All checks must pass.
 
