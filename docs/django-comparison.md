@@ -65,8 +65,8 @@ differences, and features unique to Alexi.
 | Throttling          | ✅                    | ✅                   | AnonRateThrottle, UserRateThrottle, ScopedRateThrottle |
 | Permissions         | ✅                    | ✅                   | ViewSet permission_classes                             |
 | Versioning          | ✅                    | ✅                   | URLPath, QueryParameter, AcceptHeader                  |
-| Content negotiation | ✅                    | ❌                   | JSON only                                              |
-| Browsable API       | ✅                    | ❌                   | —                                                      |
+| Content negotiation | ✅                    | ✅                   | JSON, XML, CSV; custom renderers                       |
+| Browsable API       | ✅                    | ✅                   | HTML interface; login/logout; forms                    |
 
 ### URL Routing
 
@@ -184,8 +184,6 @@ Features available in Django that Alexi does not currently provide:
 | **Sitemaps**               | XML sitemap generation                         |
 | **GIS support**            | GeoDjango for geographic data                  |
 | **Content types**          | Generic relations framework                    |
-| **Browsable API**          | Interactive API documentation (DRF)            |
-| ~~**Throttling**~~         | ~~Rate limiting (DRF)~~ ✅ Implemented         |
 
 ---
 
