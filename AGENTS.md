@@ -147,6 +147,12 @@ import {
   Not,
   Or,
 } from "@alexi/restframework";
+import {
+  AnonRateThrottle,
+  BaseThrottle,
+  ScopedRateThrottle,
+  UserRateThrottle,
+} from "@alexi/restframework";
 
 // Authentication
 import { adminRequired, loginRequired, optionalLogin } from "@alexi/auth";
@@ -1058,6 +1064,115 @@ expensive for cursor-based pagination.
 | `PageNumberPagination`  | `?page=N`           | Traditional page-based navigation |
 | `LimitOffsetPagination` | `?limit=N&offset=M` | Flexible offset-based access      |
 | `CursorPagination`      | `?cursor=<token>`   | Infinite scroll, real-time feeds  |
+
+---
+
+### Throttling
+
+Throttling limits the rate of requests to API endpoints, returning
+`429 Too Many Requests` when exceeded.
+
+```typescript
+import {
+  AnonRateThrottle,
+  ScopedRateThrottle,
+  UserRateThrottle,
+} from "@alexi/restframework";
+
+// ViewSet with throttle classes
+class MyViewSet extends ModelViewSet {
+  model = MyModel;
+  throttle_classes = [AnonRateThrottle, UserRateThrottle];
+  throttle_rates = {
+    anon: "100/day", // 100 requests/day for unauthenticated users (by IP)
+    user: "1000/day", // 1000 requests/day for authenticated users (by ID)
+  };
+}
+
+// Scoped throttling - different limits for different endpoints
+class BurstThrottle extends ScopedRateThrottle {
+  override scope = "burst";
+}
+class SustainedThrottle extends ScopedRateThrottle {
+  override scope = "sustained";
+}
+
+class SensitiveViewSet extends ModelViewSet {
+  throttle_classes = [BurstThrottle, SustainedThrottle];
+  throttle_rates = {
+    burst: "60/minute",
+    sustained: "1000/day",
+  };
+}
+```
+
+#### Rate Format
+
+Rates use the format `"N/period"` where period is `second`, `minute`, `hour`, or
+`day`:
+
+```typescript
+"5/second"; // 5 requests per second
+"60/minute"; // 60 requests per minute
+"1000/hour"; // 1000 requests per hour
+"10000/day"; // 10000 requests per day
+```
+
+#### Built-in Throttle Classes
+
+| Class                | Scope    | Keyed By  | Description                                   |
+| -------------------- | -------- | --------- | --------------------------------------------- |
+| `AnonRateThrottle`   | `"anon"` | Client IP | Rate limits unauthenticated requests by IP    |
+| `UserRateThrottle`   | `"user"` | User ID   | Rate limits authenticated requests by user ID |
+| `ScopedRateThrottle` | (custom) | User/IP   | Rate limits by custom scope name              |
+
+#### Response
+
+When throttled, the API returns:
+
+- **Status**: `429 Too Many Requests`
+- **Header**: `Retry-After: <seconds>` - seconds until the next request is
+  allowed
+- **Body**:
+  `{ "error": "Request was throttled. Expected available in N seconds." }`
+
+#### Custom Throttle
+
+```typescript
+import { BaseThrottle } from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
+
+class OrganisationThrottle extends BaseThrottle {
+  getRate(): string | null {
+    return "500/hour";
+  }
+
+  getCacheKey(context: ViewSetContext): string | null {
+    // Throttle by organisation ID
+    const orgId = context.user?.organisationId;
+    if (!orgId) return null;
+    return `throttle_org_${orgId}`;
+  }
+}
+```
+
+#### Per-Action Throttling
+
+Override `getThrottles()` for per-action control:
+
+```typescript
+class MyViewSet extends ModelViewSet {
+  override getThrottles() {
+    if (this.action === "create") {
+      // Stricter limit for POST
+      const t = new AnonRateThrottle();
+      t.setRate("10/hour");
+      return [t];
+    }
+    return [];
+  }
+}
+```
 
 ---
 
