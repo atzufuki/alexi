@@ -881,14 +881,23 @@ export class RelatedManager<T extends Model> {
   /**
    * Get or create a related object
    *
-   * @param defaults - Default values for creation
    * @param lookup - Lookup conditions (FK is added automatically)
+   * @param defaults - Default values for creation
    * @returns Tuple of [instance, created]
+   *
+   * @example
+   * ```ts
+   * const [comp, created] = await role.roleCompetences.getOrCreate(
+   *   { competenceId: 10 },  // lookup conditions
+   *   { level: 3 }  // defaults for creation
+   * );
+   * ```
    */
   async getOrCreate(
-    defaults: Partial<Record<string, unknown>>,
-    lookup?: Record<string, unknown>,
+    lookup: Record<string, unknown>,
+    defaults?: Partial<Record<string, unknown>>,
   ): Promise<[T, boolean]> {
+    // deno-lint-ignore no-explicit-any
     const sourcePk = (this._sourceInstance as any).pk;
     const lookupWithFk = {
       ...lookup,
@@ -904,7 +913,45 @@ export class RelatedManager<T extends Model> {
     if (backend) {
       manager = manager.using(backend);
     }
-    return manager.getOrCreate(defaultsWithFk, lookupWithFk);
+    return manager.getOrCreate(lookupWithFk, defaultsWithFk);
+  }
+
+  /**
+   * Update or create a related object
+   *
+   * @param lookup - Lookup conditions (FK is added automatically)
+   * @param defaults - Fields to update or set on creation
+   * @returns Tuple of [instance, created]
+   *
+   * @example
+   * ```ts
+   * const [comp, created] = await role.roleCompetences.updateOrCreate(
+   *   { competenceId: 10 },  // lookup conditions
+   *   { level: 5 }  // fields to update or set
+   * );
+   * ```
+   */
+  async updateOrCreate(
+    lookup: Record<string, unknown>,
+    defaults?: Partial<Record<string, unknown>>,
+  ): Promise<[T, boolean]> {
+    // deno-lint-ignore no-explicit-any
+    const sourcePk = (this._sourceInstance as any).pk;
+    const lookupWithFk = {
+      ...lookup,
+      [this._fieldName]: sourcePk,
+    };
+    const defaultsWithFk = {
+      ...defaults,
+      [this._fieldName]: sourcePk,
+    };
+    // deno-lint-ignore no-explicit-any
+    let manager = (this._relatedModel as any).objects;
+    const backend = this._getBackend();
+    if (backend) {
+      manager = manager.using(backend);
+    }
+    return manager.updateOrCreate(lookupWithFk, defaultsWithFk);
   }
 
   /**
