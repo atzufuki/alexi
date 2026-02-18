@@ -220,6 +220,8 @@ export abstract class ModelViewSet extends ViewSet
 
   /**
    * Get a single object by lookup field
+   *
+   * This method also checks object-level permissions after fetching.
    */
   async getObject(context: ViewSetContext): Promise<Model> {
     const lookupValue = context.params[this.lookupUrlKwarg];
@@ -235,6 +237,10 @@ export abstract class ModelViewSet extends ViewSet
 
     try {
       const instance = await queryset.get(conditions);
+
+      // Check object-level permissions
+      await this.checkObjectPermissions(context, instance);
+
       return instance;
     } catch (error) {
       // Check for DoesNotExist

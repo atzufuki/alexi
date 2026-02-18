@@ -143,3 +143,21 @@ export {
 } from "./filters/mod.ts";
 
 export type { FilterableViewSet, FilterBackend } from "./filters/mod.ts";
+
+// ============================================================================
+// Permissions
+// ============================================================================
+
+export {
+  AllowAny,
+  And,
+  BasePermission,
+  DenyAll,
+  IsAdminUser,
+  IsAuthenticated,
+  IsAuthenticatedOrReadOnly,
+  Not,
+  Or,
+} from "./permissions/mod.ts";
+
+export type { PermissionClass } from "./permissions/mod.ts";
