@@ -12,6 +12,11 @@ import type {
   FilterableViewSet,
   FilterBackend,
 } from "../filters/filter_backend.ts";
+import type {
+  BasePagination,
+  PaginatedResponse,
+  PaginationClass,
+} from "../pagination/pagination.ts";
 import type { ModelSerializer } from "../serializers/model_serializer.ts";
 import {
   Serializer,
@@ -163,6 +168,37 @@ export abstract class ModelViewSet extends ViewSet
   ordering?: string[];
 
   // ==========================================================================
+  // Pagination Configuration
+  // ==========================================================================
+
+  /**
+   * Pagination class to use for list views
+   *
+   * Set to a pagination class to enable pagination, or null to disable.
+   *
+   * @example
+   * ```ts
+   * import { PageNumberPagination } from "@alexi/restframework";
+   *
+   * class StandardPagination extends PageNumberPagination {
+   *   pageSize = 25;
+   *   pageSizeQueryParam = "page_size";
+   *   maxPageSize = 100;
+   * }
+   *
+   * class ArticleViewSet extends ModelViewSet {
+   *   pagination_class = StandardPagination;
+   * }
+   * ```
+   */
+  pagination_class?: PaginationClass | null;
+
+  /**
+   * Cached paginator instance for the current request
+   */
+  protected _paginator?: BasePagination | null;
+
+  // ==========================================================================
   // Queryset Methods
   // ==========================================================================
 
@@ -299,32 +335,118 @@ export abstract class ModelViewSet extends ViewSet
   }
 
   // ==========================================================================
+  // Pagination Methods
+  // ==========================================================================
+
+  /**
+   * Get the paginator instance for the current request
+   *
+   * Returns null if pagination is disabled.
+   */
+  getPaginator(): BasePagination | null {
+    if (this._paginator !== undefined) {
+      return this._paginator;
+    }
+
+    if (!this.pagination_class) {
+      this._paginator = null;
+      return null;
+    }
+
+    this._paginator = new this.pagination_class();
+    return this._paginator;
+  }
+
+  /**
+   * Paginate a queryset
+   *
+   * @param queryset - The queryset to paginate
+   * @param context - The ViewSet context
+   * @returns Paginated queryset, or original queryset if pagination is disabled
+   */
+  async paginateQueryset<T extends Model>(
+    queryset: QuerySet<T>,
+    context: ViewSetContext,
+  ): Promise<QuerySet<T>> {
+    const paginator = this.getPaginator();
+    if (!paginator) {
+      return queryset;
+    }
+
+    return paginator.paginateQueryset(queryset, {
+      request: context.request,
+      view: this,
+    });
+  }
+
+  /**
+   * Get the paginated response
+   *
+   * @param data - The serialized data array
+   * @param context - The ViewSet context
+   * @returns Paginated response object, or null if pagination is disabled
+   */
+  async getPaginatedResponse<T>(
+    data: T[],
+    context: ViewSetContext,
+  ): Promise<PaginatedResponse<T> | null> {
+    const paginator = this.getPaginator();
+    if (!paginator) {
+      return null;
+    }
+
+    return paginator.getResponseData(data, {
+      request: context.request,
+      view: this,
+    });
+  }
+
+  // ==========================================================================
   // CRUD Actions
   // ==========================================================================
 
   /**
    * List all objects (GET /)
    *
-   * Applies configured filter backends before fetching results.
+   * Applies configured filter backends and pagination before fetching results.
    * Use `filter_backends` and `filterset_fields` to enable query parameter filtering.
+   * Use `pagination_class` to enable pagination.
    *
    * @example
    * ```ts
+   * import { PageNumberPagination, QueryParamFilterBackend } from "@alexi/restframework";
+   *
+   * class StandardPagination extends PageNumberPagination {
+   *   pageSize = 25;
+   * }
+   *
    * class TodoViewSet extends ModelViewSet {
    *   model = TodoModel;
    *   serializer_class = TodoSerializer;
    *   filterBackends = [new QueryParamFilterBackend()];
    *   filtersetFields = ['id', 'completed'];
+   *   pagination_class = StandardPagination;
    * }
    *
    * // GET /api/todos/?id=18 -> returns only todo with id=18
    * // GET /api/todos/?completed=true -> returns completed todos
+   * // GET /api/todos/?page=2 -> returns page 2 with pagination
    * ```
    */
   override async list(context: ViewSetContext): Promise<Response> {
+    // Reset paginator for each request
+    this._paginator = undefined;
+
     const baseQueryset = await this.getQueryset(context);
     const filteredQueryset = this.filterQueryset(baseQueryset, context);
-    const qs = await filteredQueryset.fetch();
+
+    // Apply pagination if configured
+    const paginatedQueryset = await this.paginateQueryset(
+      filteredQueryset,
+      context,
+    );
+
+    const qs = await paginatedQueryset.fetch();
     const instances = qs.array();
 
     const serializer = this.getSerializer({
@@ -336,6 +458,13 @@ export abstract class ModelViewSet extends ViewSet
     const data = await Promise.all(
       instances.map((inst) => serializer.toRepresentation(inst)),
     );
+
+    // Return paginated response if pagination is enabled
+    const paginatedResponse = await this.getPaginatedResponse(data, context);
+    if (paginatedResponse) {
+      return Response.json(paginatedResponse);
+    }
+
     return Response.json(data);
   }
 

@@ -1049,6 +1049,69 @@ class UserOnlyViewSet extends ModelViewSet {
 }
 ```
 
+### Pagination
+
+Pagination classes provide DRF-style pagination for list endpoints.
+
+```typescript
+import {
+  CursorPagination,
+  LimitOffsetPagination,
+  ModelViewSet,
+  PageNumberPagination,
+} from "@alexi/restframework";
+
+// Page number pagination (DRF default style)
+class StandardPagination extends PageNumberPagination {
+  pageSize = 25;
+  pageSizeQueryParam = "page_size"; // Allow client to override
+  maxPageSize = 100;
+}
+
+// Limit/offset pagination (flexible)
+class FlexiblePagination extends LimitOffsetPagination {
+  defaultLimit = 20;
+  maxLimit = 100;
+}
+
+// Cursor pagination (for infinite scroll / real-time data)
+class InfiniteScrollPagination extends CursorPagination {
+  pageSize = 20;
+  ordering = "-createdAt"; // Required for cursor pagination
+}
+
+// Use in ViewSet
+class ArticleViewSet extends ModelViewSet {
+  model = ArticleModel;
+  serializer_class = ArticleSerializer;
+  pagination_class = StandardPagination;
+}
+```
+
+#### Pagination Response Format
+
+All pagination classes return responses in this format:
+
+```json
+{
+  "count": 100,
+  "next": "http://api.example.com/articles/?page=2",
+  "previous": null,
+  "results": [...]
+}
+```
+
+Note: `CursorPagination` returns `count: -1` since calculating total count is
+expensive for cursor-based pagination.
+
+#### Pagination Classes Reference
+
+| Class                   | Query Parameters    | Use Case                          |
+| ----------------------- | ------------------- | --------------------------------- |
+| `PageNumberPagination`  | `?page=N`           | Traditional page-based navigation |
+| `LimitOffsetPagination` | `?limit=N&offset=M` | Flexible offset-based access      |
+| `CursorPagination`      | `?cursor=<token>`   | Infinite scroll, real-time feeds  |
+
 ---
 
 ## URL Routing

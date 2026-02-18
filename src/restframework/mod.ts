@@ -161,3 +161,20 @@ export {
 } from "./permissions/mod.ts";
 
 export type { PermissionClass } from "./permissions/mod.ts";
+
+// ============================================================================
+// Pagination
+// ============================================================================
+
+export {
+  BasePagination,
+  CursorPagination,
+  LimitOffsetPagination,
+  PageNumberPagination,
+} from "./pagination/mod.ts";
+
+export type {
+  PaginatedResponse,
+  PaginationClass,
+  PaginationContext,
+} from "./pagination/mod.ts";
