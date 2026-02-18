@@ -319,9 +319,10 @@ deno task test     # Run tests
 ```
 
 **IMPORTANT:** Always run `deno task fmt` from the project root. This formats
-the entire codebase, not just your changed files. CI runs `deno task fmt --check`
-and will fail if ANY file in the project needs formatting. Do NOT run `deno fmt`
-only on your changed directory - it must be run on the entire project.
+the entire codebase, not just your changed files. CI runs
+`deno task fmt --check` and will fail if ANY file in the project needs
+formatting. Do NOT run `deno fmt` only on your changed directory - it must be
+run on the entire project.
 
 All checks must pass.
 

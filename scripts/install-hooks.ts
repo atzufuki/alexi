@@ -12,14 +12,14 @@
 const PRE_COMMIT_HOOK = `#!/bin/sh
 #
 # Alexi pre-commit hook
-# Automatically formats staged files with deno fmt
+# Automatically formats staged files with deno fmt and checks entire project
 #
 
 # Get list of staged .ts, .tsx, .js, .jsx, .json, .md files
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\\.(ts|tsx|js|jsx|json|md|jsonc)$' || true)
 
 if [ -n "$STAGED_FILES" ]; then
-  echo "🔧 Formatting staged files..."
+  echo "Formatting staged files..."
 
   # Format the staged files
   echo "$STAGED_FILES" | xargs deno fmt
@@ -27,9 +27,24 @@ if [ -n "$STAGED_FILES" ]; then
   # Re-add the formatted files to staging
   echo "$STAGED_FILES" | xargs git add
 
-  echo "✅ Formatting complete"
+  echo "Staged files formatted"
 fi
 
+# Check if entire project is properly formatted
+echo "Checking project formatting..."
+if ! deno fmt --check > /dev/null 2>&1; then
+  echo ""
+  echo "WARNING: Some files in the project need formatting."
+  echo "CI will fail. Run 'deno task fmt' to fix all files."
+  echo ""
+  echo "Files that need formatting:"
+  deno fmt --check 2>&1 | head -20
+  echo ""
+  echo "Commit blocked. Run 'deno task fmt' and try again."
+  exit 1
+fi
+
+echo "All checks passed"
 exit 0
 `;
 
