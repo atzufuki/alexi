@@ -1,0 +1,50 @@
+/**
+ * Alexi Database Migrations
+ *
+ * A Django-inspired migration system for managing database schema changes.
+ *
+ * ## Features
+ *
+ * - **Imperative migrations**: Write `forwards()` and `backwards()` methods
+ * - **Deprecation model**: Never delete data - use `deprecateField()` and `deprecateModel()`
+ * - **Multiple backends**: PostgreSQL, DenoKV with `.using(backend)` pattern
+ * - **Safe by default**: All migrations are reversible unless `reversible = false`
+ *
+ * ## Example Migration
+ *
+ * ```ts
+ * import { Migration, MigrationSchemaEditor } from "@alexi/db/migrations";
+ *
+ * class UserModel extends Model {
+ *   static meta = { dbTable: "users" };
+ *   id = new AutoField({ primaryKey: true });
+ *   email = new CharField({ maxLength: 255 });
+ * }
+ *
+ * export default class Migration0001 extends Migration {
+ *   name = "0001_create_users";
+ *   dependencies = [];
+ *
+ *   async forwards(schema: MigrationSchemaEditor): Promise<void> {
+ *     await schema.createModel(UserModel);
+ *   }
+ *
+ *   async backwards(schema: MigrationSchemaEditor): Promise<void> {
+ *     await schema.deprecateModel(UserModel);
+ *   }
+ * }
+ * ```
+ *
+ * @module @alexi/db/migrations
+ */
+
+export { DataMigration, Migration } from "./migration.ts";
+export type { MigrationDependency, MigrationOptions } from "./migration.ts";
+
+export { MigrationSchemaEditor } from "./schema_editor.ts";
+export type { AlterFieldOptions, DeprecationInfo } from "./schema_editor.ts";
+
+export { MigrationLoader } from "./loader.ts";
+export { MigrationExecutor } from "./executor.ts";
+export { MigrationRecorder } from "./recorder.ts";
+export { DeprecationRecorder } from "./deprecation_recorder.ts";

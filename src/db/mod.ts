@@ -171,3 +171,30 @@ export type {
   DatabasesConfig,
   DatabaseSettings,
 } from "./setup.ts";
+
+// ============================================================================
+// Migrations
+// ============================================================================
+
+// Migration classes and types - also available via @alexi/db/migrations
+export { DataMigration, Migration } from "./migrations/mod.ts";
+export { MigrationSchemaEditor } from "./migrations/mod.ts";
+export { MigrationLoader } from "./migrations/mod.ts";
+export { MigrationExecutor } from "./migrations/mod.ts";
+export { MigrationRecorder } from "./migrations/mod.ts";
+export { DeprecationRecorder } from "./migrations/mod.ts";
+export type {
+  MigrationDependency,
+  MigrationOptions,
+} from "./migrations/mod.ts";
+export type { AlterFieldOptions, DeprecationInfo } from "./migrations/mod.ts";
+
+// ============================================================================
+// Commands
+// ============================================================================
+
+export {
+  MakemigrationsCommand,
+  MigrateCommand,
+  ShowmigrationsCommand,
+} from "./commands/mod.ts";
