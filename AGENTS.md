@@ -1138,6 +1138,96 @@ import {
 } from "@alexi/restframework";
 ```
 
+### Browsable API
+
+`BrowsableAPIRenderer` produces an interactive HTML interface for the API when
+requests are made with `Accept: text/html` (e.g., from a browser). It is similar
+to Django REST Framework's browsable API.
+
+Features:
+
+- Syntax-highlighted JSON response display
+- Auto-generated JSON request forms for POST/PUT/PATCH
+- Breadcrumb navigation and HTTP method badge
+- Pagination controls (next/previous links)
+- Login/logout with JWT token management
+- Copy-to-clipboard for response data
+- Mobile-responsive design
+
+```typescript
+import {
+  BrowsableAPIRenderer,
+  JSONRenderer,
+  ModelViewSet,
+} from "@alexi/restframework";
+
+// ViewSet that renders HTML in browsers, JSON for API clients
+class ArticleViewSet extends ModelViewSet {
+  model = ArticleModel;
+  serializer_class = ArticleSerializer;
+  renderer_classes = [JSONRenderer, BrowsableAPIRenderer];
+}
+// Browser (Accept: text/html) → Interactive HTML page
+// API client (Accept: application/json) → JSON response
+```
+
+#### Customization
+
+```typescript
+import { BrowsableAPIRenderer } from "@alexi/restframework";
+
+class MyBrowsableRenderer extends BrowsableAPIRenderer {
+  override title = "My Project API";
+  override tokenStorageKey = "my_project_tokens";
+  override loginUrl = "/api/v2/auth/login/";
+  override logoutUrl = "/api/v2/auth/logout/";
+  override meUrl = "/api/v2/auth/me/";
+}
+
+class ArticleViewSet extends ModelViewSet {
+  renderer_classes = [JSONRenderer, MyBrowsableRenderer];
+}
+```
+
+Or pass options to the constructor (e.g., for factory patterns):
+
+```typescript
+const renderer = new BrowsableAPIRenderer({
+  title: "My API",
+  tokenStorageKey: "my_tokens",
+  loginUrl: "/api/auth/login/",
+});
+```
+
+#### RenderContext
+
+The viewset automatically passes a `RenderContext` to renderers with:
+
+| Field            | Type       | Description                      |
+| ---------------- | ---------- | -------------------------------- |
+| `request`        | `Request`  | The original HTTP request        |
+| `method`         | `string`   | HTTP method (GET, POST, etc.)    |
+| `allowedMethods` | `string[]` | Methods allowed on this endpoint |
+| `statusCode`     | `number`   | Response status code             |
+| `action`         | `string`   | The ViewSet action name          |
+| `params`         | `object`   | URL path parameters              |
+
+Custom renderers can use `RenderContext` by accepting it in their `render()`:
+
+```typescript
+import { BaseRenderer, type RenderContext } from "@alexi/restframework";
+
+class MyRenderer extends BaseRenderer {
+  readonly mediaType = "text/plain";
+  readonly format = "txt";
+
+  override render(data: unknown, context?: RenderContext): string {
+    const method = context?.method ?? "GET";
+    return `${method} ${JSON.stringify(data)}`;
+  }
+}
+```
+
 ---
 
 ### Throttling

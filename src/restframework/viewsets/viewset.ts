@@ -11,6 +11,7 @@ import type { BasePermission, PermissionClass } from "../permissions/mod.ts";
 import {
   type BaseRenderer,
   JSONRenderer,
+  type RenderContext,
   type RendererClass,
   renderResponse,
   selectRenderer,
@@ -620,8 +621,21 @@ export class ViewSet {
       // Call the action
       try {
         const actionResponse = await actionMethod.call(viewset, context);
+        // Build render context for context-aware renderers (e.g. BrowsableAPIRenderer)
+        const renderContext: RenderContext = {
+          request,
+          method: request.method.toUpperCase(),
+          allowedMethods: Object.keys(actions),
+          statusCode: actionResponse.status,
+          action: actionName,
+          params,
+        };
         // Re-render the response using the negotiated renderer
-        return await renderResponse(actionResponse, negotiated.renderer);
+        return await renderResponse(
+          actionResponse,
+          negotiated.renderer,
+          renderContext,
+        );
       } catch (error) {
         // Re-throw permission errors to return proper status codes
         if (
