@@ -193,3 +193,17 @@ export {
 } from "./throttling/mod.ts";
 
 export type { ParsedRate, ThrottleClass } from "./throttling/mod.ts";
+
+// ============================================================================
+// Versioning
+// ============================================================================
+
+export {
+  AcceptHeaderVersioning,
+  BaseVersioning,
+  QueryParameterVersioning,
+  URLPathVersioning,
+  VersionNotAllowedError,
+} from "./versioning/mod.ts";
+
+export type { VersioningClass, VersioningConfig } from "./versioning/mod.ts";
