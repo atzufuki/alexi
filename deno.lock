@@ -421,6 +421,7 @@
       },
       "src/db": {
         "dependencies": [
+          "jsr:@alexi/core@0.22.0",
           "jsr:@alexi/types@0.22.0",
           "jsr:@std/assert@1"
         ]
