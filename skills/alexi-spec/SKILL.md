@@ -1,6 +1,6 @@
 ---
 name: alexi-spec
-description: Create GitHub issues for Alexi framework features, bugs, and improvements. 
+description: Create GitHub issues for Alexi framework features, bugs, and improvements.
   Use when specifying new functionality, documenting bugs, or planning enhancements.
 ---
 
@@ -20,7 +20,8 @@ Create well-structured GitHub issues for the Alexi framework.
 1. **Gather Context**
    - Read relevant documentation (`docs/`, `AGENTS.md`, `README.md`)
    - Search codebase for related code if applicable
-   - Check existing issues to avoid duplicates: `gh issue list --search "keyword"`
+   - Check existing issues to avoid duplicates:
+     `gh issue list --search "keyword"`
 
 2. **Draft the Issue**
    - Write a clear, concise title
@@ -54,10 +55,12 @@ Create well-structured GitHub issues for the Alexi framework.
 ## Requirements
 
 ### Core Implementation
+
 - [ ] Requirement 1
 - [ ] Requirement 2
 
 ### Additional Considerations
+
 - [ ] Consideration 1
 
 ## Technical Considerations
@@ -77,7 +80,7 @@ Create well-structured GitHub issues for the Alexi framework.
 
 ### Bug Report
 
-```markdown
+````markdown
 ## Description
 
 [What is the bug?]
@@ -111,8 +114,9 @@ Create well-structured GitHub issues for the Alexi framework.
 ```typescript
 // Relevant code snippet
 ```
-```
+````
 
+````
 ### Documentation Update
 
 ```markdown
@@ -133,11 +137,12 @@ Create well-structured GitHub issues for the Alexi framework.
 
 - `docs/file1.md`
 - `docs/file2.md`
-```
+````
 
 ## Labels
 
 Add labels when creating issues if appropriate:
+
 - `enhancement` - New features
 - `bug` - Bug reports
 - `documentation` - Documentation updates
