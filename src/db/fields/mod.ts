@@ -19,7 +19,9 @@ export {
   DateField,
   DateTimeField,
   DecimalField,
+  FileField,
   FloatField,
+  ImageField,
   IntegerField,
   JSONField,
   TextField,
@@ -30,6 +32,7 @@ export type {
   CharFieldOptions,
   DateFieldOptions,
   DecimalFieldOptions,
+  FileFieldOptions,
 } from "./types.ts";
 
 // Relation fields

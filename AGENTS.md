@@ -19,6 +19,7 @@ functionality:
 | `@alexi/views`         | `django.views`               | Template views                                |
 | `@alexi/web`           | `django.core.handlers.wsgi`  | Web server (HTTP API)                         |
 | `@alexi/staticfiles`   | `django.contrib.staticfiles` | Static file handling, bundling                |
+| `@alexi/storage`       | `django.core.files.storage`  | File storage backends (Firebase, Memory)      |
 | `@alexi/restframework` | `djangorestframework`        | REST API: Serializers, ViewSets, Routers      |
 | `@alexi/auth`          | `django.contrib.auth`        | Authentication (JWT-based)                    |
 | `@alexi/admin`         | `django.contrib.admin`       | Auto-generated admin panel                    |
@@ -59,6 +60,12 @@ alexi/
 │   │   ├── viewsets/    # ViewSet, ModelViewSet
 │   │   └── router.ts    # URL router for ViewSets
 │   ├── staticfiles/     # Static file serving and bundling
+│   ├── storage/         # File storage backends
+│   │   ├── backends/    # Storage backend implementations
+│   │   │   ├── firebase.ts  # Firebase Cloud Storage
+│   │   │   └── memory.ts    # In-memory (testing)
+│   │   ├── storage.ts   # Abstract Storage base class
+│   │   └── setup.ts     # Storage configuration
 │   ├── types/           # Shared TypeScript types
 │   ├── urls/            # URL routing (path, include, resolve)
 │   ├── views/           # Template views
@@ -170,6 +177,11 @@ import { templateView } from "@alexi/views";
 
 // Static Files
 import { staticFilesMiddleware } from "@alexi/staticfiles";
+
+// Storage
+import { getStorage, setStorage, Storage } from "@alexi/storage";
+import { FirebaseStorage } from "@alexi/storage/backends/firebase";
+import { MemoryStorage } from "@alexi/storage/backends/memory";
 
 // Admin
 import { AdminSite, ModelAdmin } from "@alexi/admin";
@@ -794,6 +806,130 @@ new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 | `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                   |
 | `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint     |
 | `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
+
+---
+
+## File Storage
+
+Alexi provides a Django-style Storage API for file uploads and management.
+
+### Storage Setup
+
+```typescript
+import { getStorage, setStorage } from "@alexi/storage";
+import { FirebaseStorage } from "@alexi/storage/backends/firebase";
+import { MemoryStorage } from "@alexi/storage/backends/memory";
+
+// Configure Firebase Storage
+const storage = new FirebaseStorage({
+  bucket: "my-project.appspot.com",
+  basePath: "uploads/",
+  getAuthToken: async () => {
+    // Return Firebase auth token
+    return await firebase.auth().currentUser?.getIdToken() ?? "";
+  },
+});
+setStorage(storage);
+
+// For testing, use MemoryStorage
+const testStorage = new MemoryStorage();
+setStorage(testStorage);
+```
+
+### Storage API Methods
+
+| Method                     | Description                            |
+| -------------------------- | -------------------------------------- |
+| `save(name, content)`      | Save file, returns final name          |
+| `open(name)`               | Open file for reading (ReadableStream) |
+| `delete(name)`             | Delete file                            |
+| `exists(name)`             | Check if file exists                   |
+| `url(name)`                | Get public/download URL                |
+| `size(name)`               | Get file size in bytes                 |
+| `listdir(path)`            | List directory contents                |
+| `getMetadata(name)`        | Get file metadata                      |
+| `signedUrl(name, options)` | Generate temporary signed URL          |
+
+### FileField and ImageField
+
+```typescript
+import { AutoField, CharField, FileField, ImageField, Model } from "@alexi/db";
+
+export class DocumentModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 255 });
+
+  // Basic file field
+  file = new FileField({ uploadTo: "documents/" });
+
+  // With validation
+  attachment = new FileField({
+    uploadTo: "attachments/",
+    maxSize: 10 * 1024 * 1024, // 10 MB
+    allowedExtensions: [".pdf", ".doc", ".docx"],
+  });
+}
+
+export class ProfileModel extends Model {
+  id = new AutoField({ primaryKey: true });
+
+  // Image field with defaults for common image types
+  avatar = new ImageField({
+    uploadTo: "avatars/",
+    maxSize: 5 * 1024 * 1024, // 5 MB
+  });
+}
+```
+
+### File Upload in ViewSet
+
+```typescript
+import { action, ModelViewSet } from "@alexi/restframework";
+import { getStorage } from "@alexi/storage";
+import { DocumentModel } from "./models.ts";
+
+export class DocumentViewSet extends ModelViewSet {
+  model = DocumentModel;
+
+  @action({ detail: false, methods: ["POST"] })
+  async upload(context: ViewSetContext): Promise<Response> {
+    const formData = await context.request.formData();
+    const file = formData.get("file") as File;
+
+    // Validate file
+    const field = new DocumentModel().file;
+    const validation = field.validateFile(file);
+    if (!validation.valid) {
+      return Response.json({ errors: validation.errors }, { status: 400 });
+    }
+
+    // Save to storage
+    const storage = getStorage();
+    const uploadPath = field.getUploadPath(file.name);
+    const savedName = await storage.save(uploadPath, file);
+    const fileUrl = await storage.url(savedName);
+
+    // Save metadata to database
+    const document = await DocumentModel.objects.create({
+      name: file.name,
+      file: savedName,
+    });
+
+    return Response.json({
+      id: document.id.get(),
+      name: document.name.get(),
+      fileUrl: fileUrl,
+    });
+  }
+}
+```
+
+### Available Backends
+
+| Backend           | Import                             | Description                 |
+| ----------------- | ---------------------------------- | --------------------------- |
+| `FirebaseStorage` | `@alexi/storage/backends/firebase` | Firebase Cloud Storage      |
+| `MemoryStorage`   | `@alexi/storage/backends/memory`   | In-memory storage (testing) |
 
 ---
 
