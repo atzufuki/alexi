@@ -17,6 +17,7 @@ import {
   Migration,
   MigrationExecutor,
   MigrationLoader,
+  MigrationNamer,
   MigrationRecorder,
   MigrationSchemaEditor,
   ModelState,
@@ -755,4 +756,352 @@ Deno.test("categorizeChanges - soft_delete pattern detection", () => {
   const result = categorizeChanges(changes);
   assertEquals(result.prefix, "feat");
   assertEquals(result.description, "soft_delete");
+});
+
+// ============================================================================
+// MigrationNamer Tests
+// ============================================================================
+
+Deno.test("MigrationNamer - suggestName returns 0001 for first migration", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "create_model" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      model: {} as ModelState,
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, []);
+
+  assertEquals(suggestion.fullName.startsWith("0001_"), true);
+  assertEquals(suggestion.prefix, "init");
+  assertEquals(suggestion.description, "user");
+  assertEquals(suggestion.confidence >= 0.9, true);
+});
+
+Deno.test("MigrationNamer - increments migration number correctly", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "email",
+      field: { type: "CharField", options: {}, columnName: "email" },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, [
+    "0001_init_user",
+    "0002_feat_profile",
+  ]);
+
+  assertEquals(suggestion.fullName.startsWith("0003_"), true);
+});
+
+Deno.test("MigrationNamer - handles non-sequential migration numbers", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "email",
+      field: { type: "CharField", options: {}, columnName: "email" },
+    },
+  ];
+
+  // Migrations out of order
+  const suggestion = namer.suggestName(changes, [
+    "0001_init_user",
+    "0010_feat_something",
+    "0005_feat_other",
+  ]);
+
+  assertEquals(suggestion.fullName.startsWith("0011_"), true);
+});
+
+Deno.test("MigrationNamer - uses init prefix for single model creation", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "create_model" as const,
+      appLabel: "myapp",
+      modelName: "ArticleModel",
+      model: {} as ModelState,
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, []);
+
+  assertEquals(suggestion.prefix, "init");
+  assertEquals(suggestion.description, "article");
+  assertEquals(suggestion.reason.includes("Initial migration"), true);
+});
+
+Deno.test("MigrationNamer - uses feat prefix for add_field", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "email",
+      field: { type: "CharField", options: {}, columnName: "email" },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, ["0001_init_user"]);
+
+  assertEquals(suggestion.prefix, "feat");
+  assertEquals(suggestion.fullName, "0002_feat_user");
+});
+
+Deno.test("MigrationNamer - uses fix prefix for alter_field", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "alter_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "name",
+      changes: ["maxLength"],
+      oldField: {
+        type: "CharField",
+        options: { maxLength: 100 },
+        columnName: "name",
+      },
+      newField: {
+        type: "CharField",
+        options: { maxLength: 200 },
+        columnName: "name",
+      },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, ["0001_init_user"]);
+
+  assertEquals(suggestion.prefix, "fix");
+});
+
+Deno.test("MigrationNamer - uses remove prefix for delete operations", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "remove_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "legacyField",
+      field: { type: "CharField", options: {}, columnName: "legacy_field" },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, ["0001_init_user"]);
+
+  assertEquals(suggestion.prefix, "remove");
+});
+
+Deno.test("MigrationNamer - uses refactor prefix for mixed operations", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "newField",
+      field: { type: "CharField", options: {}, columnName: "new_field" },
+    },
+    {
+      type: "remove_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "oldField",
+      field: { type: "CharField", options: {}, columnName: "old_field" },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, ["0001_init_user"]);
+
+  assertEquals(suggestion.prefix, "refactor");
+});
+
+Deno.test("MigrationNamer - detects soft_delete semantic pattern", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "deletedAt",
+      field: { type: "DateTimeField", options: {}, columnName: "deleted_at" },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, ["0001_init_user"]);
+
+  assertEquals(suggestion.prefix, "feat");
+  assertEquals(suggestion.description, "soft_delete");
+  assertEquals(suggestion.confidence >= 0.85, true);
+});
+
+Deno.test("MigrationNamer - detects timestamps semantic pattern", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "createdAt",
+      field: { type: "DateTimeField", options: {}, columnName: "created_at" },
+    },
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "updatedAt",
+      field: { type: "DateTimeField", options: {}, columnName: "updated_at" },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, ["0001_init_user"]);
+
+  assertEquals(suggestion.prefix, "feat");
+  assertEquals(suggestion.description, "timestamps");
+});
+
+Deno.test("MigrationNamer - converts CamelCase model names to snake_case", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "create_model" as const,
+      appLabel: "myapp",
+      modelName: "UserProfile",
+      model: {} as ModelState,
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, []);
+
+  assertEquals(suggestion.description, "user_profile");
+});
+
+Deno.test("MigrationNamer - strips Model suffix from name", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "create_model" as const,
+      appLabel: "myapp",
+      modelName: "ArticleModel",
+      model: {} as ModelState,
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, []);
+
+  assertEquals(suggestion.description, "article");
+});
+
+Deno.test("MigrationNamer - handles empty changes", () => {
+  const namer = new MigrationNamer();
+  const suggestion = namer.suggestName([], []);
+
+  assertEquals(suggestion.fullName, "0001_feat_changes");
+  assertEquals(suggestion.confidence <= 0.2, true);
+});
+
+Deno.test("MigrationNamer - suggestNames returns multiple alternatives", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "email",
+      field: { type: "CharField", options: {}, columnName: "email" },
+    },
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "Profile",
+      fieldName: "bio",
+      field: { type: "TextField", options: {}, columnName: "bio" },
+    },
+  ];
+
+  const suggestions = namer.suggestNames(changes, []);
+
+  // Should have at least primary suggestion and model names alternative
+  assertEquals(suggestions.length >= 2, true);
+
+  // Check that alternative with model names exists
+  const modelNamesAlt = suggestions.find(
+    (s) => s.description.includes("user") && s.description.includes("profile"),
+  );
+  assertExists(modelNamesAlt);
+});
+
+Deno.test("MigrationNamer - field-based description for single field add", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "avatarUrl",
+      field: { type: "URLField", options: {}, columnName: "avatar_url" },
+    },
+  ];
+
+  // When adding a single non-semantic field, should use model name
+  const suggestion = namer.suggestName(changes, []);
+
+  assertEquals(suggestion.prefix, "feat");
+  assertEquals(suggestion.description, "user");
+});
+
+Deno.test("MigrationNamer - creates reason message", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "email",
+      field: { type: "CharField", options: {}, columnName: "email" },
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, []);
+
+  assertEquals(typeof suggestion.reason, "string");
+  assertEquals(suggestion.reason.length > 0, true);
+  assertEquals(suggestion.reason.toLowerCase().includes("user"), true);
+});
+
+Deno.test("MigrationNamer - multiple create_model creates combined name", () => {
+  const namer = new MigrationNamer();
+  const changes = [
+    {
+      type: "create_model" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      model: {} as ModelState,
+    },
+    {
+      type: "create_model" as const,
+      appLabel: "myapp",
+      modelName: "Profile",
+      model: {} as ModelState,
+    },
+  ];
+
+  const suggestion = namer.suggestName(changes, []);
+
+  // With multiple models, uses feat prefix (not init)
+  assertEquals(suggestion.prefix, "feat");
+  // Description should contain both model names
+  assertEquals(suggestion.description.includes("user"), true);
+  assertEquals(suggestion.description.includes("profile"), true);
 });

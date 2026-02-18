@@ -73,3 +73,6 @@ export type {
   RenameFieldChange,
   RenameModelChange,
 } from "./comparator.ts";
+
+export { MigrationNamer } from "./namer.ts";
+export type { MigrationNameSuggestion, MigrationPrefix } from "./namer.ts";

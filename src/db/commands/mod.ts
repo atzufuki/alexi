@@ -9,3 +9,4 @@
 export { MigrateCommand } from "./migrate.ts";
 export { MakemigrationsCommand } from "./makemigrations.ts";
 export { ShowmigrationsCommand } from "./showmigrations.ts";
+export { SqlmigrateCommand } from "./sqlmigrate.ts";
