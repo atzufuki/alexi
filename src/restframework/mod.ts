@@ -185,6 +185,7 @@ export type {
 
 export {
   BaseRenderer,
+  BrowsableAPIRenderer,
   CSVRenderer,
   JSONRenderer,
   parseAcceptHeader,
@@ -193,7 +194,9 @@ export {
 } from "./renderers/mod.ts";
 
 export type {
+  BrowsableAPIRendererOptions,
   ContentNegotiationOptions,
   NegotiationResult,
+  RenderContext,
   RendererClass,
 } from "./renderers/mod.ts";

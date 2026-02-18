@@ -7,6 +7,25 @@
  * @module @alexi/restframework/renderers/renderers
  */
 
+/**
+ * Optional render context passed to renderers
+ *
+ * Used by `BrowsableAPIRenderer` and other context-aware renderers.
+ * Base renderers ignore this entirely.
+ */
+export interface RenderContext {
+  /** The original HTTP request */
+  request?: Request;
+  /** HTTP method of the request */
+  method?: string;
+  /** HTTP methods allowed on this endpoint */
+  allowedMethods?: string[];
+  /** Response HTTP status code */
+  statusCode?: number;
+  /** Additional context data */
+  [key: string]: unknown;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -68,9 +87,10 @@ export abstract class BaseRenderer {
    * Render the data to a string
    *
    * @param data - The data to render (typically a JSON-serializable object)
+   * @param context - Optional render context (used by context-aware renderers)
    * @returns The rendered string
    */
-  abstract render(data: unknown): string;
+  abstract render(data: unknown, context?: RenderContext): string;
 
   /**
    * Build the Content-Type header value (includes charset if applicable)
@@ -101,7 +121,7 @@ export class JSONRenderer extends BaseRenderer {
   readonly mediaType = "application/json";
   readonly format = "json";
 
-  render(data: unknown): string {
+  render(data: unknown, _context?: RenderContext): string {
     return JSON.stringify(data);
   }
 }
@@ -127,7 +147,7 @@ export class XMLRenderer extends BaseRenderer {
   readonly mediaType = "application/xml";
   readonly format = "xml";
 
-  render(data: unknown): string {
+  render(data: unknown, _context?: RenderContext): string {
     return `<?xml version="1.0" encoding="UTF-8"?>\n${
       this.toXml(data, "root")
     }`;
@@ -191,7 +211,7 @@ export class CSVRenderer extends BaseRenderer {
   readonly mediaType = "text/csv";
   readonly format = "csv";
 
-  render(data: unknown): string {
+  render(data: unknown, _context?: RenderContext): string {
     // Handle paginated responses (DRF-style: { count, results })
     const rows = this.extractRows(data);
 
@@ -386,10 +406,15 @@ export function parseAcceptHeader(header: string): AcceptEntry[] {
  * body and re-renders it using the selected renderer.
  *
  * Returns a new Response with the appropriate Content-Type.
+ *
+ * @param response - The original JSON response from the action
+ * @param renderer - The selected renderer
+ * @param context - Optional render context (passed to context-aware renderers)
  */
 export async function renderResponse(
   response: Response,
   renderer: BaseRenderer,
+  context?: RenderContext,
 ): Promise<Response> {
   // If already non-JSON (e.g., a redirect or file download), pass through
   const contentType = response.headers.get("Content-Type") ?? "";
@@ -409,7 +434,7 @@ export async function renderResponse(
     return response;
   }
 
-  const rendered = renderer.render(data);
+  const rendered = renderer.render(data, context);
 
   const headers = new Headers(response.headers);
   headers.set("Content-Type", renderer.getContentType());
