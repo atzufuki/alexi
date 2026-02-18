@@ -51,22 +51,22 @@ differences, and features unique to Alexi.
 
 ### REST Framework
 
-| Feature             | Django REST Framework | Alexi REST Framework | Notes                              |
-| ------------------- | --------------------- | -------------------- | ---------------------------------- |
-| Serializers         | ✅                    | ✅                   | Similar API                        |
-| ModelSerializer     | ✅                    | ✅                   | Auto-generates fields from model   |
-| ViewSets            | ✅                    | ✅                   | ModelViewSet, ReadOnlyModelViewSet |
-| Routers             | ✅                    | ✅                   | DefaultRouter                      |
-| `@action` decorator | ✅                    | ✅                   | Custom actions on ViewSets         |
-| Filter backends     | ✅                    | ✅                   | QueryParamFilterBackend, etc.      |
-| Ordering            | ✅                    | ✅                   | OrderingFilter                     |
-| Search              | ✅                    | ✅                   | SearchFilter                       |
-| Pagination          | ✅                    | ✅                   | PageNumber, LimitOffset, Cursor    |
-| Throttling          | ✅                    | ❌                   | —                                  |
-| Permissions         | ✅                    | ✅                   | ViewSet permission_classes         |
-| Versioning          | ✅                    | ❌                   | —                                  |
-| Content negotiation | ✅                    | ✅                   | JSON, XML, CSV; custom renderers   |
-| Browsable API       | ✅                    | ❌                   | —                                  |
+| Feature             | Django REST Framework | Alexi REST Framework | Notes                               |
+| ------------------- | --------------------- | -------------------- | ----------------------------------- |
+| Serializers         | ✅                    | ✅                   | Similar API                         |
+| ModelSerializer     | ✅                    | ✅                   | Auto-generates fields from model    |
+| ViewSets            | ✅                    | ✅                   | ModelViewSet, ReadOnlyModelViewSet  |
+| Routers             | ✅                    | ✅                   | DefaultRouter                       |
+| `@action` decorator | ✅                    | ✅                   | Custom actions on ViewSets          |
+| Filter backends     | ✅                    | ✅                   | QueryParamFilterBackend, etc.       |
+| Ordering            | ✅                    | ✅                   | OrderingFilter                      |
+| Search              | ✅                    | ✅                   | SearchFilter                        |
+| Pagination          | ✅                    | ✅                   | PageNumber, LimitOffset, Cursor     |
+| Throttling          | ✅                    | ❌                   | —                                   |
+| Permissions         | ✅                    | ✅                   | ViewSet permission_classes          |
+| Versioning          | ✅                    | ❌                   | —                                   |
+| Content negotiation | ✅                    | ✅                   | JSON, XML, CSV; custom renderers    |
+| Browsable API       | ✅                    | ✅                   | HTML interface; login/logout; forms |
 
 ### URL Routing
 
@@ -184,8 +184,6 @@ Features available in Django that Alexi does not currently provide:
 | **Sitemaps**               | XML sitemap generation                         |
 | **GIS support**            | GeoDjango for geographic data                  |
 | **Content types**          | Generic relations framework                    |
-| **Browsable API**          | Interactive API documentation (DRF)            |
-| **Throttling**             | Rate limiting (DRF)                            |
 
 ---
 

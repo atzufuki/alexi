@@ -17,5 +17,10 @@ export {
 export type {
   ContentNegotiationOptions,
   NegotiationResult,
+  RenderContext,
   RendererClass,
 } from "./renderers.ts";
+
+export { BrowsableAPIRenderer } from "./browsable_api.ts";
+
+export type { BrowsableAPIRendererOptions } from "./browsable_api.ts";
