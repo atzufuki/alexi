@@ -1,6 +1,6 @@
 ---
 name: alexi-release
-description: Release new versions of Alexi framework packages to JSR. Use when 
+description: Release new versions of Alexi framework packages to JSR. Use when
   preparing releases, updating changelogs, bumping versions, and creating git tags.
 ---
 
@@ -40,6 +40,7 @@ git log $(git describe --tags --abbrev=0)..HEAD --pretty=format:"%h %s"
 ```
 
 Categorize changes:
+
 - **Breaking Changes** - API changes that break backward compatibility
 - **Features** - New functionality
 - **Bug Fixes** - Bug fixes
@@ -50,11 +51,11 @@ Categorize changes:
 
 **Semantic Versioning (SemVer):**
 
-| Change Type | Version Bump | Example |
-|-------------|--------------|---------|
-| Breaking changes | MAJOR | 0.7.0 → 1.0.0 |
-| New features (backward compatible) | MINOR | 0.7.0 → 0.8.0 |
-| Bug fixes | PATCH | 0.7.0 → 0.7.1 |
+| Change Type                        | Version Bump | Example       |
+| ---------------------------------- | ------------ | ------------- |
+| Breaking changes                   | MAJOR        | 0.7.0 → 1.0.0 |
+| New features (backward compatible) | MINOR        | 0.7.0 → 0.8.0 |
+| Bug fixes                          | PATCH        | 0.7.0 → 0.7.1 |
 
 For pre-1.0 releases, breaking changes typically bump MINOR.
 
@@ -68,35 +69,41 @@ Create or update `CHANGELOG.md` in the root directory:
 All notable changes to Alexi are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ## [0.8.0] - 2026-02-18
 
 ### Added
+
 - PostgreSQL backend support (#67)
 - New `selectRelated()` for eager loading
 
 ### Changed
+
 - Improved QuerySet performance
 
 ### Fixed
+
 - Fixed ForeignKey null handling (#65)
 
 ### Breaking Changes
+
 - Removed deprecated `APP_PATHS` configuration
 
 ## [0.7.0] - 2026-01-15
 
 ### Added
-- Initial release
-...
+
+- Initial release ...
 ```
 
 ### Changelog Sections
 
 Use these standard sections (in order):
+
 - `Added` - New features
 - `Changed` - Changes to existing functionality
 - `Deprecated` - Features to be removed
@@ -140,10 +147,12 @@ deno task version:sync
 ```
 
 This updates:
+
 - All `src/*/deno.jsonc` version fields
 - All `@alexi/*` imports in each package's `imports` field
 
 Verify the sync:
+
 ```bash
 git diff --stat
 ```
@@ -193,6 +202,7 @@ git status
 ```
 
 Checklist:
+
 - [ ] All tests pass
 - [ ] Code is formatted and linted
 - [ ] Type checking passes
@@ -253,6 +263,7 @@ All packages share the same version number:
 ## Verify Published Packages
 
 After release, check JSR:
+
 - https://jsr.io/@alexi
 - https://jsr.io/@alexi/db
 - https://jsr.io/@alexi/core

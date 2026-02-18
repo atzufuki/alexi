@@ -14,7 +14,8 @@
     "jsr:@zip-js/zip-js@^2.8.7": "2.8.21",
     "npm:esbuild@0.24": "0.24.2",
     "npm:fake-indexeddb@6": "6.2.5",
-    "npm:pg@8": "8.13.1"
+    "npm:pg@8": "8.13.1",
+    "npm:playwright@^1.48.0": "1.58.0"
   },
   "jsr": {
     "@luca/esbuild-deno-loader@0.11.1": {
@@ -226,6 +227,11 @@
     "fake-indexeddb@6.2.5": {
       "integrity": "sha512-CGnyrvbhPlWYMngksqrSSUT1BAVP49dZocrHuK0SvtR0D5TMs5wP0o3j7jexDJW01KSadjBp1M/71o/KR3nD1w=="
     },
+    "fsevents@2.3.2": {
+      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
+      "os": ["darwin"],
+      "scripts": true
+    },
     "pg-cloudflare@1.1.1": {
       "integrity": "sha512-xWPagP/4B6BgFO+EKz3JONXv3YDgvkbVrGw2mTo3D6tVDQRh1e7cqVGvyR3BE+eQgAvx1XhW/iEASj4/jCWl3Q=="
     },
@@ -272,6 +278,20 @@
       "dependencies": [
         "split2"
       ]
+    },
+    "playwright-core@1.58.0": {
+      "integrity": "sha512-aaoB1RWrdNi3//rOeKuMiS65UCcgOVljU46At6eFcOFPFHWtd2weHRRow6z/n+Lec0Lvu0k9ZPKJSjPugikirw==",
+      "bin": true
+    },
+    "playwright@1.58.0": {
+      "integrity": "sha512-2SVA0sbPktiIY/MCOPX8e86ehA/e+tDNq+e5Y8qjKYti2Z/JG7xnronT/TXTIkKbYGWlCbuucZ6dziEgkoEjQQ==",
+      "dependencies": [
+        "playwright-core"
+      ],
+      "optionalDependencies": [
+        "fsevents"
+      ],
+      "bin": true
     },
     "postgres-array@2.0.0": {
       "integrity": "sha512-VpZrUqU5A69eQyW2c5CA1jtLecCsN2U/bD6VilrFDWq5+5UIEVO7nazS3TEcHf1zuPYO/sqGvUvW62g86RXZuA=="
