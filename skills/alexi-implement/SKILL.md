@@ -21,9 +21,10 @@ testing.
 1. Create feature branch from `main`
 2. Implement changes following Alexi conventions
 3. Write tests for new functionality
-4. Run checks (fmt, lint, check, test)
-5. Commit with conventional commits
-6. Create PR linked to issue
+4. **Update documentation** (AGENTS.md, docs/, etc.)
+5. Run checks (fmt, lint, check, test)
+6. Commit with conventional commits
+7. Create PR linked to issue
 
 ## Step 1: Create Feature Branch
 
@@ -209,7 +210,39 @@ export class MyCommand extends BaseCommand {
 }
 ```
 
-## Step 4: Write Tests
+## Step 4: Update Documentation
+
+When implementing new features, update relevant documentation:
+
+### Files to Update
+
+| Feature Type   | Documentation to Update                    |
+| -------------- | ------------------------------------------ |
+| New backend    | `AGENTS.md`, `docs/django-comparison.md`   |
+| New field type | `AGENTS.md` field tables                   |
+| New serializer | `AGENTS.md` REST Framework section         |
+| API changes    | `AGENTS.md` relevant section               |
+| New command    | `AGENTS.md` Management Commands table      |
+| Django parity  | `docs/django-comparison.md` feature tables |
+
+### AGENTS.md Updates
+
+`AGENTS.md` is the primary developer reference. Update it when:
+
+- Adding new exports or public APIs
+- Adding new field types, backends, or commands
+- Changing method signatures or behavior
+- Adding new configuration options
+
+### Django Comparison Updates
+
+`docs/django-comparison.md` tracks feature parity with Django. Update when:
+
+- Implementing a Django feature (change ❌ to ✅)
+- Adding Alexi-specific features
+- Changing backend support
+
+## Step 5: Write Tests
 
 ### Test Location
 
@@ -307,7 +340,7 @@ deno test -A --unstable-kv src/db/backends/postgres/backend_test.ts
 deno test -A --unstable-kv --filter "PostgresBackend"
 ```
 
-## Step 5: Run All Checks
+## Step 6: Run All Checks
 
 Before committing:
 
@@ -326,7 +359,7 @@ run on the entire project.
 
 All checks must pass.
 
-## Step 6: Commit Changes
+## Step 7: Commit Changes
 
 Use conventional commits:
 
@@ -349,7 +382,7 @@ Types:
 Scopes: `db`, `restframework`, `auth`, `core`, `urls`, `middleware`, `admin`,
 etc.
 
-## Step 7: Create Pull Request
+## Step 8: Create Pull Request
 
 ```bash
 git push -u origin feature/postgres-backend
@@ -386,6 +419,7 @@ Closes #<issue-number>
   new backends)
 - **snake_case files** - All `.ts` files must be lowercase snake_case
 - **Tests required** - All new functionality needs tests
+- **Documentation required** - Update AGENTS.md and docs/ when adding features
 - **All checks must pass** - fmt, lint, check, test
 - **One feature per PR** - Keep PRs focused
 - **Link to issue** - Use `Closes #N` in PR body
