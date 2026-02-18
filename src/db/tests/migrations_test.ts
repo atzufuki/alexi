@@ -11,12 +11,17 @@
 import { assertEquals, assertExists, assertThrows } from "jsr:@std/assert";
 
 import {
+  categorizeChanges,
   DataMigration,
+  formatChange,
   Migration,
   MigrationExecutor,
   MigrationLoader,
   MigrationRecorder,
   MigrationSchemaEditor,
+  ModelState,
+  ProjectState,
+  StateComparator,
 } from "../migrations/mod.ts";
 
 import { AutoField, CharField, IntegerField, Manager, Model } from "../mod.ts";
@@ -433,4 +438,321 @@ Deno.test({
   fn: async () => {
     // This test would verify --test mode
   },
+});
+
+// ============================================================================
+// ProjectState and ModelState Tests
+// ============================================================================
+
+Deno.test("ModelState - fromModel creates correct state", () => {
+  const state = ModelState.fromModel(UserModel, "myapp");
+
+  assertEquals(state.name, "UserModel");
+  assertEquals(state.appLabel, "myapp");
+  assertEquals(state.dbTable, "users");
+  assertEquals(state.getFullName(), "myapp.UserModel");
+
+  // Check fields exist
+  const fieldNames = state.getFieldNames();
+  assertEquals(fieldNames.includes("id"), true);
+  assertEquals(fieldNames.includes("name"), true);
+});
+
+Deno.test("ModelState - field type is correctly captured", () => {
+  const state = ModelState.fromModel(UserModel, "myapp");
+
+  const idField = state.getField("id");
+  assertExists(idField);
+  assertEquals(idField.type, "AutoField");
+
+  const nameField = state.getField("name");
+  assertExists(nameField);
+  assertEquals(nameField.type, "CharField");
+  assertEquals(nameField.options.maxLength, 100);
+});
+
+Deno.test("ModelState - withAddedField returns new state", () => {
+  const state = ModelState.fromModel(UserModel, "myapp");
+  const newState = state.withAddedField("email", {
+    type: "CharField",
+    options: { maxLength: 255 },
+    columnName: "email",
+  });
+
+  // Original unchanged
+  assertEquals(state.hasField("email"), false);
+
+  // New state has field
+  assertEquals(newState.hasField("email"), true);
+  assertEquals(newState.getField("email")?.type, "CharField");
+});
+
+Deno.test("ModelState - withRemovedField returns new state", () => {
+  const state = ModelState.fromModel(UserModel, "myapp");
+  const newState = state.withRemovedField("name");
+
+  // Original unchanged
+  assertEquals(state.hasField("name"), true);
+
+  // New state doesn't have field
+  assertEquals(newState.hasField("name"), false);
+});
+
+Deno.test("ProjectState - fromModels creates correct state", () => {
+  const models = new Map<string, Array<new () => Model>>([
+    ["myapp", [UserModel, ArticleModel]],
+  ]);
+
+  const state = ProjectState.fromModels(models);
+
+  assertEquals(state.hasModel("myapp.UserModel"), true);
+  assertEquals(state.hasModel("myapp.ArticleModel"), true);
+  assertEquals(state.hasModel("myapp.NonExistent"), false);
+});
+
+Deno.test("ProjectState - getAppLabels returns sorted labels", () => {
+  const models = new Map<string, Array<new () => Model>>([
+    ["zapp", [UserModel]],
+    ["aapp", [ArticleModel]],
+  ]);
+
+  const state = ProjectState.fromModels(models);
+  const labels = state.getAppLabels();
+
+  assertEquals(labels, ["aapp", "zapp"]);
+});
+
+Deno.test("ProjectState - withAddedModel returns new state", () => {
+  const state = ProjectState.empty();
+  const modelState = ModelState.fromModel(UserModel, "myapp");
+  const newState = state.withAddedModel(modelState);
+
+  assertEquals(state.hasModel("myapp.UserModel"), false);
+  assertEquals(newState.hasModel("myapp.UserModel"), true);
+});
+
+Deno.test("ProjectState - withRemovedModel returns new state", () => {
+  const models = new Map<string, Array<new () => Model>>([
+    ["myapp", [UserModel]],
+  ]);
+  const state = ProjectState.fromModels(models);
+  const newState = state.withRemovedModel("myapp.UserModel");
+
+  assertEquals(state.hasModel("myapp.UserModel"), true);
+  assertEquals(newState.hasModel("myapp.UserModel"), false);
+});
+
+Deno.test("ProjectState - JSON serialization roundtrip", () => {
+  const models = new Map<string, Array<new () => Model>>([
+    ["myapp", [UserModel, ArticleModel]],
+  ]);
+  const state = ProjectState.fromModels(models);
+
+  const json = state.toJSON();
+  const restored = ProjectState.fromJSON(json);
+
+  assertEquals(restored.hasModel("myapp.UserModel"), true);
+  assertEquals(restored.hasModel("myapp.ArticleModel"), true);
+
+  const userModel = restored.getModel("myapp.UserModel");
+  assertExists(userModel);
+  assertEquals(userModel.dbTable, "users");
+});
+
+// ============================================================================
+// StateComparator Tests
+// ============================================================================
+
+Deno.test("StateComparator - detect create_model", () => {
+  const fromState = ProjectState.empty();
+  const toState = ProjectState.empty().withAddedModel(
+    ModelState.fromModel(UserModel, "myapp"),
+  );
+
+  const comparator = new StateComparator();
+  const changes = comparator.compare(fromState, toState);
+
+  assertEquals(changes.length, 1);
+  assertEquals(changes[0].type, "create_model");
+  assertEquals((changes[0] as { modelName: string }).modelName, "UserModel");
+});
+
+Deno.test("StateComparator - detect delete_model", () => {
+  const fromState = ProjectState.empty().withAddedModel(
+    ModelState.fromModel(UserModel, "myapp"),
+  );
+  const toState = ProjectState.empty();
+
+  const comparator = new StateComparator();
+  const changes = comparator.compare(fromState, toState);
+
+  assertEquals(changes.length, 1);
+  assertEquals(changes[0].type, "delete_model");
+  assertEquals((changes[0] as { modelName: string }).modelName, "UserModel");
+});
+
+Deno.test("StateComparator - detect add_field", () => {
+  // Create state manually to ensure same model name
+  const userState = ModelState.fromModel(UserModel, "myapp");
+  const userStateWithEmail = userState.withAddedField("email", {
+    type: "CharField",
+    options: { maxLength: 255 },
+    columnName: "email",
+  });
+
+  const fromState = ProjectState.empty().withAddedModel(userState);
+  const toState = ProjectState.empty().withAddedModel(userStateWithEmail);
+
+  const comparator = new StateComparator({ detectRenames: false });
+  const changes = comparator.compare(fromState, toState);
+
+  // Should detect the added "email" field
+  const addFieldChanges = changes.filter((c) => c.type === "add_field");
+  assertEquals(addFieldChanges.length, 1);
+  assertEquals(
+    (addFieldChanges[0] as { fieldName: string }).fieldName,
+    "email",
+  );
+});
+
+Deno.test("StateComparator - detect remove_field", () => {
+  // Create state with email field, then remove it
+  const userState = ModelState.fromModel(UserModel, "myapp");
+  const userStateWithEmail = userState.withAddedField("email", {
+    type: "CharField",
+    options: { maxLength: 255 },
+    columnName: "email",
+  });
+
+  const fromState = ProjectState.empty().withAddedModel(userStateWithEmail);
+  const toState = ProjectState.empty().withAddedModel(userState);
+
+  const comparator = new StateComparator({ detectRenames: false });
+  const changes = comparator.compare(fromState, toState);
+
+  // Should detect the removed "email" field
+  const removeFieldChanges = changes.filter((c) => c.type === "remove_field");
+  assertEquals(removeFieldChanges.length, 1);
+  assertEquals(
+    (removeFieldChanges[0] as { fieldName: string }).fieldName,
+    "email",
+  );
+});
+
+Deno.test("StateComparator - detect alter_field", () => {
+  const userV1 = ModelState.fromModel(UserModel, "myapp");
+
+  // Copy all options from original field and only change maxLength
+  const originalNameField = userV1.getField("name")!;
+  const userV2 = userV1.withAlteredField("name", {
+    type: "CharField",
+    options: { ...originalNameField.options, maxLength: 200 }, // Changed from 100 to 200
+    columnName: "name",
+  });
+
+  const fromState = ProjectState.empty().withAddedModel(userV1);
+  const toState = ProjectState.empty().withAddedModel(userV2);
+
+  const comparator = new StateComparator();
+  const changes = comparator.compare(fromState, toState);
+
+  assertEquals(changes.length, 1);
+  assertEquals(changes[0].type, "alter_field");
+  assertEquals((changes[0] as { fieldName: string }).fieldName, "name");
+  assertEquals((changes[0] as { changes: string[] }).changes, ["maxLength"]);
+});
+
+Deno.test("StateComparator - no changes for identical states", () => {
+  const state = ProjectState.empty().withAddedModel(
+    ModelState.fromModel(UserModel, "myapp"),
+  );
+
+  const comparator = new StateComparator();
+  const changes = comparator.compare(state, state.clone());
+
+  assertEquals(changes.length, 0);
+});
+
+Deno.test("formatChange - formats create_model correctly", () => {
+  const change = {
+    type: "create_model" as const,
+    appLabel: "myapp",
+    modelName: "User",
+    model: {} as ModelState,
+  };
+
+  assertEquals(formatChange(change), "+ myapp.User");
+});
+
+Deno.test("formatChange - formats add_field correctly", () => {
+  const change = {
+    type: "add_field" as const,
+    appLabel: "myapp",
+    modelName: "User",
+    fieldName: "email",
+    field: { type: "CharField", options: {}, columnName: "email" },
+  };
+
+  assertEquals(formatChange(change), "+ myapp.User.email: CharField");
+});
+
+Deno.test("categorizeChanges - init prefix for single create_model", () => {
+  const changes = [
+    {
+      type: "create_model" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      model: {} as ModelState,
+    },
+  ];
+
+  const result = categorizeChanges(changes);
+  assertEquals(result.prefix, "init");
+  assertEquals(result.description, "user");
+});
+
+Deno.test("categorizeChanges - feat prefix for add operations", () => {
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "email",
+      field: { type: "CharField", options: {}, columnName: "email" },
+    },
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "phone",
+      field: { type: "CharField", options: {}, columnName: "phone" },
+    },
+  ];
+
+  const result = categorizeChanges(changes);
+  assertEquals(result.prefix, "feat");
+  assertEquals(result.description, "user"); // Same model
+});
+
+Deno.test("categorizeChanges - soft_delete pattern detection", () => {
+  const changes = [
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "User",
+      fieldName: "deletedAt",
+      field: { type: "DateTimeField", options: {}, columnName: "deleted_at" },
+    },
+    {
+      type: "add_field" as const,
+      appLabel: "myapp",
+      modelName: "Article",
+      fieldName: "deletedAt",
+      field: { type: "DateTimeField", options: {}, columnName: "deleted_at" },
+    },
+  ];
+
+  const result = categorizeChanges(changes);
+  assertEquals(result.prefix, "feat");
+  assertEquals(result.description, "soft_delete");
 });

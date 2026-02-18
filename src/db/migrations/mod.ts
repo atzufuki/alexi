@@ -48,3 +48,28 @@ export { MigrationLoader } from "./loader.ts";
 export { MigrationExecutor } from "./executor.ts";
 export { MigrationRecorder } from "./recorder.ts";
 export { DeprecationRecorder } from "./deprecation_recorder.ts";
+
+export { fieldToState, ModelState, ProjectState } from "./state.ts";
+export type { FieldState, ModelStateData, ProjectStateData } from "./state.ts";
+
+export {
+  categorizeChanges,
+  formatChange,
+  groupChanges,
+  StateComparator,
+} from "./comparator.ts";
+export type {
+  AddFieldChange,
+  AddIndexChange,
+  AlterFieldChange,
+  AlterUniqueTogetherChange,
+  Change,
+  ChangeType,
+  CompareOptions,
+  CreateModelChange,
+  DeleteModelChange,
+  RemoveFieldChange,
+  RemoveIndexChange,
+  RenameFieldChange,
+  RenameModelChange,
+} from "./comparator.ts";

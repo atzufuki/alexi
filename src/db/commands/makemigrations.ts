@@ -12,6 +12,12 @@ import type {
   CommandResult,
   IArgumentParser,
 } from "@alexi/core";
+import {
+  categorizeChanges,
+  type Change,
+  formatChange,
+  StateComparator,
+} from "../migrations/mod.ts";
 
 // =============================================================================
 // MakemigrationsCommand Class
@@ -229,14 +235,23 @@ export class MakemigrationsCommand extends BaseCommand {
     migrationName: string,
     existingMigrations: string[],
     isEmpty: boolean,
+    detectedChanges: Change[] = [],
   ): string {
     const className = `Migration${migrationName.replace(/_/g, "")}`;
     const lastMigration = existingMigrations[existingMigrations.length - 1];
     const dependency = lastMigration ? `"${lastMigration}"` : "";
 
-    const detectedChanges = isEmpty ? "" : `
-  // TODO: Detected changes (implement these operations):
-  // 
+    // Format detected changes as comments
+    let changesComment = "";
+    if (!isEmpty && detectedChanges.length > 0) {
+      changesComment = `
+  // =========================================================================
+  // Detected changes (implement these operations):
+  // =========================================================================
+  //
+${detectedChanges.map((c) => `  // ${formatChange(c)}`).join("\n")}
+  //
+  // For forwards():
   // - Add new models with: await schema.createModel(ModelClass)
   // - Add fields with: await schema.addField(Model, "fieldName", new FieldType())
   // - Alter fields with: await schema.alterField(Model, "fieldName", new FieldType())
@@ -245,10 +260,32 @@ export class MakemigrationsCommand extends BaseCommand {
   // For backwards():
   // - Use schema.deprecateModel() instead of dropping tables
   // - Use schema.deprecateField() instead of removing columns
-  // - Use schema.restoreModel() / schema.restoreField() to undo deprecations
+  // - Use schema.undeprecateModel() / schema.undeprecateField() to undo deprecations
   //
   // See: https://alexi.dev/docs/migrations
 `;
+    } else if (!isEmpty) {
+      changesComment = `
+  // TODO: Implement this migration
+  // 
+  // For forwards():
+  // - Add new models with: await schema.createModel(ModelClass)
+  // - Add fields with: await schema.addField(Model, "fieldName", new FieldType())
+  // - Alter fields with: await schema.alterField(Model, "fieldName", new FieldType())
+  // - Create indexes with: await schema.createIndex(Model, ["field1", "field2"])
+  //
+  // For backwards():
+  // - Use schema.deprecateModel() instead of dropping tables
+  // - Use schema.deprecateField() instead of removing columns
+  // - Use schema.undeprecateModel() / schema.undeprecateField() to undo deprecations
+  //
+  // See: https://alexi.dev/docs/migrations
+`;
+    }
+
+    // Generate forwards() implementation hints based on changes
+    const forwardsHints = this._generateForwardsHints(detectedChanges);
+    const backwardsHints = this._generateBackwardsHints(detectedChanges);
 
     return `/**
  * Migration: ${migrationName}
@@ -282,21 +319,173 @@ import { Migration, MigrationSchemaEditor } from "@alexi/db/migrations";
 export default class ${className} extends Migration {
   name = "${migrationName}";
   dependencies = [${dependency}];
-${detectedChanges}
+${changesComment}
   async forwards(schema: MigrationSchemaEditor): Promise<void> {
-    // Implement forward migration here
-    throw new Error("Migration not implemented");
+${forwardsHints}
   }
 
   async backwards(schema: MigrationSchemaEditor): Promise<void> {
-    // Implement backward migration here (undo forwards)
-    // Use deprecation methods for safety:
-    // - schema.deprecateModel() instead of dropping tables
-    // - schema.deprecateField() instead of removing columns
-    throw new Error("Migration backwards not implemented");
+${backwardsHints}
   }
 }
 `;
+  }
+
+  /**
+   * Generate forwards() implementation hints based on detected changes
+   */
+  private _generateForwardsHints(changes: Change[]): string {
+    if (changes.length === 0) {
+      return '    // Implement forward migration here\n    throw new Error("Migration not implemented");';
+    }
+
+    const lines: string[] = [];
+
+    for (const change of changes) {
+      switch (change.type) {
+        case "create_model":
+          lines.push(
+            `    // await schema.createModel(${change.modelName}Model);`,
+          );
+          break;
+        case "delete_model":
+          lines.push(
+            `    // await schema.deprecateModel(${change.modelName}Model);`,
+          );
+          break;
+        case "add_field":
+          lines.push(
+            `    // await schema.addField(${change.modelName}Model, "${change.fieldName}", new ${change.field.type}(${
+              JSON.stringify(change.field.options)
+            }));`,
+          );
+          break;
+        case "remove_field":
+          lines.push(
+            `    // await schema.deprecateField(${change.modelName}Model, "${change.fieldName}");`,
+          );
+          break;
+        case "alter_field":
+          lines.push(
+            `    // await schema.alterField(${change.modelName}Model, "${change.fieldName}", new ${change.newField.type}(${
+              JSON.stringify(change.newField.options)
+            }));`,
+          );
+          break;
+        case "rename_field":
+          lines.push(
+            `    // await schema.renameField(${change.modelName}Model, "${change.oldFieldName}", "${change.newFieldName}");`,
+          );
+          break;
+        case "rename_model":
+          lines.push(
+            `    // await schema.renameModel(${change.oldModelName}Model, "${change.newModelName}");`,
+          );
+          break;
+        case "add_index":
+          lines.push(
+            `    // await schema.addIndex(${change.modelName}Model, ${
+              JSON.stringify(change.fields)
+            }${change.unique ? ", { unique: true }" : ""});`,
+          );
+          break;
+        case "remove_index":
+          lines.push(
+            `    // await schema.removeIndex(${change.modelName}Model, ${
+              JSON.stringify(change.fields)
+            });`,
+          );
+          break;
+      }
+    }
+
+    if (lines.length > 0) {
+      lines.push("");
+      lines.push(
+        '    throw new Error("Migration not implemented - uncomment and verify the operations above");',
+      );
+    }
+
+    return lines.join("\n");
+  }
+
+  /**
+   * Generate backwards() implementation hints based on detected changes
+   */
+  private _generateBackwardsHints(changes: Change[]): string {
+    if (changes.length === 0) {
+      return '    // Implement backward migration here (undo forwards)\n    throw new Error("Migration backwards not implemented");';
+    }
+
+    const lines: string[] = [];
+
+    // Reverse the order for backwards
+    const reversedChanges = [...changes].reverse();
+
+    for (const change of reversedChanges) {
+      switch (change.type) {
+        case "create_model":
+          lines.push(
+            `    // await schema.deprecateModel(${change.modelName}Model);`,
+          );
+          break;
+        case "delete_model":
+          lines.push(
+            `    // await schema.undeprecateModel(${change.modelName}Model);`,
+          );
+          break;
+        case "add_field":
+          lines.push(
+            `    // await schema.deprecateField(${change.modelName}Model, "${change.fieldName}");`,
+          );
+          break;
+        case "remove_field":
+          lines.push(
+            `    // await schema.undeprecateField(${change.modelName}Model, "${change.fieldName}");`,
+          );
+          break;
+        case "alter_field":
+          lines.push(
+            `    // await schema.alterField(${change.modelName}Model, "${change.fieldName}", new ${change.oldField.type}(${
+              JSON.stringify(change.oldField.options)
+            }));`,
+          );
+          break;
+        case "rename_field":
+          lines.push(
+            `    // await schema.renameField(${change.modelName}Model, "${change.newFieldName}", "${change.oldFieldName}");`,
+          );
+          break;
+        case "rename_model":
+          lines.push(
+            `    // await schema.renameModel(${change.newModelName}Model, "${change.oldModelName}");`,
+          );
+          break;
+        case "add_index":
+          lines.push(
+            `    // await schema.removeIndex(${change.modelName}Model, ${
+              JSON.stringify(change.fields)
+            });`,
+          );
+          break;
+        case "remove_index":
+          lines.push(
+            `    // await schema.addIndex(${change.modelName}Model, ${
+              JSON.stringify(change.fields)
+            });`,
+          );
+          break;
+      }
+    }
+
+    if (lines.length > 0) {
+      lines.push("");
+      lines.push(
+        '    throw new Error("Migration backwards not implemented - uncomment and verify the operations above");',
+      );
+    }
+
+    return lines.join("\n");
   }
 
   private async _getMigrationPath(
