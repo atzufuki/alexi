@@ -1,18 +1,20 @@
 ---
 name: alexi-implement
-description: Implement features and fixes for the Alexi framework itself. Use when 
+description: Implement features and fixes for the Alexi framework itself. Use when
   developing new framework functionality, fixing bugs, or improving Alexi's codebase.
 ---
 
 # Alexi Implementation Skill
 
-Develop the Alexi framework following proper git flow, coding conventions, and testing.
+Develop the Alexi framework following proper git flow, coding conventions, and
+testing.
 
 ## When to Use
 
 - User asks to implement a framework feature (usually referencing an issue)
 - User asks to fix a bug in Alexi
-- User asks to add a new backend, field type, serializer, or other framework component
+- User asks to add a new backend, field type, serializer, or other framework
+  component
 
 ## Workflow Overview
 
@@ -32,6 +34,7 @@ git checkout -b feature/short-description
 ```
 
 Branch naming:
+
 - `feature/` - New framework functionality
 - `fix/` - Bug fixes
 - `docs/` - Documentation only
@@ -66,7 +69,8 @@ alexi/
 
 ### Package Dependencies
 
-Each package is in `src/<name>/` with its own `deno.jsonc`. Packages can depend on each other via `@alexi/*` imports.
+Each package is in `src/<name>/` with its own `deno.jsonc`. Packages can depend
+on each other via `@alexi/*` imports.
 
 ## Step 3: Implement Changes
 
@@ -88,7 +92,7 @@ Within Alexi source, use `@alexi/*` aliases:
 
 ```typescript
 // In src/restframework/viewsets/model_viewset.ts
-import { Model, Manager } from "@alexi/db";
+import { Manager, Model } from "@alexi/db";
 import type { Request } from "@alexi/types";
 ```
 
@@ -181,7 +185,7 @@ export class SlugField extends CharField {
 
 ```typescript
 // src/core/commands/my_command.ts
-import { BaseCommand, success, failure } from "../base_command.ts";
+import { BaseCommand, failure, success } from "../base_command.ts";
 import type { CommandOptions, CommandResult } from "../types.ts";
 
 export class MyCommand extends BaseCommand {
@@ -225,14 +229,14 @@ src/db/backends/postgres/
 // src/db/backends/postgres/backend_test.ts
 import { assertEquals, assertExists, assertRejects } from "jsr:@std/assert@1";
 import { PostgresBackend } from "./backend.ts";
-import { setup, reset } from "../../setup.ts";
-import { Model, CharField, AutoField, Manager } from "../../models/mod.ts";
+import { reset, setup } from "../../setup.ts";
+import { AutoField, CharField, Manager, Model } from "../../models/mod.ts";
 
 // Test model (defined in test file)
 class TestModel extends Model {
   id = new AutoField({ primaryKey: true });
   name = new CharField({ maxLength: 100 });
-  
+
   static objects = new Manager(TestModel);
   static meta = { dbTable: "test_table" };
 }
@@ -243,7 +247,7 @@ Deno.test({
     const backend = new PostgresBackend({
       url: Deno.env.get("TEST_DATABASE_URL") ?? "postgresql://localhost/test",
     });
-    
+
     await backend.connect();
     // Assert connection is working
     await backend.disconnect();
@@ -261,18 +265,17 @@ Deno.test({
       // Create
       const instance = await TestModel.objects.create({ name: "Test" });
       assertExists(instance.id.get());
-      
+
       // Read
       const retrieved = await TestModel.objects.get({ id: instance.id.get() });
       assertEquals(retrieved.name.get(), "Test");
-      
+
       // Update
       retrieved.name.set("Updated");
       await retrieved.save();
-      
+
       // Delete
       await retrieved.delete();
-      
     } finally {
       await reset();
       await backend.disconnect();
@@ -309,11 +312,17 @@ deno test -A --unstable-kv --filter "PostgresBackend"
 Before committing:
 
 ```bash
-deno task fmt      # Format code
+deno task fmt      # Format ENTIRE codebase (required)
 deno task lint     # Lint code  
 deno task check    # Type check
 deno task test     # Run tests
 ```
+
+**IMPORTANT:** Always run `deno task fmt` from the project root. This formats
+the entire codebase, not just your changed files. CI runs
+`deno task fmt --check` and will fail if ANY file in the project needs
+formatting. Do NOT run `deno fmt` only on your changed directory - it must be
+run on the entire project.
 
 All checks must pass.
 
@@ -329,6 +338,7 @@ git commit -m "feat(db): add PostgreSQL backend"
 Format: `<type>(<scope>): <description>`
 
 Types:
+
 - `feat` - New feature
 - `fix` - Bug fix
 - `docs` - Documentation
@@ -336,7 +346,8 @@ Types:
 - `test` - Tests only
 - `chore` - Maintenance
 
-Scopes: `db`, `restframework`, `auth`, `core`, `urls`, `middleware`, `admin`, etc.
+Scopes: `db`, `restframework`, `auth`, `core`, `urls`, `middleware`, `admin`,
+etc.
 
 ## Step 7: Create Pull Request
 
@@ -371,7 +382,8 @@ Closes #<issue-number>
 ## Guidelines
 
 - **Read AGENTS.md** for complete framework documentation
-- **Follow existing patterns** - Look at similar code (e.g., DenoKVBackend for new backends)
+- **Follow existing patterns** - Look at similar code (e.g., DenoKVBackend for
+  new backends)
 - **snake_case files** - All `.ts` files must be lowercase snake_case
 - **Tests required** - All new functionality needs tests
 - **All checks must pass** - fmt, lint, check, test
