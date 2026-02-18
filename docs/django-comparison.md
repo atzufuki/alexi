@@ -64,7 +64,7 @@ differences, and features unique to Alexi.
 | Pagination          | ✅                    | ✅                   | PageNumber, LimitOffset, Cursor                        |
 | Throttling          | ✅                    | ✅                   | AnonRateThrottle, UserRateThrottle, ScopedRateThrottle |
 | Permissions         | ✅                    | ✅                   | ViewSet permission_classes                             |
-| Versioning          | ✅                    | ❌                   | —                                                      |
+| Versioning          | ✅                    | ✅                   | URLPath, QueryParameter, AcceptHeader                  |
 | Content negotiation | ✅                    | ❌                   | JSON only                                              |
 | Browsable API       | ✅                    | ❌                   | —                                                      |
 
