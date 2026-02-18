@@ -9,6 +9,14 @@
 import type { View } from "@alexi/urls";
 import type { BasePermission, PermissionClass } from "../permissions/mod.ts";
 import {
+  type BaseRenderer,
+  JSONRenderer,
+  type RenderContext,
+  type RendererClass,
+  renderResponse,
+  selectRenderer,
+} from "../renderers/mod.ts";
+import {
   applyVersioning,
   type BaseVersioning,
   type VersioningClass,
@@ -196,6 +204,24 @@ export class ViewSet {
   permission_classes?: PermissionClass[];
 
   /**
+   * Renderer classes for content negotiation
+   *
+   * Determines which response formats this ViewSet supports.
+   * The client selects a format via the Accept header or `?format=` param.
+   * Defaults to `[JSONRenderer]` when not set.
+   *
+   * @example
+   * ```ts
+   * class MyViewSet extends ModelViewSet {
+   *   renderer_classes = [JSONRenderer, XMLRenderer, CSVRenderer];
+   * }
+   * // Accept: application/xml → XML response
+   * // ?format=csv → CSV response
+   * ```
+   */
+  renderer_classes?: RendererClass[];
+
+  /**
    * Versioning class to use for this ViewSet
    *
    * When set, the API version is determined from the request and stored
@@ -314,9 +340,21 @@ export class ViewSet {
   }
 
   /**
+   * Get renderer instances for the current action
+   *
+   * Returns `[JSONRenderer]` by default when no renderer_classes are set.
+   * Override this method to return different renderers per action.
+   *
+   * @returns Array of renderer instances
+   */
+  getRenderers(): BaseRenderer[] {
+    const classes = this.renderer_classes ?? [JSONRenderer];
+    return classes.map((cls) => new cls());
+  }
+
+  /**
    * Get the versioning instance for the current request
    *
-
    * Override to provide a custom versioning scheme.
    *
    * @returns A configured BaseVersioning instance, or null if no versioning
@@ -515,6 +553,27 @@ export class ViewSet {
       // Initialize with context
       viewset.initialize(context);
 
+      // Content negotiation — select renderer before running the action
+      const renderers = viewset.getRenderers();
+      const negotiated = selectRenderer(request, renderers);
+      if (!negotiated) {
+        const supported = renderers.map((r) => r.mediaType).join(", ");
+        return new Response(
+          JSON.stringify({
+            error: "Not acceptable",
+            supportedMediaTypes: renderers.map((r) => r.mediaType),
+          }),
+          {
+            status: 406,
+            headers: {
+              "Content-Type": "application/json",
+              "Vary": "Accept",
+              ...(supported ? { "Accept": supported } : {}),
+            },
+          },
+        );
+      }
+
       // Determine API version (before permissions)
       const versioningResponse = applyVersioning(
         viewset.getVersioning(),
@@ -561,7 +620,22 @@ export class ViewSet {
 
       // Call the action
       try {
-        return await actionMethod.call(viewset, context);
+        const actionResponse = await actionMethod.call(viewset, context);
+        // Build render context for context-aware renderers (e.g. BrowsableAPIRenderer)
+        const renderContext: RenderContext = {
+          request,
+          method: request.method.toUpperCase(),
+          allowedMethods: Object.keys(actions),
+          statusCode: actionResponse.status,
+          action: actionName,
+          params,
+        };
+        // Re-render the response using the negotiated renderer
+        return await renderResponse(
+          actionResponse,
+          negotiated.renderer,
+          renderContext,
+        );
       } catch (error) {
         // Re-throw permission errors to return proper status codes
         if (
