@@ -588,3 +588,153 @@ Deno.test("Model.toDB - ForeignKey outputs column name format", () => {
   assertEquals("employee" in data, false);
   assertEquals("competence" in data, false);
 });
+
+// ============================================================================
+// Manager.getOrCreate() and Manager.updateOrCreate() Tests (DenoKV)
+// ============================================================================
+
+Deno.test("DenoKVBackend - getOrCreate creates new object", async () => {
+  const dbPath = `./.test-db-get-or-create-${Date.now()}`;
+  const backend = new DenoKVBackend({
+    name: "test-get-or-create",
+    path: dbPath,
+  });
+  await backend.connect();
+
+  try {
+    const authors = Author.objects.using(backend);
+
+    // Should create new object
+    const [author1, created1] = await authors.getOrCreate(
+      { name: "New Author" },
+      { email: "new@example.com" },
+    );
+
+    assertEquals(created1, true);
+    assertEquals(author1.name.get(), "New Author");
+    assertEquals(author1.email.get(), "new@example.com");
+    assertExists(author1.id.get());
+
+    // Verify it's persisted
+    const count = await authors.count();
+    assertEquals(count, 1);
+  } finally {
+    await backend.disconnect();
+    try {
+      await Deno.remove(dbPath, { recursive: true });
+    } catch { /* ignore */ }
+  }
+});
+
+Deno.test("DenoKVBackend - getOrCreate returns existing object", async () => {
+  const dbPath = `./.test-db-get-or-create-existing-${Date.now()}`;
+  const backend = new DenoKVBackend({
+    name: "test-get-or-create",
+    path: dbPath,
+  });
+  await backend.connect();
+
+  try {
+    const authors = Author.objects.using(backend);
+
+    // Create initial object
+    await authors.create({
+      name: "Existing Author",
+      email: "existing@example.com",
+    });
+
+    // getOrCreate should return existing object
+    const [author, created] = await authors.getOrCreate(
+      { name: "Existing Author" },
+      { email: "different@example.com" }, // defaults should be ignored
+    );
+
+    assertEquals(created, false);
+    assertEquals(author.name.get(), "Existing Author");
+    assertEquals(author.email.get(), "existing@example.com"); // original email, not defaults
+
+    // Verify only one record exists
+    const count = await authors.count();
+    assertEquals(count, 1);
+  } finally {
+    await backend.disconnect();
+    try {
+      await Deno.remove(dbPath, { recursive: true });
+    } catch { /* ignore */ }
+  }
+});
+
+Deno.test("DenoKVBackend - updateOrCreate creates new object", async () => {
+  const dbPath = `./.test-db-update-or-create-${Date.now()}`;
+  const backend = new DenoKVBackend({
+    name: "test-update-or-create",
+    path: dbPath,
+  });
+  await backend.connect();
+
+  try {
+    const authors = Author.objects.using(backend);
+
+    // Should create new object
+    const [author, created] = await authors.updateOrCreate(
+      { name: "New Author" },
+      { email: "new@example.com" },
+    );
+
+    assertEquals(created, true);
+    assertEquals(author.name.get(), "New Author");
+    assertEquals(author.email.get(), "new@example.com");
+    assertExists(author.id.get());
+
+    // Verify it's persisted
+    const count = await authors.count();
+    assertEquals(count, 1);
+  } finally {
+    await backend.disconnect();
+    try {
+      await Deno.remove(dbPath, { recursive: true });
+    } catch { /* ignore */ }
+  }
+});
+
+Deno.test("DenoKVBackend - updateOrCreate updates existing object", async () => {
+  const dbPath = `./.test-db-update-or-create-existing-${Date.now()}`;
+  const backend = new DenoKVBackend({
+    name: "test-update-or-create",
+    path: dbPath,
+  });
+  await backend.connect();
+
+  try {
+    const authors = Author.objects.using(backend);
+
+    // Create initial object
+    await authors.create({
+      name: "Existing Author",
+      email: "old@example.com",
+    });
+
+    // updateOrCreate should update existing object
+    const [author, created] = await authors.updateOrCreate(
+      { name: "Existing Author" },
+      { email: "updated@example.com" },
+    );
+
+    assertEquals(created, false);
+    assertEquals(author.name.get(), "Existing Author");
+    assertEquals(author.email.get(), "updated@example.com"); // email should be updated
+
+    // Verify only one record exists
+    const count = await authors.count();
+    assertEquals(count, 1);
+
+    // Verify change is persisted
+    const fetched = await authors.get({ name: "Existing Author" });
+    assertEquals(fetched.email.get(), "updated@example.com");
+  } finally {
+    await backend.disconnect();
+    try {
+      await Deno.remove(dbPath, { recursive: true });
+    } catch { /* ignore */ }
+  }
+});
