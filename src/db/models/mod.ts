@@ -12,6 +12,7 @@ export type {
   IndexDefinition,
   ModelData,
   ModelMeta,
+  ModelOperationOptions,
   PartialModelData,
   ReverseRelationDef,
 } from "./model.ts";

@@ -49,6 +49,7 @@ export type {
   IndexDefinition,
   ModelData,
   ModelMeta,
+  ModelOperationOptions,
   PartialModelData,
 } from "./models/mod.ts";
 

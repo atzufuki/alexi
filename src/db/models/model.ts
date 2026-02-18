@@ -11,6 +11,37 @@ import {
   ManyToManyManager,
   RelatedManager,
 } from "../fields/relations.ts";
+import type { DatabaseBackend } from "../backends/backend.ts";
+
+// ============================================================================
+// Save/Delete Options
+// ============================================================================
+
+/**
+ * Options for Model.save() and Model.delete() operations
+ */
+export interface ModelOperationOptions {
+  /**
+   * Specify which backend to use for this operation.
+   *
+   * Can be:
+   * - A backend instance (e.g., `restBackend`)
+   * - A backend name string (e.g., `"rest"`, `"indexeddb"`)
+   *
+   * If not specified, uses the backend the instance was fetched from,
+   * or falls back to the global default backend.
+   *
+   * @example
+   * ```ts
+   * // Delete from REST backend
+   * await todo.delete({ using: "rest" });
+   *
+   * // Save to specific backend instance
+   * await todo.save({ using: myRestBackend });
+   * ```
+   */
+  using?: DatabaseBackend | string;
+}
 
 // ============================================================================
 // Types
@@ -723,26 +754,23 @@ export abstract class Model {
    * Creates a new record if the instance has no primary key,
    * otherwise updates the existing record.
    *
+   * @param options - Options including which backend to use
+   *
    * @example
    * ```ts
    * const article = new Article();
    * article.title.set('Hello World');
    * await article.save();
+   *
+   * // Save to a specific backend
+   * await article.save({ using: "rest" });
+   * await article.save({ using: myRestBackend });
    * ```
    */
-  async save(): Promise<this> {
+  async save(options?: ModelOperationOptions): Promise<this> {
     this._ensureFieldsInitialized();
 
-    // Import dynamically to avoid circular dependency
-    const { getBackend, isInitialized } = await import("../setup.ts");
-
-    if (!isInitialized()) {
-      throw new Error(
-        "Database not initialized. Call setup() before saving models.",
-      );
-    }
-
-    const backend = getBackend();
+    const backend = await this._resolveBackend(options?.using);
     const pk = this.pk;
 
     if (pk === null || pk === undefined) {
@@ -761,12 +789,18 @@ export abstract class Model {
   /**
    * Delete this model instance from the database
    *
+   * @param options - Options including which backend to use
+   *
    * @example
    * ```ts
    * await article.delete();
+   *
+   * // Delete from a specific backend
+   * await article.delete({ using: "rest" });
+   * await article.delete({ using: myRestBackend });
    * ```
    */
-  async delete(): Promise<void> {
+  async delete(options?: ModelOperationOptions): Promise<void> {
     this._ensureFieldsInitialized();
 
     const pk = this.pk;
@@ -774,17 +808,60 @@ export abstract class Model {
       throw new Error("Cannot delete an instance without a primary key");
     }
 
-    // Import dynamically to avoid circular dependency
-    const { getBackend, isInitialized } = await import("../setup.ts");
+    const backend = await this._resolveBackend(options?.using);
+    await backend.delete(this);
+  }
 
+  /**
+   * Resolve which backend to use for an operation.
+   *
+   * Priority:
+   * 1. Explicit `using` parameter (backend instance or name)
+   * 2. Instance's `_backend` (set when fetched from a backend)
+   * 3. Global default backend from setup()
+   *
+   * @param using - Explicit backend to use
+   * @returns The resolved DatabaseBackend
+   * @throws Error if no backend is available
+   */
+  private async _resolveBackend(
+    using?: DatabaseBackend | string,
+  ): Promise<DatabaseBackend> {
+    // Import dynamically to avoid circular dependency
+    const { getBackend, getBackendByName, isInitialized } = await import(
+      "../setup.ts"
+    );
+
+    // 1. Explicit using parameter
+    if (using) {
+      if (typeof using === "string") {
+        const namedBackend = getBackendByName(using);
+        if (!namedBackend) {
+          throw new Error(
+            `Unknown database backend: '${using}'. ` +
+              `Make sure it's registered in setup({ databases: { ... } }).`,
+          );
+        }
+        return namedBackend;
+      }
+      // It's a backend instance
+      return using;
+    }
+
+    // 2. Instance's backend (from fetch)
+    if (this._backend) {
+      return this._backend;
+    }
+
+    // 3. Global default backend
     if (!isInitialized()) {
       throw new Error(
-        "Database not initialized. Call setup() before deleting models.",
+        "Database not initialized. Call setup() before using model operations, " +
+          "or pass a backend via { using: backend }.",
       );
     }
 
-    const backend = getBackend();
-    await backend.delete(this);
+    return getBackend();
   }
 
   /**
@@ -792,12 +869,17 @@ export abstract class Model {
    *
    * Reloads all field values from the database, discarding any local changes.
    *
+   * @param options - Options including which backend to use
+   *
    * @example
    * ```ts
    * await article.refresh();
+   *
+   * // Refresh from a specific backend
+   * await article.refresh({ using: "rest" });
    * ```
    */
-  async refresh(): Promise<this> {
+  async refresh(options?: ModelOperationOptions): Promise<this> {
     this._ensureFieldsInitialized();
 
     const pk = this.pk;
@@ -805,16 +887,7 @@ export abstract class Model {
       throw new Error("Cannot refresh an instance without a primary key");
     }
 
-    // Import dynamically to avoid circular dependency
-    const { getBackend, isInitialized } = await import("../setup.ts");
-
-    if (!isInitialized()) {
-      throw new Error(
-        "Database not initialized. Call setup() before refreshing models.",
-      );
-    }
-
-    const backend = getBackend();
+    const backend = await this._resolveBackend(options?.using);
     const ModelClass = this.constructor as new () => this;
     const data = await backend.getById(ModelClass, pk);
 
