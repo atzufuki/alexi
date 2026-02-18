@@ -552,3 +552,254 @@ export class BinaryField extends Field<Uint8Array> {
     return new BinaryField({ ...this.options, ...options });
   }
 }
+
+// ============================================================================
+// File Field
+// ============================================================================
+
+/**
+ * FileField options
+ */
+export interface FileFieldOptions extends FieldOptions<string> {
+  /**
+   * Directory path where files will be uploaded
+   * Can be a string or a function that returns a string
+   *
+   * @example
+   * ```ts
+   * uploadTo: "documents/"
+   * uploadTo: (instance, filename) => `users/${instance.userId}/${filename}`
+   * ```
+   */
+  uploadTo?: string | ((instance: unknown, filename: string) => string);
+
+  /**
+   * Maximum file size in bytes (optional)
+   */
+  maxSize?: number;
+
+  /**
+   * Allowed file extensions (optional)
+   * e.g., [".pdf", ".doc", ".docx"]
+   */
+  allowedExtensions?: string[];
+
+  /**
+   * Allowed MIME types (optional)
+   * e.g., ["application/pdf", "image/jpeg"]
+   */
+  allowedMimeTypes?: string[];
+}
+
+/**
+ * FileField - File upload field
+ *
+ * Stores the file path/name in the database. The actual file is stored
+ * in the configured Storage backend.
+ *
+ * @example
+ * ```ts
+ * import { FileField } from "@alexi/db";
+ *
+ * class DocumentModel extends Model {
+ *   id = new AutoField({ primaryKey: true });
+ *   name = new CharField({ maxLength: 255 });
+ *   file = new FileField({ uploadTo: "documents/" });
+ * }
+ *
+ * // Usage with storage
+ * const storage = getStorage();
+ * const savedName = await storage.save(
+ *   document.file.getUploadPath(file.name),
+ *   file
+ * );
+ * document.file.set(savedName);
+ * await document.save();
+ *
+ * // Get URL
+ * const url = await storage.url(document.file.get());
+ * ```
+ */
+export class FileField extends Field<string> {
+  readonly uploadTo: string | ((instance: unknown, filename: string) => string);
+  readonly maxSize?: number;
+  readonly allowedExtensions?: string[];
+  readonly allowedMimeTypes?: string[];
+
+  constructor(options?: Partial<FileFieldOptions>) {
+    super({ blank: true, ...options });
+    this.uploadTo = options?.uploadTo ?? "";
+    this.maxSize = options?.maxSize;
+    this.allowedExtensions = options?.allowedExtensions;
+    this.allowedMimeTypes = options?.allowedMimeTypes;
+  }
+
+  /**
+   * Get the upload path for a file
+   *
+   * @param filename - Original filename
+   * @param instance - Model instance (optional, for dynamic paths)
+   * @returns Full path where file should be uploaded
+   */
+  getUploadPath(filename: string, instance?: unknown): string {
+    let basePath: string;
+
+    if (typeof this.uploadTo === "function") {
+      basePath = this.uploadTo(instance, filename);
+    } else {
+      basePath = this.uploadTo;
+    }
+
+    // Ensure path ends with slash if not empty
+    if (basePath && !basePath.endsWith("/")) {
+      basePath += "/";
+    }
+
+    return `${basePath}${filename}`;
+  }
+
+  /**
+   * Validate a file before upload
+   *
+   * @param file - File to validate
+   * @returns Validation result
+   */
+  validateFile(file: File): ValidationResult {
+    const errors: string[] = [];
+
+    // Check file size
+    if (this.maxSize !== undefined && file.size > this.maxSize) {
+      const maxSizeMB = (this.maxSize / 1024 / 1024).toFixed(2);
+      errors.push(
+        `${this.name}: File size exceeds maximum of ${maxSizeMB} MB`,
+      );
+    }
+
+    // Check extension
+    if (this.allowedExtensions !== undefined) {
+      const ext = this.getExtension(file.name);
+      if (!this.allowedExtensions.includes(ext)) {
+        errors.push(
+          `${this.name}: File extension '${ext}' is not allowed. Allowed: ${
+            this.allowedExtensions.join(", ")
+          }`,
+        );
+      }
+    }
+
+    // Check MIME type
+    if (this.allowedMimeTypes !== undefined && file.type) {
+      if (!this.allowedMimeTypes.includes(file.type)) {
+        errors.push(
+          `${this.name}: File type '${file.type}' is not allowed. Allowed: ${
+            this.allowedMimeTypes.join(", ")
+          }`,
+        );
+      }
+    }
+
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
+  }
+
+  /**
+   * Get file extension from filename
+   */
+  private getExtension(filename: string): string {
+    const lastDot = filename.lastIndexOf(".");
+    if (lastDot === -1) return "";
+    return filename.slice(lastDot).toLowerCase();
+  }
+
+  toDB(value: string | null): string | null {
+    return value;
+  }
+
+  fromDB(value: unknown): string | null {
+    if (value === null || value === undefined) return null;
+    return String(value);
+  }
+
+  getDBType(): string {
+    return "VARCHAR(500)";
+  }
+
+  clone(options?: Partial<FileFieldOptions>): FileField {
+    return new FileField({
+      ...this.options,
+      uploadTo: this.uploadTo,
+      maxSize: this.maxSize,
+      allowedExtensions: this.allowedExtensions,
+      allowedMimeTypes: this.allowedMimeTypes,
+      ...options,
+    });
+  }
+
+  override serialize(): Record<string, unknown> {
+    return {
+      ...super.serialize(),
+      uploadTo: typeof this.uploadTo === "string"
+        ? this.uploadTo
+        : "[function]",
+      maxSize: this.maxSize,
+      allowedExtensions: this.allowedExtensions,
+      allowedMimeTypes: this.allowedMimeTypes,
+    };
+  }
+}
+
+/**
+ * ImageField - Image file field with image-specific validations
+ *
+ * Extends FileField with common image file types pre-configured.
+ *
+ * @example
+ * ```ts
+ * class ProfileModel extends Model {
+ *   id = new AutoField({ primaryKey: true });
+ *   avatar = new ImageField({
+ *     uploadTo: "avatars/",
+ *     maxSize: 5 * 1024 * 1024, // 5 MB
+ *   });
+ * }
+ * ```
+ */
+export class ImageField extends FileField {
+  constructor(options?: Partial<FileFieldOptions>) {
+    // Default to common image extensions and MIME types
+    const defaultExtensions = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".webp",
+      ".svg",
+    ];
+    const defaultMimeTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ];
+
+    super({
+      allowedExtensions: defaultExtensions,
+      allowedMimeTypes: defaultMimeTypes,
+      ...options,
+    });
+  }
+
+  override clone(options?: Partial<FileFieldOptions>): ImageField {
+    return new ImageField({
+      ...this.options,
+      uploadTo: this.uploadTo,
+      maxSize: this.maxSize,
+      allowedExtensions: this.allowedExtensions,
+      allowedMimeTypes: this.allowedMimeTypes,
+      ...options,
+    });
+  }
+}
