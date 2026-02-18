@@ -200,3 +200,32 @@ export type {
   RenderContext,
   RendererClass,
 } from "./renderers/mod.ts";
+
+// ============================================================================
+// Throttling
+// ============================================================================
+
+export {
+  AnonRateThrottle,
+  BaseThrottle,
+  clearThrottleCache,
+  parseRate,
+  ScopedRateThrottle,
+  UserRateThrottle,
+} from "./throttling/mod.ts";
+
+export type { ParsedRate, ThrottleClass } from "./throttling/mod.ts";
+
+// ============================================================================
+// Versioning
+// ============================================================================
+
+export {
+  AcceptHeaderVersioning,
+  BaseVersioning,
+  QueryParameterVersioning,
+  URLPathVersioning,
+  VersionNotAllowedError,
+} from "./versioning/mod.ts";
+
+export type { VersioningClass, VersioningConfig } from "./versioning/mod.ts";

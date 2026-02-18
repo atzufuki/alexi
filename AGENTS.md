@@ -147,6 +147,19 @@ import {
   Not,
   Or,
 } from "@alexi/restframework";
+import {
+  AcceptHeaderVersioning,
+  BaseVersioning,
+  QueryParameterVersioning,
+  URLPathVersioning,
+  VersionNotAllowedError,
+} from "@alexi/restframework";
+import {
+  AnonRateThrottle,
+  BaseThrottle,
+  ScopedRateThrottle,
+  UserRateThrottle,
+} from "@alexi/restframework";
 
 // Authentication
 import { adminRequired, loginRequired, optionalLogin } from "@alexi/auth";
@@ -1211,6 +1224,195 @@ class MyRenderer extends BaseRenderer {
   override render(data: unknown, context?: RenderContext): string {
     const method = context?.method ?? "GET";
     return `${method} ${JSON.stringify(data)}`;
+  }
+}
+```
+
+---
+
+### Throttling
+
+Throttling limits the rate of requests to API endpoints, returning
+`429 Too Many Requests` when exceeded.
+
+```typescript
+import {
+  AnonRateThrottle,
+  ScopedRateThrottle,
+  UserRateThrottle,
+} from "@alexi/restframework";
+
+// ViewSet with throttle classes
+class MyViewSet extends ModelViewSet {
+  model = MyModel;
+  throttle_classes = [AnonRateThrottle, UserRateThrottle];
+  throttle_rates = {
+    anon: "100/day", // 100 requests/day for unauthenticated users (by IP)
+    user: "1000/day", // 1000 requests/day for authenticated users (by ID)
+  };
+}
+
+// Scoped throttling - different limits for different endpoints
+class BurstThrottle extends ScopedRateThrottle {
+  override scope = "burst";
+}
+class SustainedThrottle extends ScopedRateThrottle {
+  override scope = "sustained";
+}
+
+class SensitiveViewSet extends ModelViewSet {
+  throttle_classes = [BurstThrottle, SustainedThrottle];
+  throttle_rates = {
+    burst: "60/minute",
+    sustained: "1000/day",
+  };
+}
+```
+
+#### Rate Format
+
+Rates use the format `"N/period"` where period is `second`, `minute`, `hour`, or
+`day`:
+
+```typescript
+"5/second"; // 5 requests per second
+"60/minute"; // 60 requests per minute
+"1000/hour"; // 1000 requests per hour
+"10000/day"; // 10000 requests per day
+```
+
+#### Built-in Throttle Classes
+
+| Class                | Scope    | Keyed By  | Description                                   |
+| -------------------- | -------- | --------- | --------------------------------------------- |
+| `AnonRateThrottle`   | `"anon"` | Client IP | Rate limits unauthenticated requests by IP    |
+| `UserRateThrottle`   | `"user"` | User ID   | Rate limits authenticated requests by user ID |
+| `ScopedRateThrottle` | (custom) | User/IP   | Rate limits by custom scope name              |
+
+#### Response
+
+When throttled, the API returns:
+
+- **Status**: `429 Too Many Requests`
+- **Header**: `Retry-After: <seconds>` - seconds until the next request is
+  allowed
+- **Body**:
+  `{ "error": "Request was throttled. Expected available in N seconds." }`
+
+#### Custom Throttle
+
+```typescript
+import { BaseThrottle } from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
+
+class OrganisationThrottle extends BaseThrottle {
+  getRate(): string | null {
+    return "500/hour";
+  }
+
+  getCacheKey(context: ViewSetContext): string | null {
+    // Throttle by organisation ID
+    const orgId = context.user?.organisationId;
+    if (!orgId) return null;
+    return `throttle_org_${orgId}`;
+  }
+}
+```
+
+#### Per-Action Throttling
+
+Override `getThrottles()` for per-action control:
+
+```typescript
+class MyViewSet extends ModelViewSet {
+  override getThrottles() {
+    if (this.action === "create") {
+      // Stricter limit for POST
+      const t = new AnonRateThrottle();
+      t.setRate("10/hour");
+      return [t];
+    }
+    return [];
+  }
+}
+```
+
+---
+
+### API Versioning
+
+Versioning allows multiple API versions to coexist. The detected version is
+available as `context.version` in ViewSet actions.
+
+```typescript
+import {
+  AcceptHeaderVersioning,
+  QueryParameterVersioning,
+  URLPathVersioning,
+} from "@alexi/restframework";
+
+// URL path versioning: /api/v1/users/, /api/v2/users/
+class UserViewSet extends ModelViewSet {
+  versioning_class = URLPathVersioning;
+  versioning_config = {
+    defaultVersion: "v1",
+    allowedVersions: ["v1", "v2"],
+  };
+
+  override async list(context: ViewSetContext): Promise<Response> {
+    if (context.version === "v2") {
+      // return v2 format
+    }
+    return super.list(context);
+  }
+}
+
+// URL setup for URLPathVersioning
+// path("api/:version/", include(router.urls))
+
+// Query parameter versioning: /api/users/?version=v2
+class ArticleViewSet extends ModelViewSet {
+  versioning_class = QueryParameterVersioning;
+  versioning_config = { defaultVersion: "v1", allowedVersions: ["v1", "v2"] };
+}
+
+// Accept header versioning: Accept: application/json; version=2.0
+class ProductViewSet extends ModelViewSet {
+  versioning_class = AcceptHeaderVersioning;
+  versioning_config = {
+    defaultVersion: "1.0",
+    allowedVersions: ["1.0", "2.0"],
+  };
+}
+```
+
+#### Built-in Versioning Classes
+
+| Class                      | Source                         | Description                      |
+| -------------------------- | ------------------------------ | -------------------------------- |
+| `URLPathVersioning`        | `:version` URL param           | Version embedded in the URL path |
+| `QueryParameterVersioning` | `?version=` query param        | Version in query string          |
+| `AcceptHeaderVersioning`   | `Accept: ...; version=` header | Version in the Accept header     |
+
+#### Response
+
+When the requested version is not in `allowedVersions`:
+
+- **Status**: `400 Bad Request`
+- **Body**: `{ "error": "...", "allowedVersions": ["v1", "v2"] }`
+
+#### Custom Versioning
+
+```typescript
+import { BaseVersioning } from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
+
+class HeaderVersioning extends BaseVersioning {
+  determineVersion(
+    request: Request,
+    _params: Record<string, string>,
+  ): string | null {
+    return request.headers.get("X-API-Version");
   }
 }
 ```
