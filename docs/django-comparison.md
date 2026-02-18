@@ -61,7 +61,7 @@ differences, and features unique to Alexi.
 | Filter backends     | ✅                    | ✅                   | QueryParamFilterBackend, etc.      |
 | Ordering            | ✅                    | ✅                   | OrderingFilter                     |
 | Search              | ✅                    | ✅                   | SearchFilter                       |
-| Pagination          | ✅                    | ⚠️ (partial)         | Basic limit/offset                 |
+| Pagination          | ✅                    | ✅                   | PageNumber, LimitOffset, Cursor    |
 | Throttling          | ✅                    | ❌                   | —                                  |
 | Permissions         | ✅                    | ⚠️ (partial)         | Via decorators                     |
 | Versioning          | ✅                    | ❌                   | —                                  |
