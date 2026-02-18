@@ -8,6 +8,9 @@
     "./models": "./models/mod.ts",
     "./fields": "./fields/mod.ts",
     "./query": "./query/mod.ts",
+    "./migrations": "./migrations/mod.ts",
+    "./migrations/schema": "./migrations/schema/mod.ts",
+    "./commands": "./commands/mod.ts",
     "./backends/denokv": "./backends/denokv/mod.ts",
     "./backends/indexeddb": "./backends/indexeddb/mod.ts",
     "./backends/postgres": "./backends/postgres/mod.ts",
@@ -15,6 +18,7 @@
   },
   "imports": {
     "@alexi/types": "jsr:@alexi/types@0.22.0",
+    "@alexi/core": "jsr:@alexi/core@0.22.0",
     "@std/assert": "jsr:@std/assert@1"
   },
   "compilerOptions": {
