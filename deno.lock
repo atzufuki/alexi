@@ -455,6 +455,11 @@
           "npm:esbuild@0.24"
         ]
       },
+      "src/storage": {
+        "dependencies": [
+          "jsr:@alexi/types@0.22.0"
+        ]
+      },
       "src/urls": {
         "dependencies": [
           "jsr:@std/assert@1"

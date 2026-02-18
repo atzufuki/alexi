@@ -1,0 +1,13 @@
+{
+  "name": "@alexi/storage",
+  "version": "0.22.0",
+  "license": "MIT",
+  "exports": {
+    ".": "./mod.ts",
+    "./backends/firebase": "./backends/firebase.ts",
+    "./backends/memory": "./backends/memory.ts"
+  },
+  "imports": {
+    "@alexi/types": "jsr:@alexi/types@0.22.0"
+  }
+}

@@ -133,14 +133,26 @@ differences, and features unique to Alexi.
 
 ### Static Files
 
-| Feature             | Django      | Alexi        | Notes                      |
-| ------------------- | ----------- | ------------ | -------------------------- |
-| Static file serving | ✅          | ✅           | Development mode           |
-| `collectstatic`     | ✅          | ✅           | Production                 |
-| Finders             | ✅          | ✅           | AppDirectoriesFinder, etc. |
-| Storage backends    | ✅          | ⚠️ (partial) | FileSystem only            |
-| ManifestStaticFiles | ✅          | ❌           | —                          |
-| CDN support         | ✅ (config) | ❌           | —                          |
+| Feature             | Django      | Alexi | Notes                      |
+| ------------------- | ----------- | ----- | -------------------------- |
+| Static file serving | ✅          | ✅    | Development mode           |
+| `collectstatic`     | ✅          | ✅    | Production                 |
+| Finders             | ✅          | ✅    | AppDirectoriesFinder, etc. |
+| Storage backends    | ✅          | ✅    | Firebase, Memory, custom   |
+| ManifestStaticFiles | ✅          | ❌    | —                          |
+| CDN support         | ✅ (config) | ❌    | —                          |
+
+### File Storage
+
+| Feature           | Django           | Alexi        | Notes                  |
+| ----------------- | ---------------- | ------------ | ---------------------- |
+| Storage API       | ✅               | ✅           | Django-style interface |
+| FileField         | ✅               | ✅           | File upload field      |
+| ImageField        | ✅               | ✅           | Image-specific field   |
+| FileSystemStorage | ✅               | ❌ (planned) | Local filesystem       |
+| S3Storage         | ✅ (via package) | ❌ (planned) | AWS S3                 |
+| Firebase Storage  | ❌               | ✅           | Firebase Cloud Storage |
+| MemoryStorage     | ❌               | ✅           | In-memory for testing  |
 
 ---
 
