@@ -65,7 +65,7 @@ differences, and features unique to Alexi.
 | Throttling          | ✅                    | ❌                   | —                                  |
 | Permissions         | ✅                    | ✅                   | ViewSet permission_classes         |
 | Versioning          | ✅                    | ❌                   | —                                  |
-| Content negotiation | ✅                    | ❌                   | JSON only                          |
+| Content negotiation | ✅                    | ✅                   | JSON, XML, CSV; custom renderers   |
 | Browsable API       | ✅                    | ❌                   | —                                  |
 
 ### URL Routing

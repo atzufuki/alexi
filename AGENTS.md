@@ -1059,6 +1059,72 @@ expensive for cursor-based pagination.
 | `LimitOffsetPagination` | `?limit=N&offset=M` | Flexible offset-based access      |
 | `CursorPagination`      | `?cursor=<token>`   | Infinite scroll, real-time feeds  |
 
+### Content Negotiation
+
+Renderer classes control the output format of API responses. Content negotiation
+selects the appropriate renderer based on the request's `Accept` header or
+`?format=` query parameter.
+
+```typescript
+import {
+  CSVRenderer,
+  JSONRenderer,
+  ModelViewSet,
+  XMLRenderer,
+} from "@alexi/restframework";
+
+// ViewSet with multiple renderers
+class ArticleViewSet extends ModelViewSet {
+  model = ArticleModel;
+  serializer_class = ArticleSerializer;
+  renderer_classes = [JSONRenderer, XMLRenderer, CSVRenderer];
+}
+```
+
+#### Renderer Selection
+
+1. `?format=json` query param takes precedence over `Accept` header
+2. `Accept` header is parsed with quality values (e.g. `application/json;q=0.9`)
+3. `Accept: */*` matches the first renderer in `renderer_classes`
+4. No match → `406 Not Acceptable`
+
+#### Built-in Renderer Classes
+
+| Renderer       | Media Type         | Format | Description               |
+| -------------- | ------------------ | ------ | ------------------------- |
+| `JSONRenderer` | `application/json` | `json` | JSON output (default)     |
+| `XMLRenderer`  | `application/xml`  | `xml`  | Simple XML output         |
+| `CSVRenderer`  | `text/csv`         | `csv`  | CSV for arrays of objects |
+
+#### Custom Renderer
+
+```typescript
+import { BaseRenderer } from "@alexi/restframework";
+
+class PlainTextRenderer extends BaseRenderer {
+  mediaType = "text/plain";
+  format = "txt";
+
+  render(data: unknown): string {
+    return String(data);
+  }
+}
+```
+
+#### Imports
+
+```typescript
+import {
+  BaseRenderer,
+  CSVRenderer,
+  JSONRenderer,
+  parseAcceptHeader,
+  renderResponse,
+  selectRenderer,
+  XMLRenderer,
+} from "@alexi/restframework";
+```
+
 ---
 
 ## URL Routing
