@@ -42,7 +42,13 @@ export { DataMigration, Migration } from "./migration.ts";
 export type { MigrationDependency, MigrationOptions } from "./migration.ts";
 
 export { MigrationSchemaEditor } from "./schema_editor.ts";
-export type { AlterFieldOptions, DeprecationInfo } from "./schema_editor.ts";
+export type {
+  AlterFieldOptions,
+  CreateIndexOptions,
+  DeprecationInfo,
+  IBackendSchemaEditor,
+  SQLStatement,
+} from "./schema_editor.ts";
 
 export { MigrationLoader } from "./loader.ts";
 export { MigrationExecutor } from "./executor.ts";

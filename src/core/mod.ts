@@ -121,7 +121,14 @@ export type {
 // - flush → @alexi/db
 // =============================================================================
 
-export { HelpCommand, TestCommand } from "./commands/mod.ts";
+export {
+  HelpCommand,
+  MakemigrationsCommand,
+  MigrateCommand,
+  ShowmigrationsCommand,
+  SqlmigrateCommand,
+  TestCommand,
+} from "./commands/mod.ts";
 export type { TestConfig } from "./commands/mod.ts";
 
 // =============================================================================

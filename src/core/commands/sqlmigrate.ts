@@ -3,23 +3,24 @@
  *
  * Display SQL statements for a migration without executing them.
  *
- * @module @alexi/db/commands/sqlmigrate
+ * @module @alexi/core/commands/sqlmigrate
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "../base_command.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
-import { MigrationLoader } from "../migrations/loader.ts";
+} from "../types.ts";
 import {
+  type CreateIndexOptions,
   type IBackendSchemaEditor,
+  MigrationLoader,
   MigrationSchemaEditor,
-} from "../migrations/schema_editor.ts";
-import { PostgresMigrationSchemaEditor } from "../migrations/schema/postgres.ts";
-import { getBackend, getBackendByName } from "../setup.ts";
-import type { DatabaseBackend } from "../backends/backend.ts";
+  type SQLStatement,
+} from "@alexi/db/migrations";
+import { PostgresMigrationSchemaEditor } from "@alexi/db/migrations/schema";
+import { DatabaseBackend, Field, getBackend, getBackendByName, Model } from "@alexi/db";
 
 // =============================================================================
 // SqlmigrateCommand Class
@@ -353,13 +354,6 @@ export class SqlmigrateCommand extends BaseCommand {
 // =============================================================================
 // Dry Run Schema Editor
 // =============================================================================
-
-import type { Model } from "../models/model.ts";
-import type { Field } from "../fields/field.ts";
-import type {
-  CreateIndexOptions,
-  SQLStatement,
-} from "../migrations/schema_editor.ts";
 
 // deno-lint-ignore no-explicit-any
 type AnyField = Field<any>;

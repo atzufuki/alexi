@@ -16,3 +16,9 @@ export type { TestConfig } from "./test.ts";
 export { StartAppCommand } from "./startapp.ts";
 export type { AppType } from "./startapp.ts";
 export { FlushCommand } from "./flush.ts";
+
+// Migration commands (moved from @alexi/db to break circular dependency)
+export { MakemigrationsCommand } from "./makemigrations.ts";
+export { MigrateCommand } from "./migrate.ts";
+export { ShowmigrationsCommand } from "./showmigrations.ts";
+export { SqlmigrateCommand } from "./sqlmigrate.ts";

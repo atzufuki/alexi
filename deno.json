@@ -15,7 +15,9 @@
     "./src/auth",
     "./src/web",
     "./src/webui",
-    "./src/create"
+    "./src/create",
+    "./src/admin",
+    "./src/capacitor"
   ],
   "exports": {
     ".": "./src/mod.ts",
@@ -78,6 +80,9 @@
     "@alexi/db/backends/denokv": "./src/db/backends/denokv/mod.ts",
     "@alexi/db/backends/indexeddb": "./src/db/backends/indexeddb/mod.ts",
     "@alexi/db/backends/rest": "./src/db/backends/rest/mod.ts",
+    "@alexi/db/migrations": "./src/db/migrations/mod.ts",
+    "@alexi/db/migrations/schema": "./src/db/migrations/schema/mod.ts",
+    "@alexi/db/setup": "./src/db/setup.ts",
     "@alexi/urls": "./src/urls/mod.ts",
     "@alexi/http": "./src/http/mod.ts",
     "@alexi/middleware": "./src/middleware/mod.ts",

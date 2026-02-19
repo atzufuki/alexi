@@ -3,18 +3,17 @@
  *
  * Apply or revert database migrations.
  *
- * @module @alexi/db/commands/migrate
+ * @module @alexi/core/commands/migrate
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "../base_command.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
-import { MigrationLoader } from "../migrations/loader.ts";
-import { MigrationExecutor } from "../migrations/executor.ts";
-import { getBackend, getBackendByName } from "../setup.ts";
+} from "../types.ts";
+import { MigrationExecutor, MigrationLoader } from "@alexi/db/migrations";
+import { getBackend, getBackendByName } from "@alexi/db";
 
 // =============================================================================
 // MigrateCommand Class
