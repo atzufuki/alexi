@@ -1355,6 +1355,24 @@ export class RestBackend extends DatabaseBackend {
       }
     }
 
+    // Optimization: if filtering only by PK with exact match, use detail endpoint
+    // This is DRF-compatible: GET /endpoint/:id/ instead of GET /endpoint/?id=X
+    const pkFilter = this._detectPkFilter(state);
+    if (pkFilter !== null) {
+      this._log(`[execute] Using detail endpoint for PK lookup: ${pkFilter}`);
+      try {
+        const result = await this.request<Record<string, unknown>>(
+          `/${endpoint}/${pkFilter}/`,
+        );
+        return result ? [result] : [];
+      } catch (error) {
+        if (error instanceof RestApiError && error.isNotFound()) {
+          return [];
+        }
+        throw error;
+      }
+    }
+
     // Standard query: build query parameters
     const params = new URLSearchParams();
 
@@ -1384,7 +1402,8 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`[execute] GET ${url}`);
 
-    return await this.request<Record<string, unknown>[]>(url);
+    const results = await this.request<Record<string, unknown>[]>(url);
+    return results;
   }
 
   async executeRaw<R = unknown>(
@@ -1627,6 +1646,36 @@ export class RestBackend extends DatabaseBackend {
         return handler;
       }
     }
+    return null;
+  }
+
+  /**
+   * Detect if the query is filtering only by primary key with exact match.
+   *
+   * Returns the PK value if so, null otherwise.
+   * This enables using the REST detail endpoint (GET /endpoint/:id/) instead of
+   * query params (GET /endpoint/?id=X), which is more DRF-compatible.
+   */
+  private _detectPkFilter<T extends Model>(
+    state: QueryState<T>,
+  ): unknown | null {
+    // Only optimize for single exact filter on PK
+    if (state.filters.length !== 1) return null;
+
+    const filter = state.filters[0];
+    if (filter.lookup !== "exact") return null;
+
+    // Get the PK field name from the model
+    const modelClass = state.model;
+    const instance = new modelClass();
+    const pkField = instance.getPrimaryKeyField();
+    if (!pkField) return null;
+
+    // Check if the filter is on the PK field
+    if (filter.field === pkField.name) {
+      return filter.value;
+    }
+
     return null;
   }
 

@@ -119,8 +119,13 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   private handleCopyLink = async (): Promise<void> => {
     const url = globalThis.location?.href ?? "";
     if (url && navigator.clipboard) {
-      await navigator.clipboard.writeText(url);
-      // Could show a toast notification here
+      try {
+        await navigator.clipboard.writeText(url);
+        // Could show a toast notification here
+      } catch {
+        // Clipboard API not available (e.g., in tests or without permission)
+        console.log("Could not copy to clipboard");
+      }
     }
   };
 

@@ -744,7 +744,9 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     const results = await backend.execute<T>(this._state);
 
     // Hydrate results into model instances
-    const instances = results.map((data) => this._hydrate(data));
+    const instances = results.map((data) => {
+      return this._hydrate(data);
+    });
 
     // Handle selectRelated
     if (this._state.selectRelated.length > 0) {

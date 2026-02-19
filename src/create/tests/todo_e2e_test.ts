@@ -181,8 +181,11 @@ describe("Todo App E2E Tests", {
   }
 
   async function getAddButton(): Promise<ReturnType<typeof page.locator>> {
-    // Pierce shadow DOM to find the button with "Add" text
-    return page.locator("home-page >> ds-button >> button").first();
+    // Pierce shadow DOM to find the Add Task button (primary variant, contains "Add Task" text)
+    // Use :has-text to match the ds-button containing "Add Task"
+    return page.locator(
+      'home-page >> ds-button:has-text("Add Task") >> button',
+    );
   }
 
   async function getTodoItems(): Promise<ReturnType<typeof page.locator>> {
@@ -429,6 +432,12 @@ describe("Todo App E2E Tests", {
 
   describe("Delete Todo", () => {
     it("should delete todo when clicking delete button", async () => {
+      // Capture all console output for debugging
+      const consoleLogs: string[] = [];
+      page.on("console", (msg) => {
+        consoleLogs.push(`[${msg.type()}] ${msg.text()}`);
+      });
+
       await navigateToHome();
 
       // Add a todo first
@@ -436,18 +445,33 @@ describe("Todo App E2E Tests", {
       await addTodo(taskTitle);
 
       const countBefore = await getTodoCount();
+      console.log(`[test] countBefore: ${countBefore}`);
 
       // Find the delete button in the last added todo
+      // Pierce shadow DOM: .todo-item > ds-button > button
       const items = await getTodoItems();
       const lastItem = items.last();
-      // Get the last ds-button in the todo item (the delete button)
-      const deleteButton = lastItem.locator("ds-button").last();
+      // Pierce through ds-button's shadow DOM to click the actual button
+      const deleteButton = lastItem.locator("ds-button >> button").last();
+
+      console.log(`[test] About to click delete button`);
 
       // Click delete
       await deleteButton.click();
-      await sleep(500);
+
+      // Wait for the delete to complete and UI to refresh
+      // This needs more time for: REST DELETE + REST GET + IndexedDB ops + UI render
+      await sleep(2000);
+
+      // Print all captured console logs
+      console.log(`[test] Browser console output:`);
+      for (const log of consoleLogs) {
+        console.log(`  ${log}`);
+      }
 
       const countAfter = await getTodoCount();
+      console.log(`[test] countAfter: ${countAfter}`);
+
       assertEquals(
         countAfter,
         countBefore - 1,

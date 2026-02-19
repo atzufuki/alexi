@@ -39,15 +39,16 @@ async function getOrCreateBoard(boardId: string): Promise<BoardModel> {
  * Extract board from context
  *
  * Supports both URL param (/api/todos/:board/) and query string (?board=abc12)
+ * RestBackend sends ForeignKey fields as field_id (e.g., board_id), so we check both.
  */
 function getBoardId(context: ViewSetContext): string | null {
   // Check URL params first (nested route)
   const board = context.params?.board;
   if (board) return board;
 
-  // Check query string
+  // Check query string - RestBackend sends ForeignKey as board_id
   const url = new URL(context.request.url);
-  return url.searchParams.get("board");
+  return url.searchParams.get("board_id") || url.searchParams.get("board");
 }
 
 /**
@@ -68,8 +69,8 @@ export class TodoViewSet extends ModelViewSet {
   /**
    * Filter todos by board
    */
-  override getQueryset(context: ViewSetContext) {
-    const qs = super.getQueryset(context);
+  override async getQueryset(context: ViewSetContext) {
+    const qs = await super.getQueryset(context);
     const boardId = getBoardId(context);
     if (boardId) {
       return qs.filter({ board: boardId });
@@ -85,7 +86,8 @@ export class TodoViewSet extends ModelViewSet {
     const data = await context.request.json();
 
     // Get board from body or query string
-    const boardId = data.board || getBoardId(context);
+    // RestBackend sends ForeignKey as board_id, so check both
+    const boardId = data.board_id || data.board || getBoardId(context);
     if (!boardId) {
       return Response.json(
         { error: "board is required" },
