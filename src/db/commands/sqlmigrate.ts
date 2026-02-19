@@ -136,10 +136,9 @@ export class SqlmigrateCommand extends BaseCommand {
 
       // Check if backward is possible
       if (backwards && !migration.migration.canReverse()) {
-        this.warn(
-          `Migration '${migration.migration.name}' is marked as irreversible.`,
+        return failure(
+          `Migration '${migration.migration.name}' cannot be reversed (no backwards() method).`,
         );
-        this.warn("The backwards SQL may be incomplete or incorrect.\n");
       }
 
       // Create schema editor in dry-run mode
@@ -164,6 +163,11 @@ export class SqlmigrateCommand extends BaseCommand {
 
       // Execute the migration in dry-run mode
       if (backwards) {
+        if (!migration.migration.backwards) {
+          return failure(
+            `Migration ${migration.migration.getFullName()} cannot be reversed (no backwards() method)`,
+          );
+        }
         await migration.migration.backwards(migrationSchemaEditor);
       } else {
         await migration.migration.forwards(migrationSchemaEditor);

@@ -83,15 +83,12 @@ export default class Migration0002 extends Migration {
   // Dependencies that must run first
   dependencies = ["0001_create_users"];
 
-  // Optional: set to false for irreversible migrations
-  reversible = true;
-
   // Apply the migration
   async forwards(schema: MigrationSchemaEditor): Promise<void> {
     // Schema changes here
   }
 
-  // Reverse the migration
+  // Reverse the migration (optional - omit for irreversible migrations)
   async backwards(schema: MigrationSchemaEditor): Promise<void> {
     // Undo changes here
   }
@@ -100,12 +97,19 @@ export default class Migration0002 extends Migration {
 
 ### Migration Properties
 
-| Property       | Type                    | Description                                                 |
-| -------------- | ----------------------- | ----------------------------------------------------------- |
-| `name`         | `string`                | Unique migration name (e.g., `0001_initial`)                |
-| `dependencies` | `MigrationDependency[]` | Migrations that must run first                              |
-| `reversible`   | `boolean`               | Whether this migration can be rolled back (default: `true`) |
-| `appLabel`     | `string`                | Set automatically by the loader                             |
+| Property       | Type                    | Description                                  |
+| -------------- | ----------------------- | -------------------------------------------- |
+| `name`         | `string`                | Unique migration name (e.g., `0001_initial`) |
+| `dependencies` | `MigrationDependency[]` | Migrations that must run first               |
+| `appLabel`     | `string`                | Set automatically by the loader              |
+
+### Methods
+
+| Method         | Returns   | Description                                              |
+| -------------- | --------- | -------------------------------------------------------- |
+| `forwards()`   | `Promise` | Apply the migration (required)                           |
+| `backwards()`  | `Promise` | Reverse the migration (optional - omit for irreversible) |
+| `canReverse()` | `boolean` | Returns `true` if `backwards()` is implemented           |
 
 ### Dependencies
 
@@ -192,6 +196,18 @@ await schema.createIndex(UserModel, ["lastName", "firstName"]);
 await schema.dropIndex(UserModel, "idx_users_email");
 ```
 
+### Dropping Fields (Permanent)
+
+For permanent field deletion (use with caution - data will be lost):
+
+```typescript
+await schema.dropField(UserModel, "temporaryField");
+```
+
+> **Warning:** Unlike `deprecateField()`, this permanently deletes the column
+> and its data. Only use this for cleanup or when you're certain the data is not
+> needed (e.g., removing backup fields in reversible migrations).
+
 ### Deprecating Models
 
 ```typescript
@@ -246,7 +262,8 @@ For data-only changes (no schema changes), use `DataMigration`.
 
 ### Non-Reversible Data Migration
 
-Data migrations that modify data in-place without preserving the original:
+Data migrations that modify data in-place without preserving the original should
+omit the `backwards()` method:
 
 ```typescript
 import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
@@ -264,23 +281,21 @@ export default class Migration0003 extends DataMigration {
     }
   }
 
-  async backwards(_schema: MigrationSchemaEditor): Promise<void> {
-    throw new Error("Cannot reverse - original data not preserved");
-  }
+  // No backwards() method = migration cannot be reversed
+  // Attempting rollback will show an error and be blocked
 }
 ```
 
-> **Note:** `DataMigration` sets `reversible = false` by default. This is used
-> as a hint to show warnings during rollback, but does not prevent rollback.
+> **Note:** Omitting `backwards()` will:
+>
+> - Show a warning when applying the migration
+> - Block rollback with an error (cannot reverse)
+> - Skip the migration during `--test` mode with a warning
 
 ### Reversible Data Migration
 
-> **Coming soon:** Fully reversible data migrations require `dropField()` which
-> is not yet implemented. See
-> [#97](https://github.com/atzufuki/alexi/issues/97).
-
-For now, you can make data migrations reversible by preserving original data in
-deprecated fields:
+For data migrations that need to be reversible, preserve original data in a
+temporary field and use `dropField()` in `backwards()`:
 
 ```typescript
 import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
@@ -292,41 +307,35 @@ export default class Migration0003 extends DataMigration {
   dependencies = ["0002_add_email_verified"];
 
   async forwards(schema: MigrationSchemaEditor): Promise<void> {
-    // 1. Deprecate the original field (preserves data as _deprecated_0003_email)
-    await schema.deprecateField(UserModel, "email");
-
-    // 2. Add new field for normalized data
+    // 1. Add field to preserve original values
     await schema.addField(
       UserModel,
-      "email",
-      new EmailField({ maxLength: 255 }),
+      "originalEmail",
+      new EmailField({ maxLength: 255, null: true }),
     );
 
-    // 3. Copy and transform data from deprecated field to new field
-    await schema.executeSQL(`
-      UPDATE users SET email = LOWER(_deprecated_0003_email)
-    `);
+    // 2. Copy original data to backup field
+    await schema.executeSQL(`UPDATE users SET original_email = email`);
+
+    // 3. Transform data in place
+    await schema.executeSQL(`UPDATE users SET email = LOWER(email)`);
   }
 
   async backwards(schema: MigrationSchemaEditor): Promise<void> {
-    // 1. Deprecate the new field (we can't drop it yet)
-    await schema.deprecateField(UserModel, "email");
+    // 1. Restore original data
+    await schema.executeSQL(`UPDATE users SET email = original_email`);
 
-    // 2. Restore the original field from its deprecation
-    await schema.restoreField(UserModel, "email", "0003");
-    // Original (non-lowercase) data is preserved
+    // 2. Drop the backup field (permanent deletion)
+    await schema.dropField(UserModel, "originalEmail");
   }
 }
 ```
 
 With this approach:
 
-- **Original data preserved** - The deprecated field retains the original values
-- **Safe rollback** - `restoreField()` renames `_deprecated_0003_email` back to
-  `email`
-- **Cleanup later** - Use `migrate --cleanup` to remove deprecated fields after
-  verification
-- **Caveat** - Rolling back leaves an extra deprecated field from step 1
+- **Original data preserved** - The backup field retains the original values
+- **Safe rollback** - `backwards()` restores data and drops the backup field
+- **Fully reversible** - No deprecated fields left after rollback
 
 ## Management Commands
 
@@ -573,11 +582,11 @@ Refactor to break the cycle, possibly using a third migration.
 ### Cannot Rollback Irreversible Migration
 
 ```
-Warning: Migration users.0003_data_cleanup is marked as irreversible
+Error: Cannot rollback users.0003_data_cleanup: migration has no backwards() method
 ```
 
-If `reversible = false`, the migration cannot be rolled back. You may need to
-create a new "undo" migration instead.
+If a migration has no `backwards()` method, it cannot be rolled back. You may
+need to create a new migration to undo the changes manually.
 
 ### Deprecated Item Not Found During Rollback
 
