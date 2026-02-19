@@ -462,6 +462,7 @@
       "src/restframework": {
         "dependencies": [
           "jsr:@alexi/db@0.23.0",
+          "jsr:@alexi/middleware@0.23.0",
           "jsr:@alexi/urls@0.23.0",
           "jsr:@std/assert@1"
         ]
