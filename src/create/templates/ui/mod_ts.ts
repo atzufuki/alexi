@@ -17,8 +17,9 @@ export function generateUiModTs(name: string): string {
  */
 
 export { default } from "@${name}-ui/app.ts";
-export { TodoModel } from "@${name}-ui/models.ts";
+export { BoardModel, TodoModel } from "@${name}-ui/models.ts";
 export { urlpatterns } from "@${name}-ui/urls.ts";
+export { getSessionId, getSessionIdFromUrl, setSessionId } from "@${name}-ui/session.ts";
 `;
 }
 

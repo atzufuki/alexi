@@ -21,12 +21,18 @@ import { TodoModel } from "@${name}-web/models.ts";
 
 /**
  * Todo serializer - handles serialization/deserialization of Todo objects
+ *
+ * Note: board is read-only because:
+ * 1. It shouldn't change after creation
+ * 2. BoardModel uses CharField PK (session ID like "abc12"), but the
+ *    serializer auto-generates IntegerField for ForeignKey. Making it
+ *    read-only avoids validation issues on update.
  */
 export class TodoSerializer extends ModelSerializer {
   static override Meta = {
     model: TodoModel,
-    fields: ["id", "title", "completed", "createdAt", "updatedAt"],
-    readOnlyFields: ["id", "createdAt", "updatedAt"],
+    fields: ["id", "board", "title", "completed", "createdAt", "updatedAt"],
+    readOnlyFields: ["id", "board", "createdAt", "updatedAt"],
   };
 }
 `;

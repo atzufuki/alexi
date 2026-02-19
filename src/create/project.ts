@@ -32,6 +32,7 @@ import { generateUiModTs } from "./templates/ui/mod_ts.ts";
 import { generateUiModelsTs } from "./templates/ui/models_ts.ts";
 import { generateUiEndpointsTs } from "./templates/ui/endpoints_ts.ts";
 import { generateUiSettingsTs } from "./templates/ui/settings_ts.ts";
+import { generateUiSessionTs } from "./templates/ui/session_ts.ts";
 import { generateUiUtilsTs } from "./templates/ui/utils_ts.ts";
 import { generateUiViewsTs } from "./templates/ui/views_ts.ts";
 import { generateUiUrlsTs } from "./templates/ui/urls_ts.ts";
@@ -307,6 +308,10 @@ async function generateFiles(name: string): Promise<void> {
     {
       path: `${name}/src/${name}-ui/settings.ts`,
       content: generateUiSettingsTs(name),
+    },
+    {
+      path: `${name}/src/${name}-ui/session.ts`,
+      content: generateUiSessionTs(name),
     },
     {
       path: `${name}/src/${name}-ui/utils.ts`,
