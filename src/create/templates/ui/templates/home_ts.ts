@@ -21,8 +21,6 @@ export function generateUiHomeTs(name: string): string {
 import { HTMLPropsMixin, prop, ref } from "@html-props/core";
 import { Div, Li, Span, Style, Ul } from "@html-props/built-ins";
 import { Column, Expanded, Row } from "@html-props/layout";
-import type { QuerySet } from "@alexi/db";
-import { TodoModel } from "@${name}-ui/models.ts";
 import {
   DSButton,
   DSCard,
@@ -34,6 +32,18 @@ import {
 } from "@${name}-ui/components/mod.ts";
 
 /**
+ * Todo item interface - plain object for template consumption
+ *
+ * Templates should work with simple interfaces, not ORM models.
+ * The view is responsible for mapping ORM models to this interface.
+ */
+export interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+}
+
+/**
  * Home page - displays and manages the todo list
  *
  * Follows the MVT (Model-View-Template) pattern:
@@ -42,15 +52,18 @@ import {
  * - Template only manages UI state (input text, etc.)
  */
 export class HomePage extends HTMLPropsMixin(HTMLElement, {
-  // Data props
+  // Session ID for shareable URL
+  sessionId: prop(""),
+
+  // Data props - todos as plain objects
   loading: prop(false),
-  todos: prop<QuerySet<TodoModel> | null>(null),
+  todos: prop<Todo[] | null>(null),
 
   // Callback props from view
   fetch: prop<(() => Promise<void>) | null>(null),
   createTodo: prop<((title: string) => Promise<void>) | null>(null),
-  toggleTodo: prop<((todo: TodoModel) => Promise<void>) | null>(null),
-  deleteTodo: prop<((todo: TodoModel) => Promise<void>) | null>(null),
+  toggleTodo: prop<((todo: Todo) => Promise<void>) | null>(null),
+  deleteTodo: prop<((todo: Todo) => Promise<void>) | null>(null),
 
   // UI state
   newTodoTitle: prop(""),
@@ -102,15 +115,28 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     }
   };
 
-  private handleToggle = async (todo: TodoModel): Promise<void> => {
+  private handleToggle = async (todo: Todo): Promise<void> => {
     if (this.toggleTodo) {
       await this.toggleTodo(todo);
     }
   };
 
-  private handleDelete = async (todo: TodoModel): Promise<void> => {
+  private handleDelete = async (todo: Todo): Promise<void> => {
     if (this.deleteTodo) {
       await this.deleteTodo(todo);
+    }
+  };
+
+  private handleCopyLink = async (): Promise<void> => {
+    const url = globalThis.location?.href ?? "";
+    if (url && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(url);
+        // Could show a toast notification here
+      } catch {
+        // Clipboard API not available (e.g., in tests or without permission)
+        console.log("Could not copy to clipboard");
+      }
     }
   };
 
@@ -145,10 +171,29 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
                     gradient: true,
                     content: ["Todo App"],
                   }),
-                  new DSText({
-                    variant: "caption",
-                    color: "muted",
-                    content: ["Built with Alexi Framework"],
+                  new Row({
+                    gap: "8px",
+                    crossAxisAlignment: "center",
+                    content: [
+                      new DSText({
+                        variant: "caption",
+                        color: "muted",
+                        content: ["Board: "],
+                      }),
+                      new DSText({
+                        variant: "caption",
+                        color: "primary",
+                        weight: "semibold",
+                        content: [this.sessionId],
+                      }),
+                      new DSButton({
+                        variant: "ghost",
+                        size: "sm",
+                        onclick: () => this.handleCopyLink(),
+                        title: "Copy shareable link",
+                        content: [new DSIcon({ name: "link", size: "xs" })],
+                      }),
+                    ],
                   }),
                 ],
               }),
@@ -238,7 +283,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   }
 
   private renderTodoList(): Node {
-    const todos = this.todos?.array() ?? [];
+    const todos = this.todos ?? [];
 
     if (todos.length === 0) {
       return new Column({
@@ -258,7 +303,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
       });
     }
 
-    const completedCount = todos.filter((t) => t.completed.get()).length;
+    const completedCount = todos.filter((t) => t.completed).length;
     const totalCount = todos.length;
 
     return new Column({
@@ -300,11 +345,11 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     });
   }
 
-  private renderTodoItem(todo: TodoModel, isLast: boolean): Node {
-    const completed = todo.completed.get() as boolean;
+  private renderTodoItem(todo: Todo, isLast: boolean): Node {
+    const completed = todo.completed;
 
     return new Li({
-      dataset: { key: \`todo-\${todo.id.get()}\` },
+      dataset: { key: \`todo-\${todo.id}\` },
       className: \`todo-item\${isLast ? " todo-item-last" : ""}\${completed ? " todo-item-completed" : ""}\`,
       content: [
         new DSCheckbox({
@@ -314,7 +359,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
         new DSText({
           variant: "body",
           className: "todo-text",
-          content: [todo.title.get() as string],
+          content: [todo.title],
         }),
         new DSButton({
           variant: "ghost",
