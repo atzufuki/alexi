@@ -7,7 +7,7 @@
 export function generateAlexiDbSkillMd(): string {
   return `---
 name: alexi-db
-description: Use when working with @alexi/db ORM - defining models, querying data, configuring backends (DenoKV, IndexedDB, REST, Sync), or implementing Django-style database patterns in Deno.
+description: Use when working with @alexi/db ORM - defining models, querying data, configuring backends (DenoKV, IndexedDB, REST, Sync), migrations, or implementing Django-style database patterns in Deno.
 license: MIT
 metadata:
   author: atzufuki
@@ -20,8 +20,8 @@ metadata:
 ## Overview
 
 \`@alexi/db\` is a Django-inspired ORM for Deno with support for multiple database
-backends. It provides Models, QuerySets, Managers, and field types that mirror
-Django's ORM patterns.
+backends. It provides Models, QuerySets, Managers, field types, and a migration
+system that mirror Django's ORM patterns.
 
 ## When to Use This Skill
 
@@ -29,6 +29,7 @@ Django's ORM patterns.
 - Querying and filtering data using QuerySets
 - Setting up database backends (DenoKV, IndexedDB, REST)
 - Working with ForeignKey relationships and eager loading
+- Creating and applying database migrations
 
 ## Installation
 
@@ -225,6 +226,100 @@ const count = await role.roleCompetences.count();
 const newComp = await role.roleCompetences.create({ level: 4 });
 \`\`\`
 
+## Database Migrations
+
+### Creating a Migration
+
+\`\`\`bash
+deno task manage makemigrations users --name create_users
+\`\`\`
+
+### Writing a Migration
+
+\`\`\`typescript
+import { Migration, MigrationSchemaEditor } from "@alexi/db/migrations";
+import { AutoField, CharField, EmailField, Model } from "@alexi/db";
+
+// Snapshot model at this point in time
+class UserModel extends Model {
+  static meta = { dbTable: "users" };
+  id = new AutoField({ primaryKey: true });
+  email = new EmailField({ unique: true });
+  name = new CharField({ maxLength: 100 });
+}
+
+export default class Migration0001 extends Migration {
+  name = "0001_create_users";
+  dependencies = [];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(UserModel);
+  }
+
+  async backwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.deprecateModel(UserModel);
+  }
+}
+\`\`\`
+
+### Applying Migrations
+
+\`\`\`bash
+# Apply all pending migrations
+deno task manage migrate
+
+# Show migration status
+deno task manage showmigrations
+
+# Rollback to a specific migration
+deno task manage migrate users 0001_create_users
+
+# Rollback all migrations for an app
+deno task manage migrate users zero
+\`\`\`
+
+### Schema Editor Operations
+
+\`\`\`typescript
+// Create a model/table
+await schema.createModel(UserModel);
+
+// Add a field
+await schema.addField(UserModel, "bio", new TextField({ blank: true }));
+
+// Deprecate a field (safe removal with rollback support)
+await schema.deprecateField(UserModel, "legacyField");
+
+// Alter a field
+await schema.alterField(UserModel, "name", new CharField({ maxLength: 200 }));
+
+// Rename a field
+await schema.renameField(UserModel, "oldName", "newName");
+
+// Create an index
+await schema.createIndex(UserModel, ["email"], { unique: true });
+
+// Deprecate a model (safe removal)
+await schema.deprecateModel(UserModel);
+\`\`\`
+
+### Deprecation Model
+
+Alexi uses deprecation instead of destructive deletes:
+
+- **Never delete data** - Columns/tables are renamed to \`_deprecated_NNNN_*\`
+- **Safe rollbacks** - Rollback simply renames back to original
+- **Cleanup later** - Use \`migrate --cleanup\` after sufficient time
+
+\`\`\`typescript
+// Instead of dropping a column, deprecate it
+await schema.deprecateField(UserModel, "phoneNumber");
+// Column renamed to: _deprecated_0002_phoneNumber
+
+// Clean up deprecated items older than 30 days
+// deno task manage migrate --cleanup
+\`\`\`
+
 ## Database Setup
 
 ### DenoKV Backend (Server)
@@ -337,6 +432,16 @@ await setup({ backend });
 const tasks = await TaskModel.objects.all().fetch();
 \`\`\`
 
+**Using dropColumn instead of deprecateField**
+
+\`\`\`typescript
+// ❌ Bad: Data loss, can't rollback
+await schema.executeRaw("ALTER TABLE users DROP COLUMN phone");
+
+// ✅ Good: Safe removal with rollback support
+await schema.deprecateField(UserModel, "phone");
+\`\`\`
+
 ## Import Reference
 
 \`\`\`typescript
@@ -357,6 +462,18 @@ import {
   ModelEndpoint,
   SingletonQuery,
 } from "@alexi/db/backends/rest";
+
+// Migrations
+import {
+  DataMigration,
+  Migration,
+  MigrationSchemaEditor,
+} from "@alexi/db/migrations";
+
+import {
+  createDeprecationRecorder,
+  createMigrationRecorder,
+} from "@alexi/db/migrations";
 \`\`\`
 `;
 }
