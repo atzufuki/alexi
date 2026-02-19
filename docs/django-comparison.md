@@ -30,7 +30,7 @@ differences, and features unique to Alexi.
 | `select_related()`          | ✅     | ✅           | Eager loading for ForeignKey               |
 | `prefetch_related()`        | ✅     | ❌ (planned) | —                                          |
 | Reverse relations           | ✅     | ✅           | `relatedName` on ForeignKey                |
-| Migrations                  | ✅     | ❌           | Alexi uses schemaless backends             |
+| Migrations                  | ✅     | ✅           | Deprecation-based rollbacks (no DOWN)      |
 | Multiple databases          | ✅     | ✅           | `.using()` for backend selection           |
 | Transactions                | ✅     | ✅           | `backend.atomic()`                         |
 | Raw SQL                     | ✅     | ❌           | Not applicable to KV/IndexedDB backends    |
@@ -127,7 +127,9 @@ differences, and features unique to Alexi.
 | `startapp`        | ✅     | ✅                   | —                    |
 | `test`            | ✅     | ✅                   | —                    |
 | `collectstatic`   | ✅     | ✅                   | —                    |
-| `migrate`         | ✅     | ❌                   | No migrations        |
+| `makemigrations`  | ✅     | ✅                   | —                    |
+| `migrate`         | ✅     | ✅                   | —                    |
+| `showmigrations`  | ✅     | ✅                   | —                    |
 | `createsuperuser` | ✅     | ✅                   | —                    |
 | `shell`           | ✅     | ❌                   | Use `deno repl`      |
 
@@ -181,8 +183,7 @@ Features available in Django that Alexi does not currently provide:
 
 | Feature                    | Description                                    |
 | -------------------------- | ---------------------------------------------- |
-| **Migrations**             | Database schema migrations and version control |
-| **SQL databases**          | PostgreSQL, MySQL, Oracle support              |
+| **MySQL/Oracle**           | MySQL, Oracle database support                 |
 | **ORM raw SQL**            | Direct SQL queries                             |
 | **Session authentication** | Server-side session management                 |
 | **CSRF protection**        | Cross-site request forgery prevention          |
@@ -258,8 +259,7 @@ For developers coming from Django:
 
 ### Choose Django When
 
-- You need SQL database support (PostgreSQL, MySQL)
-- You require migrations and schema versioning
+- You need MySQL or Oracle database support
 - You need session-based authentication
 - Your team is experienced with Python
 - You need Django's mature ecosystem of packages
