@@ -21,7 +21,6 @@ export function generateUiHomeTs(name: string): string {
 import { HTMLPropsMixin, prop, ref } from "@html-props/core";
 import { Div, Li, Span, Style, Ul } from "@html-props/built-ins";
 import { Column, Expanded, Row } from "@html-props/layout";
-import { TodoModel } from "@${name}-ui/models.ts";
 import {
   DSButton,
   DSCard,
@@ -31,6 +30,18 @@ import {
   DSText,
   DSThemeToggle,
 } from "@${name}-ui/components/mod.ts";
+
+/**
+ * Todo item interface - plain object for template consumption
+ *
+ * Templates should work with simple interfaces, not ORM models.
+ * The view is responsible for mapping ORM models to this interface.
+ */
+export interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+}
 
 /**
  * Home page - displays and manages the todo list
@@ -44,15 +55,15 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   // Session ID for shareable URL
   sessionId: prop(""),
 
-  // Data props - todos is now an array for simpler consumption
+  // Data props - todos as plain objects
   loading: prop(false),
-  todos: prop<TodoModel[] | null>(null),
+  todos: prop<Todo[] | null>(null),
 
   // Callback props from view
   fetch: prop<(() => Promise<void>) | null>(null),
   createTodo: prop<((title: string) => Promise<void>) | null>(null),
-  toggleTodo: prop<((todo: TodoModel) => Promise<void>) | null>(null),
-  deleteTodo: prop<((todo: TodoModel) => Promise<void>) | null>(null),
+  toggleTodo: prop<((todo: Todo) => Promise<void>) | null>(null),
+  deleteTodo: prop<((todo: Todo) => Promise<void>) | null>(null),
 
   // UI state
   newTodoTitle: prop(""),
@@ -104,13 +115,13 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     }
   };
 
-  private handleToggle = async (todo: TodoModel): Promise<void> => {
+  private handleToggle = async (todo: Todo): Promise<void> => {
     if (this.toggleTodo) {
       await this.toggleTodo(todo);
     }
   };
 
-  private handleDelete = async (todo: TodoModel): Promise<void> => {
+  private handleDelete = async (todo: Todo): Promise<void> => {
     if (this.deleteTodo) {
       await this.deleteTodo(todo);
     }
@@ -292,7 +303,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
       });
     }
 
-    const completedCount = todos.filter((t) => t.completed.get()).length;
+    const completedCount = todos.filter((t) => t.completed).length;
     const totalCount = todos.length;
 
     return new Column({
@@ -334,11 +345,11 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     });
   }
 
-  private renderTodoItem(todo: TodoModel, isLast: boolean): Node {
-    const completed = todo.completed.get() as boolean;
+  private renderTodoItem(todo: Todo, isLast: boolean): Node {
+    const completed = todo.completed;
 
     return new Li({
-      dataset: { key: \`todo-\${todo.id.get()}\` },
+      dataset: { key: \`todo-\${todo.id}\` },
       className: \`todo-item\${isLast ? " todo-item-last" : ""}\${completed ? " todo-item-completed" : ""}\`,
       content: [
         new DSCheckbox({
@@ -348,7 +359,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
         new DSText({
           variant: "body",
           className: "todo-text",
-          content: [todo.title.get() as string],
+          content: [todo.title],
         }),
         new DSButton({
           variant: "ghost",

@@ -9,6 +9,11 @@
  * @module @alexi/create/tests/todo_e2e_test
  */
 
+// Declare document for page.evaluate() callbacks that run in browser context
+declare const document: {
+  documentElement: { getAttribute(name: string): string | null };
+};
+
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
 import {
   afterAll,

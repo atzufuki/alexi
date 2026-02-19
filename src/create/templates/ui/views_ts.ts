@@ -27,6 +27,18 @@ import { ref } from "@html-props/core";
 import { getBackendByName } from "@alexi/db";
 import type { ViewContext } from "@${name}-ui/utils.ts";
 import { TodoModel } from "@${name}-ui/models.ts";
+import type { Todo } from "@${name}-ui/templates/home.ts";
+
+/**
+ * Convert TodoModel to plain Todo object for template consumption
+ */
+function toTodo(model: TodoModel): Todo {
+  return {
+    id: model.id.get() as number,
+    title: model.title.get() as string,
+    completed: model.completed.get() as boolean,
+  };
+}
 
 /**
  * Home view - displays the todo list for a session/board
@@ -61,7 +73,7 @@ export async function home(
     ref: templateRef,
     sessionId,
     loading: cachedTodos.length() === 0,
-    todos: cachedTodos.array(),
+    todos: cachedTodos.array().map(toTodo),
 
     // Fetch: load fresh data from REST API and sync to cache
     async fetch() {
@@ -75,7 +87,7 @@ export async function home(
           .fetch();
 
         await freshQs.using("indexeddb").save();
-        template.todos = freshQs.array();
+        template.todos = freshQs.array().map(toTodo);
       } catch (error) {
         console.error("Error fetching todos:", error);
       } finally {
@@ -107,21 +119,21 @@ export async function home(
           .using("indexeddb")
           .filter({ board: sessionId })
           .fetch();
-        template.todos = todos.array();
+        template.todos = todos.array().map(toTodo);
       } catch (error) {
         console.error("Error creating todo:", error);
       }
     },
 
     // Toggle: update completion status
-    async toggleTodo(todo: TodoModel) {
+    async toggleTodo(todo: Todo) {
       const template = templateRef.current;
       if (!template) return;
 
       try {
         const freshQs = await TodoModel.objects
           .using("rest")
-          .filter({ id: todo.id.get() })
+          .filter({ id: todo.id })
           .fetch();
 
         const freshTodo = await freshQs.first();
@@ -136,14 +148,14 @@ export async function home(
           .using("indexeddb")
           .filter({ board: sessionId })
           .fetch();
-        template.todos = todos.array();
+        template.todos = todos.array().map(toTodo);
       } catch (error) {
         console.error("Error toggling todo:", error);
       }
     },
 
     // Delete: remove todo from REST and cache
-    async deleteTodo(todo: TodoModel) {
+    async deleteTodo(todo: Todo) {
       const template = templateRef.current;
       if (!template) return;
 
@@ -155,7 +167,7 @@ export async function home(
         // Delete from REST
         const freshTodo = await TodoModel.objects
           .using("rest")
-          .filter({ id: todo.id.get() })
+          .filter({ id: todo.id })
           .first();
         if (freshTodo) {
           await restBackend.delete(freshTodo);
@@ -164,7 +176,7 @@ export async function home(
         // Delete from IndexedDB
         const cachedTodo = await TodoModel.objects
           .using("indexeddb")
-          .filter({ id: todo.id.get() })
+          .filter({ id: todo.id })
           .first();
         if (cachedTodo) {
           await indexeddbBackend.delete(cachedTodo);
@@ -175,7 +187,7 @@ export async function home(
           .using("indexeddb")
           .filter({ board: sessionId })
           .fetch();
-        template.todos = todos.array();
+        template.todos = todos.array().map(toTodo);
       } catch (error) {
         console.error("Error deleting todo:", error);
       }
