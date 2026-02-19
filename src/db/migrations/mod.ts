@@ -46,8 +46,22 @@ export type { AlterFieldOptions, DeprecationInfo } from "./schema_editor.ts";
 
 export { MigrationLoader } from "./loader.ts";
 export { MigrationExecutor } from "./executor.ts";
-export { MigrationRecorder } from "./recorder.ts";
-export { DeprecationRecorder } from "./deprecation_recorder.ts";
+
+// Recorder system
+export {
+  createDeprecationRecorder,
+  createMigrationRecorder,
+} from "./recorders/factory.ts";
+export type {
+  DeprecationRecord,
+  IDeprecationRecorder,
+  IMigrationRecorder,
+  MigrationRecord,
+} from "./recorders/interfaces.ts";
+export { PostgresMigrationRecorder } from "./recorders/postgres_migration.ts";
+export { PostgresDeprecationRecorder } from "./recorders/postgres_deprecation.ts";
+export { DenoKVMigrationRecorder } from "./recorders/denokv_migration.ts";
+export { DenoKVDeprecationRecorder } from "./recorders/denokv_deprecation.ts";
 
 export { fieldToState, ModelState, ProjectState } from "./state.ts";
 export type { FieldState, ModelStateData, ProjectStateData } from "./state.ts";

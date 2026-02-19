@@ -9,13 +9,19 @@
 
 import type { Migration, MigrationOptions } from "./migration.ts";
 import type { LoadedMigration, MigrationLoader } from "./loader.ts";
-import { MigrationRecorder } from "./recorder.ts";
-import { DeprecationRecorder } from "./deprecation_recorder.ts";
 import {
   type IBackendSchemaEditor,
   MigrationSchemaEditor,
 } from "./schema_editor.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
+import type {
+  IDeprecationRecorder,
+  IMigrationRecorder,
+} from "./recorders/interfaces.ts";
+import {
+  createDeprecationRecorder,
+  createMigrationRecorder,
+} from "./recorders/factory.ts";
 
 // ============================================================================
 // Types
@@ -90,15 +96,15 @@ export type SchemaEditorFactory = (
 export class MigrationExecutor {
   private _backend: DatabaseBackend;
   private _loader: MigrationLoader;
-  private _recorder: MigrationRecorder;
-  private _deprecationRecorder: DeprecationRecorder;
+  private _recorder: IMigrationRecorder;
+  private _deprecationRecorder: IDeprecationRecorder;
   private _schemaEditorFactory: SchemaEditorFactory | null = null;
 
   constructor(backend: DatabaseBackend, loader: MigrationLoader) {
     this._backend = backend;
     this._loader = loader;
-    this._recorder = new MigrationRecorder(backend);
-    this._deprecationRecorder = new DeprecationRecorder(backend);
+    this._recorder = createMigrationRecorder(backend);
+    this._deprecationRecorder = createDeprecationRecorder(backend);
   }
 
   /**
@@ -551,14 +557,14 @@ export class MigrationExecutor {
   /**
    * Get the migration recorder
    */
-  getRecorder(): MigrationRecorder {
+  getRecorder(): IMigrationRecorder {
     return this._recorder;
   }
 
   /**
    * Get the deprecation recorder
    */
-  getDeprecationRecorder(): DeprecationRecorder {
+  getDeprecationRecorder(): IDeprecationRecorder {
     return this._deprecationRecorder;
   }
 }
