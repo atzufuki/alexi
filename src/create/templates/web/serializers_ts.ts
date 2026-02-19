@@ -25,7 +25,7 @@ import { TodoModel } from "@${name}-web/models.ts";
 export class TodoSerializer extends ModelSerializer {
   static override Meta = {
     model: TodoModel,
-    fields: ["id", "title", "completed", "createdAt", "updatedAt"],
+    fields: ["id", "board", "title", "completed", "createdAt", "updatedAt"],
     readOnlyFields: ["id", "createdAt", "updatedAt"],
   };
 }

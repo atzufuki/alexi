@@ -19,12 +19,40 @@ export function generateUiUrlsTs(name: string): string {
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import * as views from "@${name}-ui/views.ts";
+import { getSessionId, getSessionIdFromUrl, setSessionId } from "@${name}-ui/session.ts";
+
+/**
+ * Redirect to session URL
+ *
+ * If the user visits the root URL, redirect to their session URL.
+ * This enables shareable todo lists via URL.
+ */
+async function redirectToSession(): Promise<Node> {
+  const pathname = globalThis.location?.pathname ?? "/";
+
+  // Check if URL already contains a valid session ID
+  const urlSessionId = getSessionIdFromUrl(pathname);
+  if (urlSessionId) {
+    // Adopt the session from URL (for shared links)
+    setSessionId(urlSessionId);
+    // Continue to home view with this session
+    return views.home({} as any, { sessionId: urlSessionId });
+  }
+
+  // No session in URL - redirect to user's session
+  const sessionId = getSessionId();
+  globalThis.history?.replaceState(null, "", "/" + sessionId);
+  return views.home({} as any, { sessionId });
+}
 
 /**
  * URL patterns for the UI app
  */
 export const urlpatterns: URLPattern[] = [
-  path("", views.home, { name: "home" }),
+  // Root redirects to session URL
+  path("", redirectToSession, { name: "redirect" }),
+  // Session-based home page
+  path(":sessionId/", views.home, { name: "home" }),
 ];
 `;
 }

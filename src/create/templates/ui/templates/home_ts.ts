@@ -21,7 +21,6 @@ export function generateUiHomeTs(name: string): string {
 import { HTMLPropsMixin, prop, ref } from "@html-props/core";
 import { Div, Li, Span, Style, Ul } from "@html-props/built-ins";
 import { Column, Expanded, Row } from "@html-props/layout";
-import type { QuerySet } from "@alexi/db";
 import { TodoModel } from "@${name}-ui/models.ts";
 import {
   DSButton,
@@ -42,9 +41,12 @@ import {
  * - Template only manages UI state (input text, etc.)
  */
 export class HomePage extends HTMLPropsMixin(HTMLElement, {
-  // Data props
+  // Session ID for shareable URL
+  sessionId: prop(""),
+
+  // Data props - todos is now an array for simpler consumption
   loading: prop(false),
-  todos: prop<QuerySet<TodoModel> | null>(null),
+  todos: prop<TodoModel[] | null>(null),
 
   // Callback props from view
   fetch: prop<(() => Promise<void>) | null>(null),
@@ -114,6 +116,14 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
     }
   };
 
+  private handleCopyLink = async (): Promise<void> => {
+    const url = globalThis.location?.href ?? "";
+    if (url && navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
+      // Could show a toast notification here
+    }
+  };
+
   override render(): Node[] {
     return [
       new Style({ textContent: HOME_STYLES }),
@@ -145,10 +155,29 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
                     gradient: true,
                     content: ["Todo App"],
                   }),
-                  new DSText({
-                    variant: "caption",
-                    color: "muted",
-                    content: ["Built with Alexi Framework"],
+                  new Row({
+                    gap: "8px",
+                    crossAxisAlignment: "center",
+                    content: [
+                      new DSText({
+                        variant: "caption",
+                        color: "muted",
+                        content: ["Board: "],
+                      }),
+                      new DSText({
+                        variant: "caption",
+                        color: "primary",
+                        weight: "semibold",
+                        content: [this.sessionId],
+                      }),
+                      new DSButton({
+                        variant: "ghost",
+                        size: "sm",
+                        onclick: () => this.handleCopyLink(),
+                        title: "Copy shareable link",
+                        content: [new DSIcon({ name: "link", size: "xs" })],
+                      }),
+                    ],
                   }),
                 ],
               }),
@@ -238,7 +267,7 @@ export class HomePage extends HTMLPropsMixin(HTMLElement, {
   }
 
   private renderTodoList(): Node {
-    const todos = this.todos?.array() ?? [];
+    const todos = this.todos ?? [];
 
     if (todos.length === 0) {
       return new Column({

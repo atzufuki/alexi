@@ -29,41 +29,53 @@ import type { ViewContext } from "@${name}-ui/utils.ts";
 import { TodoModel } from "@${name}-ui/models.ts";
 
 /**
- * Home view - displays the todo list
+ * Home view - displays the todo list for a session/board
  *
  * Implements the MVT pattern:
- * - Fetches data from REST API and caches to IndexedDB
+ * - Fetches data from REST API filtered by board/session
+ * - Caches to IndexedDB for offline support
  * - Provides CRUD callbacks to the template
  * - Handles all backend interactions via ORM
  */
 export async function home(
   _ctx: ViewContext,
-  _params: Record<string, string>,
+  params: Record<string, string>,
 ): Promise<Node> {
   const { HomePage } = await import("@${name}-ui/templates/home.ts");
 
+  // Get session ID from URL params
+  const sessionId = params.sessionId;
+  if (!sessionId) {
+    throw new Error("Session ID is required");
+  }
+
   const templateRef = ref<InstanceType<typeof HomePage>>();
 
-  // Load cached data from IndexedDB (instant, works offline)
-  const cachedTodos = await TodoModel.objects.using("indexeddb").all().fetch();
-  const count = await cachedTodos.count();
+  // Load cached data from IndexedDB filtered by board (instant, works offline)
+  const cachedTodos = await TodoModel.objects
+    .using("indexeddb")
+    .filter({ board: sessionId })
+    .fetch();
 
   /**
    * Fetch callback - loads fresh data from REST API and syncs to cache
    */
-  const fetch = async (): Promise<void> => {
+  const fetchTodos = async (): Promise<void> => {
     const template = templateRef.current;
     if (!template) return;
 
     try {
-      // Fetch fresh data from REST API
-      const freshQs = await TodoModel.objects.using("rest").all().fetch();
+      // Fetch fresh data from REST API filtered by board
+      const freshQs = await TodoModel.objects
+        .using("rest")
+        .filter({ board: sessionId })
+        .fetch();
 
       // Sync to IndexedDB using QuerySet.save()
       await freshQs.using("indexeddb").save();
 
-      // Update template with fresh data
-      template.todos = freshQs;
+      // Update template with fresh data as array
+      template.todos = freshQs.array();
     } catch (error) {
       console.error("Error fetching todos:", error);
     } finally {
@@ -79,20 +91,23 @@ export async function home(
     if (!template) return;
 
     try {
-      // Create via REST API using ORM
+      // Create via REST API with board reference
+      // The board field is included in the data, backend handles the rest
       const newTodo = await TodoModel.objects.using("rest").create({
         title,
         completed: false,
+        board: sessionId,
       });
 
-      // Fetch the new todo and save to cache
-      const cacheQs = await TodoModel.objects.using("rest").filter({
-        id: newTodo.id.get(),
-      }).fetch();
+      // Save the new todo to cache
+      const cacheQs = await TodoModel.objects
+        .using("rest")
+        .filter({ id: newTodo.id.get() })
+        .fetch();
       await cacheQs.using("indexeddb").save();
 
       // Refresh the list
-      await fetch();
+      await fetchTodos();
     } catch (error) {
       console.error("Error creating todo:", error);
     }
@@ -132,7 +147,7 @@ export async function home(
       await freshQs.using("indexeddb").save();
 
       // Refresh the list
-      await fetch();
+      await fetchTodos();
     } catch (error) {
       console.error("Error toggling todo:", error);
     }
@@ -183,7 +198,7 @@ export async function home(
       }
 
       // Refresh the list
-      await fetch();
+      await fetchTodos();
     } catch (error) {
       console.error("Error deleting todo:", error);
     }
@@ -191,9 +206,10 @@ export async function home(
 
   return new HomePage({
     ref: templateRef,
-    loading: count === 0,
-    todos: cachedTodos,
-    fetch,
+    sessionId,
+    loading: cachedTodos.length() === 0,
+    todos: cachedTodos.array(),
+    fetch: fetchTodos,
     createTodo,
     toggleTodo,
     deleteTodo,

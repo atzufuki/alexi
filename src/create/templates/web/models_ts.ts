@@ -21,15 +21,44 @@ import {
   BooleanField,
   CharField,
   DateTimeField,
+  ForeignKey,
   Manager,
   Model,
+  OnDelete,
+  RelatedManager,
 } from "@alexi/db";
 
 /**
+ * Board model - represents a shareable todo list
+ *
+ * Each board has a unique 5-character ID (e.g., "abc12").
+ * Sharing the board URL shares the todo list.
+ */
+export class BoardModel extends Model {
+  id = new CharField({ maxLength: 5, primaryKey: true });
+  createdAt = new DateTimeField({ autoNowAdd: true });
+
+  // Reverse relation - populated by ForeignKey relatedName
+  declare todos: RelatedManager<TodoModel>;
+
+  static objects = new Manager(BoardModel);
+
+  static override meta = {
+    dbTable: "boards",
+  };
+}
+
+/**
  * Todo model - represents a todo item
+ *
+ * Each todo belongs to a board via ForeignKey.
  */
 export class TodoModel extends Model {
   id = new AutoField({ primaryKey: true });
+  board = new ForeignKey<BoardModel>("BoardModel", {
+    onDelete: OnDelete.CASCADE,
+    relatedName: "todos",
+  });
   title = new CharField({ maxLength: 200 });
   completed = new BooleanField({ default: false });
   createdAt = new DateTimeField({ autoNowAdd: true });
