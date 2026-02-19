@@ -2046,6 +2046,48 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
 
 ---
 
+## E2E Testing
+
+E2E tests create a scaffolded project and run it against the local Alexi source.
+The test utility patches the generated project's `deno.jsonc` to use local
+`file://` imports instead of JSR imports.
+
+### Updating E2E Test Imports
+
+When adding new subpath exports to Alexi packages (e.g.,
+`@alexi/db/migrations`), you must also update the E2E test patching logic in
+`src/create/tests/e2e_utils.ts`.
+
+The `patchProjectForLocalAlexi()` function maps JSR imports to local file paths:
+
+```typescript
+// In src/create/tests/e2e_utils.ts
+const localImports: Record<string, string> = {
+  "@alexi/core": `${alexiRoot}src/core/mod.ts`,
+  "@alexi/db": `${alexiRoot}src/db/mod.ts`,
+  "@alexi/db/migrations": `${alexiRoot}src/db/migrations/mod.ts`, // Add new subpaths here
+  "@alexi/db/migrations/schema": `${alexiRoot}src/db/migrations/schema/mod.ts`,
+  // ... other imports
+};
+```
+
+**When to update:**
+
+- Adding a new package export in any `deno.jsonc` (e.g., `"./migrations": ...`)
+- Adding a new subpath that other packages depend on
+- Renaming or moving existing exports
+
+**How to verify:**
+
+```bash
+deno task test:e2e
+```
+
+If E2E tests fail with "Import X not a dependency and not in import map", add
+the missing import to `localImports` in `e2e_utils.ts`.
+
+---
+
 ## Contributing
 
 1. Follow the existing code style (snake_case files, 2-space indent)
