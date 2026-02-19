@@ -57,17 +57,6 @@ export async function home(
     .filter({ board: sessionId })
     .fetch();
 
-  // Helper to refresh template with cached data
-  const refreshFromCache = async (): Promise<void> => {
-    const template = templateRef.current;
-    if (!template) return;
-    const todos = await TodoModel.objects
-      .using("indexeddb")
-      .filter({ board: sessionId })
-      .fetch();
-    template.todos = todos.array();
-  };
-
   return new HomePage({
     ref: templateRef,
     sessionId,
@@ -113,7 +102,12 @@ export async function home(
           .fetch();
         await qs.using("indexeddb").save();
 
-        await refreshFromCache();
+        // Refresh from cache
+        const todos = await TodoModel.objects
+          .using("indexeddb")
+          .filter({ board: sessionId })
+          .fetch();
+        template.todos = todos.array();
       } catch (error) {
         console.error("Error creating todo:", error);
       }
@@ -137,7 +131,12 @@ export async function home(
         await freshQs.using("rest").save();
         await freshQs.using("indexeddb").save();
 
-        await refreshFromCache();
+        // Refresh from cache
+        const todos = await TodoModel.objects
+          .using("indexeddb")
+          .filter({ board: sessionId })
+          .fetch();
+        template.todos = todos.array();
       } catch (error) {
         console.error("Error toggling todo:", error);
       }
@@ -171,7 +170,12 @@ export async function home(
           await indexeddbBackend.delete(cachedTodo);
         }
 
-        await refreshFromCache();
+        // Refresh from cache
+        const todos = await TodoModel.objects
+          .using("indexeddb")
+          .filter({ board: sessionId })
+          .fetch();
+        template.todos = todos.array();
       } catch (error) {
         console.error("Error deleting todo:", error);
       }
