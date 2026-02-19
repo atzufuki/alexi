@@ -1,48 +1,28 @@
 /**
- * Deprecation Recorder
+ * PostgreSQL Deprecation Recorder
  *
  * Tracks deprecated models and fields in the database.
  * Uses the `_alexi_deprecations` table to store deprecation history.
  *
- * This allows:
- * - Tracking what was deprecated and when
- * - Cleanup operations to permanently delete deprecated items
- * - Visibility into deprecated items via `showmigrations --deprecations`
- *
  * @module
  */
 
-import type { DatabaseBackend } from "../backends/backend.ts";
-import type { DeprecationInfo } from "./schema_editor.ts";
+import type { DatabaseBackend } from "../../backends/backend.ts";
+import type { DeprecationInfo } from "../schema_editor.ts";
+import type { DeprecationRecord, IDeprecationRecorder } from "./interfaces.ts";
 
 // ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Stored deprecation record
- */
-export interface DeprecationRecord extends DeprecationInfo {
-  /** Database ID */
-  id: number;
-  /** Whether this deprecation has been cleaned up */
-  cleanedUp: boolean;
-  /** When it was cleaned up (if applicable) */
-  cleanedUpAt: Date | null;
-}
-
-// ============================================================================
-// Deprecation Recorder
+// PostgreSQL Deprecation Recorder
 // ============================================================================
 
 /**
- * Deprecation Recorder
+ * PostgreSQL Deprecation Recorder
  *
  * Tracks deprecated tables and columns in `_alexi_deprecations`.
  *
  * @example
  * ```ts
- * const recorder = new DeprecationRecorder(backend);
+ * const recorder = new PostgresDeprecationRecorder(backend);
  *
  * // Record a deprecation
  * await recorder.record({
@@ -61,7 +41,7 @@ export interface DeprecationRecord extends DeprecationInfo {
  * await recorder.markCleanedUp("_deprecated_0001_email");
  * ```
  */
-export class DeprecationRecorder {
+export class PostgresDeprecationRecorder implements IDeprecationRecorder {
   private _backend: DatabaseBackend;
   private _tableName = "_alexi_deprecations";
   private _tableCreated = false;
@@ -89,12 +69,7 @@ export class DeprecationRecorder {
   }
 
   private async _createTable(): Promise<void> {
-    const sql = this._getCreateTableSQL();
-    await this._backend.executeRaw(sql);
-  }
-
-  private _getCreateTableSQL(): string {
-    return `
+    const sql = `
       CREATE TABLE IF NOT EXISTS "${this._tableName}" (
         "id" SERIAL PRIMARY KEY,
         "type" VARCHAR(20) NOT NULL,
@@ -107,6 +82,7 @@ export class DeprecationRecorder {
         "cleaned_up_at" TIMESTAMP NULL
       )
     `;
+    await this._backend.executeRaw(sql);
   }
 
   // ==========================================================================
@@ -165,6 +141,30 @@ export class DeprecationRecorder {
   // Querying
   // ==========================================================================
 
+  private _mapRow(row: {
+    id: number;
+    type: string;
+    original_name: string;
+    deprecated_name: string;
+    migration_name: string;
+    table_name: string;
+    deprecated_at: string;
+    cleaned_up: boolean;
+    cleaned_up_at: string | null;
+  }): DeprecationRecord {
+    return {
+      id: row.id,
+      type: row.type as "model" | "field",
+      originalName: row.original_name,
+      deprecatedName: row.deprecated_name,
+      migrationName: row.migration_name,
+      tableName: row.table_name,
+      deprecatedAt: new Date(row.deprecated_at),
+      cleanedUp: row.cleaned_up,
+      cleanedUpAt: row.cleaned_up_at ? new Date(row.cleaned_up_at) : null,
+    };
+  }
+
   /**
    * Get all deprecations
    *
@@ -189,17 +189,7 @@ export class DeprecationRecorder {
       `SELECT * FROM "${this._tableName}" ${whereClause} ORDER BY "deprecated_at" ASC`,
     );
 
-    return results.map((row) => ({
-      id: row.id,
-      type: row.type as "model" | "field",
-      originalName: row.original_name,
-      deprecatedName: row.deprecated_name,
-      migrationName: row.migration_name,
-      tableName: row.table_name,
-      deprecatedAt: new Date(row.deprecated_at),
-      cleanedUp: row.cleaned_up,
-      cleanedUpAt: row.cleaned_up_at ? new Date(row.cleaned_up_at) : null,
-    }));
+    return results.map((row) => this._mapRow(row));
   }
 
   /**
@@ -225,17 +215,7 @@ export class DeprecationRecorder {
       [migrationName],
     );
 
-    return results.map((row) => ({
-      id: row.id,
-      type: row.type as "model" | "field",
-      originalName: row.original_name,
-      deprecatedName: row.deprecated_name,
-      migrationName: row.migration_name,
-      tableName: row.table_name,
-      deprecatedAt: new Date(row.deprecated_at),
-      cleanedUp: row.cleaned_up,
-      cleanedUpAt: row.cleaned_up_at ? new Date(row.cleaned_up_at) : null,
-    }));
+    return results.map((row) => this._mapRow(row));
   }
 
   /**
@@ -261,17 +241,7 @@ export class DeprecationRecorder {
       [tableName],
     );
 
-    return results.map((row) => ({
-      id: row.id,
-      type: row.type as "model" | "field",
-      originalName: row.original_name,
-      deprecatedName: row.deprecated_name,
-      migrationName: row.migration_name,
-      tableName: row.table_name,
-      deprecatedAt: new Date(row.deprecated_at),
-      cleanedUp: row.cleaned_up,
-      cleanedUpAt: row.cleaned_up_at ? new Date(row.cleaned_up_at) : null,
-    }));
+    return results.map((row) => this._mapRow(row));
   }
 
   // ==========================================================================
@@ -324,17 +294,7 @@ export class DeprecationRecorder {
       [cutoffDate.toISOString()],
     );
 
-    return results.map((row) => ({
-      id: row.id,
-      type: row.type as "model" | "field",
-      originalName: row.original_name,
-      deprecatedName: row.deprecated_name,
-      migrationName: row.migration_name,
-      tableName: row.table_name,
-      deprecatedAt: new Date(row.deprecated_at),
-      cleanedUp: row.cleaned_up,
-      cleanedUpAt: row.cleaned_up_at ? new Date(row.cleaned_up_at) : null,
-    }));
+    return results.map((row) => this._mapRow(row));
   }
 
   /**

@@ -13,8 +13,10 @@ import type {
   IArgumentParser,
 } from "@alexi/core";
 import { MigrationLoader } from "../migrations/loader.ts";
-import { MigrationRecorder } from "../migrations/recorder.ts";
-import { DeprecationRecorder } from "../migrations/deprecation_recorder.ts";
+import {
+  createDeprecationRecorder,
+  createMigrationRecorder,
+} from "../migrations/recorders/factory.ts";
 import { getBackend, getBackendByName } from "../setup.ts";
 
 // =============================================================================
@@ -127,7 +129,7 @@ export class ShowmigrationsCommand extends BaseCommand {
       }
 
       // Get applied migrations
-      const recorder = new MigrationRecorder(backend);
+      const recorder = createMigrationRecorder(backend);
       const appliedMigrations = await recorder.getAppliedMigrations();
       const appliedSet = new Set(appliedMigrations.map((m) => m.name));
 
@@ -239,7 +241,7 @@ export class ShowmigrationsCommand extends BaseCommand {
   private async _displayDeprecations(backend: unknown): Promise<void> {
     const typedBackend =
       backend as import("../backends/backend.ts").DatabaseBackend;
-    const deprecationRecorder = new DeprecationRecorder(typedBackend);
+    const deprecationRecorder = createDeprecationRecorder(typedBackend);
 
     try {
       const deprecations = await deprecationRecorder.getAll(true);

@@ -1,5 +1,5 @@
 /**
- * Migration Recorder
+ * PostgreSQL Migration Recorder
  *
  * Tracks which migrations have been applied to the database.
  * Uses the `_alexi_migrations` table to store migration history.
@@ -7,36 +7,21 @@
  * @module
  */
 
-import type { DatabaseBackend } from "../backends/backend.ts";
+import type { DatabaseBackend } from "../../backends/backend.ts";
+import type { IMigrationRecorder, MigrationRecord } from "./interfaces.ts";
 
 // ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Record of an applied migration
- */
-export interface MigrationRecord {
-  /** Full migration name (e.g., "users.0001_initial") */
-  name: string;
-  /** App label */
-  appLabel: string;
-  /** When the migration was applied */
-  appliedAt: Date;
-}
-
-// ============================================================================
-// Migration Recorder
+// PostgreSQL Migration Recorder
 // ============================================================================
 
 /**
- * Migration Recorder
+ * PostgreSQL Migration Recorder
  *
  * Tracks applied migrations in the `_alexi_migrations` table.
  *
  * @example
  * ```ts
- * const recorder = new MigrationRecorder(backend);
+ * const recorder = new PostgresMigrationRecorder(backend);
  *
  * // Ensure table exists
  * await recorder.ensureTable();
@@ -51,7 +36,7 @@ export interface MigrationRecord {
  * await recorder.recordUnapplied("users.0001_initial");
  * ```
  */
-export class MigrationRecorder {
+export class PostgresMigrationRecorder implements IMigrationRecorder {
   private _backend: DatabaseBackend;
   private _tableName = "_alexi_migrations";
   private _tableCreated = false;
@@ -79,16 +64,7 @@ export class MigrationRecorder {
   }
 
   private async _createTable(): Promise<void> {
-    // Use raw SQL since we don't have a Model for this table
-    // Backend-specific implementations will handle this differently
-    const sql = this._getCreateTableSQL();
-    await this._backend.executeRaw(sql);
-  }
-
-  private _getCreateTableSQL(): string {
-    // Default PostgreSQL-style SQL
-    // Other backends may override or handle differently
-    return `
+    const sql = `
       CREATE TABLE IF NOT EXISTS "${this._tableName}" (
         "id" SERIAL PRIMARY KEY,
         "name" VARCHAR(255) NOT NULL UNIQUE,
@@ -96,6 +72,7 @@ export class MigrationRecorder {
         "applied_at" TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
       )
     `;
+    await this._backend.executeRaw(sql);
   }
 
   // ==========================================================================

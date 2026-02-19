@@ -12,13 +12,13 @@ import { assertEquals, assertExists, assertThrows } from "jsr:@std/assert";
 
 import {
   categorizeChanges,
+  createMigrationRecorder,
   DataMigration,
   formatChange,
   Migration,
   MigrationExecutor,
   MigrationLoader,
   MigrationNamer,
-  MigrationRecorder,
   MigrationSchemaEditor,
   ModelState,
   ProjectState,
@@ -355,13 +355,13 @@ Deno.test("MigrationExecutor - constructor", () => {
   assertExists(executor.getDeprecationRecorder());
 });
 
-Deno.test("MigrationRecorder - constructor", () => {
+Deno.test("MigrationRecorder - constructor with factory", () => {
   const mockBackend = {
     tableExists: async () => false,
     executeRaw: async () => [],
   } as unknown as import("../backends/backend.ts").DatabaseBackend;
 
-  const recorder = new MigrationRecorder(mockBackend);
+  const recorder = createMigrationRecorder(mockBackend);
   assertExists(recorder);
 });
 
