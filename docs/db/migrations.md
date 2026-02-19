@@ -244,10 +244,43 @@ deno task manage migrate --cleanup
 
 For data-only changes (no schema changes), use `DataMigration`.
 
+### Non-Reversible Data Migration
+
+Data migrations that modify data in-place without preserving the original:
+
+```typescript
+import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
+import { UserModel } from "../models.ts";
+
+export default class Migration0003 extends DataMigration {
+  name = "0003_normalize_emails";
+  dependencies = ["0002_add_email_verified"];
+
+  async forwards(_schema: MigrationSchemaEditor): Promise<void> {
+    const users = await UserModel.objects.all().fetch();
+    for (const user of users.array()) {
+      user.email.set(user.email.get().toLowerCase());
+      await user.save();
+    }
+  }
+
+  async backwards(_schema: MigrationSchemaEditor): Promise<void> {
+    throw new Error("Cannot reverse - original data not preserved");
+  }
+}
+```
+
+> **Note:** `DataMigration` sets `reversible = false` by default. This is used
+> as a hint to show warnings during rollback, but does not prevent rollback.
+
 ### Reversible Data Migration
 
-Alexi's deprecation model makes data migrations reversible by preserving
-original data in deprecated fields:
+> **Coming soon:** Fully reversible data migrations require `dropField()` which
+> is not yet implemented. See
+> [#97](https://github.com/atzufuki/alexi/issues/97).
+
+For now, you can make data migrations reversible by preserving original data in
+deprecated fields:
 
 ```typescript
 import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
@@ -257,9 +290,6 @@ import { UserModel } from "../models.ts";
 export default class Migration0003 extends DataMigration {
   name = "0003_normalize_emails";
   dependencies = ["0002_add_email_verified"];
-
-  // Override default - this migration IS reversible
-  reversible = true;
 
   async forwards(schema: MigrationSchemaEditor): Promise<void> {
     // 1. Deprecate the original field (preserves data as _deprecated_0003_email)
@@ -273,22 +303,18 @@ export default class Migration0003 extends DataMigration {
     );
 
     // 3. Copy and transform data from deprecated field to new field
-    const users = await UserModel.objects.all().fetch();
-    for (const user of users.array()) {
-      // Read from deprecated field, write to new field
-      const originalEmail = user._deprecated_0003_email.get();
-      user.email.set(originalEmail.toLowerCase());
-      await user.save();
-    }
+    await schema.executeSQL(`
+      UPDATE users SET email = LOWER(_deprecated_0003_email)
+    `);
   }
 
   async backwards(schema: MigrationSchemaEditor): Promise<void> {
-    // 1. Drop the new (normalized) email field
-    await schema.dropField(UserModel, "email");
+    // 1. Deprecate the new field (we can't drop it yet)
+    await schema.deprecateField(UserModel, "email");
 
-    // 2. Restore the original field from deprecation
-    await schema.restoreField(UserModel, "email");
-    // Original (non-lowercase) data is preserved in the restored field
+    // 2. Restore the original field from its deprecation
+    await schema.restoreField(UserModel, "email", "0003");
+    // Original (non-lowercase) data is preserved
   }
 }
 ```
@@ -300,40 +326,7 @@ With this approach:
   `email`
 - **Cleanup later** - Use `migrate --cleanup` to remove deprecated fields after
   verification
-
-### Non-Reversible Data Migration
-
-If you intentionally want a migration to be non-reversible (e.g., one-way data
-transformation without preserving originals):
-
-```typescript
-import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
-import { UserModel } from "../models.ts";
-
-export default class Migration0003 extends DataMigration {
-  name = "0003_normalize_emails";
-  dependencies = ["0002_add_email_verified"];
-
-  // DataMigration defaults to reversible = false
-  // No need to set explicitly, but shown here for clarity
-  reversible = false;
-
-  async forwards(schema: MigrationSchemaEditor): Promise<void> {
-    // In-place update without preserving original
-    const users = await UserModel.objects.all().fetch();
-    for (const user of users.array()) {
-      user.email.set(user.email.get().toLowerCase());
-      await user.save();
-    }
-  }
-
-  async backwards(_schema: MigrationSchemaEditor): Promise<void> {
-    throw new Error(
-      "Cannot reverse email normalization - original data not preserved",
-    );
-  }
-}
-```
+- **Caveat** - Rolling back leaves an extra deprecated field from step 1
 
 ## Management Commands
 
