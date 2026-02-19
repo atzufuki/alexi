@@ -2,7 +2,8 @@
  * Migration Base Class
  *
  * Base class for all database migrations. Migrations define schema changes
- * using imperative `forwards()` and `backwards()` methods.
+ * using an imperative `forwards()` method, and optionally a `backwards()`
+ * method for reversibility.
  *
  * @module
  */
@@ -42,8 +43,8 @@ export interface MigrationOptions {
  * Abstract base class for migrations
  *
  * All migrations should extend this class and implement:
- * - `forwards()`: Apply the migration
- * - `backwards()`: Reverse the migration (unless `reversible = false`)
+ * - `forwards()`: Apply the migration (required)
+ * - `backwards()`: Reverse the migration (optional - omit for non-reversible)
  *
  * @example
  * ```ts
@@ -112,16 +113,6 @@ export abstract class Migration {
   dependencies: MigrationDependency[] = [];
 
   /**
-   * Whether this migration is reversible
-   *
-   * Set to `false` if the migration cannot be reversed (e.g., data loss).
-   * A warning will be shown when applying irreversible migrations.
-   *
-   * @default true
-   */
-  reversible: boolean = true;
-
-  /**
    * Description of the migration (optional)
    *
    * Shown in `showmigrations` output
@@ -151,12 +142,13 @@ export abstract class Migration {
   abstract forwards(schema: MigrationSchemaEditor): Promise<void>;
 
   /**
-   * Reverse the migration
+   * Reverse the migration (optional)
    *
    * Implement this method to undo the changes made in `forwards()`.
    * Use deprecation methods instead of deletion for safety.
    *
-   * If `reversible = false`, this method can throw an error or be empty.
+   * If not implemented, the migration cannot be reversed. A warning will
+   * be shown when applying, and rollback will be blocked.
    *
    * @param schema - Schema editor for making changes
    *
@@ -168,7 +160,7 @@ export abstract class Migration {
    * }
    * ```
    */
-  abstract backwards(schema: MigrationSchemaEditor): Promise<void>;
+  backwards?(schema: MigrationSchemaEditor): Promise<void>;
 
   // ==========================================================================
   // Utility Methods
@@ -214,10 +206,12 @@ export abstract class Migration {
   /**
    * Check if this migration can be reversed
    *
+   * Returns true if `backwards()` is implemented.
+   *
    * @returns true if reversible
    */
   canReverse(): boolean {
-    return this.reversible;
+    return typeof this.backwards === "function";
   }
 }
 
@@ -229,36 +223,51 @@ export abstract class Migration {
  * Helper class for data migrations
  *
  * Use this for migrations that need to transform data, not just schema.
+ * By default, data migrations don't have a `backwards()` method, making
+ * them non-reversible. Override `backwards()` to make them reversible.
  *
- * @example
+ * @example Non-reversible data migration
  * ```ts
- * import { DataMigration } from "@alexi/db/migrations";
- * import { db } from "@alexi/db";
+ * import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
+ *
+ * export default class Migration0003 extends DataMigration {
+ *   name = "0003_normalize_emails";
+ *
+ *   async forwards(_schema: MigrationSchemaEditor): Promise<void> {
+ *     const users = await UserModel.objects.all().fetch();
+ *     for (const user of users.array()) {
+ *       user.email.set(user.email.get().toLowerCase());
+ *       await user.save();
+ *     }
+ *   }
+ *   // No backwards() - cannot be reversed
+ * }
+ * ```
+ *
+ * @example Reversible data migration
+ * ```ts
+ * import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
  *
  * export default class Migration0003 extends DataMigration {
  *   name = "0003_normalize_emails";
  *
  *   async forwards(schema: MigrationSchemaEditor): Promise<void> {
- *     const users = await db.executeRaw(`SELECT id, email FROM users`);
- *     for (const user of users) {
- *       await db.executeRaw(
- *         `UPDATE users SET email = $1 WHERE id = $2`,
- *         [user.email.toLowerCase(), user.id]
- *       );
- *     }
+ *     await schema.deprecateField(UserModel, "email");
+ *     await schema.addField(UserModel, "email", new EmailField());
+ *     await schema.executeSQL(`
+ *       UPDATE users SET email = LOWER(_deprecated_0003_email)
+ *     `);
  *   }
  *
  *   async backwards(schema: MigrationSchemaEditor): Promise<void> {
- *     // Cannot reverse email normalization
- *     throw new Error("This migration cannot be reversed");
+ *     await schema.dropField(UserModel, "email");
+ *     await schema.restoreField(UserModel, "email");
  *   }
  * }
  * ```
  */
 export abstract class DataMigration extends Migration {
-  /**
-   * Data migrations are not reversible by default
-   * (override if you implement proper backwards())
-   */
-  override reversible = false;
+  // DataMigration doesn't override anything special anymore.
+  // It's just a semantic marker for data-only migrations.
+  // backwards() is optional by default (inherited from Migration).
 }

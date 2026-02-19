@@ -308,6 +308,26 @@ export class MigrationSchemaEditor {
   }
 
   /**
+   * Drop a field from a model
+   *
+   * **Warning:** This permanently deletes the column and its data.
+   * Use `deprecateField()` instead if you want to preserve data.
+   *
+   * This is primarily useful in `backwards()` methods to drop fields
+   * that were added in `forwards()`.
+   *
+   * @param model - Model class
+   * @param fieldName - Field name to drop
+   */
+  async dropField(model: typeof Model, fieldName: string): Promise<void> {
+    const tableName = this._getTableName(model);
+
+    this._log(`Dropping field ${fieldName} from ${model.name}...`);
+    await this._backendEditor.dropColumn(tableName, fieldName);
+    this._logVerbose(`  Dropped column: ${fieldName}`);
+  }
+
+  /**
    * Deprecate a field (rename column to _deprecated_*)
    *
    * This preserves the data but frees the column name for reuse.

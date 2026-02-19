@@ -281,6 +281,13 @@ export class MigrationExecutor {
     const fullName = migration.getFullName();
     const startTime = Date.now();
 
+    // Warn if migration cannot be reversed
+    if (!migration.canReverse() && options?.verbosity !== 0) {
+      console.warn(
+        `Warning: Migration ${fullName} cannot be reversed (no backwards() method)`,
+      );
+    }
+
     if (options?.verbosity !== 0) {
       console.log(`Applying ${fullName}...`);
     }
@@ -347,10 +354,19 @@ export class MigrationExecutor {
     const fullName = migration.getFullName();
     const startTime = Date.now();
 
+    // Error if migration cannot be reversed
     if (!migration.canReverse()) {
-      console.warn(
-        `Warning: Migration ${fullName} is marked as irreversible`,
-      );
+      const errorMessage =
+        `Cannot rollback ${fullName}: migration has no backwards() method`;
+      console.error(errorMessage);
+
+      return {
+        migration,
+        direction: "backward",
+        success: false,
+        error: errorMessage,
+        duration: Date.now() - startTime,
+      };
     }
 
     if (options?.verbosity !== 0) {
@@ -366,7 +382,7 @@ export class MigrationExecutor {
 
       // Run backwards
       if (!options?.dryRun) {
-        await migration.backwards(schemaEditor);
+        await migration.backwards!(schemaEditor);
 
         // Remove the migration record
         await this._recorder.recordUnapplied(fullName);
@@ -417,7 +433,7 @@ export class MigrationExecutor {
     for (const loaded of [...migrations].reverse()) {
       if (!loaded.migration.canReverse()) {
         console.warn(
-          `  Skipping ${loaded.migration.getFullName()} (marked irreversible)`,
+          `  Skipping ${loaded.migration.getFullName()} (no backwards() method)`,
         );
         continue;
       }

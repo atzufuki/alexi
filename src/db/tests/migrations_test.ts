@@ -109,11 +109,7 @@ class IrreversibleMigration extends DataMigration {
   override dependencies = ["0002_add_user_email"];
 
   override async forwards(_schema: MigrationSchemaEditor): Promise<void> {
-    // Data migration logic
-  }
-
-  override async backwards(_schema: MigrationSchemaEditor): Promise<void> {
-    throw new Error("This migration cannot be reversed");
+    // Data migration logic - no backwards() method means it cannot be reversed
   }
 }
 
@@ -131,15 +127,13 @@ Deno.test("Migration - dependencies property", () => {
   assertEquals(migration.dependencies, ["0001_initial"]);
 });
 
-Deno.test("Migration - reversible property defaults to true", () => {
+Deno.test("Migration - canReverse() returns true when backwards() is implemented", () => {
   const migration = new Migration0001();
-  assertEquals(migration.reversible, true);
   assertEquals(migration.canReverse(), true);
 });
 
-Deno.test("DataMigration - reversible defaults to false", () => {
+Deno.test("DataMigration - canReverse() returns false when backwards() is not implemented", () => {
   const migration = new IrreversibleMigration();
-  assertEquals(migration.reversible, false);
   assertEquals(migration.canReverse(), false);
 });
 
