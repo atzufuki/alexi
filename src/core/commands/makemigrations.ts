@@ -3,21 +3,21 @@
  *
  * Generate migration templates based on model changes.
  *
- * @module @alexi/db/commands/makemigrations
+ * @module @alexi/core/commands/makemigrations
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "../base_command.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
+} from "../types.ts";
 import {
   categorizeChanges,
   type Change,
   formatChange,
   StateComparator,
-} from "../migrations/mod.ts";
+} from "@alexi/db/migrations";
 
 // =============================================================================
 // MakemigrationsCommand Class

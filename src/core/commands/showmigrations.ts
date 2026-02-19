@@ -3,21 +3,21 @@
  *
  * Display all migrations and their applied status.
  *
- * @module @alexi/db/commands/showmigrations
+ * @module @alexi/core/commands/showmigrations
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "../base_command.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
-import { MigrationLoader } from "../migrations/loader.ts";
+} from "../types.ts";
 import {
   createDeprecationRecorder,
   createMigrationRecorder,
-} from "../migrations/recorders/factory.ts";
-import { getBackend, getBackendByName } from "../setup.ts";
+  MigrationLoader,
+} from "@alexi/db/migrations";
+import { getBackend, getBackendByName } from "@alexi/db";
 
 // =============================================================================
 // ShowmigrationsCommand Class
@@ -239,8 +239,7 @@ export class ShowmigrationsCommand extends BaseCommand {
   }
 
   private async _displayDeprecations(backend: unknown): Promise<void> {
-    const typedBackend =
-      backend as import("../backends/backend.ts").DatabaseBackend;
+    const typedBackend = backend as import("@alexi/db").DatabaseBackend;
     const deprecationRecorder = createDeprecationRecorder(typedBackend);
 
     try {
