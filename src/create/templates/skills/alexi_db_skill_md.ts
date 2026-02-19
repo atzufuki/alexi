@@ -290,6 +290,9 @@ await schema.addField(UserModel, "bio", new TextField({ blank: true }));
 // Deprecate a field (safe removal with rollback support)
 await schema.deprecateField(UserModel, "legacyField");
 
+// Drop a field (permanent deletion - use with caution)
+await schema.dropField(UserModel, "temporaryField");
+
 // Alter a field
 await schema.alterField(UserModel, "name", new CharField({ maxLength: 200 }));
 
@@ -318,6 +321,27 @@ await schema.deprecateField(UserModel, "phoneNumber");
 
 // Clean up deprecated items older than 30 days
 // deno task manage migrate --cleanup
+\`\`\`
+
+### Non-Reversible Migrations
+
+Migrations without a \`backwards()\` method cannot be rolled back:
+
+\`\`\`typescript
+import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
+
+export default class Migration0003 extends DataMigration {
+  name = "0003_normalize_emails";
+  dependencies = ["0002_add_email"];
+
+  async forwards(_schema: MigrationSchemaEditor): Promise<void> {
+    // Transform data in-place
+  }
+
+  // No backwards() = migration cannot be reversed
+  // - Warning shown when applying
+  // - Rollback blocked with error
+}
 \`\`\`
 
 ## Database Setup
