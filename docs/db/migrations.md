@@ -251,23 +251,28 @@ original data in deprecated fields:
 
 ```typescript
 import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
+import { EmailField } from "@alexi/db";
 import { UserModel } from "../models.ts";
 
 export default class Migration0003 extends DataMigration {
   name = "0003_normalize_emails";
   dependencies = ["0002_add_email_verified"];
 
+  // Override default - this migration IS reversible
+  reversible = true;
+
   async forwards(schema: MigrationSchemaEditor): Promise<void> {
-    // 1. Deprecate the original field (preserves data)
+    // 1. Deprecate the original field (preserves data as _deprecated_0003_email)
     await schema.deprecateField(UserModel, "email");
 
     // 2. Add new field for normalized data
-    await schema.addField(UserModel, "email", {
-      type: "varchar",
-      maxLength: 255,
-    });
+    await schema.addField(
+      UserModel,
+      "email",
+      new EmailField({ maxLength: 255 }),
+    );
 
-    // 3. Copy and transform data
+    // 3. Copy and transform data from deprecated field to new field
     const users = await UserModel.objects.all().fetch();
     for (const user of users.array()) {
       // Read from deprecated field, write to new field
@@ -278,8 +283,12 @@ export default class Migration0003 extends DataMigration {
   }
 
   async backwards(schema: MigrationSchemaEditor): Promise<void> {
-    // Rollback restores the deprecated field automatically
-    // Original (non-lowercase) data is preserved
+    // 1. Drop the new (normalized) email field
+    await schema.dropField(UserModel, "email");
+
+    // 2. Restore the original field from deprecation
+    await schema.restoreField(UserModel, "email");
+    // Original (non-lowercase) data is preserved in the restored field
   }
 }
 ```
@@ -287,7 +296,8 @@ export default class Migration0003 extends DataMigration {
 With this approach:
 
 - **Original data preserved** - The deprecated field retains the original values
-- **Safe rollback** - Running `migrate --rollback` restores the original field
+- **Safe rollback** - `restoreField()` renames `_deprecated_0003_email` back to
+  `email`
 - **Cleanup later** - Use `migrate --cleanup` to remove deprecated fields after
   verification
 
@@ -304,7 +314,8 @@ export default class Migration0003 extends DataMigration {
   name = "0003_normalize_emails";
   dependencies = ["0002_add_email_verified"];
 
-  // Mark as non-reversible
+  // DataMigration defaults to reversible = false
+  // No need to set explicitly, but shown here for clarity
   reversible = false;
 
   async forwards(schema: MigrationSchemaEditor): Promise<void> {
@@ -316,7 +327,7 @@ export default class Migration0003 extends DataMigration {
     }
   }
 
-  async backwards(schema: MigrationSchemaEditor): Promise<void> {
+  async backwards(_schema: MigrationSchemaEditor): Promise<void> {
     throw new Error(
       "Cannot reverse email normalization - original data not preserved",
     );
