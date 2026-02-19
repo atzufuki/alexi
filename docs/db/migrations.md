@@ -242,7 +242,12 @@ deno task manage migrate --cleanup
 
 ## Data Migrations
 
-For data-only changes (no schema changes), use `DataMigration`:
+For data-only changes (no schema changes), use `DataMigration`.
+
+### Reversible Data Migration
+
+Alexi's deprecation model makes data migrations reversible by preserving
+original data in deprecated fields:
 
 ```typescript
 import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
@@ -252,21 +257,69 @@ export default class Migration0003 extends DataMigration {
   name = "0003_normalize_emails";
   dependencies = ["0002_add_email_verified"];
 
-  // DataMigration defaults to reversible = false
-  reversible = false;
-
   async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    // 1. Deprecate the original field (preserves data)
+    await schema.deprecateField(UserModel, "email");
+
+    // 2. Add new field for normalized data
+    await schema.addField(UserModel, "email", {
+      type: "varchar",
+      maxLength: 255,
+    });
+
+    // 3. Copy and transform data
     const users = await UserModel.objects.all().fetch();
     for (const user of users.array()) {
-      const email = user.email.get().toLowerCase();
-      user.email.set(email);
+      // Read from deprecated field, write to new field
+      const originalEmail = user._deprecated_0003_email.get();
+      user.email.set(originalEmail.toLowerCase());
       await user.save();
     }
   }
 
   async backwards(schema: MigrationSchemaEditor): Promise<void> {
-    // Data migrations are typically not reversible
-    throw new Error("Cannot reverse email normalization");
+    // Rollback restores the deprecated field automatically
+    // Original (non-lowercase) data is preserved
+  }
+}
+```
+
+With this approach:
+
+- **Original data preserved** - The deprecated field retains the original values
+- **Safe rollback** - Running `migrate --rollback` restores the original field
+- **Cleanup later** - Use `migrate --cleanup` to remove deprecated fields after
+  verification
+
+### Non-Reversible Data Migration
+
+If you intentionally want a migration to be non-reversible (e.g., one-way data
+transformation without preserving originals):
+
+```typescript
+import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
+import { UserModel } from "../models.ts";
+
+export default class Migration0003 extends DataMigration {
+  name = "0003_normalize_emails";
+  dependencies = ["0002_add_email_verified"];
+
+  // Mark as non-reversible
+  reversible = false;
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    // In-place update without preserving original
+    const users = await UserModel.objects.all().fetch();
+    for (const user of users.array()) {
+      user.email.set(user.email.get().toLowerCase());
+      await user.save();
+    }
+  }
+
+  async backwards(schema: MigrationSchemaEditor): Promise<void> {
+    throw new Error(
+      "Cannot reverse email normalization - original data not preserved",
+    );
   }
 }
 ```
