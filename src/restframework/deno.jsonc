@@ -4,6 +4,7 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
+    "./authentication": "./authentication/mod.ts",
     "./serializers": "./serializers/mod.ts",
     "./viewsets": "./viewsets/mod.ts",
     "./routers": "./routers/mod.ts"
