@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.24.2] - 2026-02-23
+
+### Fixed
+
+- `ModelSerializer.buildField()` now forwards `blank=true` as `allowBlank: true`
+  on serializer `CharField` and `UUIDField`, so validation correctly allows
+  empty strings when the model field has `blank: true` (#106)
+
 ## [0.24.1] - 2026-02-23
 
 ### Fixed
