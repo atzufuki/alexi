@@ -8,6 +8,11 @@
 
 import type { View } from "@alexi/urls";
 import type { BasePermission, PermissionClass } from "../permissions/mod.ts";
+import type {
+  AuthenticatedUser,
+  AuthenticationClass,
+  BaseAuthentication,
+} from "../authentication/mod.ts";
 import {
   type BaseRenderer,
   JSONRenderer,
@@ -196,6 +201,25 @@ export function getActions(instance: object): Map<string, ActionMetadata> {
  */
 export class ViewSet {
   /**
+   * Authentication classes to run before each action
+   *
+   * Authenticators are tried in order. The first one that returns a non-null
+   * user wins and sets context.user. If all return null, context.user remains
+   * undefined (anonymous request).
+   *
+   * Override getAuthenticators() for per-action control.
+   *
+   * @example
+   * ```ts
+   * class ArticleViewSet extends ModelViewSet {
+   *   authentication_classes = [JWTAuthentication];
+   *   permission_classes = [IsAuthenticated];
+   * }
+   * ```
+   */
+  authentication_classes?: AuthenticationClass[];
+
+  /**
    * Permission classes to check before each action
    *
    * All permissions must pass (AND logic). Override getPermissions()
@@ -337,6 +361,52 @@ export class ViewSet {
       return [];
     }
     return this.permission_classes.map((cls) => new cls());
+  }
+
+  /**
+   * Get authenticator instances for the current action
+   *
+   * Override this method to return different authenticators per action.
+   *
+   * @example
+   * ```ts
+   * getAuthenticators(): BaseAuthentication[] {
+   *   if (this.action === "retrieve") {
+   *     return [new JWTAuthentication(), new ApiKeyAuthentication()];
+   *   }
+   *   return [new JWTAuthentication()];
+   * }
+   * ```
+   */
+  getAuthenticators(): BaseAuthentication[] {
+    if (!this.authentication_classes) {
+      return [];
+    }
+    return this.authentication_classes.map((cls) => new cls());
+  }
+
+  /**
+   * Run all authenticators and populate context.user on the first match
+   *
+   * Authenticators are tried in order. The first non-null result wins.
+   * If all return null, context.user remains undefined (anonymous request).
+   *
+   * This method is called automatically in asView() before checkPermissions().
+   *
+   * @param context - The ViewSet context to populate
+   */
+  async performAuthentication(context: ViewSetContext): Promise<void> {
+    const authenticators = this.getAuthenticators();
+
+    for (const authenticator of authenticators) {
+      const user: AuthenticatedUser | null = await authenticator.authenticate(
+        context,
+      );
+      if (user != null) {
+        context.user = user;
+        return;
+      }
+    }
   }
 
   /**
@@ -588,6 +658,9 @@ export class ViewSet {
       if (throttleResponse) {
         return throttleResponse;
       }
+
+      // Authenticate the request — populates context.user if credentials are present
+      await viewset.performAuthentication(context);
 
       // Check permissions before executing the action
       try {

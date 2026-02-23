@@ -167,6 +167,11 @@ import {
   ScopedRateThrottle,
   UserRateThrottle,
 } from "@alexi/restframework";
+import {
+  BaseAuthentication,
+  JWTAuthentication,
+} from "@alexi/restframework/authentication";
+import type { AuthenticatedUser } from "@alexi/restframework/authentication";
 
 // Authentication
 import { adminRequired, loginRequired, optionalLogin } from "@alexi/auth";
@@ -1144,6 +1149,77 @@ class UserOnlyViewSet extends ModelViewSet {
   permission_classes = [Not.of(IsAdminUser)];
 }
 ```
+
+### Authentication
+
+`authentication_classes` on a ViewSet controls how `context.user` is populated
+before permission checks run. Authenticators are tried in order; the first
+non-null result wins. If all return `null`, `context.user` remains `undefined`
+(anonymous request).
+
+```typescript
+import { ModelViewSet } from "@alexi/restframework";
+import {
+  BaseAuthentication,
+  JWTAuthentication,
+} from "@alexi/restframework/authentication";
+import type { AuthenticatedUser } from "@alexi/restframework/authentication";
+import type { ViewSetContext } from "@alexi/restframework";
+
+// Use built-in JWT bearer authentication
+class ArticleViewSet extends ModelViewSet {
+  model = ArticleModel;
+  serializer_class = ArticleSerializer;
+  authentication_classes = [JWTAuthentication];
+  permission_classes = [IsAuthenticated]; // context.user now populated
+}
+
+// Custom authenticator
+class ApiKeyAuthentication extends BaseAuthentication {
+  async authenticate(
+    context: ViewSetContext,
+  ): Promise<AuthenticatedUser | null> {
+    const key = context.request.headers.get("X-Api-Key");
+    if (!key) return null;
+    const user = await ApiKeyModel.objects.filter({ key }).first();
+    if (!user) return null;
+    return { userId: user.id.get(), email: user.email.get(), isAdmin: false };
+  }
+}
+
+class ProtectedViewSet extends ModelViewSet {
+  authentication_classes = [JWTAuthentication, ApiKeyAuthentication];
+  permission_classes = [IsAuthenticated];
+}
+```
+
+#### JWTAuthentication
+
+Reads `Authorization: Bearer <token>` from the request header.
+
+- Supports **HS256** signed tokens (secret from `Deno.env.get("SECRET_KEY")`)
+- Supports **unsigned** tokens (`alg: none`) only when no `SECRET_KEY` is set
+- Checks `exp` claim; expired tokens return `null` (anonymous)
+- Payload fields: `userId` (or `sub` as fallback), `email`, `isAdmin`
+
+#### Built-in Authentication Classes
+
+| Class                | Import                                | Description                                |
+| -------------------- | ------------------------------------- | ------------------------------------------ |
+| `BaseAuthentication` | `@alexi/restframework/authentication` | Abstract base — implement `authenticate()` |
+| `JWTAuthentication`  | `@alexi/restframework/authentication` | Bearer JWT (HS256 or unsigned)             |
+
+#### AuthenticatedUser Type
+
+```typescript
+type AuthenticatedUser = {
+  userId: number;
+  email: string;
+  isAdmin: boolean;
+};
+```
+
+---
 
 ### Pagination
 

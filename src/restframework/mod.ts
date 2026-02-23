@@ -229,3 +229,14 @@ export {
 } from "./versioning/mod.ts";
 
 export type { VersioningClass, VersioningConfig } from "./versioning/mod.ts";
+
+// ============================================================================
+// Authentication
+// ============================================================================
+
+export { BaseAuthentication, JWTAuthentication } from "./authentication/mod.ts";
+
+export type {
+  AuthenticatedUser,
+  AuthenticationClass,
+} from "./authentication/mod.ts";
