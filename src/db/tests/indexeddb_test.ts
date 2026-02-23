@@ -869,6 +869,50 @@ Deno.test("IndexedDBBackend - transaction interface", async () => {
 });
 
 // ============================================================================
+// Concurrency Tests
+// ============================================================================
+
+Deno.test(
+  "IndexedDBBackend - concurrent ensureStore calls do not race",
+  async () => {
+    const dbName = uniqueDbName("test-idb-concurrent-ensure");
+    const backend = new IndexedDBBackend({ name: dbName, version: 1 });
+    await backend.connect();
+
+    try {
+      // Simulate the reproduction case from issue #104:
+      // three models fetched concurrently on first load, each triggering
+      // ensureStore for its own store.
+      const [articlesResult, authorsResult] = await Promise.all([
+        Article.objects.using(backend).all().fetch(),
+        Author.objects.using(backend).all().fetch(),
+      ]);
+
+      // Both queries must succeed without InvalidStateError
+      assertEquals(articlesResult.array().length, 0);
+      assertEquals(authorsResult.array().length, 0);
+
+      // Both stores must now be registered
+      assertEquals(await backend.tableExists("articles"), true);
+      assertEquals(await backend.tableExists("authors"), true);
+
+      // Data written after concurrent setup must be readable
+      await Article.objects
+        .using(backend)
+        .create({ title: "Concurrent Test", content: "ok", views: 1 });
+      const articles = (
+        await Article.objects.using(backend).all().fetch()
+      ).array();
+      assertEquals(articles.length, 1);
+      assertEquals(articles[0].title.get(), "Concurrent Test");
+    } finally {
+      await backend.disconnect();
+      await cleanupDb(backend);
+    }
+  },
+);
+
+// ============================================================================
 // clearStore Tests
 // ============================================================================
 

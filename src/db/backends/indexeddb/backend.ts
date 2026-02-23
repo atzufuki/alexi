@@ -402,6 +402,7 @@ export class IndexedDBBackend extends DatabaseBackend {
   private _db: IDBDatabase | null = null;
   private _version: number = 0;
   private _storeNames: Set<string> = new Set();
+  private _ensureStoreQueue: Promise<void> = Promise.resolve();
 
   constructor(
     config: IndexedDBConfig | { name: string; version?: number },
@@ -511,10 +512,39 @@ export class IndexedDBBackend extends DatabaseBackend {
   }
 
   /**
-   * Ensure an object store exists, creating it if necessary via version upgrade
+   * Ensure an object store exists, creating it if necessary via version upgrade.
+   * Calls are serialized via a promise queue to prevent concurrent upgrades from
+   * racing to close and reopen the IDB connection.
+   *
+   * Any caller that needs to use `this._db` after this call must also await
+   * `this._ensureStoreQueue` to ensure no concurrent upgrade is in progress.
+   */
+  async ensureStore(storeName: string): Promise<void> {
+    if (this._storeNames.has(storeName)) {
+      // Even if this store already exists, wait for any in-flight upgrade to
+      // finish before the caller proceeds to use this._db.
+      await this._ensureStoreQueue;
+      return;
+    }
+
+    // Chain onto the existing queue so only one upgrade runs at a time.
+    // The double-check inside _doEnsureStore handles the case where a previous
+    // queued call already created this store.
+    const queued = this._ensureStoreQueue.then(() =>
+      this._doEnsureStore(storeName)
+    );
+    // Keep a reference to the current tail so new callers chain off this.
+    this._ensureStoreQueue = queued.catch(() => {});
+    return queued;
+  }
+
+  /**
+   * Internal implementation of ensureStore – must only be called from the
+   * serialised queue inside ensureStore().
    */
   // deno-lint-ignore require-await
-  async ensureStore(storeName: string): Promise<void> {
+  private async _doEnsureStore(storeName: string): Promise<void> {
+    // Double-check: a previous queued call may have already created the store.
     if (this._storeNames.has(storeName)) {
       return;
     }
@@ -568,8 +598,10 @@ export class IndexedDBBackend extends DatabaseBackend {
     const instance = new state.model();
     const tableName = instance.getTableName();
 
-    // Ensure the store exists
+    // Ensure the store exists, then wait for all queued upgrades to settle
+    // before using this._db (a concurrent upgrade closes/reopens the connection).
     await this.ensureStore(tableName);
+    await this._ensureStoreQueue;
 
     // Resolve nested FK lookups (e.g., projectRole__project = 123)
     const resolvedFilters = await this.resolveNestedFilters(
