@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.24.1] - 2026-02-23
+
+### Fixed
+
+- Fixed `InvalidStateError` in `IndexedDBBackend` when multiple model queries
+  are fired concurrently on first page load. `ensureStore` calls are now
+  serialized through a promise queue, and callers wait for any in-flight upgrade
+  to settle before using the database connection (#104, #105)
+
 ## [0.22.0] - 2026-02-18
 
 ### Added
