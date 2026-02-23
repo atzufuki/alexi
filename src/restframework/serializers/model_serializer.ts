@@ -203,6 +203,7 @@ export abstract class ModelSerializer extends Serializer {
         return new CharField({
           ...baseOptions,
           maxLength: (fieldOptions as { maxLength?: number }).maxLength,
+          allowBlank: fieldOptions.blank ?? false,
         });
 
       case "TextField":
@@ -243,7 +244,11 @@ export abstract class ModelSerializer extends Serializer {
         return new JSONField(baseOptions);
 
       case "UUIDField":
-        return new CharField({ ...baseOptions, maxLength: 36 });
+        return new CharField({
+          ...baseOptions,
+          maxLength: 36,
+          allowBlank: fieldOptions.blank ?? false,
+        });
 
       case "ForeignKey":
       case "OneToOneField":

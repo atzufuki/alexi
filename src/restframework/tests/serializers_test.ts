@@ -11,6 +11,14 @@ import {
 import { describe, it } from "https://deno.land/std@0.208.0/testing/bdd.ts";
 
 import {
+  AutoField,
+  CharField as ModelCharField,
+  Manager,
+  Model,
+  UUIDField as ModelUUIDField,
+} from "@alexi/db";
+
+import {
   BooleanField,
   CharField,
   ChoiceField,
@@ -33,6 +41,8 @@ import {
   SerializerValidationError,
   ValidationError,
 } from "../serializers/serializer.ts";
+
+import { ModelSerializer } from "../serializers/model_serializer.ts";
 
 // ============================================================================
 // CharField Tests
@@ -740,5 +750,55 @@ describe("Serializer", () => {
 
     // Nested ForeignKey should also return ID
     assertEquals(data.parentChild, 99);
+  });
+});
+
+// ============================================================================
+// ModelSerializer Tests
+// ============================================================================
+
+class BlankFieldModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new ModelCharField({ maxLength: 100, blank: true });
+  code = new ModelCharField({ maxLength: 50 }); // blank: false by default
+  uuid = new ModelUUIDField({ blank: true });
+
+  static objects = new Manager(BlankFieldModel);
+  static override meta = { dbTable: "blank_field_model" };
+}
+
+class BlankFieldSerializer extends ModelSerializer {
+  static override Meta = {
+    model: BlankFieldModel,
+    fields: ["name", "code", "uuid"],
+  };
+}
+
+describe("ModelSerializer", () => {
+  it("should allow blank string for CharField with blank=true", () => {
+    const serializer = new BlankFieldSerializer({
+      data: { name: "", code: "ABC", uuid: "" },
+    });
+
+    assertEquals(serializer.isValid(), true);
+    assertEquals(serializer.validatedData.name, "");
+  });
+
+  it("should reject blank string for CharField with blank=false (default)", () => {
+    const serializer = new BlankFieldSerializer({
+      data: { name: "valid", code: "", uuid: "" },
+    });
+
+    assertEquals(serializer.isValid(), false);
+    assertNotEquals(serializer.errors.code, undefined);
+  });
+
+  it("should allow blank string for UUIDField with blank=true", () => {
+    const serializer = new BlankFieldSerializer({
+      data: { name: "", code: "ABC", uuid: "" },
+    });
+
+    assertEquals(serializer.isValid(), true);
+    assertEquals(serializer.validatedData.uuid, "");
   });
 });
