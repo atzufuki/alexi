@@ -1,6 +1,6 @@
 {
   "name": "@alexi/restframework",
-  "version": "0.24.0",
+  "version": "0.24.1",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -10,9 +10,9 @@
     "./routers": "./routers/mod.ts"
   },
   "imports": {
-    "@alexi/db": "jsr:@alexi/db@0.24.0",
-    "@alexi/middleware": "jsr:@alexi/middleware@0.24.0",
-    "@alexi/urls": "jsr:@alexi/urls@0.24.0",
+    "@alexi/db": "jsr:@alexi/db@0.24.1",
+    "@alexi/middleware": "jsr:@alexi/middleware@0.24.1",
+    "@alexi/urls": "jsr:@alexi/urls@0.24.1",
     "@std/assert": "jsr:@std/assert@1"
   }
 }
