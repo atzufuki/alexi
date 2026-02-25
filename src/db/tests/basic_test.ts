@@ -89,6 +89,49 @@ Deno.test("Model - field default values", () => {
   assertEquals(article.content.get(), null);
 });
 
+Deno.test(
+  "Model - field.set() before _initializeFields() is not overwritten by default",
+  async () => {
+    const backend = new DenoKVBackend({
+      name: "test_preset",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      // Set a field value BEFORE any method that triggers _initializeFields()
+      const article = new Article();
+      article.views.set(42); // set before getFields() / save() / toDB()
+
+      // _initializeFields() runs lazily here (inside save → toDB)
+      const saved = await Article.objects.create({ title: "Test", views: 42 });
+      assertEquals(saved.views.get(), 42);
+
+      // Also verify via direct set + save path (the exact bug scenario)
+      const doc = new Article();
+      doc.title.set("hello");
+      doc.views.set(99);
+      await doc.save(); // triggers _initializeFields() internally
+
+      const fetched = await Article.objects.get({ id: doc.pk });
+      assertEquals(
+        fetched.views.get(),
+        99,
+        "views set before _initializeFields() must not be overwritten by default (0)",
+      );
+      assertEquals(
+        fetched.title.get(),
+        "hello",
+        "title set before _initializeFields() must be preserved",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+);
+
 Deno.test("Model - set and get field values", () => {
   const article = new Article();
 
