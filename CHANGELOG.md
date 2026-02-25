@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.24.3] - 2026-02-25
+
+### Fixed
+
+- `Model._initializeFields()` no longer overwrites field values that were
+  explicitly set before lazy initialization runs (#108, #109)
+
 ## [0.24.2] - 2026-02-23
 
 ### Fixed
