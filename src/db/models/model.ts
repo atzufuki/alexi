@@ -384,8 +384,10 @@ export abstract class Model {
         // Set the field name
         value.setName(key);
 
-        // Set default value if available
-        if (value.hasDefault()) {
+        // Set default value only if the field has not been explicitly set yet.
+        // Fields may be set before _initializeFields() runs (e.g. field.set()
+        // called right after construction), so we must not overwrite them.
+        if (value.hasDefault() && value.get() === null) {
           const defaultValue = value.getDefault();
           this._data[key] = defaultValue;
           value.set(defaultValue as never);
