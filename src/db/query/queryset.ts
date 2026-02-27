@@ -833,8 +833,11 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
       reversed: false,
     });
 
-    // Create a map of ID to related instance
-    const relatedMap = new Map<unknown, Model>();
+    // Create a map of ID to related instance.
+    // Use string keys throughout so number/string mismatches (e.g. IndexedDB
+    // storing IDs as strings while AutoField.fromDB returns numbers) are
+    // handled consistently.
+    const relatedMap = new Map<string, Model>();
     const relatedInstances: Model[] = [];
     for (const data of relatedData) {
       const relatedInstance = new relatedModelClass();
@@ -844,7 +847,7 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
       (relatedInstance as any)._backend = backend;
       const pk = relatedInstance.pk;
       if (pk !== null && pk !== undefined) {
-        relatedMap.set(pk, relatedInstance);
+        relatedMap.set(String(pk), relatedInstance);
         relatedInstances.push(relatedInstance);
       }
     }
@@ -853,7 +856,7 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
     for (const [_instance, field] of fieldsByInstance) {
       const fkId = field.id;
       if (fkId !== null && fkId !== undefined) {
-        const relatedInstance = relatedMap.get(fkId);
+        const relatedInstance = relatedMap.get(String(fkId));
         if (relatedInstance) {
           // deno-lint-ignore no-explicit-any
           field.setRelatedInstance(relatedInstance as any);
