@@ -389,6 +389,25 @@ export async function renderChangeList(
   const searchParams = url.searchParams;
   const listUrl = modelAdmin.getListUrl();
 
+  // --- Handle bulk action POST ---
+  if (request.method === "POST") {
+    const formData = await request.formData();
+    const action = formData.get("action");
+    const selectedIds = formData.getAll("_selected_action").map(String);
+
+    if (action === "delete_selected" && selectedIds.length > 0) {
+      await modelAdmin.deleteSelected(selectedIds, backend);
+    }
+
+    return new Response(null, {
+      status: 302,
+      headers: {
+        Location: listUrl,
+        "HX-Redirect": listUrl,
+      },
+    });
+  }
+
   // --- Parse query params ---
   const searchQuery = searchParams.get("q") ?? "";
   const page = Math.max(1, parseInt(searchParams.get("p") ?? "1", 10) || 1);
