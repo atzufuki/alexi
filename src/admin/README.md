@@ -1,6 +1,6 @@
 # @alexi/admin
 
-Auto-generated admin panel for Alexi models.
+Auto-generated Django-style admin panel for Alexi models.
 
 ## Installation
 
@@ -8,12 +8,35 @@ Auto-generated admin panel for Alexi models.
 deno add jsr:@alexi/admin
 ```
 
-## Usage
+## Quick Start
 
 ```typescript
-import { AdminSite, ModelAdmin } from "@alexi/admin";
+import { AdminRouter, AdminSite, ModelAdmin } from "@alexi/admin";
+import { UserModel } from "./models.ts";
+import { backend } from "./db.ts";
+import * as settings from "./settings.ts";
+
+// 1. Create the admin site
+const adminSite = new AdminSite({
+  title: "My App Admin",
+  header: "My App Administration",
+});
+
+// 2. Register models
+class UserAdmin extends ModelAdmin {
+  listDisplay = ["id", "email", "isActive"];
+  searchFields = ["email"];
+  ordering = ["-dateJoined"];
+}
+
+adminSite.register(UserModel, UserAdmin);
+
+// 3. Handle requests
+const router = new AdminRouter(adminSite, backend, settings);
+const response = await router.handle(request);
 ```
 
 ## Documentation
 
-See [Admin Panel Documentation](../../docs/admin/admin.md) for detailed usage.
+See [Admin Panel Documentation](../../docs/admin/admin.md) for full usage,
+configuration reference, and examples.
