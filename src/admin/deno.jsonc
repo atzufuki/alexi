@@ -10,7 +10,8 @@
     "./options": "./options.ts",
     "./components": "./components/mod.ts",
     "./views": "./views/admin_views.ts",
-    "./app": "./app/app.ts"
+    "./app": "./app/app.ts",
+    "./templates/mpa": "./templates/mpa/base.ts"
   },
   "imports": {
     "@alexi/db": "jsr:@alexi/db@0.24.6",
