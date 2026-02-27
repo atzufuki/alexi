@@ -403,9 +403,6 @@
           "jsr:@alexi/restframework@0.24.6",
           "jsr:@alexi/types@0.24.6",
           "jsr:@alexi/urls@0.24.6",
-          "jsr:@html-props/built-ins@^1.0.0-beta.5",
-          "jsr:@html-props/core@^1.0.0-beta.5",
-          "jsr:@html-props/layout@^1.0.0-beta.5",
           "jsr:@std/assert@1"
         ]
       },
