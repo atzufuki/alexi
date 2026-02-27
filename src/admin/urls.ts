@@ -8,7 +8,7 @@
 
 import type { DatabaseBackend } from "@alexi/db";
 import type { AdminSite } from "./site.ts";
-import { renderModelDetail } from "./views/admin_views.ts";
+import { renderChangeForm } from "./views/changeform_views.ts";
 import { renderChangeList } from "./views/changelist_views.ts";
 import { renderDashboard } from "./views/dashboard_views.ts";
 import {
@@ -283,11 +283,11 @@ export function getAdminUrls(
           admin.getAddUrl(),
           `admin:${modelName}_add`,
           "add",
-          (_request, _params) => {
-            return new Response("Add form not implemented yet", {
-              status: 501,
-              headers: { "Content-Type": "text/html; charset=utf-8" },
-            });
+          (request, params) => {
+            return renderChangeForm(
+              { request, params, adminSite: site, backend, settings },
+              modelName,
+            );
           },
           modelName,
         ),
@@ -299,19 +299,12 @@ export function getAdminUrls(
           `${prefix}/${modelName}/:id/`,
           `admin:${modelName}_change`,
           "change",
-          async (request, params) => {
-            const result = await renderModelDetail(
-              { request, params, adminSite: site, backend: backend },
+          (request, params) => {
+            return renderChangeForm(
+              { request, params, adminSite: site, backend, settings },
               modelName,
               params.id,
             );
-            return new Response(result.html, {
-              status: result.status ?? 200,
-              headers: {
-                "Content-Type": "text/html; charset=utf-8",
-                ...result.headers,
-              },
-            });
           },
           modelName,
         ),
