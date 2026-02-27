@@ -24,6 +24,13 @@ const config: AppConfig = {
    * URL configuration module.
    */
   urlsModule: "./urls.ts",
+
+  /**
+   * Static files directory.
+   * Uses import.meta.url so the path resolves correctly whether the package
+   * is loaded from JSR cache, a local path, or any other location.
+   */
+  staticDir: new URL("./static/", import.meta.url).href,
 };
 
 export default config;

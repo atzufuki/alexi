@@ -254,6 +254,49 @@ export const urlpatterns = [
 
 ---
 
+## App Static Directory Configuration
+
+Each app declares its static directory via `staticDir` in its `app.ts`:
+
+```ts
+// src/myapp/app.ts
+import type { AppConfig } from "@alexi/types";
+
+const config: AppConfig = {
+  name: "myapp",
+  verboseName: "My App",
+
+  // Project-local app: relative path resolved against src/<name>/
+  staticDir: "./static",
+};
+
+export default config;
+```
+
+For **published packages** (e.g. on JSR), use `import.meta.url` so the path
+resolves correctly regardless of where the package is installed:
+
+```ts
+// src/mypkg/app.ts
+import type { AppConfig } from "@alexi/types";
+
+const config: AppConfig = {
+  name: "mypkg",
+  verboseName: "My Package",
+
+  // Resolves to the package's actual install location at runtime —
+  // works in JSR cache, local dev, and any other layout.
+  staticDir: new URL("./static/", import.meta.url).href,
+};
+
+export default config;
+```
+
+`collectstatic` automatically detects `file://` URLs and resolves them to the
+correct filesystem path (including Windows drive letters).
+
+---
+
 ## Management Commands
 
 ### collectstatic

@@ -560,9 +560,20 @@ export interface AppConfig {
   /**
    * Static files directory.
    * These files are copied to STATIC_ROOT by the collectstatic command.
-   * Path is relative to the app's directory.
    *
-   * @example "./static"
+   * Can be either:
+   * - A path relative to the app's `src/<name>/` directory: `"static"`
+   * - An absolute `file://` URL derived from `import.meta.url` (recommended
+   *   for published packages so the path resolves correctly regardless of
+   *   whether the package is installed from JSR, npm, or a local path):
+   *
+   * @example
+   * // Relative path (project-local apps)
+   * staticDir: "static"
+   *
+   * @example
+   * // Absolute URL (published packages — works in JSR cache, local dev, etc.)
+   * staticDir: new URL("./static/", import.meta.url).href
    */
   staticDir?: string;
 
