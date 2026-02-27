@@ -11,6 +11,7 @@ import type { AdminSite } from "./site.ts";
 import { renderChangeForm } from "./views/changeform_views.ts";
 import { renderChangeList } from "./views/changelist_views.ts";
 import { renderDashboard } from "./views/dashboard_views.ts";
+import { renderDeleteConfirmation } from "./views/delete_views.ts";
 import {
   handleLoginPost,
   handleLogout,
@@ -316,11 +317,12 @@ export function getAdminUrls(
           `${prefix}/${modelName}/:id/delete/`,
           `admin:${modelName}_delete`,
           "delete",
-          (_request, _params) => {
-            return new Response("Delete confirmation not implemented yet", {
-              status: 501,
-              headers: { "Content-Type": "text/html; charset=utf-8" },
-            });
+          (request, params) => {
+            return renderDeleteConfirmation(
+              { request, params, adminSite: site, backend, settings },
+              modelName,
+              params.id,
+            );
           },
           modelName,
         ),
