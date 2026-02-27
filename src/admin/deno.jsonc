@@ -8,9 +8,6 @@
     "./introspection": "./introspection.ts",
     "./urls": "./urls.ts",
     "./options": "./options.ts",
-    "./components": "./components/mod.ts",
-    "./views": "./views/admin_views.ts",
-    "./app": "./app/app.ts",
     "./templates/mpa": "./templates/mpa/base.ts"
   },
   "imports": {
@@ -20,9 +17,6 @@
     "@alexi/core": "jsr:@alexi/core@0.24.6",
     "@alexi/middleware": "jsr:@alexi/middleware@0.24.6",
     "@alexi/restframework": "jsr:@alexi/restframework@0.24.6",
-    "@html-props/core": "jsr:@html-props/core@^1.0.0-beta.5",
-    "@html-props/built-ins": "jsr:@html-props/built-ins@^1.0.0-beta.5",
-    "@html-props/layout": "jsr:@html-props/layout@^1.0.0-beta.5",
     "@std/assert": "jsr:@std/assert@1"
   }
 }
