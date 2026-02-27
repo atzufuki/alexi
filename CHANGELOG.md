@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.24.5] - 2026-02-27
+
+### Fixed
+
+- Fixed `selectRelated()` still failing after #118 — `relatedMap` was built with
+  number keys (from `AutoField.fromDB()`) but looked up with string FK IDs (raw
+  value stored after REST→IndexedDB sync); normalized all keys to `String()`
+  (#120)
+
 ## [0.24.4] - 2026-02-27
 
 ### Fixed
