@@ -158,15 +158,3 @@ export type {
   BuildActionOptions,
   ValidationResult,
 } from "./actions.ts";
-
-// =============================================================================
-// UI Components
-// =============================================================================
-// NOTE: UI components require a browser environment with DOM APIs.
-// They are exported from a separate entry point to avoid issues
-// when importing the core module in server-side code.
-//
-// To use components, import from "@alexi/admin/components":
-//
-// import { AdminDataTable, AdminButton } from "@alexi/admin/components";
-// =============================================================================
