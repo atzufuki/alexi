@@ -6,7 +6,17 @@
  * @module
  */
 
+import type { DatabaseBackend } from "@alexi/db";
 import type { AdminSite } from "./site.ts";
+import { renderChangeForm } from "./views/changeform_views.ts";
+import { renderChangeList } from "./views/changelist_views.ts";
+import { renderDashboard } from "./views/dashboard_views.ts";
+import { renderDeleteConfirmation } from "./views/delete_views.ts";
+import {
+  handleLoginPost,
+  handleLogout,
+  renderLoginPage,
+} from "./views/login_views.ts";
 
 // =============================================================================
 // Types
@@ -59,22 +69,18 @@ function createUrlPattern(
   handler: AdminHandler,
   modelName?: string,
 ): AdminUrlPattern {
-  // Convert pattern to regex
-  // The pattern uses :param syntax for URL parameters
-  // We need to:
-  // 1. Escape special regex chars in the static parts
-  // 2. Replace :param with named capture groups
-
-  // Split by :param, escape static parts, then rejoin with capture groups
+  // Convert pattern to regex.
+  // The pattern uses :param syntax for URL parameters.
+  // Split by :param, escape static parts, then rejoin with named capture groups.
   const parts = pattern.split(/:(\w+)/);
   let regexPattern = "";
 
   for (let i = 0; i < parts.length; i++) {
     if (i % 2 === 0) {
-      // Static part - escape regex special chars
+      // Static part — escape regex special chars
       regexPattern += parts[i].replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
     } else {
-      // Parameter name - create named capture group
+      // Parameter name — create named capture group (matches anything except /)
       regexPattern += `(?<${parts[i]}>[^/]+)`;
     }
   }
@@ -93,22 +99,21 @@ function createUrlPattern(
     },
 
     extractParams(url: string): Record<string, string> | null {
-      const match = url.match(regex);
-      if (!match) {
+      const m = url.match(regex);
+      if (!m) {
         return null;
       }
-      return match.groups ?? {};
+      return m.groups ?? {};
     },
   };
 }
 
 // =============================================================================
-// URL Generation
+// URL Generation Helpers
 // =============================================================================
 
 /**
- * Default placeholder handler for admin views.
- * This will be replaced by actual view components.
+ * Default placeholder handler — used when no backend is provided (e.g. tests).
  */
 function createPlaceholderHandler(viewType: AdminViewType): AdminHandler {
   return (_request: Request, _params: Record<string, string>) => {
@@ -126,73 +131,286 @@ function createPlaceholderHandler(viewType: AdminViewType): AdminHandler {
 }
 
 /**
+ * Create a handler that serves admin static files (CSS/JS).
+ *
+ * The URL pattern `/admin/static/:file` only captures a single path segment,
+ * but the real sub-path (e.g. `css/admin.css`) is read from the raw URL so that
+ * `css/` and `js/` sub-directories are handled correctly.
+ */
+function createStaticHandler(prefix: string): AdminHandler {
+  return async (request: Request, _params: Record<string, string>) => {
+    const url = new URL(request.url);
+    // Strip the prefix + "/static/" to get the relative file path
+    const filePath = url.pathname.replace(`${prefix}/static/`, "");
+    const allowed: Record<string, string> = {
+      "css/admin.css": "text/css; charset=utf-8",
+      "js/admin.js": "application/javascript; charset=utf-8",
+    };
+    const contentType = allowed[filePath];
+    if (!contentType) {
+      return new Response("Not Found", { status: 404 });
+    }
+    const moduleDir = new URL("./static/", import.meta.url);
+    const fileUrl = new URL(filePath, moduleDir);
+    try {
+      const content = await Deno.readTextFile(fileUrl);
+      return new Response(content, {
+        status: 200,
+        headers: { "Content-Type": contentType },
+      });
+    } catch {
+      return new Response("Not Found", { status: 404 });
+    }
+  };
+}
+
+// =============================================================================
+// URL Generation
+// =============================================================================
+
+/**
  * Generate URL patterns for an AdminSite.
  *
+ * When `backend` is provided, routes are wired to the real SSR view handlers
+ * from `views/admin_views.ts`. Without a backend (e.g. in tests), placeholder
+ * handlers are used so existing tests continue to pass unchanged.
+ *
  * @param site - The AdminSite instance
+ * @param backend - Optional database backend; enables real SSR view handlers
+ * @param settings - Optional settings object (needed for AUTH_USER_MODEL / SECRET_KEY)
  * @returns Array of AdminUrlPattern objects
  */
-export function getAdminUrls(site: AdminSite): AdminUrlPattern[] {
+export function getAdminUrls(
+  site: AdminSite,
+  backend?: DatabaseBackend,
+  settings?: Record<string, unknown>,
+): AdminUrlPattern[] {
   const urls: AdminUrlPattern[] = [];
   const prefix = normalizePrefix(site.urlPrefix);
 
-  // Dashboard/index URL
-  urls.push(
-    createUrlPattern(
-      `${prefix}/`,
-      "admin:index",
-      "index",
-      createPlaceholderHandler("index"),
-    ),
-  );
+  if (backend) {
+    // -------------------------------------------------------------------------
+    // Real SSR handlers (backend provided)
+    // -------------------------------------------------------------------------
 
-  // Generate URLs for each registered model
-  for (const model of site.getRegisteredModels()) {
-    const modelName = model.name.toLowerCase();
-    const admin = site.getModelAdmin(model);
+    // Static files: /admin/static/css/admin.css, /admin/static/js/admin.js
+    // Register explicit patterns for each known static sub-path so that the
+    // two-segment paths (e.g. "css/admin.css") are matched correctly.
+    for (
+      const subPath of ["css/admin.css", "js/admin.js"]
+    ) {
+      urls.push(
+        createUrlPattern(
+          `${prefix}/static/${subPath}`,
+          "admin:static",
+          "index",
+          createStaticHandler(prefix),
+        ),
+      );
+    }
 
-    // List URL (changelist)
+    // Login page: GET /admin/login/
     urls.push(
       createUrlPattern(
-        admin.getListUrl(),
-        `admin:${modelName}_changelist`,
-        "list",
-        createPlaceholderHandler("list"),
-        modelName,
+        `${prefix}/login/`,
+        "admin:login",
+        "index",
+        (request, _params) => {
+          if (request.method === "POST") {
+            return handleLoginPost({
+              request,
+              params: _params,
+              adminSite: site,
+              backend: backend,
+              settings,
+            });
+          }
+          const url = new URL(request.url);
+          const next = url.searchParams.get("next") ?? undefined;
+          return renderLoginPage(site, { next });
+        },
       ),
     );
 
-    // Add URL
+    // Logout: GET|POST /admin/logout/
     urls.push(
       createUrlPattern(
-        admin.getAddUrl(),
-        `admin:${modelName}_add`,
-        "add",
-        createPlaceholderHandler("add"),
-        modelName,
+        `${prefix}/logout/`,
+        "admin:logout",
+        "index",
+        (_request, _params) => {
+          return handleLogout(site);
+        },
       ),
     );
 
-    // Detail/Change URL
+    // Dashboard/index
     urls.push(
       createUrlPattern(
-        `${prefix}/${modelName}/:id/`,
-        `admin:${modelName}_change`,
-        "change",
-        createPlaceholderHandler("change"),
-        modelName,
+        `${prefix}/`,
+        "admin:index",
+        "index",
+        (request, params) => {
+          return renderDashboard({
+            request,
+            params,
+            adminSite: site,
+            settings,
+          });
+        },
       ),
     );
 
-    // Delete URL
+    // Per-model routes
+    for (const model of site.getRegisteredModels()) {
+      const modelName = model.name.toLowerCase();
+      const admin = site.getModelAdmin(model);
+
+      // List (changelist)
+      urls.push(
+        createUrlPattern(
+          admin.getListUrl(),
+          `admin:${modelName}_changelist`,
+          "list",
+          (request, params) => {
+            return renderChangeList(
+              { request, params, adminSite: site, backend, settings },
+              modelName,
+            );
+          },
+          modelName,
+        ),
+      );
+
+      // Add
+      urls.push(
+        createUrlPattern(
+          admin.getAddUrl(),
+          `admin:${modelName}_add`,
+          "add",
+          (request, params) => {
+            return renderChangeForm(
+              { request, params, adminSite: site, backend, settings },
+              modelName,
+            );
+          },
+          modelName,
+        ),
+      );
+
+      // Change (detail)
+      urls.push(
+        createUrlPattern(
+          `${prefix}/${modelName}/:id/`,
+          `admin:${modelName}_change`,
+          "change",
+          (request, params) => {
+            return renderChangeForm(
+              { request, params, adminSite: site, backend, settings },
+              modelName,
+              params.id,
+            );
+          },
+          modelName,
+        ),
+      );
+
+      // Delete confirmation
+      urls.push(
+        createUrlPattern(
+          `${prefix}/${modelName}/:id/delete/`,
+          `admin:${modelName}_delete`,
+          "delete",
+          (request, params) => {
+            return renderDeleteConfirmation(
+              { request, params, adminSite: site, backend, settings },
+              modelName,
+              params.id,
+            );
+          },
+          modelName,
+        ),
+      );
+    }
+  } else {
+    // -------------------------------------------------------------------------
+    // Placeholder handlers (no backend — used by tests and tooling)
+    // -------------------------------------------------------------------------
+
+    // Login
     urls.push(
       createUrlPattern(
-        `${prefix}/${modelName}/:id/delete/`,
-        `admin:${modelName}_delete`,
-        "delete",
-        createPlaceholderHandler("delete"),
-        modelName,
+        `${prefix}/login/`,
+        "admin:login",
+        "index",
+        createPlaceholderHandler("index"),
       ),
     );
+
+    // Logout
+    urls.push(
+      createUrlPattern(
+        `${prefix}/logout/`,
+        "admin:logout",
+        "index",
+        createPlaceholderHandler("index"),
+      ),
+    );
+
+    // Dashboard/index
+    urls.push(
+      createUrlPattern(
+        `${prefix}/`,
+        "admin:index",
+        "index",
+        createPlaceholderHandler("index"),
+      ),
+    );
+
+    for (const model of site.getRegisteredModels()) {
+      const modelName = model.name.toLowerCase();
+      const admin = site.getModelAdmin(model);
+
+      urls.push(
+        createUrlPattern(
+          admin.getListUrl(),
+          `admin:${modelName}_changelist`,
+          "list",
+          createPlaceholderHandler("list"),
+          modelName,
+        ),
+      );
+
+      urls.push(
+        createUrlPattern(
+          admin.getAddUrl(),
+          `admin:${modelName}_add`,
+          "add",
+          createPlaceholderHandler("add"),
+          modelName,
+        ),
+      );
+
+      urls.push(
+        createUrlPattern(
+          `${prefix}/${modelName}/:id/`,
+          `admin:${modelName}_change`,
+          "change",
+          createPlaceholderHandler("change"),
+          modelName,
+        ),
+      );
+
+      urls.push(
+        createUrlPattern(
+          `${prefix}/${modelName}/:id/delete/`,
+          `admin:${modelName}_delete`,
+          "delete",
+          createPlaceholderHandler("delete"),
+          modelName,
+        ),
+      );
+    }
   }
 
   return urls;
@@ -217,25 +435,36 @@ function normalizePrefix(prefix: string): string {
 export class AdminRouter {
   private patterns: AdminUrlPattern[] = [];
 
-  constructor(private site: AdminSite) {
-    this.patterns = getAdminUrls(site);
+  constructor(
+    private site: AdminSite,
+    backend?: DatabaseBackend,
+    settings?: Record<string, unknown>,
+  ) {
+    this.patterns = getAdminUrls(site, backend, settings);
   }
 
   /**
    * Find a matching URL pattern for a request.
+   *
+   * Tries the URL as-is first (for static files without trailing slashes), then
+   * tries with a trailing slash appended (for all other admin routes).
    */
   match(url: string): {
     pattern: AdminUrlPattern;
     params: Record<string, string>;
   } | null {
-    // Normalize URL - ensure trailing slash
-    const normalizedUrl = url.endsWith("/") ? url : `${url}/`;
+    // Candidate URLs: original as-is and with a trailing slash appended.
+    // We try both so that static file paths like "/admin/static/css/admin.css"
+    // (no trailing slash) are matched before trying the slash-appended form.
+    const candidates = url.endsWith("/") ? [url] : [url, `${url}/`];
 
-    for (const pattern of this.patterns) {
-      if (pattern.match(normalizedUrl)) {
-        const params = pattern.extractParams(normalizedUrl);
-        if (params !== null) {
-          return { pattern, params };
+    for (const candidate of candidates) {
+      for (const pattern of this.patterns) {
+        if (pattern.match(candidate)) {
+          const params = pattern.extractParams(candidate);
+          if (params !== null) {
+            return { pattern, params };
+          }
         }
       }
     }
