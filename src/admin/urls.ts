@@ -8,11 +8,8 @@
 
 import type { DatabaseBackend } from "@alexi/db";
 import type { AdminSite } from "./site.ts";
-import {
-  renderDashboard,
-  renderModelDetail,
-  renderModelList,
-} from "./views/admin_views.ts";
+import { renderModelDetail, renderModelList } from "./views/admin_views.ts";
+import { renderDashboard } from "./views/dashboard_views.ts";
 import {
   handleLoginPost,
   handleLogout,
@@ -248,18 +245,11 @@ export function getAdminUrls(
         "admin:index",
         "index",
         (request, params) => {
-          const result = renderDashboard({
+          return renderDashboard({
             request,
             params,
             adminSite: site,
-            backend: backend,
-          });
-          return new Response(result.html, {
-            status: result.status ?? 200,
-            headers: {
-              "Content-Type": "text/html; charset=utf-8",
-              ...result.headers,
-            },
+            settings,
           });
         },
       ),
