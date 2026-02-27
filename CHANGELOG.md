@@ -8,6 +8,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.25.1] - 2026-02-28
+
+### Fixed
+
+- `collectstatic` now correctly resolves `staticDir` values that are `file://`
+  URLs (e.g. `new URL("./static/", import.meta.url).href`), enabling published
+  JSR packages to declare their own static directories (#146)
+
+### Changed
+
+- `@alexi/admin` now uses `import.meta.url`-based `staticDir` so its static
+  files are found correctly when installed from JSR
+
+### Added
+
+- Documented the `import.meta.url` pattern for `staticDir` in published packages
+  (`docs/staticfiles/staticfiles.md`)
+
 ## [0.25.0] - 2026-02-28
 
 ### Added
