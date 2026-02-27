@@ -194,16 +194,20 @@ export function getAdminUrls(
     // -------------------------------------------------------------------------
 
     // Static files: /admin/static/css/admin.css, /admin/static/js/admin.js
-    // The :file segment only matches one path part; the handler reads the full
-    // sub-path from the raw request URL instead.
-    urls.push(
-      createUrlPattern(
-        `${prefix}/static/:file`,
-        "admin:static",
-        "index",
-        createStaticHandler(prefix),
-      ),
-    );
+    // Register explicit patterns for each known static sub-path so that the
+    // two-segment paths (e.g. "css/admin.css") are matched correctly.
+    for (
+      const subPath of ["css/admin.css", "js/admin.js"]
+    ) {
+      urls.push(
+        createUrlPattern(
+          `${prefix}/static/${subPath}`,
+          "admin:static",
+          "index",
+          createStaticHandler(prefix),
+        ),
+      );
+    }
 
     // Login page: GET /admin/login/
     urls.push(
@@ -441,19 +445,26 @@ export class AdminRouter {
 
   /**
    * Find a matching URL pattern for a request.
+   *
+   * Tries the URL as-is first (for static files without trailing slashes), then
+   * tries with a trailing slash appended (for all other admin routes).
    */
   match(url: string): {
     pattern: AdminUrlPattern;
     params: Record<string, string>;
   } | null {
-    // Normalize URL — ensure trailing slash
-    const normalizedUrl = url.endsWith("/") ? url : `${url}/`;
+    // Candidate URLs: original as-is and with a trailing slash appended.
+    // We try both so that static file paths like "/admin/static/css/admin.css"
+    // (no trailing slash) are matched before trying the slash-appended form.
+    const candidates = url.endsWith("/") ? [url] : [url, `${url}/`];
 
-    for (const pattern of this.patterns) {
-      if (pattern.match(normalizedUrl)) {
-        const params = pattern.extractParams(normalizedUrl);
-        if (params !== null) {
-          return { pattern, params };
+    for (const candidate of candidates) {
+      for (const pattern of this.patterns) {
+        if (pattern.match(candidate)) {
+          const params = pattern.extractParams(candidate);
+          if (params !== null) {
+            return { pattern, params };
+          }
         }
       }
     }
