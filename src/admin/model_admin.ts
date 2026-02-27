@@ -7,9 +7,39 @@
  * @module
  */
 
-import type { Model } from "@alexi/db";
+import type { DatabaseBackend, Model } from "@alexi/db";
+import { Q } from "@alexi/db";
 import type { Fieldset, ModelAdminBase, ModelClass } from "./options.ts";
 import { DEFAULT_MODEL_ADMIN_OPTIONS } from "./options.ts";
+import { getModelFields, getModelMeta } from "./introspection.ts";
+
+// =============================================================================
+// Types
+// =============================================================================
+
+/**
+ * Result of a paginate() call.
+ */
+export interface PaginationResult<T extends Model> {
+  objects: T[];
+  totalCount: number;
+  currentPage: number;
+  totalPages: number;
+  hasPrevious: boolean;
+  hasNext: boolean;
+}
+
+// Internal type alias for a QuerySet-like object
+type AnyQuerySet = {
+  filter(
+    conditions: Record<string, unknown>,
+  ): AnyQuerySet;
+  orderBy(...fields: string[]): AnyQuerySet;
+  offset(n: number): AnyQuerySet;
+  limit(n: number): AnyQuerySet;
+  count(): Promise<number>;
+  fetch(): Promise<{ array(): unknown[] }>;
+};
 
 // =============================================================================
 // ModelAdmin Class
@@ -230,15 +260,135 @@ export class ModelAdmin implements ModelAdminBase {
   }
 
   /**
-   * Get search results by applying search query to searchFields.
+   * Apply search query to the queryset using `searchFields` with icontains OR
+   * logic. Returns the queryset unchanged if `searchQuery` is empty or there
+   * are no `searchFields` configured.
    */
   getSearchResults(
     queryset: unknown,
-    _searchQuery: string,
+    searchQuery: string,
   ): unknown {
-    // This would be implemented with actual queryset filtering
-    // For now, return the queryset as-is (to be enhanced later)
-    return queryset;
+    if (!searchQuery || this.searchFields.length === 0) {
+      return queryset;
+    }
+
+    // Build an OR Q object across all search fields using icontains
+    const qs = queryset as AnyQuerySet;
+    let combined: Q | null = null;
+    for (const fieldName of this.searchFields) {
+      const qObj = new Q({ [`${fieldName}__icontains`]: searchQuery });
+      combined = combined ? combined.or(qObj) : qObj;
+    }
+
+    if (!combined) return queryset;
+    return qs.filter(combined as unknown as Record<string, unknown>);
+  }
+
+  /**
+   * Apply filter params from a URL query string to the queryset.
+   * BooleanField params are coerced to booleans; date range params use
+   * `__gte` / `__lte` lookups.
+   *
+   * @param queryset  - the base queryset
+   * @param filterParams - raw URL search params (e.g. from `url.searchParams`)
+   */
+  getFilteredQueryset(
+    queryset: unknown,
+    filterParams: URLSearchParams,
+  ): unknown {
+    if (this.listFilter.length === 0) return queryset;
+
+    const fields = getModelFields(this.model);
+    let qs = queryset as AnyQuerySet;
+
+    for (const fieldName of this.listFilter) {
+      const paramValue = filterParams.get(fieldName);
+      if (paramValue === null) continue;
+
+      const field = fields.find((f) => f.name === fieldName);
+      if (!field) continue;
+
+      if (field.type === "BooleanField") {
+        qs = qs.filter({ [fieldName]: paramValue === "true" });
+      } else if (
+        field.type === "DateTimeField" || field.type === "DateField"
+      ) {
+        const gteValue = filterParams.get(`${fieldName}__gte`);
+        const lteValue = filterParams.get(`${fieldName}__lte`);
+        if (gteValue) qs = qs.filter({ [`${fieldName}__gte`]: gteValue });
+        if (lteValue) qs = qs.filter({ [`${fieldName}__lte`]: lteValue });
+      } else {
+        qs = qs.filter({ [fieldName]: paramValue });
+      }
+    }
+
+    return qs;
+  }
+
+  /**
+   * Apply ordering to the queryset.
+   * If `orderingParam` is provided (e.g. "title" or "-createdAt"), it is used.
+   * Otherwise falls back to `this.ordering[0]` if set.
+   *
+   * Ordering is only applied when the field is in `listDisplay` (security check).
+   */
+  getOrderedQueryset(
+    queryset: unknown,
+    orderingParam: string | null,
+  ): unknown {
+    const qs = queryset as AnyQuerySet;
+    const displayFields = this.listDisplay.length > 0
+      ? this.listDisplay
+      : getModelFields(this.model).slice(0, 6).map((f) => f.name);
+
+    if (orderingParam) {
+      const fieldName = orderingParam.startsWith("-")
+        ? orderingParam.slice(1)
+        : orderingParam;
+      if (displayFields.includes(fieldName)) {
+        return qs.orderBy(orderingParam);
+      }
+    }
+
+    if (this.ordering.length > 0) {
+      return qs.orderBy(...this.ordering);
+    }
+
+    return qs;
+  }
+
+  /**
+   * Paginate a queryset and return a `PaginationResult`.
+   *
+   * @param queryset  - the (filtered/ordered) queryset to paginate
+   * @param page      - 1-based page number
+   * @param pageSize  - items per page (defaults to `this.listPerPage`)
+   */
+  async paginate<T extends Model>(
+    queryset: unknown,
+    page: number,
+    pageSize?: number,
+  ): Promise<PaginationResult<T>> {
+    const perPage = pageSize ?? this.listPerPage;
+    const currentPage = Math.max(1, page);
+    const qs = queryset as AnyQuerySet;
+
+    const totalCount = await qs.count();
+    const totalPages = Math.max(1, Math.ceil(totalCount / perPage));
+    const safePage = Math.min(currentPage, totalPages);
+    const startIndex = (safePage - 1) * perPage;
+
+    const fetchedSet = await qs.offset(startIndex).limit(perPage).fetch();
+    const objects = fetchedSet.array() as T[];
+
+    return {
+      objects,
+      totalCount,
+      currentPage: safePage,
+      totalPages,
+      hasPrevious: safePage > 1,
+      hasNext: safePage < totalPages,
+    };
   }
 
   // ===========================================================================
@@ -287,20 +437,89 @@ export class ModelAdmin implements ModelAdminBase {
   // ===========================================================================
 
   /**
-   * Validate form data before saving.
-   * Override to add custom validation.
+   * Validate form data against model field constraints.
+   *
+   * Checks performed:
+   * - Required fields (not blank, not null) must have a non-empty value
+   * - CharField: value must not exceed `maxLength`
+   * - IntegerField / FloatField: value must be a valid number
+   * - DateField / DateTimeField: value must parse as a valid date
+   *
+   * Override in subclasses to add custom validation.
    */
-  // deno-lint-ignore no-explicit-any
-  validateForm(data: Record<string, any>): {
+  validateForm(data: Record<string, unknown>): {
     valid: boolean;
     errors: Record<string, string[]>;
   } {
-    // Default implementation - just return valid
-    // Model-level validation happens in the model itself
-    return {
-      valid: true,
-      errors: {},
-    };
+    const errors: Record<string, string[]> = {};
+    const fields = getModelFields(this.model);
+
+    for (const fieldInfo of fields) {
+      if (!fieldInfo.isEditable || fieldInfo.isAuto || fieldInfo.isPrimaryKey) {
+        continue;
+      }
+
+      const fieldErrors: string[] = [];
+      const rawValue = data[fieldInfo.name];
+      const isEmpty = rawValue === null || rawValue === undefined ||
+        rawValue === "";
+
+      // Required check — skip if the field has a default value
+      const hasDefault = fieldInfo.options.default !== undefined;
+      if (fieldInfo.isRequired && isEmpty && !hasDefault) {
+        fieldErrors.push("This field is required.");
+      }
+
+      if (!isEmpty) {
+        const strVal = String(rawValue);
+
+        // maxLength validation for CharField
+        if (
+          fieldInfo.type === "CharField" &&
+          typeof fieldInfo.options.maxLength === "number"
+        ) {
+          if (strVal.length > fieldInfo.options.maxLength) {
+            fieldErrors.push(
+              `Ensure this value has at most ${fieldInfo.options.maxLength} characters (it has ${strVal.length}).`,
+            );
+          }
+        }
+
+        // Integer validation
+        if (fieldInfo.type === "IntegerField") {
+          const num = Number(rawValue);
+          if (!Number.isInteger(num) || isNaN(num)) {
+            fieldErrors.push("Enter a whole number.");
+          }
+        }
+
+        // Float validation
+        if (
+          fieldInfo.type === "FloatField" || fieldInfo.type === "DecimalField"
+        ) {
+          if (isNaN(Number(rawValue))) {
+            fieldErrors.push("Enter a number.");
+          }
+        }
+
+        // Date / DateTime validation
+        if (
+          fieldInfo.type === "DateField" ||
+          fieldInfo.type === "DateTimeField"
+        ) {
+          const d = new Date(String(rawValue));
+          if (isNaN(d.getTime())) {
+            fieldErrors.push("Enter a valid date/time.");
+          }
+        }
+      }
+
+      if (fieldErrors.length > 0) {
+        errors[fieldInfo.name] = fieldErrors;
+      }
+    }
+
+    return { valid: Object.keys(errors).length === 0, errors };
   }
 
   // ===========================================================================
@@ -308,18 +527,48 @@ export class ModelAdmin implements ModelAdminBase {
   // ===========================================================================
 
   /**
-   * Delete selected objects (default bulk action).
+   * Delete selected objects by primary key IDs.
+   *
+   * @param ids     - list of primary key values to delete
+   * @param backend - the database backend to use
+   * @returns number of objects actually deleted
    */
   async deleteSelected(
-    _request: unknown,
-    queryset: unknown,
-  ): Promise<{ count: number; message: string }> {
-    // Placeholder implementation - would use queryset.delete()
-    const count = 0; // queryset.count()
-    return {
-      count,
-      message: `Successfully deleted ${count} items.`,
-    };
+    ids: unknown[],
+    backend: DatabaseBackend,
+  ): Promise<number> {
+    if (ids.length === 0) return 0;
+
+    const meta = getModelMeta(this.model);
+    const pk = meta.primaryKey;
+
+    const manager = (this.model as unknown as {
+      objects: {
+        using(b: DatabaseBackend): {
+          filter(
+            conditions: Record<string, unknown>,
+          ): { fetch(): Promise<{ array(): unknown[] }> };
+        };
+      };
+    }).objects;
+
+    // Fetch the objects matching the given IDs
+    const fetchedSet = await manager
+      .using(backend)
+      .filter({ [`${pk}__in`]: ids })
+      .fetch();
+
+    const objects = fetchedSet.array() as (Model & {
+      delete(): Promise<void>;
+    })[];
+
+    let count = 0;
+    for (const obj of objects) {
+      await obj.delete();
+      count++;
+    }
+
+    return count;
   }
 
   /**
