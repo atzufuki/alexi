@@ -4,12 +4,18 @@
  * These tests verify the URL routing configuration for the admin system.
  */
 
-import { assertEquals, assertExists } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertExists,
+  assertStringIncludes,
+} from "jsr:@std/assert@1";
+import { reset, setup } from "@alexi/db";
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { AutoField, CharField, Manager, Model } from "@alexi/db";
 
 // Import admin classes (to be implemented)
 import { AdminSite, ModelAdmin } from "../mod.ts";
-import { AdminUrlPattern, getAdminUrls } from "../urls.ts";
+import { AdminRouter, AdminUrlPattern, getAdminUrls } from "../urls.ts";
 
 // =============================================================================
 // Test Models
@@ -20,7 +26,7 @@ class TestArticle extends Model {
   title = new CharField({ maxLength: 200 });
 
   static objects = new Manager(TestArticle);
-  static meta = { dbTable: "test_articles" };
+  static override meta = { dbTable: "test_articles" };
 }
 
 class TestCategory extends Model {
@@ -28,7 +34,7 @@ class TestCategory extends Model {
   name = new CharField({ maxLength: 100 });
 
   static objects = new Manager(TestCategory);
-  static meta = { dbTable: "test_categories" };
+  static override meta = { dbTable: "test_categories" };
 }
 
 // =============================================================================
@@ -320,4 +326,86 @@ Deno.test("AdminUrlPattern: handler has correct view type", () => {
     (u: AdminUrlPattern) => u.name === "admin:testarticle_delete",
   );
   assertEquals(deleteUrl?.viewType, "delete");
+});
+
+// =============================================================================
+// Static file serving via fetch() — regression for JSR https:// URLs (#148)
+// =============================================================================
+
+Deno.test({
+  name: "createStaticHandler: serves css/admin.css with correct content-type",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "urls_static_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      const router = new AdminRouter(site, backend);
+      const req = new Request("http://localhost/admin/static/css/admin.css");
+      const res = await router.handle(req);
+      assertEquals(res.status, 200);
+      assertEquals(res.headers.get("Content-Type"), "text/css; charset=utf-8");
+      const text = await res.text();
+      // The CSS file must have content (non-empty)
+      assertEquals(text.length > 0, true);
+      assertStringIncludes(text, "{");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name: "createStaticHandler: serves js/admin.js with correct content-type",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "urls_static_js_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      const router = new AdminRouter(site, backend);
+      const req = new Request("http://localhost/admin/static/js/admin.js");
+      const res = await router.handle(req);
+      assertEquals(res.status, 200);
+      assertEquals(
+        res.headers.get("Content-Type"),
+        "application/javascript; charset=utf-8",
+      );
+      const text = await res.text();
+      assertEquals(text.length > 0, true);
+      assertStringIncludes(text, "adminToken");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name: "createStaticHandler: returns 404 for unknown static path",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "urls_static_404_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      const router = new AdminRouter(site, backend);
+      const req = new Request("http://localhost/admin/static/css/unknown.css");
+      const res = await router.handle(req);
+      assertEquals(res.status, 404);
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
 });

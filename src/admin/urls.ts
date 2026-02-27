@@ -153,7 +153,11 @@ function createStaticHandler(prefix: string): AdminHandler {
     const moduleDir = new URL("./static/", import.meta.url);
     const fileUrl = new URL(filePath, moduleDir);
     try {
-      const content = await Deno.readTextFile(fileUrl);
+      const response = await fetch(fileUrl);
+      if (!response.ok) {
+        return new Response("Not Found", { status: 404 });
+      }
+      const content = await response.text();
       return new Response(content, {
         status: 200,
         headers: { "Content-Type": contentType },
