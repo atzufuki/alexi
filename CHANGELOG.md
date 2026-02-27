@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.24.6] - 2026-02-27
+
+### Fixed
+
+- Fixed `ForeignKey.get()` throwing when FK value is `null` instead of returning
+  `null`; previously `_isLoaded` stayed `false` for null FKs (e.g. after
+  `selectRelated()` skips them), causing an unexpected error (#122)
+
 ## [0.24.5] - 2026-02-27
 
 ### Fixed
