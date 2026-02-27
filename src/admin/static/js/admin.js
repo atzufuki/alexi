@@ -2,10 +2,10 @@
  * Alexi Admin JS
  *
  * Injects JWT Authorization header into every HTMX request.
- * Token is stored in localStorage under "alexi_admin_token".
+ * Token is stored in localStorage under "adminToken".
  */
 (function () {
-  var TOKEN_KEY = "alexi_admin_token";
+  var TOKEN_KEY = "adminToken";
 
   // Inject Authorization header on every HTMX request
   document.body.addEventListener("htmx:configRequest", function (evt) {
