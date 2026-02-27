@@ -336,19 +336,31 @@ export class CollectStaticCommand extends BaseCommand {
           continue;
         }
 
-        // Get app path from config or derive from name
-        const appPath = config.staticDir
-          ? `./src/${config.name}`
-          : `./src/${config.name}`;
-        const appPathNormalized = appPath.replace(/^\.\//, "");
-        const appDir = `${this.projectRoot}/${appPathNormalized}`;
+        // Resolve static directory path
+        let staticDir: string;
+        let appPath: string;
 
-        // Get static directory from config
-        const staticDirRel = config.staticDir
-          ? config.staticDir.replace(/^\.\//, "")
-          : "static";
-
-        const staticDir = `${appDir}/${staticDirRel}`;
+        if (config.staticDir?.startsWith("file://")) {
+          // Package uses import.meta.url-based path (e.g. @alexi/admin).
+          // Convert file:// URL to a filesystem path directly.
+          const url = new URL(config.staticDir);
+          // On Windows, url.pathname is /C:/..., strip leading slash
+          let pathname = url.pathname;
+          if (/^\/[a-zA-Z]:\//.test(pathname)) {
+            pathname = pathname.slice(1);
+          }
+          staticDir = pathname;
+          appPath = `./src/${config.name}`;
+        } else {
+          // Traditional: relative path resolved against project src/ directory
+          const staticDirRel = config.staticDir
+            ? config.staticDir.replace(/^\.\//, "")
+            : "static";
+          appPath = `./src/${config.name}`;
+          const appPathNormalized = appPath.replace(/^\.\//, "");
+          const appDir = `${this.projectRoot}/${appPathNormalized}`;
+          staticDir = `${appDir}/${staticDirRel}`;
+        }
 
         // Check if static directory exists
         try {
