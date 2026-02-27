@@ -13,6 +13,11 @@ import {
   renderModelDetail,
   renderModelList,
 } from "./views/admin_views.ts";
+import {
+  handleLoginPost,
+  handleLogout,
+  renderLoginPage,
+} from "./views/login_views.ts";
 
 // =============================================================================
 // Types
@@ -173,11 +178,13 @@ function createStaticHandler(prefix: string): AdminHandler {
  *
  * @param site - The AdminSite instance
  * @param backend - Optional database backend; enables real SSR view handlers
+ * @param settings - Optional settings object (needed for AUTH_USER_MODEL / SECRET_KEY)
  * @returns Array of AdminUrlPattern objects
  */
 export function getAdminUrls(
   site: AdminSite,
   backend?: DatabaseBackend,
+  settings?: Record<string, unknown>,
 ): AdminUrlPattern[] {
   const urls: AdminUrlPattern[] = [];
   const prefix = normalizePrefix(site.urlPrefix);
@@ -196,6 +203,41 @@ export function getAdminUrls(
         "admin:static",
         "index",
         createStaticHandler(prefix),
+      ),
+    );
+
+    // Login page: GET /admin/login/
+    urls.push(
+      createUrlPattern(
+        `${prefix}/login/`,
+        "admin:login",
+        "index",
+        (request, _params) => {
+          if (request.method === "POST") {
+            return handleLoginPost({
+              request,
+              params: _params,
+              adminSite: site,
+              backend: backend,
+              settings,
+            });
+          }
+          const url = new URL(request.url);
+          const next = url.searchParams.get("next") ?? undefined;
+          return renderLoginPage(site, { next });
+        },
+      ),
+    );
+
+    // Logout: GET|POST /admin/logout/
+    urls.push(
+      createUrlPattern(
+        `${prefix}/logout/`,
+        "admin:logout",
+        "index",
+        (_request, _params) => {
+          return handleLogout(site);
+        },
       ),
     );
 
@@ -312,6 +354,26 @@ export function getAdminUrls(
     // Placeholder handlers (no backend — used by tests and tooling)
     // -------------------------------------------------------------------------
 
+    // Login
+    urls.push(
+      createUrlPattern(
+        `${prefix}/login/`,
+        "admin:login",
+        "index",
+        createPlaceholderHandler("index"),
+      ),
+    );
+
+    // Logout
+    urls.push(
+      createUrlPattern(
+        `${prefix}/logout/`,
+        "admin:logout",
+        "index",
+        createPlaceholderHandler("index"),
+      ),
+    );
+
     // Dashboard/index
     urls.push(
       createUrlPattern(
@@ -390,8 +452,12 @@ function normalizePrefix(prefix: string): string {
 export class AdminRouter {
   private patterns: AdminUrlPattern[] = [];
 
-  constructor(private site: AdminSite, backend?: DatabaseBackend) {
-    this.patterns = getAdminUrls(site, backend);
+  constructor(
+    private site: AdminSite,
+    backend?: DatabaseBackend,
+    settings?: Record<string, unknown>,
+  ) {
+    this.patterns = getAdminUrls(site, backend, settings);
   }
 
   /**

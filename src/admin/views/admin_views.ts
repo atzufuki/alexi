@@ -754,8 +754,9 @@ function formatValue(value: unknown): string {
 export function createAdminUrls(
   adminSite: AdminSite,
   backend: DatabaseBackend,
+  settings?: Record<string, unknown>,
 ) {
-  return getAdminUrls(adminSite, backend);
+  return getAdminUrls(adminSite, backend, settings);
 }
 
 /**
@@ -767,8 +768,9 @@ export function createAdminUrls(
 export function createAdminHandler(
   adminSite: AdminSite,
   backend: DatabaseBackend,
+  settings?: Record<string, unknown>,
 ): (request: Request) => Promise<Response | null> {
-  const patterns = getAdminUrls(adminSite, backend);
+  const patterns = getAdminUrls(adminSite, backend, settings);
 
   return async (request: Request): Promise<Response | null> => {
     const url = new URL(request.url);
