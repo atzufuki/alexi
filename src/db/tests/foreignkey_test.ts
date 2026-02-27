@@ -324,6 +324,78 @@ Deno.test({
   },
 });
 
+Deno.test({
+  name: "ForeignKey - .get() returns null when FK value is null (Issue #122)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({ name: "fk-test-7", path: ":memory:" });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      const project = new Project();
+      project.getFields();
+      project.name.set("Orphan Project");
+      // organisation is null by default - do not set it
+
+      // .id should be null
+      assertEquals(project.organisation.id, null);
+
+      // .get() should return null instead of throwing
+      const result = project.organisation.get();
+      assertEquals(result, null);
+
+      // .isLoaded() should still be false
+      assertEquals(project.organisation.isLoaded(), false);
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "ForeignKey - .get() returns null after selectRelated with null FK (Issue #122)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({ name: "fk-test-8", path: ":memory:" });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      // Create a project with a null organisation
+      await Project.objects.create({
+        name: "No Org Project",
+        organisation: null as unknown as Organisation,
+      });
+
+      // Fetch with selectRelated - should not throw for null FK
+      const projects = await Project.objects
+        .selectRelated("organisation")
+        .fetch();
+
+      const projectArray = projects.array();
+      assertEquals(projectArray.length, 1);
+
+      const project = projectArray[0];
+
+      // FK is null, isLoaded stays false
+      assertEquals(project.organisation.id, null);
+      assertEquals(project.organisation.isLoaded(), false);
+
+      // .get() must return null, not throw
+      const org = project.organisation.get();
+      assertEquals(org, null);
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
 // ============================================================================
 // QuerySet selectRelated Tests (Issue #24)
 // ============================================================================

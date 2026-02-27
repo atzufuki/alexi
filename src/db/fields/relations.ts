@@ -153,6 +153,9 @@ export class ForeignKey<T> extends Field<T> {
    * ```
    */
   override get(): T {
+    if (this._foreignKeyId === null || this._foreignKeyId === undefined) {
+      return null as T;
+    }
     if (!this._isLoaded) {
       throw new Error(
         `Related object '${this._name}' not fetched. Call .fetch() first or use selectRelated().`,
