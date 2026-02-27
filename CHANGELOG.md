@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.24.4] - 2026-02-27
+
+### Fixed
+
+- Fixed `selectRelated()` silently failing on IndexedDB backend due to
+  number/string type mismatch in `in` lookup — IndexedDB stores IDs as strings
+  while `selectRelated()` collects FK IDs as numbers (#118)
+
 ## [0.24.3] - 2026-02-25
 
 ### Fixed
