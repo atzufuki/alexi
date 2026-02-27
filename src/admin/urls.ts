@@ -8,7 +8,8 @@
 
 import type { DatabaseBackend } from "@alexi/db";
 import type { AdminSite } from "./site.ts";
-import { renderModelDetail, renderModelList } from "./views/admin_views.ts";
+import { renderModelDetail } from "./views/admin_views.ts";
+import { renderChangeList } from "./views/changelist_views.ts";
 import { renderDashboard } from "./views/dashboard_views.ts";
 import {
   handleLoginPost,
@@ -266,18 +267,11 @@ export function getAdminUrls(
           admin.getListUrl(),
           `admin:${modelName}_changelist`,
           "list",
-          async (request, params) => {
-            const result = await renderModelList(
-              { request, params, adminSite: site, backend: backend },
+          (request, params) => {
+            return renderChangeList(
+              { request, params, adminSite: site, backend, settings },
               modelName,
             );
-            return new Response(result.html, {
-              status: result.status ?? 200,
-              headers: {
-                "Content-Type": "text/html; charset=utf-8",
-                ...result.headers,
-              },
-            });
           },
           modelName,
         ),
