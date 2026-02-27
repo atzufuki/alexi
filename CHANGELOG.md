@@ -8,6 +8,37 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.25.0] - 2026-02-28
+
+### Added
+
+- Admin panel rewritten as a server-side rendered MPA with HTMX — replaces the
+  previous SPA architecture (#124–#133)
+- Admin: login/logout views with JWT authentication and `localStorage` token
+  storage (#126, #136)
+- Admin: dashboard view with JWT auth guard (#127, #137)
+- Admin: change list view with search, pagination, filters, and bulk actions
+  (#128, #138)
+- Admin: change form view (add/edit) with server-side validation (#129)
+- Admin: delete confirmation view (#130)
+- Admin: `ModelAdmin` search, filter, ordering, pagination, `deleteSelected`,
+  and `validateForm` (#131)
+- Admin: static file serving for `admin.css` and `admin.js` (#124)
+- Admin: HTTP integration tests covering all views (#133)
+- `.gitattributes` to enforce LF line endings on all platforms
+
+### Removed
+
+- Admin: SPA code removed — `app/`, `components/`, `public/`, `styles/`,
+  `spa_urls_test` deleted (#132)
+
+### Documentation
+
+- Rewrote `docs/admin/admin.md` for the MPA/HTMX architecture; fixed incorrect
+  option names, added `AdminRouter` API docs, URL routes table, and JWT auth
+  flow (#145)
+- Updated `AGENTS.md` admin section and import references
+
 ## [0.24.6] - 2026-02-27
 
 ### Fixed
