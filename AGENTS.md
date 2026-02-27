@@ -34,7 +34,7 @@ functionality:
 ```
 alexi/
 ├── src/
-│   ├── admin/           # Admin panel SPA and API
+│   ├── admin/           # Admin panel MPA (HTMX + SSR)
 │   ├── auth/            # JWT authentication, decorators
 │   ├── capacitor/       # Mobile app support (placeholder)
 │   ├── core/            # Management commands, Application, config loader
@@ -189,7 +189,8 @@ import { FirebaseStorage } from "@alexi/storage/backends/firebase";
 import { MemoryStorage } from "@alexi/storage/backends/memory";
 
 // Admin
-import { AdminSite, ModelAdmin } from "@alexi/admin";
+import { AdminRouter, AdminSite, ModelAdmin, register } from "@alexi/admin";
+import { getAdminUrls } from "@alexi/admin";
 
 // WebUI (Desktop)
 import { WebUILauncher } from "@alexi/webui/launcher";
@@ -1738,6 +1739,123 @@ const tokens = await createTokenPair(userId, email, isAdmin);
 // Verify token
 const payload = await verifyToken(accessToken);
 // Returns: { userId, email, isAdmin, exp, iat }
+```
+
+---
+
+## Admin Panel
+
+`@alexi/admin` provides a Django Admin-style MPA built with server-side rendered
+HTML and [HTMX](https://htmx.org) for smooth navigation. JWT tokens are stored
+in `localStorage` and injected into every HTMX request by `admin.js`.
+
+### Quick Start
+
+```typescript
+import { AdminRouter, AdminSite, ModelAdmin, register } from "@alexi/admin";
+import { UserModel } from "./models.ts";
+import { backend } from "./db.ts";
+import * as settings from "./settings.ts";
+
+// 1. Create admin site
+const adminSite = new AdminSite({
+  title: "My App Admin",
+  header: "My App Administration",
+  urlPrefix: "/admin",
+});
+
+// 2. Register models
+class UserAdmin extends ModelAdmin {
+  listDisplay = ["id", "email", "isActive"];
+  searchFields = ["email"];
+  listFilter = ["isActive"];
+  ordering = ["-dateJoined"];
+}
+adminSite.register(UserModel, UserAdmin);
+
+// Or use the decorator
+@register(ArticleModel, adminSite)
+class ArticleAdmin extends ModelAdmin {
+  listDisplay = ["id", "title", "status", "createdAt"];
+}
+
+// 3. Handle requests
+const router = new AdminRouter(adminSite, backend, settings);
+const response = await router.handle(request);
+```
+
+### AdminSite Options
+
+| Option        | Type       | Default            | Description                     |
+| ------------- | ---------- | ------------------ | ------------------------------- |
+| `title`       | `string`   | `"Admin"`          | Site title in browser tab       |
+| `header`      | `string`   | `"Administration"` | Header text in the UI           |
+| `urlPrefix`   | `string`   | `"/admin"`         | URL prefix for all admin routes |
+| `siteClasses` | `string[]` | `[]`               | Additional CSS classes          |
+
+### ModelAdmin Options
+
+| Option              | Type         | Default               | Description                                |
+| ------------------- | ------------ | --------------------- | ------------------------------------------ |
+| `listDisplay`       | `string[]`   | `[]`                  | Columns in list view (empty = all fields)  |
+| `listDisplayLinks`  | `string[]`   | `[]`                  | Columns that link to the edit page         |
+| `searchFields`      | `string[]`   | `[]`                  | Fields searchable via search box           |
+| `listFilter`        | `string[]`   | `[]`                  | Fields for filter sidebar                  |
+| `ordering`          | `string[]`   | `[]`                  | Default ordering (`-field` for descending) |
+| `listPerPage`       | `number`     | `100`                 | Items per page                             |
+| `fields`            | `string[]`   | `[]`                  | Fields in edit form (empty = all editable) |
+| `readonlyFields`    | `string[]`   | `[]`                  | Fields shown but not editable              |
+| `fieldsets`         | `Fieldset[]` | `[]`                  | Group fields into sections                 |
+| `actions`           | `string[]`   | `["delete_selected"]` | Available bulk actions                     |
+| `searchPlaceholder` | `string`     | `"Search..."`         | Search input placeholder                   |
+| `emptyValueDisplay` | `string`     | `"-"`                 | Displayed for empty/null values            |
+
+### AdminRouter
+
+`AdminRouter` is the HTTP entry point for the admin:
+
+```typescript
+import { AdminRouter } from "@alexi/admin";
+
+const router = new AdminRouter(adminSite, backend, settings);
+
+// Dispatch a request
+const response = await router.handle(request);
+
+// Resolve a named URL
+router.reverse("admin:article_changelist"); // → "/admin/article/"
+router.reverse("admin:article_change", { id: "1" }); // → "/admin/article/1/"
+```
+
+When `backend` is omitted, all routes return placeholder JSON responses (useful
+for testing URL generation without a database).
+
+### URL Routes
+
+| URL                              | Description                              |
+| -------------------------------- | ---------------------------------------- |
+| `GET /admin/`                    | Dashboard                                |
+| `GET /admin/login/`              | Login page                               |
+| `POST /admin/login/`             | Authenticate and set JWT in localStorage |
+| `GET /admin/logout/`             | Clear token, redirect to login           |
+| `GET /admin/:model/`             | Change list                              |
+| `POST /admin/:model/`            | Bulk action (delete selected, etc.)      |
+| `GET /admin/:model/add/`         | Add object form                          |
+| `POST /admin/:model/add/`        | Create object                            |
+| `GET /admin/:model/:id/`         | Edit object form                         |
+| `POST /admin/:model/:id/`        | Save object changes                      |
+| `GET /admin/:model/:id/delete/`  | Delete confirmation                      |
+| `POST /admin/:model/:id/delete/` | Delete object                            |
+
+### Authentication
+
+All admin views require a JWT with `isAdmin: true`. Tokens are verified using
+`SECRET_KEY` (HS256) when set, or accepted unsigned in development.
+
+Set `SECRET_KEY` in your settings for production:
+
+```typescript
+export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 ```
 
 ---
