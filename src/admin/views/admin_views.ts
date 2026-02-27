@@ -756,6 +756,34 @@ export function createAdminUrls(
   );
 
   return [
+    // Static files: /admin/static/css/admin.css, /admin/static/js/admin.js
+    {
+      pattern: new RegExp(`^${urlPrefix}/static/(.+)$`),
+      handler: async (_request: Request, match: RegExpMatchArray) => {
+        const filePath = match[1];
+        // Only serve known files to avoid path traversal
+        const allowed: Record<string, string> = {
+          "css/admin.css": "text/css; charset=utf-8",
+          "js/admin.js": "application/javascript; charset=utf-8",
+        };
+        const contentType = allowed[filePath];
+        if (!contentType) {
+          return new Response("Not Found", { status: 404 });
+        }
+        const moduleDir = new URL("../static/", import.meta.url);
+        const fileUrl = new URL(filePath, moduleDir);
+        try {
+          const content = await Deno.readTextFile(fileUrl);
+          return new Response(content, {
+            status: 200,
+            headers: { "Content-Type": contentType },
+          });
+        } catch {
+          return new Response("Not Found", { status: 404 });
+        }
+      },
+    },
+
     // Dashboard
     {
       pattern: new RegExp(`^${urlPrefix}/?$`),
