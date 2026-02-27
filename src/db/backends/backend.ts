@@ -711,7 +711,10 @@ export abstract class DatabaseBackend {
         );
 
       case "in":
-        return Array.isArray(compareValue) && compareValue.includes(fieldValue);
+        return (
+          Array.isArray(compareValue) &&
+          compareValue.some((v) => String(v) === String(fieldValue))
+        );
 
       case "gt":
         return (fieldValue as number) > (compareValue as number);
