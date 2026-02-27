@@ -13,6 +13,7 @@ import type { ModelAdmin } from "../model_admin.ts";
 import { getModelFields, getModelMeta } from "../introspection.ts";
 import { getFiltersForFields } from "../filters.ts";
 import type { DatabaseBackend } from "@alexi/db";
+import { getAdminUrls } from "../urls.ts";
 
 // =============================================================================
 // Types
@@ -742,141 +743,44 @@ function formatValue(value: unknown): string {
 }
 
 // =============================================================================
-// URL Pattern Creator
+// URL Pattern Creator (delegates to urls.ts)
 // =============================================================================
 
+/**
+ * Create admin URL patterns with real SSR handlers.
+ *
+ * @deprecated Use `getAdminUrls(site, backend)` from `@alexi/admin/urls` directly.
+ */
 export function createAdminUrls(
   adminSite: AdminSite,
   backend: DatabaseBackend,
 ) {
-  // Normalize urlPrefix to ensure it starts with / but doesn't end with /
-  const urlPrefix = adminSite.urlPrefix.replace(/\/+$/, "").replace(
-    /^(?!\/)/,
-    "/",
-  );
-
-  return [
-    // Static files: /admin/static/css/admin.css, /admin/static/js/admin.js
-    {
-      pattern: new RegExp(`^${urlPrefix}/static/(.+)$`),
-      handler: async (_request: Request, match: RegExpMatchArray) => {
-        const filePath = match[1];
-        // Only serve known files to avoid path traversal
-        const allowed: Record<string, string> = {
-          "css/admin.css": "text/css; charset=utf-8",
-          "js/admin.js": "application/javascript; charset=utf-8",
-        };
-        const contentType = allowed[filePath];
-        if (!contentType) {
-          return new Response("Not Found", { status: 404 });
-        }
-        const moduleDir = new URL("../static/", import.meta.url);
-        const fileUrl = new URL(filePath, moduleDir);
-        try {
-          const content = await Deno.readTextFile(fileUrl);
-          return new Response(content, {
-            status: 200,
-            headers: { "Content-Type": contentType },
-          });
-        } catch {
-          return new Response("Not Found", { status: 404 });
-        }
-      },
-    },
-
-    // Dashboard
-    {
-      pattern: new RegExp(`^${urlPrefix}/?$`),
-      handler: async (request: Request) => {
-        const result = renderDashboard({
-          request,
-          params: {},
-          adminSite,
-          backend,
-        });
-        return new Response(result.html, {
-          status: result.status ?? 200,
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            ...result.headers,
-          },
-        });
-      },
-    },
-
-    // Model list
-    {
-      pattern: new RegExp(`^${urlPrefix}/([a-z]+)/?$`),
-      handler: async (request: Request, match: RegExpMatchArray) => {
-        const modelName = match[1];
-        const result = await renderModelList(
-          { request, params: { model: modelName }, adminSite, backend },
-          modelName,
-        );
-        return new Response(result.html, {
-          status: result.status ?? 200,
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            ...result.headers,
-          },
-        });
-      },
-    },
-
-    // Model detail
-    {
-      pattern: new RegExp(`^${urlPrefix}/([a-z]+)/([^/]+)/?$`),
-      handler: async (request: Request, match: RegExpMatchArray) => {
-        const modelName = match[1];
-        const objectId = match[2];
-
-        // Skip "add" as it's a different route
-        if (objectId === "add") {
-          return new Response("Add form not implemented yet", {
-            status: 501,
-            headers: { "Content-Type": "text/html; charset=utf-8" },
-          });
-        }
-
-        const result = await renderModelDetail(
-          {
-            request,
-            params: { model: modelName, id: objectId },
-            adminSite,
-            backend,
-          },
-          modelName,
-          objectId,
-        );
-        return new Response(result.html, {
-          status: result.status ?? 200,
-          headers: {
-            "Content-Type": "text/html; charset=utf-8",
-            ...result.headers,
-          },
-        });
-      },
-    },
-  ];
+  return getAdminUrls(adminSite, backend);
 }
 
 /**
- * Create admin request handler
+ * Create admin request handler.
+ *
+ * Builds the URL patterns via `getAdminUrls` and returns a dispatcher function
+ * that matches incoming requests against those patterns.
  */
 export function createAdminHandler(
   adminSite: AdminSite,
   backend: DatabaseBackend,
 ): (request: Request) => Promise<Response | null> {
-  const adminUrls = createAdminUrls(adminSite, backend);
+  const patterns = getAdminUrls(adminSite, backend);
 
   return async (request: Request): Promise<Response | null> => {
     const url = new URL(request.url);
-    const path = url.pathname;
+    const pathname = url.pathname;
 
-    for (const route of adminUrls) {
-      const match = path.match(route.pattern);
-      if (match) {
-        return await route.handler(request, match);
+    // Normalize path — ensure trailing slash for matching
+    const normalizedPath = pathname.endsWith("/") ? pathname : `${pathname}/`;
+
+    for (const pattern of patterns) {
+      if (pattern.match(normalizedPath)) {
+        const params = pattern.extractParams(normalizedPath) ?? {};
+        return await pattern.handler(request, params);
       }
     }
 
