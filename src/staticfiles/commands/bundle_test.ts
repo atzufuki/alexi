@@ -7,8 +7,9 @@
  */
 
 import { assertEquals, assertMatch, assertStringIncludes } from "@std/assert";
-import { join } from "@std/path";
+import { join, toFileUrl } from "@std/path";
 import {
+  buildSWBundle,
   collectAllTemplates,
   generateTemplatesModule,
   resolveTemplatesDir,
@@ -315,3 +316,102 @@ Deno.test(
     }
   },
 );
+
+// =============================================================================
+// buildSWBundle — integration tests
+//
+// These tests run a real esbuild bundle with the virtual entry + template
+// embedding pipeline.  They verify that:
+//   1. A plain bundle (no templates) succeeds and produces JS output.
+//   2. A bundle WITH templates succeeds: the virtual entry re-exports the real
+//      entry via an absolute file:// URL and embeds templateRegistry.register()
+//      calls in the output.
+//   3. absWorkingDir is set to cwd so esbuild does not walk above the project
+//      root — on Windows this prevents "Access is denied" errors from system
+//      directories like $Recycle.Bin and PerfLogs.
+//
+// Regression for https://github.com/atzufuki/alexi/issues/172
+// =============================================================================
+
+Deno.test({
+  name: "buildSWBundle: bundles a plain entry point without templates",
+  // esbuild spawns a subprocess that may outlive the test's async boundary.
+  // Disable the sanitizers for these integration tests to avoid false positives.
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      // Write a minimal SW entry
+      const entryPath = join(tmpDir, "sw.ts");
+      await Deno.writeTextFile(entryPath, `export const SW_VERSION = "1";\n`);
+
+      const outputPath = join(tmpDir, "dist", "sw.js").replace(/\\/g, "/");
+      await Deno.mkdir(join(tmpDir, "dist"), { recursive: true });
+
+      // configPath must be a native absolute path (not a file:// URL) —
+      // esbuild-deno-loader passes it directly to WasmWorkspace.discover().
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [],
+        cwd: tmpDir,
+        configPath,
+      });
+
+      const outFile = await Deno.readTextFile(join(tmpDir, "dist", "sw.js"));
+      assertStringIncludes(outFile, "SW_VERSION");
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "buildSWBundle: bundles with templates and embeds templateRegistry calls",
+  // esbuild spawns a subprocess that may outlive the test's async boundary.
+  // Disable the sanitizers for these integration tests to avoid false positives.
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      // Write a minimal SW entry
+      const entryPath = join(tmpDir, "sw.ts");
+      await Deno.writeTextFile(entryPath, `export const SW_VERSION = "2";\n`);
+
+      const outputPath = join(tmpDir, "dist", "sw.js").replace(/\\/g, "/");
+      await Deno.mkdir(join(tmpDir, "dist"), { recursive: true });
+
+      // configPath must be a native absolute path (not a file:// URL) —
+      // esbuild-deno-loader passes it directly to WasmWorkspace.discover().
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [
+          { name: "my-app/index.html", source: "<h1>Hello</h1>" },
+          { name: "my-app/base.html", source: "<html></html>" },
+        ],
+        cwd: tmpDir,
+        configPath,
+      });
+
+      const outFile = await Deno.readTextFile(join(tmpDir, "dist", "sw.js"));
+      // The template registry calls must be embedded in the bundle output
+      assertStringIncludes(outFile, "my-app/index.html");
+      assertStringIncludes(outFile, "my-app/base.html");
+      assertStringIncludes(outFile, "Hello");
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
