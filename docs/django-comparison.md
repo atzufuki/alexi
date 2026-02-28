@@ -133,6 +133,20 @@ differences, and features unique to Alexi.
 | `createsuperuser` | ✅     | ✅                   | —                    |
 | `shell`           | ✅     | ❌                   | Use `deno repl`      |
 
+### Views & Templates
+
+| Feature                 | Django | Alexi        | Notes                                            |
+| ----------------------- | ------ | ------------ | ------------------------------------------------ |
+| Template engine         | ✅     | ✅           | DTL-compatible syntax: `{{ }}`, `{% %}`, `{# #}` |
+| Template inheritance    | ✅     | ✅           | `{% extends %}` / `{% block %}`                  |
+| Template tags           | ✅     | ✅           | `{% for %}`, `{% if %}`, `{% include %}`         |
+| Template registry       | ✅     | ✅           | Global `templateRegistry` singleton              |
+| `templateView` helper   | ✅     | ✅           | Renders named template with context              |
+| Auto-load from app dirs | ✅     | ✅           | `AppConfig.templatesDir`; auto-loaded by server  |
+| Bundle embedding        | ❌     | ✅           | Templates embedded in SW bundles via `bundle`    |
+| Custom template tags    | ✅     | ❌ (planned) | —                                                |
+| Template filters        | ✅     | ❌ (planned) | —                                                |
+
 ### Static Files
 
 | Feature             | Django      | Alexi | Notes                      |
@@ -188,7 +202,6 @@ Features available in Django that Alexi does not currently provide:
 | **Session authentication** | Server-side session management                 |
 | **CSRF protection**        | Cross-site request forgery prevention          |
 | **Form handling**          | Django Forms with validation                   |
-| **Template engine**        | Django Template Language (DTL)                 |
 | **Signals**                | Decoupled event system                         |
 | **Caching framework**      | Multi-backend caching (Redis, Memcached, etc.) |
 | **Email backend**          | Built-in email sending                         |

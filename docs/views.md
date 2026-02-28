@@ -180,6 +180,200 @@ export const urlpatterns = [
 ];
 ```
 
+## Template Views
+
+`@alexi/views` provides a Django-style server-side template engine and the
+`templateView` helper for serving rendered HTML pages. Templates use the same
+syntax as Django's template language (DTL).
+
+### Template Syntax
+
+| Syntax                                                       | Description                    |
+| ------------------------------------------------------------ | ------------------------------ |
+| `{{ variable }}`                                             | Output variable                |
+| `{{ user.profile.name }}`                                    | Nested dot-notation access     |
+| `{% extends "base.html" %}`                                  | Template inheritance           |
+| `{% block name %}...{% endblock %}`                          | Define / override named blocks |
+| `{% for item in items %}...{% endfor %}`                     | Iteration                      |
+| `{% for item in items %}...{% empty %}...{% endfor %}`       | Empty list fallback            |
+| `{% if cond %}...{% elif cond %}...{% else %}...{% endif %}` | Conditionals                   |
+| `{% include "partial.html" %}`                               | Include a sub-template         |
+| `{# comment #}`                                              | Comment (produces no output)   |
+
+### `templateView` — New API
+
+```typescript
+import { templateView } from "@alexi/views";
+
+export const noteListView = templateView({
+  templateName: "my-app/note_list.html",
+  context: async (request, params) => ({
+    notes: (await NoteModel.objects.all().fetch())
+      .array()
+      .map((n) => ({ id: n.id.get(), title: n.title.get() })),
+  }),
+});
+```
+
+The view resolves the template from the global `templateRegistry` and renders it
+with the returned context. The `context` function can be async.
+
+### `templateView` — Legacy API
+
+```typescript
+templateView({
+  templatePath: "./src/myapp/templates/index.html",
+  context: {
+    API_URL: "https://api.example.com",
+  },
+});
+```
+
+Reads the template directly from disk and performs simple `{{KEY}}` replacement.
+Does not support template inheritance or other tags.
+
+### Template Registry
+
+Templates are stored in a global in-memory `templateRegistry` that is populated
+at startup. You can also register templates manually (e.g. for tests):
+
+```typescript
+import {
+  ChainTemplateLoader,
+  FilesystemTemplateLoader,
+  MemoryTemplateLoader,
+  templateRegistry,
+} from "@alexi/views";
+
+// Register a template manually (e.g. for tests)
+templateRegistry.register("my-app/note_list.html", source);
+
+// Filesystem loader (server only — uses Deno.readTextFile)
+const fsLoader = new FilesystemTemplateLoader([
+  "./src/my-app/templates",
+]);
+
+// Chain: in-memory first, filesystem as fallback
+const loader = new ChainTemplateLoader([templateRegistry, fsLoader]);
+```
+
+### `AppConfig.templatesDir`
+
+Add `templatesDir` to your app config to enable automatic template loading:
+
+```typescript
+// src/my-app/mod.ts
+import type { AppConfig } from "@alexi/types";
+
+const config: AppConfig = {
+  name: "my-app",
+  // Use file:// URL for published JSR packages:
+  templatesDir: new URL("./templates/", import.meta.url).href,
+  // Or a relative path for project-local apps:
+  // templatesDir: "src/my-app/templates",
+};
+
+export default config;
+```
+
+**`runserver` auto-loading:** At startup, `runserver` scans each installed app's
+`templatesDir` and registers all `.html` files into `templateRegistry`.
+Templates are available in `templateView` without any manual registration.
+
+**`bundle` auto-embedding:** When building a Service Worker bundle, `bundle`
+embeds all templates from each app's `templatesDir` into the bundle. Templates
+are available in the SW context at runtime without requiring filesystem access.
+
+### Template Naming
+
+Templates use Django-style app namespacing. A file at:
+
+```
+src/my-app/templates/my-app/note_list.html
+```
+
+is registered with the name `"my-app/note_list.html"`. Always namespace your
+templates to avoid collisions between apps.
+
+### Full Example
+
+#### Template files
+
+```html
+<!-- src/my-app/templates/my-app/base.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{% block title %}My App{% endblock %}</title>
+  </head>
+  <body>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>
+```
+
+```html
+<!-- src/my-app/templates/my-app/note_list.html -->
+{% extends "my-app/base.html" %} {% block title %}Notes{% endblock %} {% block
+content %}
+<h1>Notes</h1>
+<ul>
+  {% for note in notes %}
+  <li>{{ note.title }}</li>
+  {% empty %}
+  <li>No notes yet.</li>
+  {% endfor %}
+</ul>
+{% endblock %}
+```
+
+#### View
+
+```typescript
+// src/my-app/views.ts
+import { templateView } from "@alexi/views";
+import { NoteModel } from "./models.ts";
+
+export const noteListView = templateView({
+  templateName: "my-app/note_list.html",
+  context: async (_request, _params) => {
+    const notes = await NoteModel.objects.all().fetch();
+    return {
+      notes: notes.array().map((n) => ({
+        id: n.id.get(),
+        title: n.title.get(),
+      })),
+    };
+  },
+});
+```
+
+#### URLs
+
+```typescript
+// src/my-app/urls.ts
+import { path } from "@alexi/urls";
+import { noteListView } from "./views.ts";
+
+export const urlpatterns = [
+  path("notes/", noteListView, { name: "note-list" }),
+];
+```
+
+#### App config
+
+```typescript
+// src/my-app/mod.ts
+import type { AppConfig } from "@alexi/types";
+
+const config: AppConfig = {
+  name: "my-app",
+  templatesDir: new URL("./templates/", import.meta.url).href,
+};
+
+export default config;
+```
+
 ## Frontend Views
 
 Frontend views handle SPA navigation and return `Node` objects (HTML Props

@@ -1712,8 +1712,8 @@ Reads from disk and does simple `{{KEY}}` replacement. No template inheritance.
 
 ### `AppConfig.templatesDir`
 
-Add `templatesDir` to your app config so the `Application` can register
-templates at startup:
+Add `templatesDir` to your app config so templates are automatically available
+at runtime:
 
 ```typescript
 const config: AppConfig = {
@@ -1723,6 +1723,16 @@ const config: AppConfig = {
   // templatesDir: "src/my-app/templates",
 };
 ```
+
+**`runserver` auto-loading:** At startup, `runserver` scans each installed app's
+`templatesDir` and registers all `.html` files into the global
+`templateRegistry`. Templates are available immediately in `templateView`
+without any manual registration.
+
+**`bundle` auto-embedding:** When building a Service Worker bundle, `bundle`
+scans each installed app's `templatesDir` and embeds all `.html` files as a
+virtual esbuild module (`alexi:templates`). This ensures templates are available
+in the SW context at runtime without requiring filesystem access.
 
 ### Template Example
 
