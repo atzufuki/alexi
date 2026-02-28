@@ -20,7 +20,15 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { reset, setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
-import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
+import {
+  AutoField,
+  CharField,
+  ForeignKey,
+  IntegerField,
+  Manager,
+  Model,
+  OnDelete,
+} from "@alexi/db";
 import { AdminSite } from "../site.ts";
 import { ModelAdmin } from "../model_admin.ts";
 import { renderChangeForm } from "../views/changeform_views.ts";
@@ -691,6 +699,113 @@ Deno.test({
       );
       const html = await res.text();
       assertStringIncludes(html, "Please correct the errors below.");
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
+// =============================================================================
+// ForeignKey field support (#159)
+// =============================================================================
+
+class CategoryModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(CategoryModel);
+  static override meta = {
+    dbTable: "cf_categories",
+    verboseName: "Category",
+    verboseNamePlural: "Categories",
+  };
+}
+
+class ArticleModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  category = new ForeignKey<CategoryModel>("CategoryModel", {
+    onDelete: OnDelete.CASCADE,
+  });
+
+  static objects = new Manager(ArticleModel);
+  static override meta = {
+    dbTable: "cf_articles",
+    verboseName: "Article",
+    verboseNamePlural: "Articles",
+  };
+}
+
+Deno.test({
+  name:
+    "renderChangeForm: GET change form does not throw for model with ForeignKey field",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const category = await CategoryModel.objects.create({ name: "Tech" });
+      const article = await ArticleModel.objects.create({
+        title: "FK Article",
+        category: category.id.get(),
+      });
+      const id = String(article.id.get());
+
+      const site = makeSite();
+      site.register(ArticleModel, ModelAdmin);
+      const req = makeGetRequest(
+        `/admin/articlemodel/${id}/`,
+        makeValidToken(),
+      );
+      const res = await renderChangeForm(
+        { request: req, params: { id }, adminSite: site, backend },
+        "articlemodel",
+        id,
+      );
+      // Must render 200, not 404 (which was the symptom before the fix)
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      assertStringIncludes(html, "FK Article");
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "renderChangeForm: GET change form pre-fills FK field with raw ID value",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const category = await CategoryModel.objects.create({ name: "Science" });
+      const categoryId = category.id.get() as number;
+      const article = await ArticleModel.objects.create({
+        title: "Science Article",
+        category: categoryId,
+      });
+      const id = String(article.id.get());
+
+      const site = makeSite();
+      site.register(ArticleModel, ModelAdmin);
+      const req = makeGetRequest(
+        `/admin/articlemodel/${id}/`,
+        makeValidToken(),
+      );
+      const res = await renderChangeForm(
+        { request: req, params: { id }, adminSite: site, backend },
+        "articlemodel",
+        id,
+      );
+      const html = await res.text();
+      // The FK widget renders a number input — it should contain the raw FK id
+      assertStringIncludes(html, `value="${categoryId}"`);
     } finally {
       await teardownBackend(backend);
       if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
