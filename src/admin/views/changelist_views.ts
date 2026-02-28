@@ -393,7 +393,8 @@ export async function renderChangeList(
   modelName: string,
 ): Promise<Response> {
   const { request, adminSite, backend, settings } = context;
-  const urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  let urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  if (!urlPrefix.startsWith("/")) urlPrefix = `/${urlPrefix}`;
 
   // --- Auth guard ---
   const authResult = await verifyAdminToken(request, settings);
@@ -574,7 +575,14 @@ export async function renderChangeList(
   }
 
   // --- Build column headers ---
-  const listDisplayLinks = modelAdmin.getListDisplayLinks();
+  // If modelAdmin has no explicit listDisplayLinks/listDisplay configured,
+  // fall back to the first field of the computed listDisplay (which may
+  // include auto-derived fields when modelAdmin.listDisplay is empty).
+  const listDisplayLinks = modelAdmin.listDisplayLinks.length > 0
+    ? modelAdmin.listDisplayLinks
+    : listDisplay.length > 0
+    ? [listDisplay[0]]
+    : [];
 
   const headers = listDisplay
     .map((fieldName) => {

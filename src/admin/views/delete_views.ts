@@ -177,7 +177,8 @@ export async function renderDeleteConfirmation(
   objectId: string,
 ): Promise<Response> {
   const { request, adminSite, backend, settings } = context;
-  const urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  let urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  if (!urlPrefix.startsWith("/")) urlPrefix = `/${urlPrefix}`;
 
   // --- Auth guard ---
   const authResult = await verifyAdminToken(request, settings);
