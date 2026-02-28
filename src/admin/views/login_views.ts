@@ -194,7 +194,10 @@ export function renderLoginPage(
 ): Response {
   const html = loginTemplate({
     siteTitle: adminSite.title,
-    urlPrefix: adminSite.urlPrefix.replace(/\/$/, ""),
+    urlPrefix: (() => {
+      const p = adminSite.urlPrefix.replace(/\/$/, "");
+      return p.startsWith("/") ? p : `/${p}`;
+    })(),
     error: options.error,
     next: options.next,
   });
@@ -223,9 +226,8 @@ export async function handleLoginPost(
   context: LoginViewContext,
 ): Promise<Response> {
   const { request, adminSite, backend, settings } = context;
-  const urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
-
-  // Parse form body
+  let urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  if (!urlPrefix.startsWith("/")) urlPrefix = `/${urlPrefix}`;
   let email = "";
   let password = "";
   let next = "";
@@ -375,7 +377,8 @@ export async function handleLoginPost(
  * Also sets HX-Redirect for HTMX clients.
  */
 export function handleLogout(adminSite: AdminSite): Response {
-  const urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  let urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  if (!urlPrefix.startsWith("/")) urlPrefix = `/${urlPrefix}`;
   const loginUrl = `${urlPrefix}/login/`;
 
   // Return an empty response with X-Admin-Logout + X-Admin-Redirect headers.
