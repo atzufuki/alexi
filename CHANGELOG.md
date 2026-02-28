@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.25.2] - 2026-02-28
+
+### Fixed
+
+- Admin static files (`/admin/static/css/admin.css`,
+  `/admin/static/js/admin.js`) now load correctly when `@alexi/admin` is
+  installed from JSR — `createStaticHandler` now uses `fetch()` instead of
+  `Deno.readTextFile()`, which only supports `file://` URLs (#148)
+
 ## [0.25.1] - 2026-02-28
 
 ### Fixed
