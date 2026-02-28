@@ -2687,6 +2687,29 @@ a:hover {
   color: var(--admin-text-muted);
 }
 
+/* Login form overrides: vertical stack (label above input) */
+.admin-login-box .admin-form-row {
+  flex-direction: column;
+  gap: var(--admin-spacing-xs);
+  border-bottom: none;
+  padding: 0 0 var(--admin-spacing-base) 0;
+}
+
+.admin-login-box .admin-label {
+  flex: none;
+  width: auto;
+  text-align: left;
+  padding-top: 0;
+}
+
+.admin-login-box .admin-input {
+  width: 100%;
+}
+
+.admin-form-actions {
+  margin-top: var(--admin-spacing-sm);
+}
+
 /* =========================================================================
  * HTMX Loading Indicator
  * ========================================================================= */
