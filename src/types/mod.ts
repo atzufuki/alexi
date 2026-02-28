@@ -620,4 +620,29 @@ export interface AppConfig {
    * @example () => import("./commands/mod.ts")
    */
   commandsImport?: () => Promise<Record<string, unknown>>;
+
+  /**
+   * Template directory for this app.
+   *
+   * Django-style namespacing: a template named `"my-app/note_list.html"`
+   * should live at `<templatesDir>/my-app/note_list.html`.
+   *
+   * Can be either:
+   * - A path relative to the project root: `"src/my-app/templates"`
+   * - An absolute `file://` URL (recommended for published packages):
+   *   `new URL("./templates/", import.meta.url).href`
+   *
+   * When the Application starts, it reads all `.html` files from this
+   * directory tree and registers them in the global `templateRegistry`
+   * so templates are available to `templateView`.
+   *
+   * @example
+   * // Relative path (project-local apps)
+   * templatesDir: "src/my-app/templates"
+   *
+   * @example
+   * // Absolute URL (published packages)
+   * templatesDir: new URL("./templates/", import.meta.url).href
+   */
+  templatesDir?: string;
 }
