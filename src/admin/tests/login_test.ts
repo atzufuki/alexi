@@ -163,28 +163,27 @@ Deno.test("handleLogout: returns 200 HTML", () => {
   );
 });
 
-Deno.test("handleLogout: clears adminToken from localStorage", async () => {
+Deno.test("handleLogout: sets X-Admin-Logout header", () => {
   const site = makeSite();
   const response = handleLogout(site);
-  const html = await response.text();
 
-  assertStringIncludes(html, "removeItem");
-  assertStringIncludes(html, "adminToken");
+  assertEquals(response.headers.get("X-Admin-Logout"), "true");
 });
 
-Deno.test("handleLogout: sets HX-Redirect to login page", () => {
+Deno.test("handleLogout: sets X-Admin-Redirect to login page", () => {
   const site = makeSite();
   const response = handleLogout(site);
 
-  assertEquals(response.headers.get("HX-Redirect"), "/admin/login/");
+  assertEquals(response.headers.get("X-Admin-Redirect"), "/admin/login/");
 });
 
-Deno.test("handleLogout: redirects to login page", async () => {
+Deno.test("handleLogout: clears adminToken cookie", () => {
   const site = makeSite();
   const response = handleLogout(site);
-  const html = await response.text();
 
-  assertStringIncludes(html, "/admin/login/");
+  const cookie = response.headers.get("Set-Cookie") ?? "";
+  assertStringIncludes(cookie, "adminToken=");
+  assertStringIncludes(cookie, "Max-Age=0");
 });
 
 // =============================================================================
