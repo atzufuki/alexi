@@ -41,13 +41,16 @@
 
   /* Status colors */
   --admin-success: #44aa00;
+  --admin-success-dark: #3a9000;
   --admin-success-bg: #e6f4e1;
   --admin-error: #ba2121;
+  --admin-error-dark: #a01c1c;
   --admin-error-bg: #fde8e8;
   --admin-warning: #cc9900;
   --admin-warning-bg: #fff8e1;
   --admin-info: #417690;
   --admin-info-bg: #e8f4f8;
+  --admin-bg-selected-hover: #d0e8f0;
 
   /* Typography */
   --admin-font-family:
@@ -121,6 +124,125 @@
   --admin-z-popover: 600;
   --admin-z-tooltip: 700;
   --admin-z-toast: 800;
+}
+
+/* =========================================================================
+ * Dark Mode Variables
+ * Applied when data-theme="dark" is set on <html>, or when
+ * data-theme="auto" (default) and system prefers dark color scheme.
+ * ========================================================================= */
+
+:root[data-theme="dark"],
+:root[data-theme="auto"] {
+  /* These rules only apply when system preference is dark */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    /* Primary colors */
+    --admin-primary: #79aec8;
+    --admin-primary-dark: #417690;
+    --admin-primary-light: #a8ccdc;
+    --admin-secondary: #79aec8;
+    --admin-accent: #609ab6;
+
+    /* Background colors */
+    --admin-bg: #1e2a35;
+    --admin-bg-alt: #0d1721;
+    --admin-bg-dark: #205067;
+    --admin-bg-darker: #0d3347;
+    --admin-bg-hover: #253545;
+    --admin-bg-selected: #1f3a4a;
+
+    /* Text colors */
+    --admin-text: #e0e0e0;
+    --admin-text-light: #aaaaaa;
+    --admin-text-muted: #777777;
+    --admin-text-inverse: #ffffff;
+    --admin-text-link: #79aec8;
+    --admin-text-link-hover: #a8ccdc;
+
+    /* Border colors */
+    --admin-border: #3a4f5e;
+    --admin-border-light: #2a3d4e;
+    --admin-border-dark: #5a7080;
+    --admin-border-focus: #79aec8;
+
+    /* Status colors */
+    --admin-success: #5cb85c;
+    --admin-success-dark: #4aa04a;
+    --admin-success-bg: #1a3a1a;
+    --admin-error: #e05555;
+    --admin-error-dark: #c03030;
+    --admin-error-bg: #3a1515;
+    --admin-warning: #e6b800;
+    --admin-warning-bg: #3a3000;
+    --admin-info: #79aec8;
+    --admin-info-bg: #1a2f3a;
+    --admin-bg-selected-hover: #1a3f52;
+
+    /* Shadows (softer in dark mode) */
+    --admin-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --admin-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+    --admin-shadow-md:
+      0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --admin-shadow-lg:
+      0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  /* Primary colors */
+  --admin-primary: #79aec8;
+  --admin-primary-dark: #417690;
+  --admin-primary-light: #a8ccdc;
+  --admin-secondary: #79aec8;
+  --admin-accent: #609ab6;
+
+  /* Background colors */
+  --admin-bg: #1e2a35;
+  --admin-bg-alt: #0d1721;
+  --admin-bg-dark: #205067;
+  --admin-bg-darker: #0d3347;
+  --admin-bg-hover: #253545;
+  --admin-bg-selected: #1f3a4a;
+
+  /* Text colors */
+  --admin-text: #e0e0e0;
+  --admin-text-light: #aaaaaa;
+  --admin-text-muted: #777777;
+  --admin-text-inverse: #ffffff;
+  --admin-text-link: #79aec8;
+  --admin-text-link-hover: #a8ccdc;
+
+  /* Border colors */
+  --admin-border: #3a4f5e;
+  --admin-border-light: #2a3d4e;
+  --admin-border-dark: #5a7080;
+  --admin-border-focus: #79aec8;
+
+  /* Status colors */
+  --admin-success: #5cb85c;
+  --admin-success-dark: #4aa04a;
+  --admin-success-bg: #1a3a1a;
+  --admin-error: #e05555;
+  --admin-error-dark: #c03030;
+  --admin-error-bg: #3a1515;
+  --admin-warning: #e6b800;
+  --admin-warning-bg: #3a3000;
+  --admin-info: #79aec8;
+  --admin-info-bg: #1a2f3a;
+  --admin-bg-selected-hover: #1a3f52;
+
+  /* Shadows */
+  --admin-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --admin-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --admin-shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --admin-shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
 }
 
 /* =========================================================================
@@ -287,7 +409,7 @@ a:hover {
 }
 
 .admin-btn-danger:hover:not(:disabled) {
-  background-color: #a01c1c;
+  background-color: var(--admin-error-dark);
 }
 
 .admin-btn-success {
@@ -296,7 +418,7 @@ a:hover {
 }
 
 .admin-btn-success:hover:not(:disabled) {
-  background-color: #3a9000;
+  background-color: var(--admin-success-dark);
 }
 
 .admin-btn-link {
@@ -670,6 +792,35 @@ a:hover {
 
 .admin-header-link:hover {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Theme toggle button in header */
+.admin-theme-toggle {
+  background: none;
+  border: none;
+  color: var(--admin-text-inverse);
+  cursor: pointer;
+  padding: var(--admin-spacing-xs);
+  border-radius: var(--admin-radius);
+  font-size: var(--admin-font-size-md);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  transition: background-color var(--admin-transition-fast);
+  opacity: 0.8;
+}
+
+.admin-theme-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.admin-theme-toggle:focus {
+  outline: 2px solid var(--admin-secondary);
+  outline-offset: 2px;
 }
 
 .admin-header-user {
@@ -1612,7 +1763,7 @@ a:hover {
   background-color: var(--admin-bg-selected);
 }
 .admin-table tbody tr.admin-row-selected:hover {
-  background-color: #d0e8f0;
+  background-color: var(--admin-bg-selected-hover);
 }
 
 /* =========================================================================
@@ -1871,6 +2022,619 @@ a:hover {
 }
 
 /* =========================================================================
+ * Breadcrumbs (used in dashboard, changelist, changeform)
+ * ========================================================================= */
+
+.admin-breadcrumbs {
+  padding: var(--admin-spacing-sm) 0;
+  margin-bottom: var(--admin-spacing-sm);
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text-muted);
+}
+
+.admin-breadcrumbs a {
+  color: var(--admin-text-link);
+  text-decoration: none;
+}
+
+.admin-breadcrumbs a:hover {
+  text-decoration: underline;
+}
+
+/* =========================================================================
+ * Dashboard
+ * ========================================================================= */
+
+.admin-dashboard {
+  max-width: var(--admin-content-max-width);
+}
+
+.admin-dashboard-empty {
+  color: var(--admin-text-muted);
+  font-size: var(--admin-font-size-sm);
+  padding: var(--admin-spacing-base) 0;
+}
+
+.admin-app-listing {
+  background-color: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  margin-bottom: var(--admin-spacing-lg);
+  overflow: hidden;
+}
+
+.admin-app-listing-header {
+  background-color: var(--admin-primary);
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+}
+
+.admin-app-listing-header h2 {
+  margin: 0;
+  font-size: var(--admin-font-size-base);
+  font-weight: var(--admin-font-weight-semibold);
+  color: var(--admin-text-inverse);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-model-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-model-table tr {
+  border-bottom: 1px solid var(--admin-border-light);
+}
+
+.admin-model-table tr:last-child {
+  border-bottom: none;
+}
+
+.admin-model-table tr:hover {
+  background-color: var(--admin-bg-hover);
+}
+
+.admin-model-table th,
+.admin-model-table td {
+  padding: var(--admin-spacing-xs) var(--admin-spacing-base);
+  text-align: left;
+  font-size: var(--admin-font-size-base);
+}
+
+.admin-model-table th {
+  font-weight: var(--admin-font-weight-medium);
+}
+
+/* Name column takes up remaining space, action columns are compact */
+.admin-model-table th:first-child,
+.admin-model-table td:first-child {
+  width: auto;
+}
+
+.admin-model-table th:not(:first-child),
+.admin-model-table td:not(:first-child) {
+  width: 80px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.admin-addlink {
+  color: var(--admin-primary);
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-font-weight-medium);
+  text-decoration: none;
+}
+
+.admin-addlink:hover {
+  color: var(--admin-primary-dark);
+  text-decoration: underline;
+}
+
+.admin-changelink {
+  color: var(--admin-primary);
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-font-weight-medium);
+  text-decoration: none;
+}
+
+.admin-changelink:hover {
+  color: var(--admin-primary-dark);
+  text-decoration: underline;
+}
+
+/* Content Title (used in changelist + changeform) */
+
+.admin-content-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--admin-spacing-base);
+  flex-wrap: wrap;
+  gap: var(--admin-spacing-sm);
+}
+
+.admin-content-title h1 {
+  margin: 0;
+  font-size: var(--admin-font-size-2xl);
+  font-weight: var(--admin-font-weight-semibold);
+  color: var(--admin-text);
+}
+
+/* Add button in content title gets primary styling */
+.admin-content-title .admin-btn,
+.admin-content-title .admin-addlink {
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+  border: none;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  border-radius: var(--admin-radius);
+  font-size: var(--admin-font-size-base);
+  font-weight: var(--admin-font-weight-medium);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-content-title .admin-btn:hover,
+.admin-content-title .admin-addlink:hover {
+  background-color: var(--admin-primary-dark);
+  color: var(--admin-text-inverse);
+  text-decoration: none;
+}
+
+/* =========================================================================
+ * Changelist
+ * ========================================================================= */
+
+.admin-changelist {
+  max-width: var(--admin-content-max-width);
+}
+
+.admin-changelist-wrapper {
+  display: flex;
+  gap: var(--admin-spacing-lg);
+  align-items: flex-start;
+}
+
+.admin-changelist-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-changelist-filters {
+  width: 200px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  background-color: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  overflow: hidden;
+}
+
+.admin-changelist-count {
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text-muted);
+  margin: var(--admin-spacing-sm) 0;
+}
+
+/* =========================================================================
+ * Search Bar (changelist)
+ * ========================================================================= */
+
+.admin-search-bar {
+  margin-bottom: var(--admin-spacing-base);
+}
+
+.admin-search-row {
+  display: flex;
+  gap: var(--admin-spacing-sm);
+  align-items: stretch;
+}
+
+.admin-search-bar .admin-search-input {
+  flex: 1;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-md);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  font-family: var(--admin-font-family);
+  font-size: var(--admin-font-size-base);
+  color: var(--admin-text);
+  background-color: var(--admin-bg);
+}
+
+.admin-search-bar .admin-search-input:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+  box-shadow: 0 0 0 2px rgba(65, 118, 144, 0.2);
+}
+
+/* Search and Clear buttons in search bar get primary styling */
+.admin-search-row .admin-btn {
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+  border: none;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  white-space: nowrap;
+}
+
+.admin-search-row .admin-btn:hover:not(:disabled) {
+  background-color: var(--admin-primary-dark);
+  color: var(--admin-text-inverse);
+  text-decoration: none;
+}
+
+/* =========================================================================
+ * Bulk Actions (changelist)
+ * ========================================================================= */
+
+.admin-bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-spacing-sm);
+  padding: var(--admin-spacing-sm) 0;
+  margin-bottom: var(--admin-spacing-sm);
+}
+
+.admin-bulk-action-label {
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-font-weight-medium);
+  color: var(--admin-text);
+}
+
+.admin-bulk-action-select {
+  padding: var(--admin-spacing-xs) var(--admin-spacing-sm);
+  padding-right: var(--admin-spacing-xl);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  font-family: var(--admin-font-family);
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text);
+  background-color: var(--admin-bg);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  appearance: none;
+}
+
+.admin-bulk-action-select:focus {
+  outline: none;
+  border-color: var(--admin-primary);
+}
+
+.admin-bulk-action-go {
+  padding: var(--admin-spacing-xs) var(--admin-spacing-md);
+  font-size: var(--admin-font-size-sm);
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+  border: none;
+}
+
+.admin-bulk-action-go:hover:not(:disabled) {
+  background-color: var(--admin-primary-dark);
+  color: var(--admin-text-inverse);
+}
+
+/* =========================================================================
+ * Filters (changelist sidebar)
+ * ========================================================================= */
+
+.admin-filter-section {
+  border-bottom: 1px solid var(--admin-border-light);
+}
+
+.admin-filter-section:last-child {
+  border-bottom: none;
+}
+
+.admin-filter-title {
+  font-size: var(--admin-font-size-xs);
+  font-weight: var(--admin-font-weight-semibold);
+  color: var(--admin-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  border-bottom: 1px solid var(--admin-border-light);
+  background-color: var(--admin-bg-alt);
+}
+
+.admin-filter-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.admin-filter-list li a {
+  display: block;
+  padding: var(--admin-spacing-xs) var(--admin-spacing-base);
+  color: var(--admin-text);
+  text-decoration: none;
+  font-size: var(--admin-font-size-sm);
+  transition: background-color var(--admin-transition-fast);
+}
+
+.admin-filter-list li a:hover {
+  background-color: var(--admin-bg-hover);
+  color: var(--admin-primary);
+}
+
+.admin-filter-item-active a {
+  color: var(--admin-primary) !important;
+  font-weight: var(--admin-font-weight-semibold);
+}
+
+/* =========================================================================
+ * Changelist Table
+ * ========================================================================= */
+
+.admin-results {
+  overflow-x: auto;
+  background-color: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  margin-top: var(--admin-spacing-sm);
+}
+
+.admin-change-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--admin-font-size-base);
+}
+
+.admin-change-list-table thead {
+  background-color: var(--admin-bg-alt);
+}
+
+.admin-change-list-table th {
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  text-align: left;
+  font-weight: var(--admin-font-weight-semibold);
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text);
+  border-bottom: 2px solid var(--admin-border);
+  white-space: nowrap;
+}
+
+.admin-change-list-table td {
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  color: var(--admin-text);
+  vertical-align: middle;
+  border-bottom: 1px solid var(--admin-border-light);
+}
+
+.admin-change-list-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-change-list-table tbody tr:hover {
+  background-color: var(--admin-bg-hover);
+}
+
+.admin-col-header a {
+  color: var(--admin-text);
+  text-decoration: none;
+  font-weight: var(--admin-font-weight-semibold);
+  font-size: var(--admin-font-size-sm);
+}
+
+.admin-col-header a:hover {
+  color: var(--admin-primary);
+}
+
+.admin-col-header.sorted a {
+  color: var(--admin-primary);
+}
+
+.admin-col-checkbox {
+  width: 40px;
+  text-align: center;
+}
+
+.admin-list-link {
+  color: var(--admin-text-link);
+  text-decoration: none;
+  font-weight: var(--admin-font-weight-medium);
+}
+
+.admin-list-link:hover {
+  color: var(--admin-text-link-hover);
+  text-decoration: underline;
+}
+
+.admin-empty {
+  padding: var(--admin-spacing-lg) var(--admin-spacing-base);
+  color: var(--admin-text-muted);
+  font-size: var(--admin-font-size-sm);
+  text-align: center;
+}
+
+/* =========================================================================
+ * Changelist Pagination
+ * ========================================================================= */
+
+.admin-pagination-info {
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text-muted);
+  margin: var(--admin-spacing-sm) 0 var(--admin-spacing-xs);
+}
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-spacing-xs);
+  flex-wrap: wrap;
+  padding: var(--admin-spacing-sm) 0;
+}
+
+.admin-pagination-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--admin-spacing-sm);
+  border: 1px solid var(--admin-border);
+  border-radius: var(--admin-radius);
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
+  font-size: var(--admin-font-size-sm);
+  text-decoration: none;
+  transition:
+    border-color var(--admin-transition-fast),
+    background-color var(--admin-transition-fast);
+}
+
+.admin-pagination-link:hover {
+  border-color: var(--admin-primary);
+  background-color: var(--admin-bg-hover);
+  color: var(--admin-primary);
+  text-decoration: none;
+}
+
+.admin-pagination-link.active {
+  background-color: var(--admin-primary);
+  border-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+}
+
+.admin-pagination-disabled {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 var(--admin-spacing-sm);
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text-muted);
+  cursor: not-allowed;
+}
+
+.admin-pagination-ellipsis {
+  padding: 0 var(--admin-spacing-xs);
+  color: var(--admin-text-muted);
+  font-size: var(--admin-font-size-sm);
+}
+
+/* =========================================================================
+ * Change Form
+ * ========================================================================= */
+
+.admin-changeform {
+  max-width: var(--admin-form-max-width);
+}
+
+.admin-form-fields {
+  background-color: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  padding: var(--admin-spacing-base);
+  margin-bottom: var(--admin-spacing-base);
+}
+
+.admin-form-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: var(--admin-spacing-base);
+  padding: var(--admin-spacing-sm) 0;
+  border-bottom: 1px solid var(--admin-border-light);
+}
+
+.admin-form-row:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.admin-form-row.admin-error {
+  background-color: var(--admin-error-bg);
+  margin: 0 calc(-1 * var(--admin-spacing-base));
+  padding-left: var(--admin-spacing-base);
+  padding-right: var(--admin-spacing-base);
+}
+
+.admin-label {
+  flex: 0 0 200px;
+  padding-top: calc(var(--admin-spacing-sm) + 1px);
+  font-size: var(--admin-font-size-sm);
+  font-weight: var(--admin-font-weight-semibold);
+  color: var(--admin-text);
+  text-align: right;
+}
+
+.admin-label .required {
+  color: var(--admin-error);
+}
+
+.admin-form-field {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-help {
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-text-muted);
+  margin-top: var(--admin-spacing-xs);
+}
+
+.admin-errorlist {
+  list-style: none;
+  margin: 0 0 var(--admin-spacing-xs) 0;
+  padding: 0;
+  font-size: var(--admin-font-size-sm);
+  color: var(--admin-error);
+}
+
+.admin-errorlist li {
+  padding: var(--admin-spacing-xs) var(--admin-spacing-sm);
+  background-color: var(--admin-error-bg);
+  border-left: 3px solid var(--admin-error);
+  margin-bottom: 2px;
+}
+
+.admin-error-message {
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  background-color: var(--admin-error-bg);
+  color: var(--admin-error);
+  border: 1px solid var(--admin-error);
+  border-radius: var(--admin-radius);
+  font-size: var(--admin-font-size-sm);
+  margin-bottom: var(--admin-spacing-base);
+}
+
+.admin-submit-row {
+  display: flex;
+  align-items: center;
+  gap: var(--admin-spacing-sm);
+  padding: var(--admin-spacing-base) 0;
+  flex-wrap: wrap;
+}
+
+.admin-save-btn {
+  order: -1;
+}
+
+.admin-delete-btn {
+  margin-left: auto;
+}
+
+/* =========================================================================
+ * btn-default (used for Search, Go, etc.)
+ * ========================================================================= */
+
+.admin-btn-default {
+  background-color: var(--admin-bg-alt);
+  color: var(--admin-text);
+  border: 1px solid var(--admin-border);
+}
+
+.admin-btn-default:hover:not(:disabled) {
+  background-color: var(--admin-bg-hover);
+  border-color: var(--admin-border-dark);
+  color: var(--admin-text);
+  text-decoration: none;
+}
+
+/* =========================================================================
  * Login Page
  * ========================================================================= */
 
@@ -1908,6 +2672,29 @@ a:hover {
 .admin-login-subtitle {
   font-size: var(--admin-font-size-sm);
   color: var(--admin-text-muted);
+}
+
+/* Login form overrides: vertical stack (label above input) */
+.admin-login-box .admin-form-row {
+  flex-direction: column;
+  gap: var(--admin-spacing-xs);
+  border-bottom: none;
+  padding: 0 0 var(--admin-spacing-base) 0;
+}
+
+.admin-login-box .admin-label {
+  flex: none;
+  width: auto;
+  text-align: left;
+  padding-top: 0;
+}
+
+.admin-login-box .admin-input {
+  width: 100%;
+}
+
+.admin-form-actions {
+  margin-top: var(--admin-spacing-sm);
 }
 
 /* =========================================================================
@@ -2053,7 +2840,7 @@ a:hover {
   .admin-table th,
   .admin-table td {
     padding: 6px 8px;
-    border: 1px solid #cccccc;
+    border: 1px solid var(--admin-border);
   }
 }
 
