@@ -1939,20 +1939,32 @@ a:hover {
   border-bottom: none;
 }
 
+.admin-model-table tr:hover {
+  background-color: var(--admin-bg-hover);
+}
+
 .admin-model-table th,
 .admin-model-table td {
-  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  padding: var(--admin-spacing-xs) var(--admin-spacing-base);
   text-align: left;
   font-size: var(--admin-font-size-base);
 }
 
 .admin-model-table th {
   font-weight: var(--admin-font-weight-medium);
-  width: 60%;
 }
 
-.admin-model-table td {
-  width: 20%;
+/* Name column takes up remaining space, action columns are compact */
+.admin-model-table th:first-child,
+.admin-model-table td:first-child {
+  width: auto;
+}
+
+.admin-model-table th:not(:first-child),
+.admin-model-table td:not(:first-child) {
+  width: 80px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .admin-addlink {
@@ -1979,9 +1991,7 @@ a:hover {
   text-decoration: underline;
 }
 
-/* =========================================================================
- * Content Title (used in changelist + changeform)
- * ========================================================================= */
+/* Content Title (used in changelist + changeform) */
 
 .admin-content-title {
   display: flex;
@@ -1997,6 +2007,28 @@ a:hover {
   font-size: var(--admin-font-size-2xl);
   font-weight: var(--admin-font-weight-semibold);
   color: var(--admin-text);
+}
+
+/* Add button in content title gets primary styling */
+.admin-content-title .admin-btn,
+.admin-content-title .admin-addlink {
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+  border: none;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  border-radius: var(--admin-radius);
+  font-size: var(--admin-font-size-base);
+  font-weight: var(--admin-font-weight-medium);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.admin-content-title .admin-btn:hover,
+.admin-content-title .admin-addlink:hover {
+  background-color: var(--admin-primary-dark);
+  color: var(--admin-text-inverse);
+  text-decoration: none;
 }
 
 /* =========================================================================
@@ -2019,9 +2051,13 @@ a:hover {
 }
 
 .admin-changelist-filters {
-  width: 230px;
+  width: 200px;
   flex-shrink: 0;
   align-self: flex-start;
+  background-color: var(--admin-bg);
+  border: 1px solid var(--admin-border-light);
+  border-radius: var(--admin-radius-md);
+  overflow: hidden;
 }
 
 .admin-changelist-count {
@@ -2041,7 +2077,7 @@ a:hover {
 .admin-search-row {
   display: flex;
   gap: var(--admin-spacing-sm);
-  align-items: center;
+  align-items: stretch;
 }
 
 .admin-search-bar .admin-search-input {
@@ -2061,6 +2097,21 @@ a:hover {
   box-shadow: 0 0 0 2px rgba(65, 118, 144, 0.2);
 }
 
+/* Search and Clear buttons in search bar get primary styling */
+.admin-search-row .admin-btn {
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+  border: none;
+  padding: var(--admin-spacing-sm) var(--admin-spacing-base);
+  white-space: nowrap;
+}
+
+.admin-search-row .admin-btn:hover:not(:disabled) {
+  background-color: var(--admin-primary-dark);
+  color: var(--admin-text-inverse);
+  text-decoration: none;
+}
+
 /* =========================================================================
  * Bulk Actions (changelist)
  * ========================================================================= */
@@ -2071,7 +2122,6 @@ a:hover {
   gap: var(--admin-spacing-sm);
   padding: var(--admin-spacing-sm) 0;
   margin-bottom: var(--admin-spacing-sm);
-  border-bottom: 1px solid var(--admin-border-light);
 }
 
 .admin-bulk-action-label {
@@ -2101,8 +2151,16 @@ a:hover {
 }
 
 .admin-bulk-action-go {
-  padding: var(--admin-spacing-xs) var(--admin-spacing-base);
+  padding: var(--admin-spacing-xs) var(--admin-spacing-md);
   font-size: var(--admin-font-size-sm);
+  background-color: var(--admin-primary);
+  color: var(--admin-text-inverse);
+  border: none;
+}
+
+.admin-bulk-action-go:hover:not(:disabled) {
+  background-color: var(--admin-primary-dark);
+  color: var(--admin-text-inverse);
 }
 
 /* =========================================================================
@@ -2110,20 +2168,20 @@ a:hover {
  * ========================================================================= */
 
 .admin-filter-section {
-  margin-bottom: var(--admin-spacing-base);
+  border-bottom: 1px solid var(--admin-border-light);
 }
 
 .admin-filter-section:last-child {
-  margin-bottom: 0;
+  border-bottom: none;
 }
 
 .admin-filter-title {
-  font-size: var(--admin-font-size-sm);
+  font-size: var(--admin-font-size-xs);
   font-weight: var(--admin-font-weight-semibold);
   color: var(--admin-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin: 0 0 var(--admin-spacing-xs) 0;
+  margin: 0;
   padding: var(--admin-spacing-sm) var(--admin-spacing-base);
   border-bottom: 1px solid var(--admin-border-light);
   background-color: var(--admin-bg-alt);
@@ -2163,6 +2221,7 @@ a:hover {
   background-color: var(--admin-bg);
   border: 1px solid var(--admin-border-light);
   border-radius: var(--admin-radius-md);
+  margin-top: var(--admin-spacing-sm);
 }
 
 .admin-change-list-table {
