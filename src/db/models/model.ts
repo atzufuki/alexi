@@ -10,6 +10,7 @@ import {
   ManyToManyField,
   ManyToManyManager,
   RelatedManager,
+  setModelResolver,
 } from "../fields/relations.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
 
@@ -136,6 +137,10 @@ export class ModelRegistry {
   static get instance(): ModelRegistry {
     if (!ModelRegistry._instance) {
       ModelRegistry._instance = new ModelRegistry();
+      // Inject the registry as the model resolver for ForeignKey and ManyToManyField
+      // so that string-based model references can be resolved lazily on any instance,
+      // without requiring setRelatedModel() to have been called on that specific instance.
+      setModelResolver((name: string) => ModelRegistry._instance.get(name));
     }
     return ModelRegistry._instance;
   }
