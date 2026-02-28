@@ -374,11 +374,18 @@ async function fetchInstance(
       };
     }).objects;
 
-    const instance = await manager.using(backend).get({ id: parseInt(id, 10) });
+    // Find the primary key field name and coerce the id to the right type
+    const fields = getModelFields(modelAdmin.model);
+    const pkField = fields.find((f) => f.isPrimaryKey);
+    const pkName = pkField?.name ?? "id";
+    const isIntegerPk = pkField?.type === "AutoField" ||
+      pkField?.type === "IntegerField";
+    const pkValue = isIntegerPk ? parseInt(id, 10) : id;
+
+    const instance = await manager.using(backend).get({ [pkName]: pkValue });
     if (!instance) return null;
 
     // Serialize to plain object
-    const fields = getModelFields(modelAdmin.model);
     const obj: Record<string, unknown> = {};
     const r = instance as Record<string, unknown>;
     for (const f of fields) {
@@ -388,7 +395,8 @@ async function fetchInstance(
         : v;
     }
     return obj;
-  } catch {
+  } catch (err) {
+    console.error("[admin] fetchInstance error:", err);
     return null;
   }
 }
@@ -415,8 +423,16 @@ async function saveInstance(
 
     if (existingId) {
       // Update existing — fetch then mutate and save
+      // Resolve the PK field name and coerce the id to the correct type
+      const fields = getModelFields(modelAdmin.model);
+      const pkField = fields.find((f) => f.isPrimaryKey);
+      const pkName = pkField?.name ?? "id";
+      const isIntegerPk = pkField?.type === "AutoField" ||
+        pkField?.type === "IntegerField";
+      const pkValue = isIntegerPk ? parseInt(existingId, 10) : existingId;
+
       const instance = await manager.using(backend).get({
-        id: parseInt(existingId, 10),
+        [pkName]: pkValue,
       });
       if (!instance) {
         return { success: false, error: "Instance not found" };
@@ -475,7 +491,8 @@ export async function renderChangeForm(
   objectId?: string,
 ): Promise<Response> {
   const { request, adminSite, backend, settings } = context;
-  const urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  let urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  if (!urlPrefix.startsWith("/")) urlPrefix = `/${urlPrefix}`;
 
   // --- Auth guard ---
   const authResult = await verifyAdminToken(request, settings);
