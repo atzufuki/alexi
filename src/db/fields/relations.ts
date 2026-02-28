@@ -40,6 +40,29 @@ export type ModelClass<T = any> = new (...args: any[]) => T;
 export type LazyModelRef<T> = ModelClass<T> | string;
 
 // ============================================================================
+// Model Resolver
+// ============================================================================
+
+/**
+ * Module-level resolver function injected by ModelRegistry to avoid circular imports.
+ * Resolves a model class by its string name at call time.
+ */
+// deno-lint-ignore no-explicit-any
+let _modelResolver: ((name: string) => any | undefined) | undefined;
+
+/**
+ * Set the model resolver function. Called by ModelRegistry during initialization
+ * so that ForeignKey and ManyToManyField can lazily resolve string-based model
+ * references without a circular import dependency.
+ */
+// deno-lint-ignore no-explicit-any
+export function setModelResolver(
+  resolver: (name: string) => any | undefined,
+): void {
+  _modelResolver = resolver;
+}
+
+// ============================================================================
 // ForeignKey Field
 // ============================================================================
 
@@ -330,7 +353,18 @@ export class ForeignKey<T> extends Field<T> {
       this._resolvedModel = this.relatedModel;
       return this._resolvedModel;
     }
-    // String references need to be resolved by the model registry
+    // String references: resolve lazily from the registry to handle cases where
+    // setRelatedModel() was only called on the prototype instance's field but not
+    // on fields of new model instances created during QuerySet hydration.
+    if (_modelResolver) {
+      const resolved = _modelResolver(this.relatedModel) as
+        | ModelClass<T>
+        | undefined;
+      if (resolved) {
+        this._resolvedModel = resolved; // cache for future calls
+        return resolved;
+      }
+    }
     return undefined;
   }
 
@@ -507,6 +541,18 @@ export class ManyToManyField<T> extends Field<T[]> {
       this._resolvedModel = this.relatedModel;
       return this._resolvedModel;
     }
+    // String references: resolve lazily from the registry to handle cases where
+    // setRelatedModel() was only called on the prototype instance's field but not
+    // on fields of new model instances created during QuerySet hydration.
+    if (_modelResolver) {
+      const resolved = _modelResolver(this.relatedModel) as
+        | ModelClass<T>
+        | undefined;
+      if (resolved) {
+        this._resolvedModel = resolved; // cache for future calls
+        return resolved;
+      }
+    }
     return undefined;
   }
 
@@ -527,6 +573,16 @@ export class ManyToManyField<T> extends Field<T[]> {
     if (this.through && typeof this.through !== "string") {
       this._resolvedThrough = this.through;
       return this._resolvedThrough;
+    }
+    // String references: resolve lazily from the registry
+    if (_modelResolver && typeof this.through === "string") {
+      const resolved = _modelResolver(this.through) as
+        | ModelClass<unknown>
+        | undefined;
+      if (resolved) {
+        this._resolvedThrough = resolved;
+        return resolved;
+      }
     }
     return undefined;
   }
