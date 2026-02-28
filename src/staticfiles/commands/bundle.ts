@@ -765,9 +765,17 @@ export class BundleCommand extends BaseCommand {
         JSON.stringify("./" + entryPoint.replace(/^\.\//, ""))
       };\n`;
 
-      // Use an absolute path for the virtual entry so relative imports resolve
+      // Use only the filename as the virtual entry path so that the namespace +
+      // path combination is always a valid URL on every OS.  On Windows an
+      // absolute path such as "C:/Users/..." would be interpreted as an invalid
+      // port/scheme by @luca/esbuild-deno-loader when it constructs:
+      //   new URL("alexi-sw-entry-virtual:C:/Users/...")
+      // which breaks relative-import resolution.  Using just the filename avoids
+      // this: the deno-resolver plugin uses `resolveDir` (set below) to resolve
+      // imports from the virtual entry instead of deriving a base URL from the
+      // importer path.  See https://github.com/atzufuki/alexi/issues/172.
       const cwdNorm = Deno.cwd().replace(/\\/g, "/");
-      const virtualEntryPath = `${cwdNorm}/__alexi_sw_entry__.ts`;
+      const virtualEntryPath = "__alexi_sw_entry__.ts";
       const virtualEntryNamespace = "alexi-sw-entry-virtual";
 
       // Add a plugin that intercepts the virtual entry path
