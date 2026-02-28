@@ -15,9 +15,24 @@
     }
   });
 
-  // Handle HX-Redirect response header (used after login)
+  // Handle login/logout responses: store/clear token, then redirect.
+  // We use custom X-Admin-* headers instead of HX-Redirect because HTMX
+  // processes HX-Redirect synchronously before htmx:afterRequest fires,
+  // causing navigation before the token can be stored/cleared in localStorage.
   document.body.addEventListener("htmx:afterRequest", function (evt) {
-    var redirect = evt.detail.xhr.getResponseHeader("HX-Redirect");
+    var token = evt.detail.xhr.getResponseHeader("X-Admin-Token");
+    if (token) {
+      try {
+        localStorage.setItem(TOKEN_KEY, token);
+      } catch (e) {}
+    }
+    var logout = evt.detail.xhr.getResponseHeader("X-Admin-Logout");
+    if (logout) {
+      try {
+        localStorage.removeItem(TOKEN_KEY);
+      } catch (e) {}
+    }
+    var redirect = evt.detail.xhr.getResponseHeader("X-Admin-Redirect");
     if (redirect) {
       window.location.href = redirect;
     }
