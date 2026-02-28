@@ -322,6 +322,13 @@ export class BundleCommand extends BaseCommand {
   // ===========================================================================
 
   override addArguments(parser: IArgumentParser): void {
+    parser.addArgument("--settings", {
+      type: "string",
+      alias: "-s",
+      help: "Settings module to use (e.g. 'farmhub-sw'). " +
+        "When provided, only apps from this settings file are bundled.",
+    });
+
     parser.addArgument("--app", {
       type: "string",
       help: "Bundle only a specific app (app name in INSTALLED_APPS)",
@@ -358,6 +365,7 @@ export class BundleCommand extends BaseCommand {
     const minify = options.args.minify as boolean;
     const noCss = options.args["no-css"] as boolean;
     const debug = options.debug;
+    const settingsArg = options.args.settings as string | undefined;
 
     // Skip bundling if SKIP_BUNDLE is set (e.g., in CI)
     if (Deno.env.get("SKIP_BUNDLE") === "1") {
@@ -365,9 +373,15 @@ export class BundleCommand extends BaseCommand {
       return success();
     }
 
+    // Resolve settings path when --settings is provided
+    let settingsPath: string | undefined;
+    if (settingsArg) {
+      settingsPath = this.resolveSettingsPath(settingsArg);
+    }
+
     try {
       // Load settings
-      const settings = await this.loadSettings();
+      const settings = await this.loadSettings(settingsPath);
       if (!settings) {
         return failure("Failed to load settings");
       }
@@ -425,36 +439,76 @@ export class BundleCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Load project settings from all settings files.
-   * Collects import functions from INSTALLED_APPS.
+   * Resolve a short settings name (e.g. "farmhub-sw") to an absolute file path.
+   * Mirrors the logic used by web/commands/runserver.ts.
    */
-  private async loadSettings(): Promise<
+  private resolveSettingsPath(settingsArg: string): string {
+    if (settingsArg.endsWith(".ts")) {
+      if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
+        return `${this.projectRoot}/${settingsArg.slice(2)}`;
+      }
+      return `${this.projectRoot}/${settingsArg}`;
+    }
+
+    if (settingsArg.includes(".")) {
+      const modulePath = settingsArg.replace(/\./g, "/");
+      return `${this.projectRoot}/${modulePath}.ts`;
+    }
+
+    return `${this.projectRoot}/project/${settingsArg}.settings.ts`;
+  }
+
+  /**
+   * Load project settings.
+   *
+   * When `settingsPath` is provided (e.g. passed from `runserver`), only that
+   * single file is loaded.  This ensures that only the apps belonging to the
+   * active settings context are bundled.
+   *
+   * When no path is given (e.g. `bundle` command run directly without
+   * `--settings`), the original behaviour of scanning every `*.settings.ts`
+   * file in the `project/` directory is used as a fallback.
+   */
+  private async loadSettings(settingsPath?: string): Promise<
     {
       importFunctions: AppImportFn[];
     } | null
   > {
     try {
-      const projectDir = `${this.projectRoot}/project`;
       const importFunctions: AppImportFn[] = [];
 
-      // Find all settings files in project directory
-      for await (const entry of Deno.readDir(projectDir)) {
-        if (entry.isFile && entry.name.endsWith(".settings.ts")) {
-          try {
-            const settingsPath = `${projectDir}/${entry.name}`;
-            const settingsUrl = toImportUrl(settingsPath);
-            const settings = await import(settingsUrl);
-
-            const installedApps = settings.INSTALLED_APPS ?? [];
-
-            // Collect import functions
-            for (const app of installedApps) {
-              if (typeof app === "function") {
-                importFunctions.push(app as AppImportFn);
-              }
+      if (settingsPath) {
+        // Load only the active settings file
+        try {
+          const settingsUrl = toImportUrl(settingsPath);
+          const settings = await import(settingsUrl);
+          const installedApps = settings.INSTALLED_APPS ?? [];
+          for (const app of installedApps) {
+            if (typeof app === "function") {
+              importFunctions.push(app as AppImportFn);
             }
-          } catch {
-            // Skip invalid settings files
+          }
+        } catch {
+          // Invalid settings file
+        }
+      } else {
+        // Fallback: scan all settings files in project directory
+        const projectDir = `${this.projectRoot}/project`;
+        for await (const entry of Deno.readDir(projectDir)) {
+          if (entry.isFile && entry.name.endsWith(".settings.ts")) {
+            try {
+              const filePath = `${projectDir}/${entry.name}`;
+              const settingsUrl = toImportUrl(filePath);
+              const settings = await import(settingsUrl);
+              const installedApps = settings.INSTALLED_APPS ?? [];
+              for (const app of installedApps) {
+                if (typeof app === "function") {
+                  importFunctions.push(app as AppImportFn);
+                }
+              }
+            } catch {
+              // Skip invalid settings files
+            }
           }
         }
       }
@@ -734,7 +788,7 @@ export class BundleCommand extends BaseCommand {
             () => ({
               contents: wrappedSource,
               loader: "ts",
-              resolveDir: Deno.cwd(),
+              resolveDir: cwdNorm,
             }),
           );
         },
@@ -959,18 +1013,22 @@ export class BundleCommand extends BaseCommand {
    * 2. Start file watcher in background
    * 3. Return immediately so server can start
    *
+   * @param options.settingsPath - Absolute path to the active settings file.
+   *   When provided, only the apps from that file are bundled (fixes #169).
+   *
    * @returns Promise that resolves after initial bundle completes
    */
   async bundleAndWatch(options: {
     minify?: boolean;
     debug?: boolean;
+    settingsPath?: string;
   } = {}): Promise<{ success: boolean; error?: string }> {
     const minify = options.minify ?? false;
     const debug = options.debug ?? false;
 
     try {
-      // Load settings
-      const settings = await this.loadSettings();
+      // Load settings — restrict to the active settings file when provided
+      const settings = await this.loadSettings(options.settingsPath);
       if (!settings) {
         return { success: false, error: "Failed to load settings" };
       }
