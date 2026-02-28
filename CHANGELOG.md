@@ -8,6 +8,32 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.25.3] - 2026-02-28
+
+### Added
+
+- Admin dark mode with system preference detection and manual toggle (cycles:
+  auto → dark → light) with `localStorage` persistence (#152)
+- Admin CSS classes for dashboard, changelist and changeform views (#152)
+
+### Fixed
+
+- Admin JWT login race condition — token is now stored via `X-Admin-Token`
+  response header before HTMX navigation occurs; also sets `adminToken` cookie
+  so page refreshes work without relying on HTMX header injection (#150)
+- Admin auth guard now falls back to `adminToken` cookie when `Authorization`
+  header is absent, enabling direct page loads and refreshes to be authenticated
+  (#150)
+- Admin login form layout uses vertical stack (#152)
+- Admin header text uses `text-inverse` color in dark mode for readability
+  (#152)
+- Admin theme toggle icon updated correctly via JS on theme change (#152)
+
+### Changed
+
+- Admin UI spacing, button colors, filter sidebar and table alignment polished
+  (#152)
+
 ## [0.25.2] - 2026-02-28
 
 ### Fixed
