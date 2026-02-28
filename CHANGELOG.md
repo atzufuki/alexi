@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.26.3] - 2026-02-28
+
+### Fixed
+
+- SW bundle Windows fix was incomplete in v0.26.2; the virtual entry re-export
+  now uses an absolute `file://` URL (via `toFileUrl()`) instead of a relative
+  path, so `deno-resolver` resolves imports correctly on all platforms
+  regardless of the virtual entry's namespace or importer value (#172)
+
 ## [0.26.2] - 2026-02-28
 
 ### Fixed
