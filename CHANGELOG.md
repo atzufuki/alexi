@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.26.1] - 2026-02-28
+
+### Fixed
+
+- `BundleCommand` now loads only the active settings file when `--settings` is
+  provided (or when called from `runserver`), preventing apps from unrelated
+  settings files from bleeding into the wrong bundle context (#169)
+- Virtual entry esbuild plugin now uses a normalised `resolveDir` path on
+  Windows, fixing import resolution failures when bundling Service Workers
+  (#170)
+
 ## [0.26.0] - 2026-02-28
 
 ### Added
