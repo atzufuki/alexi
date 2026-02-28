@@ -823,19 +823,6 @@ a:hover {
   outline-offset: 2px;
 }
 
-/* Show/hide icons based on current theme */
-.admin-theme-icon-light,
-.admin-theme-icon-dark,
-.admin-theme-icon-auto {
-  display: none;
-}
-
-:root[data-theme="light"] .admin-theme-icon-light,
-:root[data-theme="dark"] .admin-theme-icon-dark,
-:root[data-theme="auto"] .admin-theme-icon-auto {
-  display: inline;
-}
-
 .admin-header-user {
   display: flex;
   align-items: center;
