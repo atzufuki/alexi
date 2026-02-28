@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.25.5] - 2026-02-28
+
+### Fixed
+
+- Admin change form no longer crashes with "Related object not fetched" error
+  when viewing/editing a model instance that has `ForeignKey` fields —
+  `fetchInstance` now uses `ForeignKey.id` (raw id, always available) instead of
+  `.get()` which throws if the related object has not been loaded (#159)
+
 ## [0.25.4] - 2026-02-28
 
 ### Fixed
