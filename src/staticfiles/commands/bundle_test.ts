@@ -333,9 +333,13 @@ Deno.test(
 // Regression for https://github.com/atzufuki/alexi/issues/172
 // =============================================================================
 
-Deno.test(
-  "buildSWBundle: bundles a plain entry point without templates",
-  async () => {
+Deno.test({
+  name: "buildSWBundle: bundles a plain entry point without templates",
+  // esbuild spawns a subprocess that may outlive the test's async boundary.
+  // Disable the sanitizers for these integration tests to avoid false positives.
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
     const tmpDir = await Deno.makeTempDir();
     try {
       // Write a minimal SW entry
@@ -365,11 +369,16 @@ Deno.test(
       await Deno.remove(tmpDir, { recursive: true });
     }
   },
-);
+});
 
-Deno.test(
-  "buildSWBundle: bundles with templates and embeds templateRegistry calls",
-  async () => {
+Deno.test({
+  name:
+    "buildSWBundle: bundles with templates and embeds templateRegistry calls",
+  // esbuild spawns a subprocess that may outlive the test's async boundary.
+  // Disable the sanitizers for these integration tests to avoid false positives.
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
     const tmpDir = await Deno.makeTempDir();
     try {
       // Write a minimal SW entry
@@ -405,4 +414,4 @@ Deno.test(
       await Deno.remove(tmpDir, { recursive: true });
     }
   },
-);
+});
