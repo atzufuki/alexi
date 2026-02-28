@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.25.6] - 2026-02-28
+
+### Fixed
+
+- `ForeignKey` and `ManyToManyField` now lazily resolve string-ref model names
+  via the model registry, so instances created after initial setup correctly
+  resolve their related models without requiring a full re-import (#161)
+
 ## [0.25.5] - 2026-02-28
 
 ### Fixed
