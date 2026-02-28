@@ -57,6 +57,36 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
+/**
+ * Safely extract a display value from a model field instance.
+ *
+ * - For regular fields: calls `.get()` to retrieve the value.
+ * - For ForeignKey fields that are loaded: calls `.get()` on the related
+ *   instance (which itself has field accessors).
+ * - For ForeignKey fields that are NOT loaded (e.g. not in listDisplay /
+ *   selectRelated was not called for this field): falls back to the raw FK ID
+ *   via `.id` instead of throwing.
+ * - For plain (non-field) values: returns the value as-is.
+ */
+function safeGetFieldValue(v: unknown): unknown {
+  if (v === null || v === undefined || typeof v !== "object") return v;
+  const obj = v as Record<string, unknown>;
+  // ForeignKey fields expose .isLoaded() and .id
+  if (typeof obj["isLoaded"] === "function") {
+    const fk = obj as {
+      isLoaded(): boolean;
+      get(): unknown;
+      id: unknown;
+    };
+    return fk.isLoaded() ? fk.get() : fk.id;
+  }
+  // Regular field: call .get()
+  if (typeof obj["get"] === "function") {
+    return (obj as { get(): unknown }).get();
+  }
+  return v;
+}
+
 function buildNavItems(
   site: AdminSite,
   currentPath: string,
@@ -423,15 +453,29 @@ export async function renderChangeList(
   let allData: Record<string, unknown>[] = [];
   let totalCount = 0;
 
+  // Collect ForeignKey field names for eager loading via selectRelated()
+  const fkFieldNames = fields
+    .filter((f) =>
+      f.type === "ForeignKey" ||
+      f.type === "OneToOneField"
+    )
+    .map((f) => f.name);
+
   try {
     // Build manager query
     const manager = (modelAdmin.model as unknown as {
       objects: {
         using: (b: DatabaseBackend) => {
           all(): {
+            selectRelated(...relations: string[]): {
+              fetch(): Promise<{ array(): unknown[] }>;
+            };
             fetch(): Promise<{ array(): unknown[] }>;
           };
           filter(q: Record<string, unknown>): {
+            selectRelated(...relations: string[]): {
+              fetch(): Promise<{ array(): unknown[] }>;
+            };
             fetch(): Promise<{ array(): unknown[] }>;
           };
         };
@@ -454,9 +498,15 @@ export async function renderChangeList(
     }
 
     const hasFilters = Object.keys(filterConditions).length > 0;
-    const qs = hasFilters
+    const baseQs = hasFilters
       ? manager.using(backend).filter(filterConditions)
       : manager.using(backend).all();
+
+    // Eagerly load all FK relations to avoid N+1 queries and prevent
+    // "Related object not fetched" errors in the serialization loop below.
+    const qs = fkFieldNames.length > 0
+      ? baseQs.selectRelated(...fkFieldNames)
+      : baseQs;
 
     const fetchedSet = await qs.fetch();
     let rows = fetchedSet.array() as unknown[];
@@ -469,9 +519,7 @@ export async function renderChangeList(
         const r = row as Record<string, unknown>;
         return modelAdmin.searchFields.some((fieldName) => {
           const f = r[fieldName];
-          const v = f && typeof f === "object" && "get" in f
-            ? (f as { get(): unknown }).get()
-            : f;
+          const v = safeGetFieldValue(f);
           return String(v ?? "").toLowerCase().includes(lower);
         });
       });
@@ -486,14 +534,8 @@ export async function renderChangeList(
       rows.sort((a, b) => {
         const ra = a as Record<string, unknown>;
         const rb = b as Record<string, unknown>;
-        const va = ra[field] && typeof ra[field] === "object" &&
-            "get" in (ra[field] as object)
-          ? (ra[field] as { get(): unknown }).get()
-          : ra[field];
-        const vb = rb[field] && typeof rb[field] === "object" &&
-            "get" in (rb[field] as object)
-          ? (rb[field] as { get(): unknown }).get()
-          : rb[field];
+        const va = safeGetFieldValue(ra[field]);
+        const vb = safeGetFieldValue(rb[field]);
         const sa = String(va ?? "");
         const sb = String(vb ?? "");
         return desc ? sb.localeCompare(sa) : sa.localeCompare(sb);
@@ -506,14 +548,8 @@ export async function renderChangeList(
       rows.sort((a, b) => {
         const ra = a as Record<string, unknown>;
         const rb = b as Record<string, unknown>;
-        const va = ra[field] && typeof ra[field] === "object" &&
-            "get" in (ra[field] as object)
-          ? (ra[field] as { get(): unknown }).get()
-          : ra[field];
-        const vb = rb[field] && typeof rb[field] === "object" &&
-            "get" in (rb[field] as object)
-          ? (rb[field] as { get(): unknown }).get()
-          : rb[field];
+        const va = safeGetFieldValue(ra[field]);
+        const vb = safeGetFieldValue(rb[field]);
         const sa = String(va ?? "");
         const sb = String(vb ?? "");
         return desc ? sb.localeCompare(sa) : sa.localeCompare(sb);
@@ -529,10 +565,7 @@ export async function renderChangeList(
       const obj: Record<string, unknown> = {};
       const r = row as Record<string, unknown>;
       for (const f of fields) {
-        const v = r[f.name];
-        obj[f.name] = v && typeof v === "object" && "get" in v
-          ? (v as { get(): unknown }).get()
-          : v;
+        obj[f.name] = safeGetFieldValue(r[f.name]);
       }
       return obj;
     });
