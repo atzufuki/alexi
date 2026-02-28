@@ -1,50 +1,10 @@
 /**
- * Django-style setup system for Alexi ORM
+ * Alexi ORM backend registry
  *
- * Provides a centralized configuration and initialization system similar to
- * Django's settings.py and django.setup().
+ * Low-level registry API for managing database backend instances.
+ * Use `setup()` from `@alexi/core` to initialize the ORM.
  *
  * @module
- *
- * @example
- * ```ts
- * // In main.ts or entry point
- * import { setup, getBackend } from '@alexi/db';
- *
- * await setup({
- *   database: {
- *     engine: 'indexeddb',
- *     name: 'myapp',
- *   },
- * });
- *
- * // Then in any component/view
- * import { getBackend } from '@alexi/db';
- * const backend = getBackend();
- * const articles = await Article.objects.using(backend).all().fetch();
- * ```
- *
- * @example Named backends (Django-style DATABASES)
- * ```ts
- * import { setup } from '@alexi/db';
- * import { IndexedDBBackend } from '@alexi/db/backends/indexeddb';
- * import { RestBackend } from '@alexi/db/backends/rest';
- *
- * const indexeddb = new IndexedDBBackend({ name: 'myapp' });
- * const rest = new RestBackend({ apiUrl: 'http://localhost:8000/api' });
- *
- * await setup({
- *   databases: {
- *     default: indexeddb,
- *     indexeddb: indexeddb,
- *     rest: rest,
- *   },
- * });
- *
- * // Then use by name
- * const cached = await Article.objects.using('indexeddb').all().fetch();
- * const fresh = await Article.objects.using('rest').all().fetch();
- * ```
  */
 
 import type { DatabaseBackend } from "./backends/backend.ts";
@@ -54,59 +14,14 @@ import type { DatabaseBackend } from "./backends/backend.ts";
 // ============================================================================
 
 /**
- * Database engine types
- */
-export type DatabaseEngine = "indexeddb" | "denokv" | "memory";
-
-/**
- * Database configuration
- */
-export interface DatabaseSettings {
-  /** Database engine to use */
-  engine: DatabaseEngine;
-  /** Database name */
-  name: string;
-  /** Optional path (for DenoKV file-based storage) */
-  path?: string;
-}
-
-/**
  * Named database backends configuration (Django-style DATABASES)
  */
 export type DatabasesConfig = Record<string, DatabaseBackend>;
-
-/**
- * Alexi ORM settings
- */
-export interface AlexiSettings {
-  /** Database configuration (required if backend not provided) */
-  database?: DatabaseSettings;
-  /** Pre-configured backend instance (alternative to database config) */
-  backend?: DatabaseBackend;
-  /**
-   * Named database backends (Django-style DATABASES).
-   * Allows using string names with .using('name').
-   * The 'default' key sets the default backend.
-   *
-   * @example
-   * ```ts
-   * databases: {
-   *   default: indexedDBBackend,
-   *   indexeddb: indexedDBBackend,
-   *   rest: restBackend,
-   * }
-   * ```
-   */
-  databases?: DatabasesConfig;
-  /** Debug mode - enables extra logging */
-  debug?: boolean;
-}
 
 // ============================================================================
 // Global State
 // ============================================================================
 
-let _settings: AlexiSettings | null = null;
 let _backend: DatabaseBackend | null = null;
 let _initialized = false;
 
@@ -114,154 +29,11 @@ let _initialized = false;
 const _backends: Map<string, DatabaseBackend> = new Map();
 
 // ============================================================================
-// Setup Functions
+// Registry API
 // ============================================================================
 
 /**
- * Initialize Alexi ORM with the given settings
- *
- * This function must be called before using any ORM features.
- * It creates and connects the database backend.
- *
- * @param settings - Configuration settings
- *
- * @example
- * ```ts
- * // Using IndexedDB (browser)
- * await setup({
- *   database: {
- *     engine: 'indexeddb',
- *     name: 'myapp',
- *   },
- * });
- *
- * // Using DenoKV (server)
- * await setup({
- *   database: {
- *     engine: 'denokv',
- *     name: 'myapp',
- *     path: './data/myapp.db',
- *   },
- * });
- * ```
- */
-export async function setup(settings: AlexiSettings): Promise<void> {
-  if (_initialized) {
-    if (settings.debug) {
-      console.warn("[Alexi] Already initialized, skipping setup");
-    }
-    return;
-  }
-
-  _settings = settings;
-
-  if (settings.debug) {
-    console.log("[Alexi] Initializing with settings:", settings);
-  }
-
-  // Handle named databases configuration (Django-style DATABASES)
-  if (settings.databases) {
-    // Clear existing registry
-    _backends.clear();
-
-    // Register and connect all named backends
-    for (const [name, backend] of Object.entries(settings.databases)) {
-      if (!backend.isConnected) {
-        await backend.connect();
-      }
-      _backends.set(name, backend);
-
-      if (settings.debug) {
-        console.log(`[Alexi] Registered backend '${name}'`);
-      }
-    }
-
-    // Set default backend if specified
-    if (_backends.has("default")) {
-      _backend = _backends.get("default")!;
-    } else {
-      // Use first backend as default if no 'default' key
-      const firstBackend = _backends.values().next().value;
-      if (firstBackend) {
-        _backend = firstBackend;
-      }
-    }
-  } else if (settings.backend) {
-    // Use pre-configured backend
-    _backend = settings.backend;
-    if (!_backend.isConnected) {
-      await _backend.connect();
-    }
-  } else if (settings.database) {
-    // Create and connect backend based on engine
-    _backend = await createBackend(settings.database);
-    await _backend.connect();
-  } else {
-    throw new Error(
-      "Alexi ORM setup requires 'databases', 'backend', or 'database' configuration.",
-    );
-  }
-
-  _initialized = true;
-
-  if (settings.debug) {
-    console.log("[Alexi] Setup complete, backend connected");
-  }
-}
-
-/**
- * Create a database backend based on settings
- */
-async function createBackend(
-  dbSettings: DatabaseSettings,
-): Promise<DatabaseBackend> {
-  switch (dbSettings.engine) {
-    case "indexeddb": {
-      // Dynamic import to avoid loading browser code in server context
-      const { IndexedDBBackend } = await import("./backends/indexeddb/mod.ts");
-      return new IndexedDBBackend({
-        name: dbSettings.name,
-      });
-    }
-
-    case "denokv": {
-      // Dynamic import to avoid loading Deno code in browser context
-      const { DenoKVBackend } = await import("./backends/denokv/mod.ts");
-      return new DenoKVBackend({
-        name: dbSettings.name,
-        path: dbSettings.path,
-      });
-    }
-
-    case "memory": {
-      // For testing - use IndexedDB with a random name
-      const { IndexedDBBackend } = await import("./backends/indexeddb/mod.ts");
-      return new IndexedDBBackend({
-        name: `test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      });
-    }
-
-    default:
-      throw new Error(`Unknown database engine: ${dbSettings.engine}`);
-  }
-}
-
-/**
- * Get the current settings
- *
- * @throws Error if setup() has not been called
- */
-export function getSettings(): AlexiSettings {
-  if (!_settings) {
-    throw new Error(
-      "Alexi ORM is not configured. Call setup() first.",
-    );
-  }
-  return _settings;
-}
-
-/**
- * Get the database backend
+ * Get the default database backend
  *
  * @throws Error if setup() has not been called
  *
@@ -274,7 +46,7 @@ export function getSettings(): AlexiSettings {
 export function getBackend(): DatabaseBackend {
   if (!_backend) {
     throw new Error(
-      "Alexi ORM is not configured. Call setup() first.",
+      "Alexi ORM is not configured. Call setup() from @alexi/core first.",
     );
   }
   return _backend;
@@ -288,22 +60,84 @@ export function isInitialized(): boolean {
 }
 
 // ============================================================================
-// Named Backend Registry
+// Setup API (db-level, for tests and internal use)
 // ============================================================================
 
 /**
- * Register a named backend
+ * Low-level ORM setup.
  *
- * @param name - The name to register the backend under
- * @param backend - The backend instance
+ * Registers one or more backends directly. For application use, prefer
+ * `setup({ DATABASES })` from `@alexi/core`.
+ *
+ * Accepts:
+ * - `setup({ backend })` — registers a single backend as "default"
+ * - `setup({ databases: { default: ..., secondary: ... } })` — named backends
  *
  * @example
  * ```ts
- * registerBackend('replica', replicaBackend);
+ * import { setup, reset } from "@alexi/db";
+ * import { DenoKVBackend } from "@alexi/db/backends/denokv";
+ *
+ * const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
+ * await backend.connect();
+ * await setup({ backend });
+ *
+ * // ... tests ...
+ *
+ * await reset();
  * ```
+ */
+export async function setup(
+  config:
+    | { backend: DatabaseBackend; databases?: never }
+    | { databases: DatabasesConfig; backend?: never },
+): Promise<void> {
+  if ("backend" in config && config.backend) {
+    // Single-backend shorthand
+    const backend = config.backend;
+    if (!backend.isConnected) {
+      await backend.connect();
+    }
+    registerBackend("default", backend);
+  } else if ("databases" in config && config.databases) {
+    // Named backends — register "default" first
+    const entries = Object.entries(config.databases);
+    const sorted = entries.sort(([a], [b]) => {
+      if (a === "default") return -1;
+      if (b === "default") return 1;
+      return 0;
+    });
+    for (const [name, backend] of sorted) {
+      if (!backend.isConnected) {
+        await backend.connect();
+      }
+      registerBackend(name, backend);
+    }
+  }
+}
+
+// ============================================================================
+// Registry API
+// ============================================================================
+
+/**
+ * Register a named backend and mark ORM as initialized.
+ *
+ * Called internally by `setup()` in `@alexi/core`.
+ *
+ * @param name - The name to register the backend under
+ * @param backend - The backend instance
  */
 export function registerBackend(name: string, backend: DatabaseBackend): void {
   _backends.set(name, backend);
+  _initialized = true;
+  // The 'default' key sets the default backend
+  if (name === "default") {
+    _backend = backend;
+  } else if (!_backend) {
+    // Use first registered backend as default if no 'default' key yet
+    _backend = backend;
+  }
 }
 
 /**
@@ -344,24 +178,14 @@ export function getBackendNames(): string[] {
 }
 
 /**
- * Replace the current database backend
- *
- * This is useful for swapping backends at runtime.
+ * Replace the default database backend
  *
  * @param backend - The new backend to use
- *
- * @example
- * ```ts
- * // Switch to a different backend
- * const newBackend = new IndexedDBBackend({ name: 'myapp-v2' });
- * await newBackend.connect();
- * setBackend(newBackend);
- * ```
  */
 export function setBackend(backend: DatabaseBackend): void {
   if (!_initialized) {
     throw new Error(
-      "Alexi ORM is not configured. Call setup() first before setting a new backend.",
+      "Alexi ORM is not configured. Call setup() from @alexi/core first before setting a new backend.",
     );
   }
   _backend = backend;
@@ -386,7 +210,6 @@ export async function shutdown(): Promise<void> {
     await _backend.disconnect();
   }
   _backend = null;
-  _settings = null;
   _initialized = false;
 }
 

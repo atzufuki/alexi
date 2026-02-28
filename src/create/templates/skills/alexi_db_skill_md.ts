@@ -349,26 +349,24 @@ export default class Migration0003 extends DataMigration {
 ### DenoKV Backend (Server)
 
 \`\`\`typescript
-import { setup } from "@alexi/db";
+import { setup } from "@alexi/core";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 
 const backend = new DenoKVBackend({
   name: "myapp",
   path: "./data/myapp.db",
 });
-await backend.connect();
-await setup({ backend });
+await setup({ DATABASES: { default: backend } });
 \`\`\`
 
 ### IndexedDB Backend (Browser)
 
 \`\`\`typescript
-import { setup } from "@alexi/db";
+import { setup } from "@alexi/core";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
 
 const backend = new IndexedDBBackend({ name: "myapp" });
-await backend.connect();
-await setup({ backend });
+await setup({ DATABASES: { default: backend } });
 \`\`\`
 
 ### REST Backend (Browser)
@@ -471,7 +469,8 @@ await schema.deprecateField(UserModel, "phone");
 \`\`\`typescript
 // Core ORM
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
-import { getBackend, isInitialized, setBackend, setup } from "@alexi/db";
+import { getBackend, isInitialized, setBackend } from "@alexi/db";
+import { setup } from "@alexi/core";
 import { Count, Q, QuerySet, RelatedManager, Sum } from "@alexi/db";
 
 // Backends

@@ -1008,8 +1008,7 @@ export const urlpatterns = [
  * @module ${name}/sw
  */
 
-import { Application } from "@alexi/core";
-import { setup } from "@alexi/db";
+import { Application, setup } from "@alexi/core";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
 import { urlpatterns } from "./urls.ts";
 
@@ -1021,8 +1020,7 @@ self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       const backend = new IndexedDBBackend({ name: "${name}" });
-      await backend.connect();
-      await setup({ backend });
+      await setup({ DATABASES: { default: backend } });
       await self.skipWaiting();
     })(),
   );

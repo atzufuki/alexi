@@ -7,8 +7,8 @@
  * @module @alexi/core/config
  */
 
-import { setup } from "@alexi/db";
-import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { setup } from "./setup.ts";
+import type { DatabasesConfig } from "./setup.ts";
 import { Application } from "./application.ts";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
@@ -69,7 +69,7 @@ function toImportUrl(filePath: string): string {
 // =============================================================================
 
 /**
- * Database configuration
+ * Database configuration (legacy engine-based format)
  */
 export interface DatabaseConfig {
   engine: "denokv" | "indexeddb" | "memory";
@@ -107,8 +107,11 @@ export interface AlexiSettings {
   // URL Configuration - import function
   ROOT_URLCONF?: UrlImportFn;
 
-  // Database
-  DATABASE: DatabaseConfig;
+  // Database — Django-style named backends dict.
+  // Keys are aliases (e.g. "default", "replica"); values are pre-built backend instances.
+  // The user imports their chosen backend in settings so bundlers can tree-shake
+  // server-only code from browser bundles.
+  DATABASES?: DatabasesConfig;
 
   // Static files
   STATIC_URL: string;
@@ -229,11 +232,8 @@ export async function loadSettings(
       // URL Configuration - import function
       ROOT_URLCONF: module.ROOT_URLCONF,
 
-      // Database
-      DATABASE: module.DATABASE ?? {
-        engine: "denokv",
-        name: "alexi",
-      },
+      // Database — Django-style DATABASES dict (optional; user sets it in settings)
+      DATABASES: module.DATABASES,
 
       // Static files
       STATIC_URL: module.STATIC_URL ?? "/static/",
@@ -392,51 +392,23 @@ export async function loadUrlPatterns(
 
 /**
  * Initialize the database based on settings.
+ *
+ * Reads `DATABASES` from settings (Django-style named backends dict) and
+ * delegates to the core `setup()` function.  If `DATABASES` is not set,
+ * the database is skipped (no-op) — useful for apps that don't use a DB.
  */
 export async function initializeDatabase(
   settings?: AlexiSettings,
 ): Promise<void> {
   const config = settings ?? getSettings();
 
-  switch (config.DATABASE.engine) {
-    case "denokv": {
-      const backend = new DenoKVBackend({
-        name: config.DATABASE.name,
-        path: config.DATABASE.path,
-      });
-      await backend.connect();
-      setup({ backend });
-      console.log(`✓ Database initialized (${config.DATABASE.engine})`);
-      break;
-    }
-
-    case "indexeddb": {
-      // Dynamic import for browser environments
-      const { IndexedDBBackend } = await import("@alexi/db/backends/indexeddb");
-      const backend = new IndexedDBBackend({
-        name: config.DATABASE.name,
-      });
-      await backend.connect();
-      setup({ backend });
-      console.log(`✓ Database initialized (${config.DATABASE.engine})`);
-      break;
-    }
-
-    case "memory": {
-      // For testing - use IndexedDB with random name
-      const { IndexedDBBackend } = await import("@alexi/db/backends/indexeddb");
-      const backend = new IndexedDBBackend({
-        name: `test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      });
-      await backend.connect();
-      setup({ backend });
-      console.log("✓ Database initialized (memory)");
-      break;
-    }
-
-    default:
-      throw new Error(`Unknown database engine: ${config.DATABASE.engine}`);
+  if (!config.DATABASES) {
+    // No database configured — skip silently.
+    return;
   }
+
+  await setup({ DATABASES: config.DATABASES });
+  console.log("✓ Database initialized");
 
   _initialized = true;
 }

@@ -227,8 +227,8 @@ Deno.test({
 
       assertMatch(
         swTs,
-        /import { Application } from "@alexi\/core"/,
-        "sw.ts should import Application",
+        /import { Application.*} from "@alexi\/core"/,
+        "sw.ts should import Application from @alexi/core",
       );
       assertMatch(
         swTs,
