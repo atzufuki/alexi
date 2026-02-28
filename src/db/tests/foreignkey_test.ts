@@ -1121,3 +1121,99 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// Issue #161: ForeignKey string-ref lazy resolution
+// ============================================================================
+
+// Models with string-based FK references (the pattern that triggered #161)
+class Unit161 extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(Unit161);
+  static override meta = { dbTable: "units_161" };
+}
+
+class Asset161 extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+  // String reference — this is what was broken
+  unit = new ForeignKey<Unit161>("Unit161", { onDelete: OnDelete.CASCADE });
+
+  static objects = new Manager(Asset161);
+  static override meta = { dbTable: "assets_161" };
+}
+
+Deno.test({
+  name:
+    "ForeignKey - string-ref .fetch() works on instances from QuerySet (Issue #161)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "fk161-test-1",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      const unit = await Unit161.objects.create({ name: "Kilogram" });
+
+      await Asset161.objects.create({ name: "Weight", unit: unit });
+
+      // Fetch from DB — each instance is newly created by QuerySet hydration
+      const assets = await Asset161.objects.all().fetch();
+      assertEquals(assets.array().length, 1);
+
+      const asset = assets.array()[0];
+
+      // Before fix: this threw "Related model for 'unit' could not be resolved"
+      const fetchedUnit = await asset.unit.fetch();
+      assertExists(fetchedUnit);
+      assertEquals(fetchedUnit!.name.get(), "Kilogram");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "ForeignKey - string-ref selectRelated() populates relation (Issue #161)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "fk161-test-2",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ backend });
+
+    try {
+      const unit = await Unit161.objects.create({ name: "Meter" });
+
+      await Asset161.objects.create({ name: "Ruler", unit: unit });
+
+      // Before fix: selectRelated silently did nothing for string-ref FKs
+      const assets = await Asset161.objects.selectRelated("unit").fetch();
+      assertEquals(assets.array().length, 1);
+
+      const asset = assets.array()[0];
+
+      // Related model should be loaded without an additional fetch
+      assertEquals(
+        asset.unit.isLoaded(),
+        true,
+        "unit should be pre-loaded by selectRelated",
+      );
+      assertEquals(asset.unit.get().name.get(), "Meter");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
