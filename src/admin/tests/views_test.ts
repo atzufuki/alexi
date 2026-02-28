@@ -305,7 +305,7 @@ Deno.test({
 // =============================================================================
 
 Deno.test({
-  name: "GET /admin/logout/ → 200 with HX-Redirect to login",
+  name: "GET /admin/logout/ → 200 with X-Admin-Redirect to login",
   async fn() {
     const backend = await makeBackend();
     try {
@@ -317,10 +317,11 @@ Deno.test({
       try {
         const res = await router.handle(req);
         assertEquals(res.status, 200);
-        assertEquals(res.headers.get("HX-Redirect"), "/admin/login/");
-        const html = await res.text();
-        assertStringIncludes(html, "removeItem");
-        assertStringIncludes(html, "adminToken");
+        assertEquals(res.headers.get("X-Admin-Redirect"), "/admin/login/");
+        assertEquals(res.headers.get("X-Admin-Logout"), "true");
+        const cookie = res.headers.get("Set-Cookie") ?? "";
+        assertStringIncludes(cookie, "adminToken=");
+        assertStringIncludes(cookie, "Max-Age=0");
       } finally {
         if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
       }

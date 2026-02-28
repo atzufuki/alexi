@@ -349,32 +349,17 @@ export async function handleLoginPost(
   // Determine redirect target
   const redirectTo = next && next.startsWith("/") ? next : `${urlPrefix}/`;
 
-  // Return HTML page that stores the token and redirects.
-  // admin.js listens for HX-Redirect but we also handle the plain redirect case.
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body>
-<script>
-  (function() {
-    try {
-      localStorage.setItem('adminToken', ${JSON.stringify(token)});
-    } catch(e) {}
-    window.location.href = ${JSON.stringify(redirectTo)};
-  })();
-</script>
-<noscript>
-  <p>Login successful. <a href="${redirectTo}">Click here to continue</a>.</p>
-</noscript>
-</body>
-</html>`;
-
-  return new Response(html, {
+  // Return response with X-Admin-Token header (for admin.js to store in
+  // localStorage for HTMX requests) and Set-Cookie (for normal browser
+  // navigation, since window.location.href does not carry custom headers).
+  return new Response("", {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      // HTMX will follow this header for hx-post requests
-      "HX-Redirect": redirectTo,
+      "X-Admin-Token": token,
+      "X-Admin-Redirect": redirectTo,
+      "Set-Cookie":
+        `adminToken=${token}; Path=/admin; SameSite=Strict; HttpOnly`,
     },
   });
 }
@@ -393,29 +378,17 @@ export function handleLogout(adminSite: AdminSite): Response {
   const urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
   const loginUrl = `${urlPrefix}/login/`;
 
-  const html = `<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"></head>
-<body>
-<script>
-  (function() {
-    try {
-      localStorage.removeItem('adminToken');
-    } catch(e) {}
-    window.location.href = ${JSON.stringify(loginUrl)};
-  })();
-</script>
-<noscript>
-  <p>You have been logged out. <a href="${loginUrl}">Log in again</a>.</p>
-</noscript>
-</body>
-</html>`;
-
-  return new Response(html, {
+  // Return an empty response with X-Admin-Logout + X-Admin-Redirect headers.
+  // admin.js clears localStorage. Cookie is cleared via Set-Cookie Max-Age=0
+  // so normal browser navigation also loses the session.
+  return new Response("", {
     status: 200,
     headers: {
       "Content-Type": "text/html; charset=utf-8",
-      "HX-Redirect": loginUrl,
+      "X-Admin-Logout": "true",
+      "X-Admin-Redirect": loginUrl,
+      "Set-Cookie":
+        `adminToken=; Path=/admin; SameSite=Strict; HttpOnly; Max-Age=0`,
     },
   });
 }
