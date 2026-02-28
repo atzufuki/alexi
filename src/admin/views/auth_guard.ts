@@ -76,7 +76,11 @@ async function verifyHmacSha256(
 // =============================================================================
 
 /**
- * Verify the JWT in the request's Authorization header.
+ * Verify the JWT in the request's Authorization header or adminToken cookie.
+ *
+ * Checks Authorization: Bearer <token> first (used by HTMX requests via
+ * admin.js), then falls back to the adminToken cookie (used by normal browser
+ * navigation such as window.location.href redirects after login).
  *
  * Returns an AuthGuardResult with `authenticated: true` if the token is
  * present, valid, and not expired.  Returns `authenticated: false` otherwise.
@@ -88,16 +92,32 @@ export async function verifyAdminToken(
   request: Request,
   settings?: Record<string, unknown>,
 ): Promise<AuthGuardResult> {
+  // 1. Try Authorization: Bearer header (HTMX requests)
+  let token: string | null = null;
   const authHeader = request.headers.get("Authorization") ??
     request.headers.get("authorization");
-  if (!authHeader) return { authenticated: false };
-
-  const parts = authHeader.split(" ");
-  if (parts.length !== 2 || parts[0].toLowerCase() !== "bearer") {
-    return { authenticated: false };
+  if (authHeader) {
+    const parts = authHeader.split(" ");
+    if (parts.length === 2 && parts[0].toLowerCase() === "bearer" && parts[1]) {
+      token = parts[1];
+    }
   }
 
-  const token = parts[1];
+  // 2. Fall back to adminToken cookie (normal browser navigation)
+  if (!token) {
+    const cookieHeader = request.headers.get("Cookie") ??
+      request.headers.get("cookie");
+    if (cookieHeader) {
+      for (const part of cookieHeader.split(";")) {
+        const [name, ...rest] = part.trim().split("=");
+        if (name.trim() === "adminToken") {
+          token = rest.join("=").trim();
+          break;
+        }
+      }
+    }
+  }
+
   if (!token) return { authenticated: false };
 
   // Split JWT
