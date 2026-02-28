@@ -212,9 +212,9 @@ export class RunServerCommand extends BaseCommand {
           } else {
             await (this.bundler as {
               bundleAndWatch: (
-                opts: { debug: boolean },
+                opts: { debug: boolean; settingsPath?: string },
               ) => Promise<{ success: boolean }>;
-            }).bundleAndWatch({ debug });
+            }).bundleAndWatch({ debug, settingsPath });
           }
 
           createHmrResponse = () =>
