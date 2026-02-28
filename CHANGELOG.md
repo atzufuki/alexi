@@ -8,6 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.25.4] - 2026-02-28
+
+### Fixed
+
+- Admin change form no longer returns 404 when navigating from the changelist —
+  `fetchInstance` and `saveInstance` now resolve the primary key field name
+  dynamically instead of hardcoding `id` (#156)
+- Admin changelist now always renders row links when `listDisplay` is not
+  explicitly configured — falls back to the first auto-derived column (#156)
+- Admin `fetchInstance` now logs ORM errors via `console.error` instead of
+  silently swallowing them, making debugging easier (#156)
+- Admin `urlPrefix` is normalised consistently (leading `/`, no trailing `/`)
+  across all admin view files (#156)
+
+### Added
+
+- Playwright E2E test suite for the admin panel covering login page, dashboard,
+  changelist, change form navigation, save, and add form (#157)
+
 ## [0.25.3] - 2026-02-28
 
 ### Added
