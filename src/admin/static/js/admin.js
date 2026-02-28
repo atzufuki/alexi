@@ -65,6 +65,12 @@
 
   var THEME_KEY = "adminTheme";
   var THEMES = ["auto", "dark", "light"];
+  var THEME_ICONS = { auto: "\u25D0", dark: "\u263E", light: "\u2600" };
+
+  function updateThemeIcon(theme) {
+    var btn = document.querySelector(".admin-theme-toggle");
+    if (btn) btn.textContent = THEME_ICONS[theme] || THEME_ICONS.auto;
+  }
 
   function applyTheme(theme) {
     if (THEMES.indexOf(theme) === -1) theme = "auto";
@@ -72,6 +78,7 @@
     try {
       localStorage.setItem(THEME_KEY, theme);
     } catch (e) {}
+    updateThemeIcon(theme);
   }
 
   function toggleTheme() {
