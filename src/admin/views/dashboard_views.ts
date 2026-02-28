@@ -129,7 +129,8 @@ export async function renderDashboard(
   context: DashboardViewContext,
 ): Promise<Response> {
   const { request, adminSite, settings } = context;
-  const urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  let urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
+  if (!urlPrefix.startsWith("/")) urlPrefix = `/${urlPrefix}`;
 
   // --- Auth guard ---
   const authResult = await verifyAdminToken(request, settings);
