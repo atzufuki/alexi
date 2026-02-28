@@ -390,9 +390,19 @@ async function fetchInstance(
     const r = instance as Record<string, unknown>;
     for (const f of fields) {
       const v = r[f.name];
-      obj[f.name] = v && typeof v === "object" && "get" in v
-        ? (v as { get(): unknown }).get()
-        : v;
+      if (v && typeof v === "object") {
+        if ("isLoaded" in v) {
+          // ForeignKey field — use raw .id to avoid requiring selectRelated().
+          // The admin FK widget only needs the raw integer ID.
+          obj[f.name] = (v as unknown as { id: unknown }).id;
+        } else if ("get" in v) {
+          obj[f.name] = (v as { get(): unknown }).get();
+        } else {
+          obj[f.name] = v;
+        }
+      } else {
+        obj[f.name] = v;
+      }
     }
     return obj;
   } catch (err) {
