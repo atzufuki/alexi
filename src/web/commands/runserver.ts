@@ -27,6 +27,8 @@ import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
+import type { AppConfig } from "@alexi/types";
+import { templateRegistry } from "@alexi/views";
 
 // =============================================================================
 // Helper Functions
@@ -79,6 +81,13 @@ interface ServerConfig {
  */
 type UrlImportFn = () => Promise<
   { urlpatterns?: unknown[]; default?: unknown[] }
+>;
+
+/**
+ * App import function type, matching INSTALLED_APPS entries.
+ */
+type AppImportFn = () => Promise<
+  { default?: AppConfig; [key: string]: unknown }
 >;
 
 // =============================================================================
@@ -270,6 +279,118 @@ export class RunServerCommand extends BaseCommand {
   }
 
   // ==========================================================================
+  // Template Loading
+  // ==========================================================================
+
+  /**
+   * Populate the global `templateRegistry` from all installed apps' `templatesDir`.
+   *
+   * Called at server startup so that `templateView` with `templateName` can
+   * resolve templates without any filesystem access per-request.
+   */
+  private async loadTemplates(
+    settings: Record<string, unknown>,
+  ): Promise<void> {
+    const installedApps = settings.INSTALLED_APPS as
+      | Array<AppImportFn>
+      | undefined;
+
+    if (!installedApps || !Array.isArray(installedApps)) return;
+
+    let registered = 0;
+
+    for (const importFn of installedApps) {
+      if (typeof importFn !== "function") continue;
+
+      try {
+        const module = await importFn();
+        const config = module.default as AppConfig | undefined;
+        if (!config?.templatesDir) continue;
+
+        const dir = this.resolveTemplatesDir(config.templatesDir);
+        if (!dir) continue;
+
+        await this.scanAndRegisterTemplates(dir);
+        registered++;
+      } catch {
+        // Skip apps that fail to load or have unreadable template dirs
+      }
+    }
+
+    if (registered > 0) {
+      this.success(`Templates loaded from ${registered} app(s)`);
+    }
+  }
+
+  /**
+   * Normalize a `templatesDir` value (relative path or `file://` URL) to an
+   * absolute filesystem path.  Returns `null` if the value cannot be resolved.
+   */
+  private resolveTemplatesDir(templatesDir: string): string | null {
+    if (!templatesDir) return null;
+
+    if (templatesDir.startsWith("file://")) {
+      try {
+        const url = new URL(templatesDir);
+        const pathname = url.pathname.replace(/\/$/, "");
+        // Remove leading slash on Windows absolute paths (/C:/...)
+        if (/^\/[a-zA-Z]:\//.test(pathname)) {
+          return pathname.slice(1);
+        }
+        return pathname;
+      } catch {
+        return null;
+      }
+    }
+
+    // Relative path → resolve against project root
+    const rel = templatesDir.replace(/^\.\//, "");
+    return `${this.projectRoot}/${rel}`;
+  }
+
+  /**
+   * Recursively scan `dir` for `.html` files and register each one into
+   * `templateRegistry` using Django-style namespacing (path relative to `dir`).
+   */
+  private async scanAndRegisterTemplates(dir: string): Promise<void> {
+    const walk = async (
+      currentDir: string,
+      relativePath: string,
+    ): Promise<void> => {
+      let entries: Deno.DirEntry[];
+      try {
+        entries = [];
+        for await (const entry of Deno.readDir(currentDir)) {
+          entries.push(entry);
+        }
+      } catch {
+        return;
+      }
+
+      for (const entry of entries) {
+        const entryRelPath = relativePath
+          ? `${relativePath}/${entry.name}`
+          : entry.name;
+        const fullPath = `${currentDir}/${entry.name}`;
+
+        if (entry.isDirectory) {
+          await walk(fullPath, entryRelPath);
+        } else if (entry.isFile && entry.name.endsWith(".html")) {
+          try {
+            const source = await Deno.readTextFile(fullPath);
+            const name = entryRelPath.replace(/\\/g, "/");
+            templateRegistry.register(name, source);
+          } catch {
+            // Skip unreadable files
+          }
+        }
+      }
+    };
+
+    await walk(dir, "");
+  }
+
+  // ==========================================================================
   // Server
   // ==========================================================================
 
@@ -315,6 +436,9 @@ export class RunServerCommand extends BaseCommand {
         ...urlpatterns,
       ];
     }
+
+    // Load templates from all installed apps into templateRegistry
+    await this.loadTemplates(settings);
 
     // Create middleware
     let middleware: Middleware[] = [];
