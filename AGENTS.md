@@ -1632,6 +1632,128 @@ class HeaderVersioning extends BaseVersioning {
 
 ---
 
+## Views & Template Engine
+
+`@alexi/views` provides a full Django-style template engine and the
+`templateView` helper for serving HTML pages.
+
+### Template Engine Features
+
+| Tag / Syntax                                                 | Description                              |
+| ------------------------------------------------------------ | ---------------------------------------- |
+| `{{ variable }}`                                             | Output variable (dot-notation supported) |
+| `{{ user.profile.name }}`                                    | Nested dot-notation access               |
+| `{% extends "base.html" %}`                                  | Template inheritance                     |
+| `{% block name %}...{% endblock %}`                          | Define / override named blocks           |
+| `{% for item in items %}...{% endfor %}`                     | Iteration (array)                        |
+| `{% for item in items %}...{% empty %}...{% endfor %}`       | Empty list fallback                      |
+| `{% if cond %}...{% elif cond %}...{% else %}...{% endif %}` | Conditionals                             |
+| `{% include "partial.html" %}`                               | Include a sub-template                   |
+| `{# comment #}`                                              | Comment (produces no output)             |
+
+The engine has **no Deno-specific APIs** — it runs identically in a Service
+Worker.
+
+### Template Registry
+
+Templates are stored in a global in-memory `templateRegistry` populated at
+startup:
+
+```typescript
+import {
+  ChainTemplateLoader,
+  FilesystemTemplateLoader,
+  MemoryTemplateLoader,
+  templateRegistry,
+} from "@alexi/views";
+
+// Register a template manually (e.g. for tests)
+templateRegistry.register("my-app/note_list.html", source);
+
+// Filesystem loader (server only — uses Deno.readTextFile)
+const fsLoader = new FilesystemTemplateLoader([
+  "./src/my-app/templates",
+]);
+
+// Chain: in-memory first, filesystem as fallback
+const loader = new ChainTemplateLoader([templateRegistry, fsLoader]);
+```
+
+### `templateView` — New API
+
+```typescript
+import { templateView } from "@alexi/views";
+
+export const noteListView = templateView({
+  templateName: "my-app/note_list.html",
+  context: async (request, params) => ({
+    notes: (await NoteModel.objects.all().fetch())
+      .array()
+      .map((n) => ({ id: n.id.get(), title: n.title.get() })),
+  }),
+});
+```
+
+The view resolves the template from `templateRegistry` (or an explicit `loader`
+option) and renders it with the returned context.
+
+### `templateView` — Legacy API (backwards compatible)
+
+```typescript
+templateView({
+  templatePath: "./src/myapp/templates/index.html",
+  context: {
+    API_URL: "https://api.example.com",
+  },
+});
+```
+
+Reads from disk and does simple `{{KEY}}` replacement. No template inheritance.
+
+### `AppConfig.templatesDir`
+
+Add `templatesDir` to your app config so the `Application` can register
+templates at startup:
+
+```typescript
+const config: AppConfig = {
+  name: "my-app",
+  templatesDir: new URL("./templates/", import.meta.url).href,
+  // or for project-local apps:
+  // templatesDir: "src/my-app/templates",
+};
+```
+
+### Template Example
+
+```html
+<!-- src/my-app/templates/my-app/base.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>{% block title %}My App{% endblock %}</title>
+  </head>
+  <body>
+    <main>{% block content %}{% endblock %}</main>
+  </body>
+</html>
+```
+
+```html
+<!-- src/my-app/templates/my-app/note_list.html -->
+{% extends "my-app/base.html" %} {% block title %}Notes{% endblock %} {% block
+content %}
+<h1>Notes</h1>
+<ul>
+  {% for note in notes %}
+  <li>{{ note.title }}</li>
+  {% endfor %}
+</ul>
+{% endblock %}
+```
+
+---
+
 ## URL Routing
 
 ```typescript
