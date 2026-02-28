@@ -119,17 +119,18 @@ export type {
 // - runserver (desktop) → @alexi/webui
 // - createsuperuser → @alexi/auth
 // - flush → @alexi/db
+// - makemigrations, migrate, showmigrations, sqlmigrate → @alexi/core/management
 // =============================================================================
 
-export {
-  HelpCommand,
-  MakemigrationsCommand,
-  MigrateCommand,
-  ShowmigrationsCommand,
-  SqlmigrateCommand,
-  TestCommand,
-} from "./commands/mod.ts";
+export { HelpCommand, TestCommand } from "./commands/mod.ts";
 export type { TestConfig } from "./commands/mod.ts";
+
+// =============================================================================
+// Setup
+// =============================================================================
+
+export { setup } from "./setup.ts";
+export type { DatabasesConfig } from "./setup.ts";
 
 // =============================================================================
 // Types

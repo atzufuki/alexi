@@ -5,32 +5,13 @@
  *
  * @module @alexi/db
  *
- * @example Using setup() (recommended)
+ * @example Using getBackend()
  * ```ts
- * import { setup, getBackend, Model, CharField, Manager } from '@alexi/db';
+ * import { getBackend, Model, CharField, Manager } from '@alexi/db';
  *
- * // In main.ts - initialize before mounting app
- * await setup({
- *   database: {
- *     engine: 'indexeddb',
- *     name: 'myapp',
- *   },
- * });
- *
- * // In any component - use getBackend()
+ * // After setup() has been called from @alexi/core:
  * const backend = getBackend();
  * const articles = await Article.objects.using(backend).all().fetch();
- * ```
- *
- * @example Using with DenoKV (server-side)
- * ```ts
- * await setup({
- *   database: {
- *     engine: 'denokv',
- *     name: 'myapp',
- *     path: './data/myapp.db',
- *   },
- * });
  * ```
  */
 
@@ -155,7 +136,6 @@ export {
   getBackend,
   getBackendByName,
   getBackendNames,
-  getSettings,
   hasBackend,
   isInitialized,
   registerBackend,
@@ -165,9 +145,4 @@ export {
   shutdown,
 } from "./setup.ts";
 
-export type {
-  AlexiSettings,
-  DatabaseEngine,
-  DatabasesConfig,
-  DatabaseSettings,
-} from "./setup.ts";
+export type { DatabasesConfig } from "./setup.ts";

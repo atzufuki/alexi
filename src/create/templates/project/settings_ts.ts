@@ -16,6 +16,8 @@ export function generateSharedSettings(name: string): string {
  * @module project/settings
  */
 
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+
 // =============================================================================
 // Environment
 // =============================================================================
@@ -29,10 +31,17 @@ export const SECRET_KEY = Deno.env.get("SECRET_KEY") ??
 // Database
 // =============================================================================
 
-export const DATABASE = {
-  engine: "denokv" as const,
-  name: "${name}",
-  path: Deno.env.get("DENO_KV_PATH"),
+/**
+ * Django-style DATABASES configuration.
+ * Keys are aliases (e.g. "default"); values are pre-built backend instances.
+ * Importing the backend here (not in core) means bundlers can tree-shake
+ * server-only code from browser bundles.
+ */
+export const DATABASES = {
+  default: new DenoKVBackend({
+    name: "${name}",
+    path: Deno.env.get("DENO_KV_PATH"),
+  }),
 };
 
 // =============================================================================

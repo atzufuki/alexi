@@ -95,12 +95,24 @@ Always use the `@alexi/` import aliases defined in `deno.json`:
 
 ```typescript
 // Core
-import { Application, BaseCommand, ManagementUtility } from "@alexi/core";
-import type { CommandOptions, CommandResult } from "@alexi/core";
+import {
+  Application,
+  BaseCommand,
+  ManagementUtility,
+  setup,
+} from "@alexi/core";
+import type {
+  CommandOptions,
+  CommandResult,
+  DatabasesConfig,
+} from "@alexi/core";
+
+// Management commands (server-only, not imported in browser bundles)
+import { MakemigrationsCommand, MigrateCommand } from "@alexi/core/management";
 
 // Database ORM
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
-import { getBackend, isInitialized, setBackend, setup } from "@alexi/db";
+import { getBackend, isInitialized, setBackend } from "@alexi/db";
 import { Count, Q, QuerySet, RelatedManager, Sum } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
@@ -537,23 +549,36 @@ This is essentially `updateOrCreate()` for each object.
 
 ### Database Setup
 
+App-level setup is done via `setup()` from `@alexi/core`. Pass a `DATABASES`
+dict of pre-built backend instances. The function connects each backend and
+registers it with the ORM.
+
 ```typescript
-import { setup } from "@alexi/db";
+import { setup } from "@alexi/core";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 
-// Option 1: Auto-create backend
+const backend = new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" });
+
 await setup({
-  database: {
-    engine: "denokv",
-    name: "myapp",
-    path: "./data/myapp.db",
+  DATABASES: {
+    default: backend,
   },
 });
+```
 
-// Option 2: Provide backend instance
-const backend = new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" });
+For tests, `@alexi/db` still exports a low-level `setup()` that accepts a single
+backend instance or a `databases` dict:
+
+```typescript
+import { reset, setup } from "@alexi/db";
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+
+const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
 await backend.connect();
-await setup({ backend });
+await setup({ backend }); // or setup({ databases: { default: backend } })
+// ... run tests ...
+await reset();
+await backend.disconnect();
 ```
 
 ### REST Backend (Browser)
@@ -2118,6 +2143,8 @@ context (so import maps work correctly):
 ```typescript
 // project/web.settings.ts
 
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+
 export const DEBUG = Deno.env.get("DEBUG") === "true";
 export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 
@@ -2139,10 +2166,8 @@ export const INSTALLED_APPS = [
 // ROOT_URLCONF is an import function that returns the URL patterns module.
 export const ROOT_URLCONF = () => import("@myapp/web/urls");
 
-export const DATABASE = {
-  engine: "denokv" as const,
-  name: "myapp",
-  path: "./data/myapp.db",
+export const DATABASES = {
+  default: new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" }),
 };
 ```
 
@@ -2380,9 +2405,16 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
 5. **Backend must be connected**: Always call `await backend.connect()` before
    use
 
-6. **Setup before ORM operations**: Call `setup()` before any model operations:
+6. **Setup before ORM operations**: Call `setup()` from `@alexi/core` before any
+   model operations:
    ```typescript
-   await setup({ backend });
+   import { setup } from "@alexi/core";
+   import { DenoKVBackend } from "@alexi/db/backends/denokv";
+   await setup({
+     DATABASES: {
+       default: new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" }),
+     },
+   });
    // Now models work
    const tasks = await TaskModel.objects.all().fetch();
    ```

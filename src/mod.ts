@@ -34,6 +34,7 @@ export {
   ManagementUtility,
   registerCommand,
   resetConfiguration,
+  setup,
   success,
   TestCommand,
 } from "./core/mod.ts";
@@ -48,6 +49,7 @@ export type {
   CommandOptions,
   CommandResult,
   DatabaseConfig as CoreDatabaseConfig,
+  DatabasesConfig,
   Handler,
   IArgumentParser,
   ICommand,
@@ -86,7 +88,6 @@ export {
   ForeignKey,
   // Setup
   getBackend,
-  getSettings as getDbSettings,
   IntegerField as DbIntegerField,
   isInitialized,
   JSONField as DbJSONField,
@@ -106,7 +107,6 @@ export {
   QuerySet,
   reset,
   setBackend,
-  setup,
   shutdown,
   Sum,
   TextField as DbTextField,
@@ -119,16 +119,12 @@ export type {
   // Query
   Aggregation,
   Aggregations,
-  // Setup
-  AlexiSettings as DbSettings,
   Annotations,
   // Fields
   CharFieldOptions as DbCharFieldOptions,
   CompiledQuery,
   // Backend
   DatabaseConfig,
-  DatabaseEngine,
-  DatabaseSettings,
   DateFieldOptions,
   DecimalFieldOptions,
   FieldOptions,

@@ -145,6 +145,7 @@ async function patchProjectForLocalAlexi(projectPath: string): Promise<void> {
   const localImports: Record<string, string> = {
     // Alexi framework modules
     "@alexi/core": `${alexiRoot}src/core/mod.ts`,
+    "@alexi/core/management": `${alexiRoot}src/core/commands/mod.ts`,
     "@alexi/db": `${alexiRoot}src/db/mod.ts`,
     "@alexi/db/backends/denokv": `${alexiRoot}src/db/backends/denokv/mod.ts`,
     "@alexi/db/backends/indexeddb":

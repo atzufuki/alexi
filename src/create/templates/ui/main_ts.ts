@@ -16,9 +16,9 @@ export function generateUiMainTs(name: string): string {
  * @module ${name}-ui/main
  */
 
-import { setup } from "@alexi/db";
+import { setup } from "@alexi/core";
 import { resolve, isRedirectResponse } from "@alexi/urls";
-import { DATABASES, DEBUG } from "@${name}-ui/settings.ts";
+import { DATABASES } from "@${name}-ui/settings.ts";
 import { urlpatterns } from "@${name}-ui/urls.ts";
 import { navigate, normalizePath, isInternalLink, type ViewContext } from "@${name}-ui/utils.ts";
 
@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   rootElement = root;
 
   // Step 1: Initialize backends
-  await setup({ databases: DATABASES, debug: DEBUG });
+  await setup({ DATABASES });
 
   // Step 2: Set up navigation listeners
   globalThis.addEventListener("popstate", () => renderCurrentRoute(root));

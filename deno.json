@@ -22,6 +22,7 @@
   "exports": {
     ".": "./src/mod.ts",
     "./core": "./src/core/mod.ts",
+    "./core/management": "./src/core/commands/mod.ts",
     "./db": "./src/db/mod.ts",
     "./db/config": "./src/db/app.ts",
     "./db/backends/denokv": "./src/db/backends/denokv/mod.ts",
@@ -78,6 +79,7 @@
   "imports": {
     "@alexi/types": "./src/types/mod.ts",
     "@alexi/core": "./src/core/mod.ts",
+    "@alexi/core/management": "./src/core/commands/mod.ts",
     "@alexi/db": "./src/db/mod.ts",
     "@alexi/db/backends/denokv": "./src/db/backends/denokv/mod.ts",
     "@alexi/db/backends/indexeddb": "./src/db/backends/indexeddb/mod.ts",
