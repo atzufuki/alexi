@@ -118,7 +118,7 @@ export function baseTemplate(ctx: BaseTemplateContext): string {
           title="Toggle color theme"
           aria-label="Toggle color theme"
           onclick="window.adminTheme && window.adminTheme.toggle()"
-        ><span class="admin-theme-icon-auto" aria-hidden="true">&#9681;</span><span class="admin-theme-icon-dark" aria-hidden="true">&#9790;</span><span class="admin-theme-icon-light" aria-hidden="true">&#9728;</span></button>
+        >&#9680;</button>
         ${
     userEmail
       ? `<span class="admin-header-link">${escapeHtml(userEmail)}</span>
