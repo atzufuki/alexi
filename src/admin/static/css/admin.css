@@ -41,13 +41,16 @@
 
   /* Status colors */
   --admin-success: #44aa00;
+  --admin-success-dark: #3a9000;
   --admin-success-bg: #e6f4e1;
   --admin-error: #ba2121;
+  --admin-error-dark: #a01c1c;
   --admin-error-bg: #fde8e8;
   --admin-warning: #cc9900;
   --admin-warning-bg: #fff8e1;
   --admin-info: #417690;
   --admin-info-bg: #e8f4f8;
+  --admin-bg-selected-hover: #d0e8f0;
 
   /* Typography */
   --admin-font-family:
@@ -121,6 +124,125 @@
   --admin-z-popover: 600;
   --admin-z-tooltip: 700;
   --admin-z-toast: 800;
+}
+
+/* =========================================================================
+ * Dark Mode Variables
+ * Applied when data-theme="dark" is set on <html>, or when
+ * data-theme="auto" (default) and system prefers dark color scheme.
+ * ========================================================================= */
+
+:root[data-theme="dark"],
+:root[data-theme="auto"] {
+  /* These rules only apply when system preference is dark */
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="auto"] {
+    /* Primary colors */
+    --admin-primary: #79aec8;
+    --admin-primary-dark: #417690;
+    --admin-primary-light: #a8ccdc;
+    --admin-secondary: #79aec8;
+    --admin-accent: #609ab6;
+
+    /* Background colors */
+    --admin-bg: #1e2a35;
+    --admin-bg-alt: #0d1721;
+    --admin-bg-dark: #205067;
+    --admin-bg-darker: #0d3347;
+    --admin-bg-hover: #253545;
+    --admin-bg-selected: #1f3a4a;
+
+    /* Text colors */
+    --admin-text: #e0e0e0;
+    --admin-text-light: #aaaaaa;
+    --admin-text-muted: #777777;
+    --admin-text-inverse: #0d1721;
+    --admin-text-link: #79aec8;
+    --admin-text-link-hover: #a8ccdc;
+
+    /* Border colors */
+    --admin-border: #3a4f5e;
+    --admin-border-light: #2a3d4e;
+    --admin-border-dark: #5a7080;
+    --admin-border-focus: #79aec8;
+
+    /* Status colors */
+    --admin-success: #5cb85c;
+    --admin-success-dark: #4aa04a;
+    --admin-success-bg: #1a3a1a;
+    --admin-error: #e05555;
+    --admin-error-dark: #c03030;
+    --admin-error-bg: #3a1515;
+    --admin-warning: #e6b800;
+    --admin-warning-bg: #3a3000;
+    --admin-info: #79aec8;
+    --admin-info-bg: #1a2f3a;
+    --admin-bg-selected-hover: #1a3f52;
+
+    /* Shadows (softer in dark mode) */
+    --admin-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --admin-shadow:
+      0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+    --admin-shadow-md:
+      0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+    --admin-shadow-lg:
+      0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme="dark"] {
+  /* Primary colors */
+  --admin-primary: #79aec8;
+  --admin-primary-dark: #417690;
+  --admin-primary-light: #a8ccdc;
+  --admin-secondary: #79aec8;
+  --admin-accent: #609ab6;
+
+  /* Background colors */
+  --admin-bg: #1e2a35;
+  --admin-bg-alt: #0d1721;
+  --admin-bg-dark: #205067;
+  --admin-bg-darker: #0d3347;
+  --admin-bg-hover: #253545;
+  --admin-bg-selected: #1f3a4a;
+
+  /* Text colors */
+  --admin-text: #e0e0e0;
+  --admin-text-light: #aaaaaa;
+  --admin-text-muted: #777777;
+  --admin-text-inverse: #0d1721;
+  --admin-text-link: #79aec8;
+  --admin-text-link-hover: #a8ccdc;
+
+  /* Border colors */
+  --admin-border: #3a4f5e;
+  --admin-border-light: #2a3d4e;
+  --admin-border-dark: #5a7080;
+  --admin-border-focus: #79aec8;
+
+  /* Status colors */
+  --admin-success: #5cb85c;
+  --admin-success-dark: #4aa04a;
+  --admin-success-bg: #1a3a1a;
+  --admin-error: #e05555;
+  --admin-error-dark: #c03030;
+  --admin-error-bg: #3a1515;
+  --admin-warning: #e6b800;
+  --admin-warning-bg: #3a3000;
+  --admin-info: #79aec8;
+  --admin-info-bg: #1a2f3a;
+  --admin-bg-selected-hover: #1a3f52;
+
+  /* Shadows */
+  --admin-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --admin-shadow:
+    0 1px 3px 0 rgba(0, 0, 0, 0.4), 0 1px 2px -1px rgba(0, 0, 0, 0.4);
+  --admin-shadow-md:
+    0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --admin-shadow-lg:
+    0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
 }
 
 /* =========================================================================
@@ -287,7 +409,7 @@ a:hover {
 }
 
 .admin-btn-danger:hover:not(:disabled) {
-  background-color: #a01c1c;
+  background-color: var(--admin-error-dark);
 }
 
 .admin-btn-success {
@@ -296,7 +418,7 @@ a:hover {
 }
 
 .admin-btn-success:hover:not(:disabled) {
-  background-color: #3a9000;
+  background-color: var(--admin-success-dark);
 }
 
 .admin-btn-link {
@@ -670,6 +792,48 @@ a:hover {
 
 .admin-header-link:hover {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Theme toggle button in header */
+.admin-theme-toggle {
+  background: none;
+  border: none;
+  color: var(--admin-text-inverse);
+  cursor: pointer;
+  padding: var(--admin-spacing-xs);
+  border-radius: var(--admin-radius);
+  font-size: var(--admin-font-size-md);
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  transition: background-color var(--admin-transition-fast);
+  opacity: 0.8;
+}
+
+.admin-theme-toggle:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.admin-theme-toggle:focus {
+  outline: 2px solid var(--admin-secondary);
+  outline-offset: 2px;
+}
+
+/* Show/hide icons based on current theme */
+.admin-theme-icon-light,
+.admin-theme-icon-dark,
+.admin-theme-icon-auto {
+  display: none;
+}
+
+:root[data-theme="light"] .admin-theme-icon-light,
+:root[data-theme="dark"] .admin-theme-icon-dark,
+:root[data-theme="auto"] .admin-theme-icon-auto {
+  display: inline;
 }
 
 .admin-header-user {
@@ -1612,7 +1776,7 @@ a:hover {
   background-color: var(--admin-bg-selected);
 }
 .admin-table tbody tr.admin-row-selected:hover {
-  background-color: #d0e8f0;
+  background-color: var(--admin-bg-selected-hover);
 }
 
 /* =========================================================================
@@ -2666,7 +2830,7 @@ a:hover {
   .admin-table th,
   .admin-table td {
     padding: 6px 8px;
-    border: 1px solid #cccccc;
+    border: 1px solid var(--admin-border);
   }
 }
 

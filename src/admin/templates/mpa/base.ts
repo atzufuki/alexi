@@ -91,11 +91,13 @@ export function baseTemplate(ctx: BaseTemplateContext): string {
   } = ctx;
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(title)} | ${escapeHtml(siteTitle)}</title>
+  <!-- Restore saved theme before first paint to avoid flash -->
+  <script>(function(){var t=localStorage.getItem("adminTheme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);})()</script>
   <link rel="stylesheet" href="${escapeHtml(urlPrefix)}/static/css/admin.css">
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
   <script src="${escapeHtml(urlPrefix)}/static/js/admin.js" defer></script>
@@ -111,6 +113,12 @@ export function baseTemplate(ctx: BaseTemplateContext): string {
   }</a>
       </div>
       <nav class="admin-header-nav">
+        <button
+          class="admin-theme-toggle"
+          title="Toggle color theme"
+          aria-label="Toggle color theme"
+          onclick="window.adminTheme && window.adminTheme.toggle()"
+        ><span class="admin-theme-icon-auto" aria-hidden="true">&#9681;</span><span class="admin-theme-icon-dark" aria-hidden="true">&#9790;</span><span class="admin-theme-icon-light" aria-hidden="true">&#9728;</span></button>
         ${
     userEmail
       ? `<span class="admin-header-link">${escapeHtml(userEmail)}</span>
@@ -172,11 +180,13 @@ export function loginTemplate(ctx: LoginTemplateContext): string {
   const { siteTitle, urlPrefix, error, next } = ctx;
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Log in | ${escapeHtml(siteTitle)}</title>
+  <!-- Restore saved theme before first paint to avoid flash -->
+  <script>(function(){var t=localStorage.getItem("adminTheme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);})()</script>
   <link rel="stylesheet" href="${escapeHtml(urlPrefix)}/static/css/admin.css">
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
   <script src="${escapeHtml(urlPrefix)}/static/js/admin.js" defer></script>
