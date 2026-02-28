@@ -19,7 +19,15 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { reset, setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
-import { AutoField, BooleanField, CharField, Manager, Model } from "@alexi/db";
+import {
+  AutoField,
+  BooleanField,
+  CharField,
+  ForeignKey,
+  Manager,
+  Model,
+  OnDelete,
+} from "@alexi/db";
 import { AdminSite } from "../site.ts";
 import { ModelAdmin } from "../model_admin.ts";
 import { renderChangeList } from "../views/changelist_views.ts";
@@ -46,6 +54,34 @@ class ArticleModel extends Model {
     dbTable: "cl_articles",
     verboseName: "Article",
     verboseNamePlural: "Articles",
+  };
+}
+
+// Models for ForeignKey tests
+class CategoryModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(CategoryModel);
+  static override meta = {
+    dbTable: "cl_categories",
+    verboseName: "Category",
+    verboseNamePlural: "Categories",
+  };
+}
+
+class PostModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  category = new ForeignKey<CategoryModel>("CategoryModel", {
+    onDelete: OnDelete.CASCADE,
+  });
+
+  static objects = new Manager(PostModel);
+  static override meta = {
+    dbTable: "cl_posts",
+    verboseName: "Post",
+    verboseNamePlural: "Posts",
   };
 }
 
@@ -723,6 +759,84 @@ Deno.test({
       );
       const html = await res.text();
       assertStringIncludes(html, `/admin/articlemodel/${id}/`);
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
+// =============================================================================
+// ForeignKey fields (#154)
+// =============================================================================
+
+Deno.test({
+  name:
+    "renderChangeList: does not crash when model has a ForeignKey field in listDisplay",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const category = await CategoryModel.objects.create({ name: "Tech" });
+      await PostModel.objects.create({
+        title: "Hello FK",
+        category: category,
+      });
+
+      const site = makeSite();
+
+      class PostAdmin extends ModelAdmin {
+        override listDisplay = ["id", "title", "category"];
+      }
+      site.register(PostModel, PostAdmin);
+
+      const req = makeRequest("/admin/postmodel/", makeValidToken());
+      const res = await renderChangeList(
+        { request: req, params: {}, adminSite: site, backend },
+        "postmodel",
+      );
+      // Must not throw and must return 200
+      assertEquals(res.status, 200);
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "renderChangeList: ForeignKey column shows FK id when relation is present",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const category = await CategoryModel.objects.create({ name: "Science" });
+      const categoryId = category.id.get();
+      await PostModel.objects.create({
+        title: "FK Display Test",
+        category: category,
+      });
+
+      const site = makeSite();
+
+      class PostAdmin extends ModelAdmin {
+        override listDisplay = ["id", "title", "category"];
+      }
+      site.register(PostModel, PostAdmin);
+
+      const req = makeRequest("/admin/postmodel/", makeValidToken());
+      const res = await renderChangeList(
+        { request: req, params: {}, adminSite: site, backend },
+        "postmodel",
+      );
+      const html = await res.text();
+      // The FK id should appear in the rendered row
+      assertStringIncludes(html, String(categoryId));
     } finally {
       await teardownBackend(backend);
       if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
