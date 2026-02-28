@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-02-28
+
+### Added
+
+- Django-style template engine with template inheritance (`{% extends %}`),
+  blocks (`{% block %}`), loops (`{% for %}`), conditionals (`{% if %}`),
+  includes (`{% include %}`), and comments (`{# #}`) in `@alexi/views` (#163)
+- `templateView` new API with `templateName` and async `context` function using
+  the global `templateRegistry` (#163)
+- `AppConfig.templatesDir` — templates are auto-loaded at `runserver` startup
+  and embedded into SW bundles by `bundle` (#164)
+- HTML templates are now embedded into Service Worker bundles as a virtual
+  esbuild module (`alexi:templates`) for offline-first MPA support (#164)
+- `sw` app type for `startapp` command — scaffolds an offline-first MPA with
+  Service Worker architecture (#165)
+
 ## [0.25.6] - 2026-02-28
 
 ### Fixed
