@@ -25,6 +25,7 @@ import type {
 import type { AppConfig, BundleConfig } from "@alexi/types";
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
+import { toFileUrl } from "@std/path";
 
 // =============================================================================
 // Helper Functions
@@ -760,20 +761,20 @@ export class BundleCommand extends BaseCommand {
     // the original entry point.
     let effectiveEntryPoint = entryPoint;
     if (templates.length > 0) {
-      // Build a thin wrapper as a virtual entry so we don't touch the user's file
+      // Use an absolute file:// URL for the re-export so that deno-resolver can
+      // resolve it correctly on all platforms regardless of the virtual entry's
+      // namespace or importer value.  A relative path like "./src/app/sw.ts"
+      // fails on Windows because deno-resolver constructs an invalid URL when
+      // args.importer is non-empty (e.g. "alexi-sw-entry-virtual:__alexi_sw_entry__.ts"),
+      // and resolveDir is only used when args.importer === "".
+      // See https://github.com/atzufuki/alexi/issues/172.
+      const absoluteEntryUrl = toFileUrl(
+        `${Deno.cwd()}/${entryPoint.replace(/^\.\//, "")}`,
+      ).href;
       const wrappedSource = `import "alexi:templates";\nexport * from ${
-        JSON.stringify("./" + entryPoint.replace(/^\.\//, ""))
+        JSON.stringify(absoluteEntryUrl)
       };\n`;
 
-      // Use only the filename as the virtual entry path so that the namespace +
-      // path combination is always a valid URL on every OS.  On Windows an
-      // absolute path such as "C:/Users/..." would be interpreted as an invalid
-      // port/scheme by @luca/esbuild-deno-loader when it constructs:
-      //   new URL("alexi-sw-entry-virtual:C:/Users/...")
-      // which breaks relative-import resolution.  Using just the filename avoids
-      // this: the deno-resolver plugin uses `resolveDir` (set below) to resolve
-      // imports from the virtual entry instead of deriving a base URL from the
-      // importer path.  See https://github.com/atzufuki/alexi/issues/172.
       const cwdNorm = Deno.cwd().replace(/\\/g, "/");
       const virtualEntryPath = "__alexi_sw_entry__.ts";
       const virtualEntryNamespace = "alexi-sw-entry-virtual";
