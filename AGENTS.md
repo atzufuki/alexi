@@ -2008,6 +2008,60 @@ export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 | `startproject`    | Create new project      |
 | `startapp`        | Create new app          |
 
+### `startapp` App Types
+
+| Type      | Description                        | Has Settings |
+| --------- | ---------------------------------- | ------------ |
+| `web`     | HTTP API server                    | ✅           |
+| `ui`      | Frontend SPA application           | ✅           |
+| `desktop` | Desktop app (WebUI)                | ✅           |
+| `mobile`  | Mobile app (Capacitor)             | ✅           |
+| `cli`     | Command-line tool                  | ✅           |
+| `library` | Reusable library (no entrypoint)   | ❌           |
+| `sw`      | Service Worker (offline-first MPA) | ✅           |
+
+```bash
+# Create a Service Worker app
+deno run -A manage.ts startapp my-app-sw --type sw
+```
+
+The `sw` type scaffolds an offline-first MPA using the Alexi Service Worker
+architecture (see `docs/offline-mpa.md`):
+
+```
+src/my-app-sw/
+├── app.ts              # AppConfig with bundle config (entrypoint: sw.ts, outputName: sw.js)
+├── mod.ts              # Re-exports models, views, urls
+├── models.ts           # Empty models file
+├── views.ts            # Sample templateView using @alexi/views
+├── urls.ts             # URL patterns
+├── sw.ts               # SW entry point: Application + install/activate/fetch events
+├── static/
+│   └── my-app-sw/
+│       └── index.html  # SW registration + htmx bootstrap
+└── templates/
+    └── my-app-sw/
+        ├── base.html   # HTML shell with title/content blocks
+        └── index.html  # Home page template extending base
+```
+
+After scaffolding, wire up the import map in `deno.json`:
+
+```json
+{
+  "imports": {
+    "@my-app-sw/sw": "./src/my-app-sw/mod.ts",
+    "@my-app-sw/sw/urls": "./src/my-app-sw/urls.ts"
+  }
+}
+```
+
+Then run the dev server:
+
+```bash
+deno run -A manage.ts runserver --settings my-app-sw
+```
+
 ### Running Commands
 
 ```bash
