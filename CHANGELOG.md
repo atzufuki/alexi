@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.26.2] - 2026-02-28
+
+### Fixed
+
+- SW bundle no longer fails on Windows with "Relative import path not prefixed"
+  when templates are embedded; the virtual entry esbuild plugin now uses a
+  filename-only path instead of an absolute Windows path, which was causing
+  `@luca/esbuild-deno-loader` to construct an invalid namespace URL (#172)
+
 ## [0.26.1] - 2026-02-28
 
 ### Fixed
