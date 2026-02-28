@@ -6,6 +6,13 @@
  *
  * Uses esbuild with code-splitting for lazy-loading templates.
  *
+ * Template embedding:
+ * When bundling a Service Worker (outputName ends with .js and app has
+ * bundle config), all installed apps' `templatesDir` directories are scanned
+ * recursively and their `.html` files are embedded into the bundle via a
+ * virtual esbuild module. This populates `templateRegistry` at runtime so
+ * that `templateView` works without filesystem access inside a Service Worker.
+ *
  * @module @alexi/staticfiles/commands/bundle
  */
 
@@ -79,6 +86,173 @@ interface BundleResult {
  * HMR client connection controller
  */
 type HmrClient = ReadableStreamDefaultController<Uint8Array>;
+
+/**
+ * A discovered template: its Django-style name and source content.
+ *
+ * @internal Exported for testing only.
+ */
+export interface DiscoveredTemplate {
+  name: string;
+  source: string;
+}
+
+// =============================================================================
+// Template Scanning Helpers
+// =============================================================================
+
+/**
+ * Normalise a `templatesDir` value (relative path or `file://` URL) to an
+ * absolute filesystem path.  Returns `null` if the value is empty.
+ *
+ * @internal Exported for testing only.
+ */
+export function resolveTemplatesDir(
+  templatesDir: string,
+  projectRoot: string,
+): string | null {
+  if (!templatesDir) return null;
+
+  if (templatesDir.startsWith("file://")) {
+    try {
+      // file:// URL → absolute OS path
+      const url = new URL(templatesDir);
+      // On Windows the pathname starts with /C:/...
+      const pathname = url.pathname.replace(/\/$/, "");
+      // Remove leading slash on Windows absolute paths
+      if (/^\/[a-zA-Z]:\//.test(pathname)) {
+        return pathname.slice(1);
+      }
+      return pathname;
+    } catch {
+      return null;
+    }
+  }
+
+  // Relative path → resolve against project root
+  const rel = templatesDir.replace(/^\.\//, "");
+  return `${projectRoot}/${rel}`;
+}
+
+/**
+ * Recursively scan a `templatesDir` and collect all `.html` files.
+ *
+ * Returns an array of `{ name, source }` pairs where `name` uses
+ * Django-style namespacing: the path relative to `templatesDir`.
+ *
+ * @example
+ * // templatesDir = "/project/src/my-app/templates"
+ * // file at     = "/project/src/my-app/templates/my-app/note_list.html"
+ * // → name      = "my-app/note_list.html"
+ *
+ * @internal Exported for testing only.
+ */
+export async function scanTemplatesDir(
+  dir: string,
+): Promise<DiscoveredTemplate[]> {
+  const results: DiscoveredTemplate[] = [];
+
+  async function walk(currentDir: string, relativePath: string): Promise<void> {
+    let entries: Deno.DirEntry[];
+    try {
+      entries = [];
+      for await (const entry of Deno.readDir(currentDir)) {
+        entries.push(entry);
+      }
+    } catch {
+      // Directory doesn't exist or can't be read
+      return;
+    }
+
+    for (const entry of entries) {
+      const entryRelPath = relativePath
+        ? `${relativePath}/${entry.name}`
+        : entry.name;
+      const fullPath = `${currentDir}/${entry.name}`;
+
+      if (entry.isDirectory) {
+        await walk(fullPath, entryRelPath);
+      } else if (entry.isFile && entry.name.endsWith(".html")) {
+        try {
+          const source = await Deno.readTextFile(fullPath);
+          // Django-style name: relative to templatesDir, forward slashes
+          const name = entryRelPath.replace(/\\/g, "/");
+          results.push({ name, source });
+        } catch {
+          // Skip unreadable files
+        }
+      }
+    }
+  }
+
+  await walk(dir, "");
+  return results;
+}
+
+/**
+ * Scan all installed apps' `templatesDir` directories and return the
+ * combined list of discovered templates.
+ *
+ * @param importFunctions - Array of app import functions from INSTALLED_APPS
+ * @param projectRoot     - Absolute path to the project root
+ *
+ * @internal Exported for testing only.
+ */
+export async function collectAllTemplates(
+  importFunctions: AppImportFn[],
+  projectRoot: string,
+): Promise<DiscoveredTemplate[]> {
+  const allTemplates: DiscoveredTemplate[] = [];
+
+  for (const importFn of importFunctions) {
+    try {
+      const module = await importFn();
+      const config = module.default as AppConfig | undefined;
+      if (!config?.templatesDir) continue;
+
+      const dir = resolveTemplatesDir(config.templatesDir, projectRoot);
+      if (!dir) continue;
+
+      const templates = await scanTemplatesDir(dir);
+      allTemplates.push(...templates);
+    } catch {
+      // Skip apps that fail to load
+    }
+  }
+
+  return allTemplates;
+}
+
+/**
+ * Generate the source of the virtual templates module.
+ *
+ * The generated module imports `templateRegistry` from `@alexi/views` and
+ * calls `register()` for every discovered template.
+ *
+ * @internal Exported for testing only.
+ */
+export function generateTemplatesModule(
+  templates: DiscoveredTemplate[],
+): string {
+  const lines: string[] = [
+    "// Auto-generated by Alexi bundle command — do not edit",
+    'import { templateRegistry } from "@alexi/views";',
+    "",
+  ];
+
+  for (const { name, source } of templates) {
+    // Escape backtick, backslash, and ${} in the template source
+    const escaped = source
+      .replace(/\\/g, "\\\\")
+      .replace(/`/g, "\\`")
+      .replace(/\$\{/g, "\\${");
+    lines.push(
+      `templateRegistry.register(${JSON.stringify(name)}, \`${escaped}\`);`,
+    );
+  }
+
+  return lines.join("\n");
+}
 
 // =============================================================================
 // BundleCommand Class
@@ -214,6 +388,7 @@ export class BundleCommand extends BaseCommand {
         minify,
         includeCss: !noCss,
         debug,
+        importFunctions: settings.importFunctions,
       });
 
       // Print results
@@ -231,6 +406,7 @@ export class BundleCommand extends BaseCommand {
           minify,
           includeCss: !noCss,
           debug,
+          importFunctions: settings.importFunctions,
         });
         // Keep running until interrupted (only when run as CLI command)
         await new Promise(() => {}); // Never resolves
@@ -353,7 +529,12 @@ export class BundleCommand extends BaseCommand {
    */
   private async bundleApps(
     apps: Array<{ name: string; path: string; config: AppConfig }>,
-    options: { minify: boolean; includeCss: boolean; debug: boolean },
+    options: {
+      minify: boolean;
+      includeCss: boolean;
+      debug: boolean;
+      importFunctions?: AppImportFn[];
+    },
   ): Promise<BundleResult[]> {
     const results: BundleResult[] = [];
 
@@ -377,7 +558,12 @@ export class BundleCommand extends BaseCommand {
    */
   private async bundleApp(
     app: { name: string; path: string; config: AppConfig },
-    options: { minify: boolean; includeCss: boolean; debug: boolean },
+    options: {
+      minify: boolean;
+      includeCss: boolean;
+      debug: boolean;
+      importFunctions?: AppImportFn[];
+    },
   ): Promise<BundleResult> {
     const startTime = performance.now();
     const bundleConfig = app.config.bundle!;
@@ -398,9 +584,25 @@ export class BundleCommand extends BaseCommand {
       // Ensure output directory exists
       await Deno.mkdir(outputDir, { recursive: true });
 
+      // Collect templates for embedding when bundling a Service Worker.
+      // We embed templates when the output is a JS bundle (not CSS-only) and
+      // there are import functions available from settings.
+      let templates: DiscoveredTemplate[] = [];
+      if (options.importFunctions && options.importFunctions.length > 0) {
+        templates = await collectAllTemplates(
+          options.importFunctions,
+          this.projectRoot,
+        );
+        if (templates.length > 0) {
+          this.info(
+            `  Embedding ${templates.length} templates into ${bundleConfig.outputName}...`,
+          );
+        }
+      }
+
       // Bundle JavaScript/TypeScript
       this.info(`Bundling ${app.name}...`);
-      await this.bundleJS(entryPoint, outputPath, options.minify);
+      await this.bundleJS(entryPoint, outputPath, options.minify, templates);
 
       // Bundle CSS if configured
       if (options.includeCss && bundleConfig.cssOutputName) {
@@ -434,11 +636,17 @@ export class BundleCommand extends BaseCommand {
    * - main.js (entry point)
    * - chunk-XXXX.js (shared modules)
    * - Lazy-loaded templates as separate chunks
+   *
+   * When `templates` are provided, a virtual `alexi:templates` module is
+   * injected into the bundle that registers all discovered template files into
+   * `templateRegistry` at runtime.  The entry point is automatically wrapped
+   * so it imports the virtual module before any app code runs.
    */
   private async bundleJS(
     entryPoint: string,
     outputPath: string,
     minify: boolean,
+    templates: DiscoveredTemplate[] = [],
   ): Promise<void> {
     // Output directory is the parent of outputPath
     const outputDir = outputPath.substring(0, outputPath.lastIndexOf("/"));
@@ -463,8 +671,80 @@ export class BundleCommand extends BaseCommand {
     // But use file:// URL for Windows compatibility
     const configPath = `${Deno.cwd()}/deno.jsonc`.replace(/\\/g, "/");
 
+    // Build the esbuild plugin list
+    const plugins: esbuild.Plugin[] = [];
+
+    // Inject templates virtual module plugin when templates are available
+    if (templates.length > 0) {
+      const templatesSource = generateTemplatesModule(templates);
+      const virtualNamespace = "alexi-templates-virtual";
+
+      plugins.push({
+        name: "alexi-templates",
+        setup(build) {
+          // Resolve the virtual module specifier
+          build.onResolve(
+            { filter: /^alexi:templates$/ },
+            () => ({ path: "alexi:templates", namespace: virtualNamespace }),
+          );
+
+          // Provide the generated source as the module contents
+          build.onLoad(
+            { filter: /.*/, namespace: virtualNamespace },
+            () => ({ contents: templatesSource, loader: "ts" }),
+          );
+        },
+      });
+    }
+
+    // Deno plugins must come last (they handle all other module resolutions)
+    plugins.push(...denoPlugins({ configPath }));
+
+    // Determine the effective entry point.
+    // When templates are injected we create a synthetic entry that side-effect
+    // imports the virtual templates module and then re-exports everything from
+    // the original entry point.
+    let effectiveEntryPoint = entryPoint;
+    if (templates.length > 0) {
+      // Build a thin wrapper as a virtual entry so we don't touch the user's file
+      const wrappedSource = `import "alexi:templates";\nexport * from ${
+        JSON.stringify("./" + entryPoint.replace(/^\.\//, ""))
+      };\n`;
+
+      // Use an absolute path for the virtual entry so relative imports resolve
+      const cwdNorm = Deno.cwd().replace(/\\/g, "/");
+      const virtualEntryPath = `${cwdNorm}/__alexi_sw_entry__.ts`;
+      const virtualEntryNamespace = "alexi-sw-entry-virtual";
+
+      // Add a plugin that intercepts the virtual entry path
+      plugins.unshift({
+        name: "alexi-sw-entry",
+        setup(build) {
+          build.onResolve(
+            { filter: /^__alexi_sw_entry__\.ts$/ },
+            (args) => ({
+              path: virtualEntryPath,
+              namespace: virtualEntryNamespace,
+              pluginData: args,
+            }),
+          );
+
+          build.onLoad(
+            { filter: /.*/, namespace: virtualEntryNamespace },
+            () => ({
+              contents: wrappedSource,
+              loader: "ts",
+              resolveDir: Deno.cwd(),
+            }),
+          );
+        },
+      });
+
+      effectiveEntryPoint = "__alexi_sw_entry__.ts";
+    }
+
     const result = await esbuild.build({
-      entryPoints: [entryPoint],
+      entryPoints: [effectiveEntryPoint],
       bundle: true,
       splitting: true, // 👈 Code-splitting for dynamic imports!
       format: "esm",
@@ -476,9 +756,7 @@ export class BundleCommand extends BaseCommand {
       minify,
       sourcemap: !minify,
       metafile: true, // For analysis
-      plugins: [...denoPlugins({
-        configPath,
-      })],
+      plugins,
       // Externalize nothing - bundle everything
       external: [],
       // Tree shaking
@@ -543,7 +821,12 @@ export class BundleCommand extends BaseCommand {
    */
   private async startWatching(
     apps: Array<{ name: string; path: string; config: AppConfig }>,
-    options: { minify: boolean; includeCss: boolean; debug: boolean },
+    options: {
+      minify: boolean;
+      includeCss: boolean;
+      debug: boolean;
+      importFunctions?: AppImportFn[];
+    },
   ): Promise<void> {
     // Collect all source directories to watch
     const watchDirs: string[] = [];
@@ -707,6 +990,7 @@ export class BundleCommand extends BaseCommand {
         minify,
         includeCss: true,
         debug,
+        importFunctions: settings.importFunctions,
       });
 
       // Print results
@@ -726,6 +1010,7 @@ export class BundleCommand extends BaseCommand {
         minify,
         includeCss: true,
         debug,
+        importFunctions: settings.importFunctions,
       });
 
       return { success: true };
@@ -740,7 +1025,12 @@ export class BundleCommand extends BaseCommand {
    */
   private startWatchingBackground(
     apps: Array<{ name: string; path: string; config: AppConfig }>,
-    options: { minify: boolean; includeCss: boolean; debug: boolean },
+    options: {
+      minify: boolean;
+      includeCss: boolean;
+      debug: boolean;
+      importFunctions?: AppImportFn[];
+    },
   ): void {
     // Collect all source directories to watch
     const watchDirs: string[] = [];

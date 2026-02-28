@@ -11,6 +11,7 @@
     "@alexi/core": "jsr:@alexi/core@0.25.6",
     "@alexi/db": "jsr:@alexi/db@0.25.6",
     "@alexi/types": "jsr:@alexi/types@0.25.6",
-    "@alexi/urls": "jsr:@alexi/urls@0.25.6"
+    "@alexi/urls": "jsr:@alexi/urls@0.25.6",
+    "@alexi/views": "jsr:@alexi/views@0.25.6"
   }
 }

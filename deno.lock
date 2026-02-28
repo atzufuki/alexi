@@ -494,7 +494,8 @@
           "jsr:@alexi/core@0.25.6",
           "jsr:@alexi/db@0.25.6",
           "jsr:@alexi/types@0.25.6",
-          "jsr:@alexi/urls@0.25.6"
+          "jsr:@alexi/urls@0.25.6",
+          "jsr:@alexi/views@0.25.6"
         ]
       },
       "src/webui": {
