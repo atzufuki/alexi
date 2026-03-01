@@ -10,23 +10,23 @@ It brings Django's developer-friendly patterns to the Deno ecosystem.
 Alexi follows Django's modular architecture. Each module provides specific
 functionality:
 
-| Module                   | Django Equivalent            | Description                                            |
-| ------------------------ | ---------------------------- | ------------------------------------------------------ |
-| `@alexi/core`            | `django.core`                | Universal setup (`setup`, `DatabasesConfig`)           |
-| `@alexi/core/management` | `django.core.management`     | Management commands, Application handler (server-only) |
-| `@alexi/db`              | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends          |
-| `@alexi/urls`            | `django.urls`                | URL routing with `path()`, `include()`                 |
-| `@alexi/middleware`      | `django.middleware.*`        | CORS, logging, error handling                          |
-| `@alexi/views`           | `django.views`               | Template views                                         |
-| `@alexi/web`             | `django.core.handlers.wsgi`  | Web server (HTTP API)                                  |
-| `@alexi/staticfiles`     | `django.contrib.staticfiles` | Static file handling, bundling                         |
-| `@alexi/storage`         | `django.core.files.storage`  | File storage backends (Firebase, Memory)               |
-| `@alexi/restframework`   | `djangorestframework`        | REST API: Serializers, ViewSets, Routers               |
-| `@alexi/auth`            | `django.contrib.auth`        | Authentication (JWT-based)                             |
-| `@alexi/admin`           | `django.contrib.admin`       | Auto-generated admin panel                             |
-| `@alexi/webui`           | -                            | Desktop app support via WebUI                          |
-| `@alexi/capacitor`       | -                            | Mobile app support (placeholder)                       |
-| `@alexi/types`           | -                            | Shared TypeScript type definitions                     |
+| Module                   | Django Equivalent            | Description                                        |
+| ------------------------ | ---------------------------- | -------------------------------------------------- |
+| `@alexi/core`            | `django.core`                | Application, `getApplication()`, `setup()`, config |
+| `@alexi/core/management` | `django.core.management`     | Management commands, CLI utilities (server-only)   |
+| `@alexi/db`              | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends      |
+| `@alexi/urls`            | `django.urls`                | URL routing with `path()`, `include()`             |
+| `@alexi/middleware`      | `django.middleware.*`        | CORS, logging, error handling                      |
+| `@alexi/views`           | `django.views`               | Template views                                     |
+| `@alexi/web`             | `django.core.handlers.wsgi`  | Web server (HTTP API)                              |
+| `@alexi/staticfiles`     | `django.contrib.staticfiles` | Static file handling, bundling                     |
+| `@alexi/storage`         | `django.core.files.storage`  | File storage backends (Firebase, Memory)           |
+| `@alexi/restframework`   | `djangorestframework`        | REST API: Serializers, ViewSets, Routers           |
+| `@alexi/auth`            | `django.contrib.auth`        | Authentication (JWT-based)                         |
+| `@alexi/admin`           | `django.contrib.admin`       | Auto-generated admin panel                         |
+| `@alexi/webui`           | -                            | Desktop app support via WebUI                      |
+| `@alexi/capacitor`       | -                            | Mobile app support (placeholder)                   |
+| `@alexi/types`           | -                            | Shared TypeScript type definitions                 |
 
 ---
 
@@ -38,10 +38,12 @@ alexi/
 │   ├── admin/           # Admin panel MPA (HTMX + SSR)
 │   ├── auth/            # JWT authentication, decorators
 │   ├── capacitor/       # Mobile app support (placeholder)
-│   ├── core/            # Management commands, Application, config loader
+│   ├── core/            # Application, getApplication(), setup, management
 │   │   ├── commands/    # Built-in commands (help, test, startproject, startapp)
-│   │   ├── application.ts
-│   │   ├── config.ts    # Settings loader
+│   │   ├── application.ts   # Isomorphic Application class
+│   │   ├── get_application.ts # getApplication() factory
+│   │   ├── setup.ts     # Database setup
+│   │   ├── config.ts    # Settings loader (server-only)
 │   │   └── management.ts
 │   ├── create/          # Project/app scaffolding
 │   ├── db/              # ORM
@@ -96,15 +98,11 @@ Always use the `@alexi/` import aliases defined in `deno.json`:
 
 ```typescript
 // Core
-import { setup } from "@alexi/core";
-import type { DatabasesConfig } from "@alexi/core";
+import { Application, getApplication, setup } from "@alexi/core";
+import type { DatabasesConfig, GetApplicationSettings } from "@alexi/core";
 
 // Management commands (server-only, not imported in browser bundles)
-import {
-  Application,
-  BaseCommand,
-  ManagementUtility,
-} from "@alexi/core/management";
+import { BaseCommand, ManagementUtility } from "@alexi/core/management";
 import type { CommandOptions, CommandResult } from "@alexi/core/management";
 import { MakemigrationsCommand, MigrateCommand } from "@alexi/core/management";
 
@@ -2136,6 +2134,89 @@ export class MyCommand extends BaseCommand {
   }
 }
 ```
+
+---
+
+## Application Entry Points
+
+### `getApplication()` — Django-style Factory
+
+`getApplication(settings)` is the Alexi equivalent of Django's
+`get_wsgi_application()`. It takes a settings module, initialises databases,
+resolves URL patterns, builds the middleware chain, and returns a ready-to-use
+`Application` instance.
+
+It is **isomorphic** — works in both Deno server and Service Worker contexts.
+
+```typescript
+import { getApplication } from "@alexi/core";
+import * as settings from "./project/settings.ts";
+
+const app = await getApplication(settings);
+```
+
+### `http.ts` — Production Server Entrypoint
+
+Named after the HTTP protocol (just as Django's `wsgi.py` is named after WSGI),
+`http.ts` is the production server entrypoint for `deno serve` and Deno Deploy:
+
+```typescript
+// http.ts
+import { getApplication } from "@alexi/core";
+import * as settings from "./project/settings.ts";
+
+export default await getApplication(settings);
+```
+
+Run with:
+
+```bash
+deno serve -A --unstable-kv http.ts
+# or deploy to Deno Deploy — it picks up the default export.
+```
+
+### `worker.ts` (Service Worker)
+
+The Service Worker entry point uses the same `getApplication(settings)` pattern
+with browser-side settings (IndexedDB backend, worker URL patterns):
+
+```typescript
+// workers/<name>/mod.ts
+import { getApplication } from "@alexi/core";
+import * as settings from "./settings.ts";
+
+declare const self: ServiceWorkerGlobalScope;
+
+let app: Awaited<ReturnType<typeof getApplication>>;
+
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      app = await getApplication(settings);
+      await self.skipWaiting();
+    })(),
+  );
+});
+
+self.addEventListener("fetch", (event) => {
+  const url = new URL(event.request.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/static/")) return;
+  event.respondWith(app.handler(event.request));
+});
+```
+
+### `GetApplicationSettings` Interface
+
+The settings object accepted by `getApplication()`:
+
+| Key                | Type                                       | Description                               |
+| ------------------ | ------------------------------------------ | ----------------------------------------- |
+| `DATABASES`        | `Record<string, DatabaseBackend>`          | Database backends to initialise           |
+| `ROOT_URLCONF`     | `URLPattern[]` or `() => Promise<{...}>`   | URL patterns (direct array or import fn)  |
+| `MIDDLEWARE`       | `Middleware[]`                             | Middleware array                          |
+| `createMiddleware` | `(opts: {debug: boolean}) => Middleware[]` | Middleware factory function (alternative) |
+| `DEBUG`            | `boolean`                                  | Enable debug mode                         |
 
 ---
 
