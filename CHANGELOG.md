@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.29.2] - 2026-03-01
+
+### Fixed
+
+- `@alexi/create`: `deno run -A jsr:@alexi/create` no longer crashes with "Must
+  be a file URL" — version is now embedded as a constant instead of reading
+  `deno.jsonc` at runtime (#184, #185)
+
 ## [0.29.1] - 2026-03-01
 
 ### Fixed
