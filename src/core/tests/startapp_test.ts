@@ -1,8 +1,8 @@
 /**
  * Tests for StartAppCommand
  *
- * Tests that startapp creates the correct directory structure and file content
- * for each app type.
+ * Tests that startapp creates the correct unified directory structure
+ * and file content. No app types — every app gets the full structure.
  *
  * @module @alexi/core/tests/startapp_test
  */
@@ -59,12 +59,8 @@ async function runStartapp(
   tempDir: string,
   args: string[],
 ): Promise<{ exitCode: number; logs: string[]; errors: string[] }> {
-  // startapp writes files relative to cwd, so we must change to tempDir
   const originalCwd = Deno.cwd();
   Deno.chdir(tempDir);
-
-  // Create project/ dir (startapp writes settings there)
-  await Deno.mkdir(join(tempDir, "project"), { recursive: true });
 
   try {
     const command = new StartAppCommand();
@@ -95,54 +91,56 @@ async function readFile(path: string): Promise<string> {
 }
 
 // =============================================================================
-// server app type tests
+// Directory structure tests
 // =============================================================================
 
 Deno.test({
-  name: "startapp server: creates correct directory structure",
+  name: "startapp: creates correct unified directory structure",
   async fn() {
     await withTempDir(async (dir) => {
-      const result = await runStartapp(dir, [
-        "my-api",
-        "--type",
-        "server",
-        "--no-input",
-      ]);
+      const result = await runStartapp(dir, ["my-app"]);
 
       assertEquals(result.exitCode, 0, "Command should succeed");
 
-      const appDir = join(dir, "src/my-api");
+      const appDir = join(dir, "src/my-app");
 
-      assertEquals(
-        await fileExists(appDir),
-        true,
-        "App directory should exist",
-      );
-      assertEquals(
-        await fileExists(join(appDir, "tests")),
-        true,
-        "tests/ should exist",
-      );
+      const expectedDirs = [
+        appDir,
+        join(appDir, "migrations"),
+        join(appDir, "tests"),
+        join(appDir, "assets/my-app"),
+        join(appDir, "assets/my-app/components"),
+        join(appDir, "workers/my-app"),
+        join(appDir, "workers/my-app/templates/my-app"),
+        join(appDir, "static/my-app"),
+      ];
+
+      for (const d of expectedDirs) {
+        assertEquals(
+          await fileExists(d),
+          true,
+          `${d} should exist`,
+        );
+      }
     });
   },
   sanitizeResources: false,
   sanitizeOps: false,
 });
 
+// =============================================================================
+// File creation tests
+// =============================================================================
+
 Deno.test({
-  name: "startapp server: creates all required files",
+  name: "startapp: creates all required root (server-side) files",
   async fn() {
     await withTempDir(async (dir) => {
-      const result = await runStartapp(dir, [
-        "my-api",
-        "--type",
-        "server",
-        "--no-input",
-      ]);
+      const result = await runStartapp(dir, ["my-app"]);
 
       assertEquals(result.exitCode, 0, "Command should succeed");
 
-      const appDir = join(dir, "src/my-api");
+      const appDir = join(dir, "src/my-app");
 
       const expectedFiles = [
         join(appDir, "app.ts"),
@@ -152,8 +150,8 @@ Deno.test({
         join(appDir, "urls.ts"),
         join(appDir, "serializers.ts"),
         join(appDir, "viewsets.ts"),
+        join(appDir, "migrations/0001_init.ts"),
         join(appDir, "tests/basic_test.ts"),
-        join(dir, "project/my-api.settings.ts"),
       ];
 
       for (const file of expectedFiles) {
@@ -170,75 +168,167 @@ Deno.test({
 });
 
 Deno.test({
-  name: "startapp server: settings has INSTALLED_APPS with web and db",
+  name: "startapp: creates assets (frontend) files",
   async fn() {
     await withTempDir(async (dir) => {
-      await runStartapp(dir, ["my-api", "--type", "server", "--no-input"]);
+      const result = await runStartapp(dir, ["my-app"]);
+      assertEquals(result.exitCode, 0);
 
-      const settings = await readFile(
-        join(dir, "project/my-api.settings.ts"),
-      );
+      const appDir = join(dir, "src/my-app");
 
-      assertMatch(
-        settings,
-        /import.*@alexi\/staticfiles/,
-        "settings should include staticfiles",
-      );
-      assertMatch(
-        settings,
-        /import.*@alexi\/web/,
-        "settings should include web server",
-      );
-      assertMatch(
-        settings,
-        /@my-api\/server/,
-        "settings should include the server app",
-      );
-      assertMatch(
-        settings,
-        /ROOT_URLCONF/,
-        "settings should define ROOT_URLCONF",
+      assertEquals(
+        await fileExists(join(appDir, "assets/my-app/mod.ts")),
+        true,
+        "assets/my-app/mod.ts should exist",
       );
     });
   },
   sanitizeResources: false,
   sanitizeOps: false,
 });
+
+Deno.test({
+  name: "startapp: creates worker (Service Worker) files",
+  async fn() {
+    await withTempDir(async (dir) => {
+      const result = await runStartapp(dir, ["my-app"]);
+      assertEquals(result.exitCode, 0);
+
+      const appDir = join(dir, "src/my-app");
+
+      const workerFiles = [
+        join(appDir, "workers/my-app/app.ts"),
+        join(appDir, "workers/my-app/mod.ts"),
+        join(appDir, "workers/my-app/models.ts"),
+        join(appDir, "workers/my-app/endpoints.ts"),
+        join(appDir, "workers/my-app/settings.ts"),
+        join(appDir, "workers/my-app/urls.ts"),
+        join(appDir, "workers/my-app/views.ts"),
+        join(appDir, "workers/my-app/templates/my-app/base.html"),
+        join(appDir, "workers/my-app/templates/my-app/index.html"),
+      ];
+
+      for (const file of workerFiles) {
+        assertEquals(
+          await fileExists(file),
+          true,
+          `${file} should exist`,
+        );
+      }
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+Deno.test({
+  name: "startapp: creates static output files",
+  async fn() {
+    await withTempDir(async (dir) => {
+      const result = await runStartapp(dir, ["my-app"]);
+      assertEquals(result.exitCode, 0);
+
+      const appDir = join(dir, "src/my-app");
+
+      assertEquals(
+        await fileExists(join(appDir, "static/my-app/index.html")),
+        true,
+        "static/my-app/index.html should exist",
+      );
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+// =============================================================================
+// File content tests — root (server-side)
+// =============================================================================
+
+Deno.test({
+  name: "startapp: mod.ts exports models, views, urls, serializers, viewsets",
+  async fn() {
+    await withTempDir(async (dir) => {
+      await runStartapp(dir, ["my-app"]);
+
+      const modTs = await readFile(join(dir, "src/my-app/mod.ts"));
+
+      assertMatch(modTs, /export \* from "\.\/models\.ts"/);
+      assertMatch(modTs, /export \* from "\.\/views\.ts"/);
+      assertMatch(modTs, /export \* from "\.\/urls\.ts"/);
+      assertMatch(modTs, /export \* from "\.\/serializers\.ts"/);
+      assertMatch(modTs, /export \* from "\.\/viewsets\.ts"/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+Deno.test({
+  name: "startapp: app.ts has correct name and staticDir",
+  async fn() {
+    await withTempDir(async (dir) => {
+      await runStartapp(dir, ["my-app"]);
+
+      const appTs = await readFile(join(dir, "src/my-app/app.ts"));
+
+      assertMatch(appTs, /name: "my-app"/);
+      assertMatch(appTs, /staticDir:/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+Deno.test({
+  name: "startapp: models.ts imports from @alexi/db",
+  async fn() {
+    await withTempDir(async (dir) => {
+      await runStartapp(dir, ["my-app"]);
+
+      const modelsTs = await readFile(join(dir, "src/my-app/models.ts"));
+
+      assertMatch(modelsTs, /@alexi\/db/);
+      assertMatch(modelsTs, /class ExampleModel extends Model/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+// =============================================================================
+// File content tests — worker (Service Worker)
+// =============================================================================
 
 Deno.test({
   name:
-    "startapp server: mod.ts exports models, views, urls, serializers, viewsets",
+    "startapp: worker app.ts has staticfiles config with worker and asset entries",
   async fn() {
     await withTempDir(async (dir) => {
-      await runStartapp(dir, ["my-api", "--type", "server", "--no-input"]);
+      await runStartapp(dir, ["my-app"]);
 
-      const modTs = await readFile(join(dir, "src/my-api/mod.ts"));
+      const workerAppTs = await readFile(
+        join(dir, "src/my-app/workers/my-app/app.ts"),
+      );
 
+      assertMatch(workerAppTs, /staticfiles:/);
       assertMatch(
-        modTs,
-        /export \* from "\.\/models\.ts"/,
-        "mod.ts should export models",
+        workerAppTs,
+        /entrypoint: "\.\/workers\/my-app\/mod\.ts"/,
       );
       assertMatch(
-        modTs,
-        /export \* from "\.\/views\.ts"/,
-        "mod.ts should export views",
+        workerAppTs,
+        /outputFile: "\.\/static\/my-app\/worker\.js"/,
       );
       assertMatch(
-        modTs,
-        /export \* from "\.\/urls\.ts"/,
-        "mod.ts should export urls",
+        workerAppTs,
+        /entrypoint: "\.\/assets\/my-app\/mod\.ts"/,
       );
       assertMatch(
-        modTs,
-        /export \* from "\.\/serializers\.ts"/,
-        "mod.ts should export serializers",
+        workerAppTs,
+        /outputFile: "\.\/static\/my-app\/my-app\.js"/,
       );
-      assertMatch(
-        modTs,
-        /export \* from "\.\/viewsets\.ts"/,
-        "mod.ts should export viewsets",
-      );
+      assertMatch(workerAppTs, /templatesDir:/);
     });
   },
   sanitizeResources: false,
@@ -246,25 +336,99 @@ Deno.test({
 });
 
 Deno.test({
-  name: "startapp server: rejects duplicate app name",
+  name: "startapp: worker mod.ts is a Service Worker entry point",
   async fn() {
     await withTempDir(async (dir) => {
-      // First creation
-      const first = await runStartapp(dir, [
-        "my-api",
-        "--type",
-        "server",
-        "--no-input",
-      ]);
+      await runStartapp(dir, ["my-app"]);
+
+      const workerModTs = await readFile(
+        join(dir, "src/my-app/workers/my-app/mod.ts"),
+      );
+
+      assertMatch(workerModTs, /ServiceWorkerGlobalScope/);
+      assertMatch(workerModTs, /IndexedDBBackend/);
+      assertMatch(workerModTs, /Application/);
+      assertMatch(workerModTs, /addEventListener\("install"/);
+      assertMatch(workerModTs, /addEventListener\("activate"/);
+      assertMatch(workerModTs, /addEventListener\("fetch"/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+Deno.test({
+  name: "startapp: worker views.ts uses templateView",
+  async fn() {
+    await withTempDir(async (dir) => {
+      await runStartapp(dir, ["my-app"]);
+
+      const viewsTs = await readFile(
+        join(dir, "src/my-app/workers/my-app/views.ts"),
+      );
+
+      assertMatch(viewsTs, /templateView/);
+      assertMatch(viewsTs, /my-app\/index\.html/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+// =============================================================================
+// File content tests — static & templates
+// =============================================================================
+
+Deno.test({
+  name: "startapp: base.html loads frontend JS as module",
+  async fn() {
+    await withTempDir(async (dir) => {
+      await runStartapp(dir, ["my-app"]);
+
+      const baseHtml = await readFile(
+        join(dir, "src/my-app/workers/my-app/templates/my-app/base.html"),
+      );
+
+      assertMatch(baseHtml, /<!DOCTYPE html>/);
+      assertMatch(baseHtml, /my-app\.js/);
+      assertMatch(baseHtml, /type="module"/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+Deno.test({
+  name: "startapp: static/index.html registers Service Worker",
+  async fn() {
+    await withTempDir(async (dir) => {
+      await runStartapp(dir, ["my-app"]);
+
+      const indexHtml = await readFile(
+        join(dir, "src/my-app/static/my-app/index.html"),
+      );
+
+      assertMatch(indexHtml, /<!DOCTYPE html>/);
+      assertMatch(indexHtml, /worker\.js/);
+      assertMatch(indexHtml, /serviceWorker\.register/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+// =============================================================================
+// Validation tests
+// =============================================================================
+
+Deno.test({
+  name: "startapp: rejects duplicate app name",
+  async fn() {
+    await withTempDir(async (dir) => {
+      const first = await runStartapp(dir, ["my-app"]);
       assertEquals(first.exitCode, 0, "First creation should succeed");
 
-      // Second creation — same name
-      const second = await runStartapp(dir, [
-        "my-api",
-        "--type",
-        "server",
-        "--no-input",
-      ]);
+      const second = await runStartapp(dir, ["my-app"]);
       assertEquals(
         second.exitCode,
         1,
@@ -282,15 +446,10 @@ Deno.test({
 });
 
 Deno.test({
-  name: "startapp server: rejects invalid app name",
+  name: "startapp: rejects invalid app name",
   async fn() {
     await withTempDir(async (dir) => {
-      const result = await runStartapp(dir, [
-        "MyBadName",
-        "--type",
-        "server",
-        "--no-input",
-      ]);
+      const result = await runStartapp(dir, ["MyBadName"]);
       assertEquals(result.exitCode, 1, "Invalid name should fail");
     });
   },
@@ -299,29 +458,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "startapp: rejects invalid app type",
-  async fn() {
-    await withTempDir(async (dir) => {
-      const result = await runStartapp(dir, [
-        "my-app",
-        "--type",
-        "sw",
-        "--no-input",
-      ]);
-      assertEquals(result.exitCode, 1, "Invalid type should fail");
-      assertEquals(
-        result.errors.some((e) => e.includes("Invalid app type")),
-        true,
-        "Error should mention invalid app type",
-      );
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp: 'server' appears in APP_TYPES list",
+  name: "startapp: command is instantiable with correct name",
   fn() {
     const command = new StartAppCommand();
     assertExists(command, "Command should be instantiable");
@@ -330,398 +467,32 @@ Deno.test({
 });
 
 // =============================================================================
-// browser app type tests
+// No --type flag tests (no app types)
 // =============================================================================
 
 Deno.test({
-  name: "startapp browser: creates correct directory structure",
+  name: "startapp: works without --type flag (no app types)",
   async fn() {
     await withTempDir(async (dir) => {
-      const result = await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
+      const result = await runStartapp(dir, ["posts"]);
 
-      assertEquals(result.exitCode, 0, "Command should succeed");
+      assertEquals(result.exitCode, 0, "Should succeed without --type");
 
-      const appDir = join(dir, "src/my-app-browser");
-
+      // Should create the full unified structure
+      const appDir = join(dir, "src/posts");
+      assertEquals(await fileExists(appDir), true);
+      assertEquals(await fileExists(join(appDir, "models.ts")), true);
+      assertEquals(await fileExists(join(appDir, "assets/posts/mod.ts")), true);
       assertEquals(
-        await fileExists(appDir),
+        await fileExists(join(appDir, "workers/posts/mod.ts")),
         true,
-        "App directory should exist",
       );
       assertEquals(
-        await fileExists(join(appDir, "tests")),
+        await fileExists(join(appDir, "static/posts/index.html")),
         true,
-        "tests/ should exist",
-      );
-      assertEquals(
-        await fileExists(join(appDir, "static/my-app-browser")),
-        true,
-        "static/my-app-browser/ should exist",
-      );
-      assertEquals(
-        await fileExists(join(appDir, "templates/my-app-browser")),
-        true,
-        "templates/my-app-browser/ should exist",
       );
     });
   },
   sanitizeResources: false,
   sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp browser: creates all required files",
-  async fn() {
-    await withTempDir(async (dir) => {
-      const result = await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      assertEquals(result.exitCode, 0, "Command should succeed");
-
-      const appDir = join(dir, "src/my-app-browser");
-
-      const expectedFiles = [
-        join(appDir, "app.ts"),
-        join(appDir, "mod.ts"),
-        join(appDir, "models.ts"),
-        join(appDir, "endpoints.ts"),
-        join(appDir, "views.ts"),
-        join(appDir, "urls.ts"),
-        join(appDir, "worker.ts"),
-        join(appDir, "document.ts"),
-        join(appDir, "static/my-app-browser/index.html"),
-        join(appDir, "templates/my-app-browser/base.html"),
-        join(appDir, "templates/my-app-browser/index.html"),
-        join(appDir, "tests/basic_test.ts"),
-        join(dir, "project/my-app-browser.settings.ts"),
-      ];
-
-      for (const file of expectedFiles) {
-        assertEquals(await fileExists(file), true, file + " should exist");
-      }
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name:
-    "startapp browser: app.ts has staticfiles config with worker and document entries",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const appTs = await readFile(join(dir, "src/my-app-browser/app.ts"));
-
-      assertMatch(
-        appTs,
-        /staticfiles:/,
-        "app.ts should have staticfiles config",
-      );
-      assertMatch(
-        appTs,
-        /entrypoint: "\.\/worker\.ts"/,
-        "should have worker.ts entrypoint",
-      );
-      assertMatch(
-        appTs,
-        /entrypoint: "\.\/document\.ts"/,
-        "should have document.ts entrypoint",
-      );
-      assertMatch(
-        appTs,
-        /outputFile: "\.\/static\/my-app-browser\/worker\.js"/,
-        "worker outputFile should be worker.js",
-      );
-      assertMatch(
-        appTs,
-        /outputFile: "\.\/static\/my-app-browser\/document\.js"/,
-        "document outputFile should be document.js",
-      );
-      assertMatch(appTs, /staticDir:/, "app.ts should set staticDir");
-      assertMatch(appTs, /templatesDir:/, "app.ts should set templatesDir");
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp browser: worker.ts is a Service Worker entry point",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const workerTs = await readFile(
-        join(dir, "src/my-app-browser/worker.ts"),
-      );
-
-      assertMatch(
-        workerTs,
-        /ServiceWorkerGlobalScope/,
-        "worker.ts should declare ServiceWorkerGlobalScope",
-      );
-      assertMatch(
-        workerTs,
-        /IndexedDBBackend/,
-        "worker.ts should use IndexedDBBackend",
-      );
-      assertMatch(
-        workerTs,
-        /Application/,
-        "worker.ts should use Application",
-      );
-      assertMatch(
-        workerTs,
-        /addEventListener\("install"/,
-        "worker.ts should handle install event",
-      );
-      assertMatch(
-        workerTs,
-        /addEventListener\("activate"/,
-        "worker.ts should handle activate event",
-      );
-      assertMatch(
-        workerTs,
-        /addEventListener\("fetch"/,
-        "worker.ts should handle fetch event",
-      );
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp browser: document.ts is a DOM context entry point",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const documentTs = await readFile(
-        join(dir, "src/my-app-browser/document.ts"),
-      );
-
-      assertMatch(
-        documentTs,
-        /RestBackend/,
-        "document.ts should use RestBackend",
-      );
-      assertMatch(documentTs, /setup\(/, "document.ts should call setup");
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp browser: views.ts uses templateView",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const viewsTs = await readFile(
-        join(dir, "src/my-app-browser/views.ts"),
-      );
-
-      assertMatch(
-        viewsTs,
-        /templateView/,
-        "views.ts should use templateView",
-      );
-      assertMatch(
-        viewsTs,
-        /my-app-browser\/index\.html/,
-        "views.ts should reference index.html template",
-      );
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp browser: base.html loads worker.js SW and document.js module",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const baseHtml = await readFile(
-        join(dir, "src/my-app-browser/templates/my-app-browser/base.html"),
-      );
-
-      assertMatch(baseHtml, /<!DOCTYPE html>/, "should be HTML doc");
-      assertMatch(
-        baseHtml,
-        /document\.js/,
-        "base.html should reference document.js",
-      );
-      assertMatch(
-        baseHtml,
-        /type="module"/,
-        "document.js script should be type=module",
-      );
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name:
-    "startapp browser: static/index.html registers worker.js as Service Worker",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const indexHtml = await readFile(
-        join(dir, "src/my-app-browser/static/my-app-browser/index.html"),
-      );
-
-      assertMatch(indexHtml, /<!DOCTYPE html>/, "should be HTML doc");
-      assertMatch(
-        indexHtml,
-        /worker\.js/,
-        "index.html should register worker.js",
-      );
-      assertMatch(
-        indexHtml,
-        /serviceWorker\.register/,
-        "index.html should call serviceWorker.register",
-      );
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name:
-    "startapp browser: settings has INSTALLED_APPS with staticfiles and web",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const settings = await readFile(
-        join(dir, "project/my-app-browser.settings.ts"),
-      );
-
-      assertMatch(
-        settings,
-        /@alexi\/staticfiles/,
-        "settings should include staticfiles",
-      );
-      assertMatch(
-        settings,
-        /@alexi\/web/,
-        "settings should include web server",
-      );
-      assertMatch(
-        settings,
-        /@my-app-browser\/browser/,
-        "settings should include the browser app",
-      );
-      assertMatch(
-        settings,
-        /ROOT_URLCONF/,
-        "settings should define ROOT_URLCONF",
-      );
-      assertMatch(settings, /API_URL/, "settings should define API_URL");
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp browser: mod.ts exports models, views, urls, and endpoints",
-  async fn() {
-    await withTempDir(async (dir) => {
-      await runStartapp(dir, [
-        "my-app-browser",
-        "--type",
-        "browser",
-        "--no-input",
-      ]);
-
-      const modTs = await readFile(join(dir, "src/my-app-browser/mod.ts"));
-
-      assertMatch(
-        modTs,
-        /export \* from "\.\/models\.ts"/,
-        "mod.ts should export models",
-      );
-      assertMatch(
-        modTs,
-        /export \* from "\.\/views\.ts"/,
-        "mod.ts should export views",
-      );
-      assertMatch(
-        modTs,
-        /export \* from "\.\/urls\.ts"/,
-        "mod.ts should export urls",
-      );
-      assertMatch(
-        modTs,
-        /export \* from "\.\/endpoints\.ts"/,
-        "mod.ts should export endpoints",
-      );
-    });
-  },
-  sanitizeResources: false,
-  sanitizeOps: false,
-});
-
-Deno.test({
-  name: "startapp: 'browser' appears in APP_TYPES list",
-  fn() {
-    const command = new StartAppCommand();
-    assertExists(command, "Command should be instantiable");
-    assertEquals(command.name, "startapp");
-  },
 });

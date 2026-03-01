@@ -11,10 +11,10 @@ export function printHelp(): void {
   console.log(`
 @alexi/create - Alexi Full-Stack Project Generator
 
-Creates a full-stack Todo application with three apps:
-  • web     - REST API backend (Django-style)
-  • ui      - Frontend SPA (HTML Props)
-  • desktop - Desktop app (WebUI)
+Creates a full-stack Posts application with a unified app structure:
+  • Server-side code (models, views, viewsets, URLs)
+  • Frontend assets (bundled into static files)
+  • Service Worker (offline-capable HTMX frontend)
 
 USAGE:
   deno run -A jsr:@alexi/create <project-name>
@@ -37,9 +37,7 @@ AFTER CREATION:
   deno task dev
 
 This will start:
-  • Web server (REST API) on http://localhost:8000
-  • UI server (frontend) on http://localhost:5173
-  • Desktop WebUI window
+  • Web server on http://localhost:8000
 
 PROJECT STRUCTURE:
   <project-name>/
@@ -47,13 +45,21 @@ PROJECT STRUCTURE:
   ├── deno.jsonc                # Workspace config
   ├── project/
   │   ├── settings.ts           # Shared settings
-  │   ├── web.settings.ts       # Web server settings
-  │   ├── ui.settings.ts        # UI server settings
-  │   └── desktop.settings.ts   # Desktop settings
+  │   └── web.settings.ts       # Web server settings
   └── src/
-      ├── <project-name>-web/   # Backend API
-      ├── <project-name>-ui/    # Frontend SPA
-      └── <project-name>-desktop/  # Desktop app
+      └── <project-name>/      # Unified app
+          ├── app.ts            # Server-side app config
+          ├── mod.ts            # Module exports
+          ├── models.ts         # ORM models
+          ├── serializers.ts    # REST serializers
+          ├── viewsets.ts       # REST viewsets
+          ├── urls.ts           # URL routing
+          ├── views.ts          # Server-side views
+          ├── tests/            # Tests
+          ├── migrations/       # Database migrations
+          ├── static/           # Built static output
+          ├── assets/           # Frontend TypeScript
+          └── workers/          # Service Worker app
 
 LEARN MORE:
   https://github.com/atzufuki/alexi

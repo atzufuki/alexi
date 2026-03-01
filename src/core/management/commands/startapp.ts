@@ -1,7 +1,8 @@
 /**
  * StartApp Command for Alexi Management Commands
  *
- * Creates a new app within an Alexi project.
+ * Creates a new unified app within an Alexi project.
+ * Every app gets the full structure — no app types.
  *
  * @module @alexi/core/commands/startapp
  */
@@ -14,66 +15,32 @@ import type {
 } from "../types.ts";
 
 // =============================================================================
-// Types
-// =============================================================================
-
-export type AppType =
-  | "cli"
-  | "server"
-  | "desktop"
-  | "mobile"
-  | "library"
-  | "browser";
-
-interface AppTypeInfo {
-  name: AppType;
-  description: string;
-  hasSettings: boolean;
-}
-
-const APP_TYPES: AppTypeInfo[] = [
-  { name: "server", description: "HTTP server", hasSettings: true },
-  { name: "desktop", description: "Desktop app (WebUI)", hasSettings: true },
-  { name: "mobile", description: "Mobile app (Capacitor)", hasSettings: true },
-  { name: "cli", description: "Command-line tool", hasSettings: true },
-  {
-    name: "library",
-    description: "Reusable library (no entrypoint)",
-    hasSettings: false,
-  },
-  {
-    name: "browser",
-    description: "Browser app (Service Worker + DOM entry points)",
-    hasSettings: true,
-  },
-];
-
-// =============================================================================
 // StartAppCommand Class
 // =============================================================================
 
 /**
- * Command for creating new apps within an Alexi project
+ * Command for creating new apps within an Alexi project.
+ *
+ * Every app is a single unified directory following Django conventions:
+ * models, views, URLs, serializers, viewsets, migrations, assets, workers,
+ * static files, and tests — all in one place.
  *
  * @example
  * ```bash
- * deno run -A manage.ts startapp myapp
- * deno run -A manage.ts startapp myapp --type web
- * deno run -A manage.ts startapp mylib --type library
+ * deno run -A manage.ts startapp posts
+ * deno run -A manage.ts startapp blog
  * ```
  */
 export class StartAppCommand extends BaseCommand {
   readonly name = "startapp";
   readonly help = "Create a new app within the project";
   override readonly description =
-    "Creates a new app with the specified name and type. " +
-    "Entrypoint apps (server, desktop, mobile, cli) get their own settings file.";
+    "Creates a new unified app with models, views, URLs, serializers, " +
+    "viewsets, assets (frontend), workers (Service Worker), static files, and tests.";
 
   override readonly examples = [
-    "manage.ts startapp myapp              - Create app (interactive type selection)",
-    "manage.ts startapp myapi --type server   - Create a server app",
-    "manage.ts startapp mybrowser --type browser - Create a browser app",
-    "manage.ts startapp mylib --type library - Create a library",
+    "manage.ts startapp posts       - Create a new app called 'posts'",
+    "manage.ts startapp blog        - Create a new app called 'blog'",
   ];
 
   // ===========================================================================
@@ -85,18 +52,6 @@ export class StartAppCommand extends BaseCommand {
       required: true,
       help: "Name of the app to create",
     });
-
-    parser.addArgument("--type", {
-      type: "string",
-      alias: "-t",
-      help: "App type: cli, server, desktop, mobile, library, browser",
-    });
-
-    parser.addArgument("--no-input", {
-      type: "boolean",
-      default: false,
-      help: "Run without interactive prompts (requires --type)",
-    });
   }
 
   // ===========================================================================
@@ -105,8 +60,6 @@ export class StartAppCommand extends BaseCommand {
 
   async handle(options: CommandOptions): Promise<CommandResult> {
     const appName = options.args.name as string;
-    const typeArg = options.args.type as string | undefined;
-    const noInput = options.args["no-input"] as boolean;
 
     // Validate app name
     if (!this.isValidAppName(appName)) {
@@ -130,56 +83,45 @@ export class StartAppCommand extends BaseCommand {
       }
     }
 
-    // Determine app type
-    let appType: AppType;
-
-    if (typeArg) {
-      if (!this.isValidAppType(typeArg)) {
-        this.error(`Invalid app type "${typeArg}".`);
-        this.stdout.log("");
-        this.stdout.log("Valid types:");
-        for (const t of APP_TYPES) {
-          this.stdout.log(`  ${t.name.padEnd(10)} - ${t.description}`);
-        }
-        return failure("Invalid app type");
-      }
-      appType = typeArg as AppType;
-    } else if (noInput) {
-      this.error("--type is required when using --no-input");
-      return failure("Missing --type");
-    } else {
-      // Interactive mode
-      appType = await this.promptForAppType();
-    }
-
     // Create the app
-    this.info(`Creating ${appType} app "${appName}"...`);
+    this.info(`Creating app "${appName}"...`);
     console.log("");
 
     try {
-      await this.createApp(appName, appType);
+      await this.createApp(appName);
 
       console.log("");
       this.success(`App "${appName}" created successfully!`);
 
-      const typeInfo = APP_TYPES.find((t) => t.name === appType)!;
-      if (typeInfo.hasSettings) {
-        console.log("");
-        this.stdout.log("Next steps:");
-        this.stdout.log(
-          `  1. Add "${appName}" to INSTALLED_APPS in project/${appName}.settings.ts`,
-        );
-        this.stdout.log(
-          `  2. Run: deno run -A manage.ts runserver --settings ${appName}`,
-        );
-      } else {
-        console.log("");
-        this.stdout.log("Next steps:");
-        this.stdout.log(
-          `  1. Add "${appName}" to INSTALLED_APPS in your settings file`,
-        );
-        this.stdout.log(`  2. Import and use the app in your project`);
-      }
+      console.log("");
+      this.stdout.log("Next steps:");
+      this.stdout.log(
+        `  1. Add import map entries to deno.jsonc:`,
+      );
+      this.stdout.log(
+        `     "@${appName}/": "./src/${appName}/"`,
+      );
+      this.stdout.log(
+        `     "@${appName}/workers": "./src/${appName}/workers/${appName}/mod.ts"`,
+      );
+      this.stdout.log(
+        `     "@${appName}/workers/urls": "./src/${appName}/workers/${appName}/urls.ts"`,
+      );
+      this.stdout.log(
+        `     "@${appName}/workers/": "./src/${appName}/workers/${appName}/"`,
+      );
+      this.stdout.log(
+        `  2. Add to INSTALLED_APPS in your settings:`,
+      );
+      this.stdout.log(
+        `     () => import("@${appName}/mod.ts"),     // server app`,
+      );
+      this.stdout.log(
+        `     () => import("@${appName}/workers"),    // worker app (for bundling)`,
+      );
+      this.stdout.log(
+        `  3. Include URLs in ROOT_URLCONF`,
+      );
 
       return success();
     } catch (error) {
@@ -197,72 +139,38 @@ export class StartAppCommand extends BaseCommand {
     return /^[a-z][a-z0-9-]*$/.test(name);
   }
 
-  private isValidAppType(type: string): boolean {
-    return APP_TYPES.some((t) => t.name === type);
-  }
-
-  // ===========================================================================
-  // Interactive Prompt
-  // ===========================================================================
-
-  private async promptForAppType(): Promise<AppType> {
-    this.stdout.log("App type? (Use number to select)");
-    this.stdout.log("");
-
-    for (let i = 0; i < APP_TYPES.length; i++) {
-      const t = APP_TYPES[i];
-      this.stdout.log(`  ${i + 1}. ${t.name.padEnd(10)} - ${t.description}`);
-    }
-
-    this.stdout.log("");
-
-    const buf = new Uint8Array(10);
-    await Deno.stdin.read(buf);
-    const input = new TextDecoder().decode(buf).trim();
-
-    const num = parseInt(input, 10);
-    if (num >= 1 && num <= APP_TYPES.length) {
-      return APP_TYPES[num - 1].name;
-    }
-
-    // Check if they typed the name directly
-    const typeByName = APP_TYPES.find((t) => t.name === input.toLowerCase());
-    if (typeByName) {
-      return typeByName.name;
-    }
-
-    // Default to server
-    this.warn(`Invalid selection, defaulting to "server"`);
-    return "server";
-  }
-
   // ===========================================================================
   // App Creation
   // ===========================================================================
 
-  private async createApp(name: string, type: AppType): Promise<void> {
+  private async createApp(name: string): Promise<void> {
     const appDir = `src/${name}`;
 
     // Create directories
-    await this.createDirectories(name, appDir, type);
+    await this.createDirectories(name, appDir);
 
-    // Generate files based on type
-    await this.generateFiles(name, type, appDir);
+    // Generate files
+    await this.generateFiles(name, appDir);
   }
 
   private async createDirectories(
     name: string,
     appDir: string,
-    type: AppType,
   ): Promise<void> {
-    const dirs = [appDir, `${appDir}/tests`];
-
-    // Type-specific directories
-    if (type === "cli") {
-      dirs.push(`${appDir}/commands`);
-    } else if (type === "browser") {
-      dirs.push(`${appDir}/static/${name}`);
-    }
+    const dirs = [
+      appDir,
+      // Server-side
+      `${appDir}/migrations`,
+      `${appDir}/tests`,
+      // Frontend assets
+      `${appDir}/assets/${name}`,
+      `${appDir}/assets/${name}/components`,
+      // Service Worker
+      `${appDir}/workers/${name}`,
+      `${appDir}/workers/${name}/templates/${name}`,
+      // Static output
+      `${appDir}/static/${name}`,
+    ];
 
     for (const dir of dirs) {
       await Deno.mkdir(dir, { recursive: true });
@@ -272,152 +180,105 @@ export class StartAppCommand extends BaseCommand {
 
   private async generateFiles(
     name: string,
-    type: AppType,
     appDir: string,
   ): Promise<void> {
-    const files: Array<{ path: string; content: string }> = [];
+    const files: Array<{ path: string; content: string }> = [
+      // ========================================================================
+      // Root app files (server-side, Deno context)
+      // ========================================================================
+      {
+        path: `${appDir}/app.ts`,
+        content: this.generateAppTs(name),
+      },
+      {
+        path: `${appDir}/mod.ts`,
+        content: this.generateModTs(name),
+      },
+      {
+        path: `${appDir}/models.ts`,
+        content: this.generateModelsTs(name),
+      },
+      {
+        path: `${appDir}/serializers.ts`,
+        content: this.generateSerializersTs(name),
+      },
+      {
+        path: `${appDir}/viewsets.ts`,
+        content: this.generateViewsetsTs(name),
+      },
+      {
+        path: `${appDir}/views.ts`,
+        content: this.generateViewsTs(name),
+      },
+      {
+        path: `${appDir}/urls.ts`,
+        content: this.generateUrlsTs(name),
+      },
+      {
+        path: `${appDir}/migrations/0001_init.ts`,
+        content: this.generateInitMigration(name),
+      },
+      {
+        path: `${appDir}/tests/basic_test.ts`,
+        content: this.generateBasicTest(name),
+      },
 
-    // Common files for all app types
-    files.push({
-      path: `${appDir}/app.ts`,
-      content: this.generateAppTs(name, type),
-    });
+      // ========================================================================
+      // Frontend assets (bundled → static/<app>/<app>.js)
+      // ========================================================================
+      {
+        path: `${appDir}/assets/${name}/mod.ts`,
+        content: this.generateAssetModTs(name),
+      },
 
-    files.push({
-      path: `${appDir}/mod.ts`,
-      content: this.generateModTs(name, type),
-    });
+      // ========================================================================
+      // Service Worker (bundled → static/<app>/worker.js)
+      // ========================================================================
+      {
+        path: `${appDir}/workers/${name}/app.ts`,
+        content: this.generateWorkerAppTs(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/mod.ts`,
+        content: this.generateWorkerModTs(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/models.ts`,
+        content: this.generateWorkerModelsTs(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/endpoints.ts`,
+        content: this.generateWorkerEndpointsTs(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/settings.ts`,
+        content: this.generateWorkerSettingsTs(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/urls.ts`,
+        content: this.generateWorkerUrlsTs(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/views.ts`,
+        content: this.generateWorkerViewsTs(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/templates/${name}/base.html`,
+        content: this.generateWorkerBaseHtml(name),
+      },
+      {
+        path: `${appDir}/workers/${name}/templates/${name}/index.html`,
+        content: this.generateWorkerIndexHtml(name),
+      },
 
-    files.push({
-      path: `${appDir}/tests/basic_test.ts`,
-      content: this.generateBasicTest(name),
-    });
-
-    // Type-specific files
-    switch (type) {
-      case "server":
-        files.push({
-          path: `${appDir}/models.ts`,
-          content: this.generateModelsTs(name),
-        });
-        files.push({
-          path: `${appDir}/urls.ts`,
-          content: this.generateUrlsTs(name),
-        });
-        files.push({
-          path: `${appDir}/views.ts`,
-          content: this.generateViewsTs(name),
-        });
-        files.push({
-          path: `${appDir}/serializers.ts`,
-          content: this.generateSerializersTs(name),
-        });
-        files.push({
-          path: `${appDir}/viewsets.ts`,
-          content: this.generateViewsetsTs(name),
-        });
-        files.push({
-          path: `project/${name}.settings.ts`,
-          content: this.generateServerSettings(name),
-        });
-        break;
-
-      case "desktop":
-        files.push({
-          path: `${appDir}/bindings.ts`,
-          content: this.generateBindingsTs(name),
-        });
-        files.push({
-          path: `${appDir}/urls.ts`,
-          content: this.generateDesktopUrlsTs(name),
-        });
-        files.push({
-          path: `project/${name}.settings.ts`,
-          content: this.generateDesktopSettings(name),
-        });
-        break;
-
-      case "mobile":
-        files.push({
-          path: `${appDir}/urls.ts`,
-          content: this.generateMobileUrlsTs(name),
-        });
-        files.push({
-          path: `${appDir}/capacitor.config.ts`,
-          content: this.generateCapacitorConfig(name),
-        });
-        files.push({
-          path: `project/${name}.settings.ts`,
-          content: this.generateMobileSettings(name),
-        });
-        break;
-
-      case "cli":
-        files.push({
-          path: `${appDir}/commands/mod.ts`,
-          content: this.generateCommandsMod(name),
-        });
-        files.push({
-          path: `${appDir}/main.ts`,
-          content: this.generateCliMain(name),
-        });
-        files.push({
-          path: `project/${name}.settings.ts`,
-          content: this.generateCliSettings(name),
-        });
-        break;
-
-      case "library":
-        files.push({
-          path: `${appDir}/models.ts`,
-          content: this.generateModelsTs(name),
-        });
-        // No settings file for library
-        break;
-
-      case "browser":
-        files.push({
-          path: `${appDir}/models.ts`,
-          content: this.generateModelsTs(name),
-        });
-        files.push({
-          path: `${appDir}/endpoints.ts`,
-          content: this.generateBrowserEndpointsTs(name),
-        });
-        files.push({
-          path: `${appDir}/views.ts`,
-          content: this.generateBrowserViewsTs(name),
-        });
-        files.push({
-          path: `${appDir}/urls.ts`,
-          content: this.generateBrowserUrlsTs(name),
-        });
-        files.push({
-          path: `${appDir}/worker.ts`,
-          content: this.generateBrowserWorkerTs(name),
-        });
-        files.push({
-          path: `${appDir}/document.ts`,
-          content: this.generateBrowserDocumentTs(name),
-        });
-        files.push({
-          path: `${appDir}/static/${name}/index.html`,
-          content: this.generateBrowserIndexHtml(name),
-        });
-        files.push({
-          path: `${appDir}/templates/${name}/base.html`,
-          content: this.generateBrowserBaseHtml(name),
-        });
-        files.push({
-          path: `${appDir}/templates/${name}/index.html`,
-          content: this.generateBrowserHomeHtml(name),
-        });
-        files.push({
-          path: `project/${name}.settings.ts`,
-          content: this.generateBrowserSettingsTs(name),
-        });
-        break;
-    }
+      // ========================================================================
+      // Static output (served by staticFilesMiddleware)
+      // ========================================================================
+      {
+        path: `${appDir}/static/${name}/index.html`,
+        content: this.generateStaticIndexHtml(name),
+      },
+    ];
 
     for (const file of files) {
       // Ensure parent directory exists
@@ -431,15 +292,13 @@ export class StartAppCommand extends BaseCommand {
   }
 
   // ===========================================================================
-  // Template Generators
+  // Template Generators — Root (Server-side)
   // ===========================================================================
 
-  private generateAppTs(name: string, type: AppType): string {
+  private generateAppTs(name: string): string {
     const className = this.toPascalCase(name);
-    const hasCommands = type === "cli";
 
-    if (type === "browser") {
-      return `/**
+    return `/**
  * ${className} App Configuration
  *
  * @module ${name}/app
@@ -450,84 +309,25 @@ import type { AppConfig } from "@alexi/types";
 const config: AppConfig = {
   name: "${name}",
   verboseName: "${className}",
-  staticfiles: [
-    {
-      entrypoint: "./worker.ts",
-      outputFile: "./static/${name}/worker.js",
-      options: { minify: false, sourceMaps: true },
-    },
-    {
-      entrypoint: "./document.ts",
-      outputFile: "./static/${name}/document.js",
-      options: { minify: false, sourceMaps: true },
-    },
-  ],
   staticDir: "static",
-  templatesDir: "src/${name}/templates",
-};
-
-export default config;
-`;
-    }
-
-    return `/**
- * ${className} App Configuration
- *
- * @module ${name}/app
- */
-
-import type { AppConfig } from "@alexi/types";
-
-const config: AppConfig = {
-  name: "${name}",
-  verboseName: "${className}",${
-      hasCommands ? `\n  commandsModule: "./commands/mod.ts",` : ""
-    }
 };
 
 export default config;
 `;
   }
 
-  private generateModTs(name: string, type: AppType): string {
-    const exports: string[] = [];
-
-    switch (type) {
-      case "server":
-        exports.push('export * from "./models.ts";');
-        exports.push('export * from "./views.ts";');
-        exports.push('export * from "./urls.ts";');
-        exports.push('export * from "./serializers.ts";');
-        exports.push('export * from "./viewsets.ts";');
-        break;
-      case "desktop":
-        exports.push('export * from "./bindings.ts";');
-        exports.push('export * from "./urls.ts";');
-        break;
-      case "mobile":
-        exports.push('export * from "./urls.ts";');
-        break;
-      case "cli":
-        exports.push('export * from "./commands/mod.ts";');
-        break;
-      case "library":
-        exports.push('export * from "./models.ts";');
-        break;
-      case "browser":
-        exports.push('export * from "./models.ts";');
-        exports.push('export * from "./views.ts";');
-        exports.push('export * from "./urls.ts";');
-        exports.push('export * from "./endpoints.ts";');
-        break;
-    }
-
+  private generateModTs(name: string): string {
     return `/**
  * ${this.toPascalCase(name)} Module Exports
  *
  * @module ${name}
  */
 
-${exports.join("\n")}
+export * from "./models.ts";
+export * from "./views.ts";
+export * from "./urls.ts";
+export * from "./serializers.ts";
+export * from "./viewsets.ts";
 `;
   }
 
@@ -564,45 +364,6 @@ export class ExampleModel extends Model {
 `;
   }
 
-  private generateUrlsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} URL Configuration
- *
- * @module ${name}/urls
- */
-
-import { path } from "@alexi/urls";
-import { homeView, healthView } from "./views.ts";
-
-export const urlpatterns = [
-  path("", homeView, { name: "home" }),
-  path("api/health/", healthView, { name: "health" }),
-];
-`;
-  }
-
-  private generateViewsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Views
- *
- * @module ${name}/views
- */
-
-export function homeView(_request: Request): Response {
-  return Response.json({
-    message: "Welcome to ${name}!",
-  });
-}
-
-export function healthView(_request: Request): Response {
-  return Response.json({
-    status: "ok",
-    timestamp: new Date().toISOString(),
-  });
-}
-`;
-  }
-
   private generateSerializersTs(name: string): string {
     return `/**
  * ${this.toPascalCase(name)} Serializers
@@ -610,7 +371,7 @@ export function healthView(_request: Request): Response {
  * @module ${name}/serializers
  */
 
-import { Serializer, CharField } from "@alexi/restframework";
+import { CharField, Serializer } from "@alexi/restframework";
 
 export class ExampleSerializer extends Serializer {
   id = new CharField({ readOnly: true });
@@ -637,222 +398,145 @@ export class ExampleViewSet extends ModelViewSet {
 `;
   }
 
-  private generateBindingsTs(name: string): string {
+  private generateViewsTs(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} Desktop Bindings
+ * ${this.toPascalCase(name)} Views
  *
- * Native functions available to the frontend via webui.call()
- *
- * @module ${name}/bindings
+ * @module ${name}/views
  */
 
-export function getAppInfo(): Record<string, unknown> {
-  return {
-    name: "${name}",
-    platform: Deno.build.os,
-    arch: Deno.build.arch,
-  };
+export function homeView(_request: Request): Response {
+  return Response.json({
+    message: "Welcome to ${name}!",
+  });
 }
 
-export const bindings = {
-  getAppInfo,
-};
-`;
-  }
-
-  private generateDesktopUrlsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Desktop URL Configuration
- *
- * @module ${name}/urls
- */
-
-// Desktop apps typically use the UI app's URLs
-// Add any desktop-specific routes here
-
-export const urlpatterns = [];
-`;
-  }
-
-  private generateMobileUrlsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Mobile URL Configuration
- *
- * @module ${name}/urls
- */
-
-// Mobile apps typically use the UI app's URLs
-// Add any mobile-specific routes here
-
-export const urlpatterns = [];
-`;
-  }
-
-  private generateCapacitorConfig(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Capacitor Configuration
- *
- * @module ${name}/capacitor.config
- */
-
-export const capacitorConfig = {
-  appId: "com.example.${name.replace(/-/g, "")}",
-  appName: "${this.toPascalCase(name)}",
-  webDir: "dist",
-  bundledWebRuntime: false,
-};
-
-export default capacitorConfig;
-`;
-  }
-
-  private generateCommandsMod(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} CLI Commands
- *
- * @module ${name}/commands
- */
-
-// Export your commands here
-// export { MyCommand } from "./my_command.ts";
-`;
-  }
-
-  private generateCliMain(name: string): string {
-    return `#!/usr/bin/env -S deno run -A
-/**
- * ${this.toPascalCase(name)} CLI Entry Point
- *
- * @module ${name}/main
- */
-
-import { execute } from "@alexi/core";
-
-const exitCode = await execute();
-Deno.exit(exitCode);
-`;
-  }
-
-  private generateServerSettings(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Server Settings
- *
- * @module project/${name}.settings
- */
-
-import {
-  loggingMiddleware,
-  corsMiddleware,
-  errorHandlerMiddleware,
-} from "@alexi/middleware";
-
-export const DEBUG = Deno.env.get("DEBUG") === "true";
-export const DEFAULT_HOST = "0.0.0.0";
-export const DEFAULT_PORT = 8000;
-
-export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@alexi/web"),
-  () => import("@alexi/db"),
-  () => import("@${name}/server"),
-];
-
-export const ROOT_URLCONF = () => import("@${name}/server/urls");
-
-export function createMiddleware() {
-  return [
-    loggingMiddleware(),
-    corsMiddleware({ origins: ["http://localhost:8000"] }),
-    errorHandlerMiddleware(),
-  ];
+export function healthView(_request: Request): Response {
+  return Response.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+  });
 }
 `;
   }
 
-  private generateDesktopSettings(name: string): string {
+  private generateUrlsTs(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} Desktop Settings
- *
- * @module project/${name}.settings
- */
-
-export const DEBUG = Deno.env.get("DEBUG") === "true";
-export const DEFAULT_HOST = "127.0.0.1";
-export const DEFAULT_PORT = 51730;
-
-export const INSTALLED_APPS = [
-  () => import("@alexi/webui"),
-  () => import("@${name}/desktop"),
-];
-
-export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
-export const UI_URL = Deno.env.get("UI_URL") ?? "http://127.0.0.1:5173/";
-
-export const DESKTOP = {
-  title: "${this.toPascalCase(name)}",
-  width: 1200,
-  height: 800,
-  browser: "any" as const,
-};
-
-export const BINDINGS_MODULE = "src/${name}/bindings.ts";
-`;
-  }
-
-  private generateMobileSettings(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Mobile Settings
- *
- * @module project/${name}.settings
- */
-
-export const DEBUG = Deno.env.get("DEBUG") === "true";
-
-export const INSTALLED_APPS = [
-  () => import("@alexi/capacitor"),
-  () => import("@${name}/mobile"),
-];
-
-export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
-`;
-  }
-
-  private generateCliSettings(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} CLI Settings
- *
- * @module project/${name}.settings
- */
-
-export const DEBUG = Deno.env.get("DEBUG") === "true";
-
-export const INSTALLED_APPS = [
-  () => import("@${name}/cli"),
-];
-`;
-  }
-
-  private generateBrowserUrlsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Browser URL Configuration
+ * ${this.toPascalCase(name)} URL Configuration
  *
  * @module ${name}/urls
  */
 
 import { path } from "@alexi/urls";
-import { homeView } from "./views.ts";
+import { healthView, homeView } from "./views.ts";
 
 export const urlpatterns = [
   path("", homeView, { name: "home" }),
+  path("api/health/", healthView, { name: "health" }),
 ];
 `;
   }
 
-  private generateBrowserWorkerTs(name: string): string {
+  private generateInitMigration(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} Service Worker Entry Point
+ * ${this.toPascalCase(name)} Initial Migration
  *
- * @module ${name}/worker
+ * @module ${name}/migrations/0001_init
+ */
+
+// Placeholder for initial migration
+// Migrations will be auto-generated by makemigrations
+export const migration = {
+  name: "0001_init",
+  app: "${name}",
+  operations: [],
+};
+`;
+  }
+
+  private generateBasicTest(name: string): string {
+    return `/**
+ * Basic tests for ${name}
+ */
+
+import { assertEquals } from "jsr:@std/assert@1";
+
+Deno.test("${name}: basic test", () => {
+  assertEquals(1 + 1, 2);
+});
+`;
+  }
+
+  // ===========================================================================
+  // Template Generators — Assets (Frontend)
+  // ===========================================================================
+
+  private generateAssetModTs(name: string): string {
+    return `/**
+ * ${this.toPascalCase(name)} Frontend Entry Point
+ *
+ * This file is bundled by @alexi/staticfiles into static/${name}/${name}.js.
+ * Import your Web Components and client-side code here.
+ *
+ * @module ${name}/assets/${name}/mod
+ */
+
+// Import and register components
+// import "./components/my_component.ts";
+
+console.log("${this.toPascalCase(name)} frontend loaded");
+`;
+  }
+
+  // ===========================================================================
+  // Template Generators — Workers (Service Worker)
+  // ===========================================================================
+
+  private generateWorkerAppTs(name: string): string {
+    const className = this.toPascalCase(name);
+
+    return `/**
+ * ${className} Worker App Configuration
+ *
+ * This is itself a valid Alexi app listed in INSTALLED_APPS
+ * so the bundler can discover and bundle it.
+ *
+ * @module ${name}/workers/${name}/app
+ */
+
+import type { AppConfig } from "@alexi/types";
+
+const config: AppConfig = {
+  name: "${name}-worker",
+  verboseName: "${className} Worker",
+  staticfiles: [
+    {
+      entrypoint: "./workers/${name}/mod.ts",
+      outputFile: "./static/${name}/worker.js",
+      options: { minify: false, sourceMaps: true },
+    },
+    {
+      entrypoint: "./assets/${name}/mod.ts",
+      outputFile: "./static/${name}/${name}.js",
+      options: { minify: false, sourceMaps: true },
+    },
+  ],
+  staticDir: "static",
+  templatesDir: "src/${name}/workers/${name}/templates",
+};
+
+export default config;
+`;
+  }
+
+  private generateWorkerModTs(name: string): string {
+    return `/**
+ * ${this.toPascalCase(name)} Worker Module Exports
+ *
+ * Service Worker entry point — bundled into static/${name}/worker.js.
+ * Runs in the browser's Service Worker context, never on the Deno server.
+ *
+ * @module ${name}/workers/${name}/mod
  */
 
 import { Application, setup } from "@alexi/core";
@@ -886,44 +570,30 @@ self.addEventListener("fetch", (event) => {
 `;
   }
 
-  private generateBrowserDocumentTs(name: string): string {
+  private generateWorkerModelsTs(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} Document Entry Point
+ * ${this.toPascalCase(name)} Worker Models
  *
- * Runs in the browser's Document (DOM) context.
- * Use this file for custom element registration, client-side initialisation,
- * and anything that requires access to the DOM or browser APIs.
+ * Client-side ORM models (IndexedDB / REST backends).
  *
- * @module ${name}/document
+ * @module ${name}/workers/${name}/models
  */
 
-import { RestBackend } from "@alexi/db/backends/rest";
-import { setup } from "@alexi/core";
+// Re-export server models that should be available in the browser
+// import { ExampleModel } from "../../models.ts";
+// export { ExampleModel };
 
-// Initialise the REST backend so models can sync with the server
-const restBackend = new RestBackend({
-  apiUrl: (globalThis as Record<string, unknown>)["API_URL"] as string ??
-    "http://localhost:8000/api",
-});
-
-await setup({
-  DATABASES: {
-    rest: restBackend,
-  },
-});
-
-// Register your custom elements here
-// customElements.define("my-element", MyElement);
+// Or define browser-only models here
 `;
   }
 
-  private generateBrowserEndpointsTs(name: string): string {
+  private generateWorkerEndpointsTs(name: string): string {
     return `/**
  * ${this.toPascalCase(name)} REST Endpoints
  *
  * Declarative REST API endpoint definitions used by the REST backend.
  *
- * @module ${name}/endpoints
+ * @module ${name}/workers/${name}/endpoints
  */
 
 // import { DetailAction, ListAction, ModelEndpoint, SingletonQuery } from "@alexi/db/backends/rest";
@@ -937,11 +607,50 @@ await setup({
 `;
   }
 
-  private generateBrowserViewsTs(name: string): string {
+  private generateWorkerSettingsTs(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} Browser Views
+ * ${this.toPascalCase(name)} Worker Settings
  *
- * @module ${name}/views
+ * Client-side DATABASES config for the Service Worker context.
+ *
+ * @module ${name}/workers/${name}/settings
+ */
+
+// import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
+// import { RestBackend } from "@alexi/db/backends/rest";
+//
+// export const DATABASES = {
+//   default: new IndexedDBBackend({ name: "${name}" }),
+//   rest: new RestBackend({ apiUrl: "http://localhost:8000/api" }),
+// };
+`;
+  }
+
+  private generateWorkerUrlsTs(name: string): string {
+    return `/**
+ * ${this.toPascalCase(name)} Worker URL Configuration
+ *
+ * URL patterns for the Service Worker context.
+ *
+ * @module ${name}/workers/${name}/urls
+ */
+
+import { path } from "@alexi/urls";
+import { homeView } from "./views.ts";
+
+export const urlpatterns = [
+  path("", homeView, { name: "home" }),
+];
+`;
+  }
+
+  private generateWorkerViewsTs(name: string): string {
+    return `/**
+ * ${this.toPascalCase(name)} Worker Views
+ *
+ * Views rendered inside the Service Worker.
+ *
+ * @module ${name}/workers/${name}/views
  */
 
 import { templateView } from "@alexi/views";
@@ -955,7 +664,7 @@ export const homeView = templateView({
 `;
   }
 
-  private generateBrowserBaseHtml(name: string): string {
+  private generateWorkerBaseHtml(name: string): string {
     const title = this.toPascalCase(name);
 
     return `<!DOCTYPE html>
@@ -964,7 +673,7 @@ export const homeView = templateView({
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}${title}{% endblock %}</title>
-  <script type="module" src="/static/${name}/document.js"></script>
+  <script type="module" src="/static/${name}/${name}.js"></script>
 </head>
 <body>
   <main hx-boost="true">
@@ -975,7 +684,7 @@ export const homeView = templateView({
 `;
   }
 
-  private generateBrowserHomeHtml(name: string): string {
+  private generateWorkerIndexHtml(name: string): string {
     const title = this.toPascalCase(name);
 
     return `{% extends "${name}/base.html" %}
@@ -989,7 +698,11 @@ export const homeView = templateView({
 `;
   }
 
-  private generateBrowserIndexHtml(name: string): string {
+  // ===========================================================================
+  // Template Generators — Static
+  // ===========================================================================
+
+  private generateStaticIndexHtml(name: string): string {
     const title = this.toPascalCase(name);
 
     return `<!DOCTYPE html>
@@ -1023,42 +736,6 @@ export const homeView = templateView({
   </script>
 </body>
 </html>
-`;
-  }
-
-  private generateBrowserSettingsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Browser Settings
- *
- * @module project/${name}.settings
- */
-
-export const DEBUG = Deno.env.get("DEBUG") === "true";
-export const DEFAULT_HOST = "0.0.0.0";
-export const DEFAULT_PORT = 8000;
-
-export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@alexi/web"),
-  () => import("@${name}/browser"),
-];
-
-export const ROOT_URLCONF = () => import("@${name}/browser/urls");
-
-export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
-`;
-  }
-
-  private generateBasicTest(name: string): string {
-    return `/**
- * Basic tests for ${name}
- */
-
-import { assertEquals } from "jsr:@std/assert@1";
-
-Deno.test("${name}: basic test", () => {
-  assertEquals(1 + 1, 2);
-});
 `;
   }
 

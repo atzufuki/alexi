@@ -12,26 +12,22 @@ export function generateReadme(name: string): string {
 
   return `# ${appName}
 
-A full-stack Todo application built with [Alexi](https://github.com/atzufuki/alexi) and [HTML Props](https://github.com/atzufuki/html-props).
+A full-stack Posts application built with [Alexi](https://github.com/atzufuki/alexi).
 
 ## Features
 
 - **REST API Backend** - Django-style REST framework with DenoKV
-- **Frontend SPA** - Built with HTML Props custom elements
-- **Desktop App** - Native-like window using WebUI
-- **Offline-first** - IndexedDB cache with REST API sync
+- **Service Worker Frontend** - HTMX-powered offline-capable UI
+- **Unified Architecture** - Single app with server and worker code
 
 ## Quick Start
 
 \`\`\`bash
-# Start all servers (opens desktop app)
+# Start the web server
 deno task dev
-
-# Or start individual servers:
-deno task dev:web      # Web server (API) on :8000
-deno task dev:ui       # UI static server on :5173
-deno task dev:desktop  # Desktop WebUI window
 \`\`\`
+
+The web server runs on http://localhost:8000
 
 ## Project Structure
 
@@ -41,39 +37,34 @@ ${name}/
 ├── deno.jsonc                # Workspace config with tasks and import maps
 ├── project/
 │   ├── settings.ts           # Shared settings
-│   ├── web.settings.ts       # Web server settings (API)
-│   ├── ui.settings.ts        # UI static file server settings
-│   └── desktop.settings.ts   # WebUI desktop settings
+│   └── web.settings.ts       # Web server settings
 │
 └── src/
-    ├── ${name}-web/          # Backend API app
-    │   ├── models.ts         # TodoModel
-    │   ├── serializers.ts    # TodoSerializer
-    │   ├── viewsets.ts       # TodoViewSet
-    │   └── urls.ts           # /api/todos/ endpoints
-    │
-    ├── ${name}-ui/           # Frontend UI app
-    │   ├── models.ts         # Frontend ORM models
-    │   ├── settings.ts       # Frontend settings (backends)
-    │   ├── views.ts          # View functions
-    │   ├── urls.ts           # URL patterns
-    │   ├── main.ts           # Entry point
-    │   └── templates/        # UI components
-    │
-    └── ${name}-desktop/      # WebUI desktop app
-        └── bindings.ts       # Native function bindings
+    └── ${name}/              # Unified app
+        ├── app.ts            # Server-side app config
+        ├── mod.ts            # Module exports
+        ├── models.ts         # PostModel
+        ├── serializers.ts    # PostSerializer
+        ├── viewsets.ts       # PostViewSet
+        ├── urls.ts           # /api/posts/ endpoints
+        ├── views.ts          # Server-side views
+        ├── tests/            # Tests
+        ├── migrations/       # Database migrations
+        ├── static/           # Built static output
+        ├── assets/           # Frontend TypeScript
+        └── workers/          # Service Worker app
 \`\`\`
 
 ## API Endpoints
 
-| Method | Endpoint                | Description           |
-| ------ | ----------------------- | --------------------- |
-| GET    | /api/todos/             | List all todos        |
-| POST   | /api/todos/             | Create a new todo     |
-| GET    | /api/todos/:id/         | Get a single todo     |
-| PUT    | /api/todos/:id/         | Update a todo         |
-| DELETE | /api/todos/:id/         | Delete a todo         |
-| POST   | /api/todos/:id/toggle/  | Toggle completed      |
+| Method | Endpoint                 | Description           |
+| ------ | ------------------------ | --------------------- |
+| GET    | /api/posts/              | List all posts        |
+| POST   | /api/posts/              | Create a new post     |
+| GET    | /api/posts/:id/          | Get a single post     |
+| PUT    | /api/posts/:id/          | Update a post         |
+| DELETE | /api/posts/:id/          | Delete a post         |
+| POST   | /api/posts/:id/publish/  | Publish a post        |
 
 ## Testing
 
@@ -84,7 +75,6 @@ deno task test
 ## Learn More
 
 - [Alexi Documentation](https://github.com/atzufuki/alexi)
-- [HTML Props Documentation](https://github.com/atzufuki/html-props)
 `;
 }
 
