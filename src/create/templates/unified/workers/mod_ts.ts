@@ -30,7 +30,12 @@ let app: Awaited<ReturnType<typeof getApplication>>;
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      app = await getApplication(settings);
+      try {
+        app = await getApplication(settings);
+      } catch (error) {
+        console.error("[SW] install failed:", error);
+        throw error;
+      }
       await self.skipWaiting();
     })(),
   );

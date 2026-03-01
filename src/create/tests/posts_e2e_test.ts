@@ -366,20 +366,38 @@ Deno.test({
   async fn() {
     const context = await browser.newContext();
     const page = await context.newPage();
+
     try {
       const projectName = project.name;
-      await page.goto(`${baseUrl}/static/${projectName}/index.html`);
+      const indexUrl = `${baseUrl}/static/${projectName}/index.html`;
+      await page.goto(indexUrl);
 
-      // Wait for SW to register and activate (max 15s)
-      const swActive = await page.evaluate(async () => {
+      // Wait for SW to register and activate
+      const isActive = await page.evaluate(async () => {
         const nav = navigator as unknown as {
-          serviceWorker?: { ready: Promise<{ active: unknown }> };
+          serviceWorker?: {
+            ready: Promise<{ active: unknown }>;
+          };
         };
         if (!nav.serviceWorker) return false;
-        const reg = await nav.serviceWorker.ready;
-        return reg.active !== null;
+
+        const timeout = new Promise<never>((_resolve, reject) => {
+          setTimeout(() => reject(new Error("SW ready timeout (20s)")), 20000);
+        });
+
+        try {
+          const reg = await Promise.race([nav.serviceWorker.ready, timeout]);
+          return reg.active !== null;
+        } catch {
+          return false;
+        }
       });
-      assertEquals(swActive, true, "Service Worker must be active");
+
+      assertEquals(
+        isActive,
+        true,
+        "Service Worker must be active",
+      );
     } finally {
       await page.close();
       await context.close();
@@ -407,9 +425,9 @@ Deno.test({
         await nav.serviceWorker.ready;
       });
 
-      // HTMX will fetch content from SW and inject into #content.
-      // Wait for #content to have non-empty HTML (the SW-rendered template).
-      const content = await page.locator("#content").textContent({
+      // HTMX fetches "/" from the SW and injects into #content.
+      // Use .first() because the SW-rendered content may create nested #content elements.
+      const content = await page.locator("#content").first().textContent({
         timeout: 15000,
       });
       assertExists(content, "#content must have text rendered by SW");

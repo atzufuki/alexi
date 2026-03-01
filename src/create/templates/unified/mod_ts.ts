@@ -16,6 +16,9 @@ export function generateModTs(name: string): string {
  * @module ${name}
  */
 
+// App configuration (default export required for INSTALLED_APPS)
+export { default } from "./app.ts";
+
 export * from "./models.ts";
 export * from "./views.ts";
 export * from "./urls.ts";

@@ -74,7 +74,7 @@ export const INSTALLED_APPS = [
   () => import("@alexi/db"),
   () => import("@alexi/restframework"),
   () => import("@${name}/mod.ts"),
-  () => import("@${name}/workers"),
+  () => import("@${name}/workers/app.ts"),
 ];
 
 // =============================================================================

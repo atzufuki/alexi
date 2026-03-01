@@ -350,13 +350,13 @@ export class CollectStaticCommand extends BaseCommand {
             pathname = pathname.slice(1);
           }
           staticDir = pathname;
-          appPath = `./src/${config.name}`;
+          appPath = config.appPath ?? `./src/${config.name}`;
         } else {
           // Traditional: relative path resolved against project src/ directory
           const staticDirRel = config.staticDir
             ? config.staticDir.replace(/^\.\//, "")
             : "static";
-          appPath = `./src/${config.name}`;
+          appPath = config.appPath ?? `./src/${config.name}`;
           const appPathNormalized = appPath.replace(/^\.\//, "");
           const appDir = `${this.projectRoot}/${appPathNormalized}`;
           staticDir = `${appDir}/${staticDirRel}`;

@@ -29,6 +29,7 @@
  */
 
 import type { DatabaseBackend } from "@alexi/db";
+import { isInitialized, registerBackend } from "@alexi/db";
 
 // =============================================================================
 // Types
@@ -65,11 +66,7 @@ export async function setup(config: {
 }): Promise<void> {
   const { DATABASES } = config;
 
-  // Lazy-import the registry API from @alexi/db to avoid a static circular
-  // dependency while still keeping @alexi/core independent of backend code.
-  const db = await import("@alexi/db");
-
-  if (db.isInitialized()) {
+  if (isInitialized()) {
     return;
   }
 
@@ -88,6 +85,6 @@ export async function setup(config: {
     if (!backend.isConnected) {
       await backend.connect();
     }
-    db.registerBackend(name, backend);
+    registerBackend(name, backend);
   }
 }

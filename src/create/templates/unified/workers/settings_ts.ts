@@ -21,6 +21,7 @@ export function generateWorkerSettingsTs(name: string): string {
  */
 
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
+import { urlpatterns } from "./urls.ts";
 
 // =============================================================================
 // Database
@@ -34,7 +35,9 @@ export const DATABASES = {
 // URL Configuration
 // =============================================================================
 
-export const ROOT_URLCONF = () => import("./urls.ts");
+// Static import — dynamic import() is disallowed in Service Workers.
+// See https://github.com/w3c/ServiceWorker/issues/1356
+export const ROOT_URLCONF = urlpatterns;
 `;
 }
 
