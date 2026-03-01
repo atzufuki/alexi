@@ -44,8 +44,7 @@ PROJECT STRUCTURE:
   ├── manage.ts                 # Management entry point
   ├── deno.jsonc                # Workspace config
   ├── project/
-  │   ├── settings.ts           # Shared settings
-  │   └── web.settings.ts       # Web server settings
+  │   └── settings.ts           # Project settings
   └── src/
       └── <project-name>/      # Unified app
           ├── app.ts            # Server-side app config

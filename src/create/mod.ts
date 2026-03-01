@@ -27,8 +27,7 @@ export { generateManageTs } from "./templates/root/manage_ts.ts";
 export { generateReadme } from "./templates/root/readme.ts";
 
 // Project settings template generators
-export { generateSharedSettings } from "./templates/project/settings_ts.ts";
-export { generateWebSettings } from "./templates/project/web_settings_ts.ts";
+export { generateSettings } from "./templates/project/settings_ts.ts";
 
 // Unified app template generators
 export { generateAppTs } from "./templates/unified/app_ts.ts";

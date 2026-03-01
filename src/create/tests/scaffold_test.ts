@@ -9,6 +9,7 @@
  */
 
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
+import { generateDenoJsonc } from "../templates/root/deno_jsonc.ts";
 import {
   cleanupTempDir,
   cleanupTestProject,
@@ -143,25 +144,43 @@ Deno.test({
     // Project Settings Tests
     // ==========================================================================
 
-    await t.step("creates project settings files", async () => {
-      const settingsFiles = [
-        "project/settings.ts",
-        "project/web.settings.ts",
+    await t.step("creates single project settings file", async () => {
+      const fullPath = `${project.path}/project/settings.ts`;
+      try {
+        const stat = await Deno.stat(fullPath);
+        assertEquals(stat.isFile, true, "project/settings.ts should be a file");
+      } catch {
+        throw new Error("Settings file project/settings.ts does not exist");
+      }
+    });
+
+    await t.step("settings.ts contains all required exports", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/project/settings.ts`,
+      );
+      const requiredExports = [
+        "DATABASES",
+        "INSTALLED_APPS",
+        "ROOT_URLCONF",
+        "DEFAULT_HOST",
+        "DEFAULT_PORT",
+        "STATIC_URL",
+        "CORS_ORIGINS",
+        "createMiddleware",
       ];
 
-      for (const file of settingsFiles) {
-        const fullPath = `${project.path}/${file}`;
-        try {
-          const stat = await Deno.stat(fullPath);
-          assertEquals(stat.isFile, true, `${file} should be a file`);
-        } catch {
-          throw new Error(`Settings file ${file} does not exist`);
-        }
+      for (const exp of requiredExports) {
+        assertEquals(
+          content.includes(exp),
+          true,
+          `settings.ts should contain ${exp}`,
+        );
       }
     });
 
     await t.step("does NOT create old settings files", async () => {
       const oldFiles = [
+        "project/web.settings.ts",
         "project/ui.settings.ts",
         "project/desktop.settings.ts",
       ];
@@ -179,6 +198,67 @@ Deno.test({
         }
       }
     });
+
+    await t.step("generateDenoJsonc produces correct Alexi versions", () => {
+      // Test the template generator directly (before e2e patching replaces
+      // JSR specifiers with file:// URLs)
+      const raw = generateDenoJsonc("test-app", "1.2.3");
+      const config = JSON.parse(raw);
+
+      // Should not contain old hardcoded 0.18
+      assertEquals(
+        raw.includes("@^0.18"),
+        false,
+        "should not contain old hardcoded @^0.18 versions",
+      );
+
+      // All @alexi/* imports should use ^1.2.3
+      const alexiImports = Object.entries(config.imports).filter(
+        ([key]) => key.startsWith("@alexi/"),
+      );
+      assertEquals(
+        alexiImports.length > 0,
+        true,
+        "should have @alexi/* imports",
+      );
+
+      for (const [key, value] of alexiImports) {
+        assertEquals(
+          (value as string).includes("@^1.2.3"),
+          true,
+          `${key} should use version @^1.2.3, got ${value}`,
+        );
+      }
+    });
+
+    await t.step("deno.jsonc has @alexi/core/management import", async () => {
+      const content = await Deno.readTextFile(`${project.path}/deno.jsonc`);
+      const config = JSON.parse(content);
+
+      assertEquals(
+        "@alexi/core/management" in config.imports,
+        true,
+        "should have @alexi/core/management import",
+      );
+    });
+
+    await t.step(
+      "deno.jsonc tasks use --settings ./project/settings.ts",
+      async () => {
+        const content = await Deno.readTextFile(`${project.path}/deno.jsonc`);
+
+        assertEquals(
+          content.includes("--settings ./project/settings.ts"),
+          true,
+          "tasks should use --settings ./project/settings.ts",
+        );
+        assertEquals(
+          content.includes("--settings web"),
+          false,
+          "tasks should not use old --settings web convention",
+        );
+      },
+    );
 
     // ==========================================================================
     // Unified App — Server-side Files

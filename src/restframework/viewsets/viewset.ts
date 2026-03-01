@@ -116,12 +116,24 @@ export interface ViewSetContext {
 // ============================================================================
 
 /**
- * Storage for custom action metadata
+ * Symbol key used to store action metadata on class metadata objects.
+ * Uses TC39 decorator metadata (Symbol.metadata) for reliable class-level storage.
  */
-const actionRegistry = new WeakMap<object, Map<string, ActionMetadata>>();
+const ACTIONS_KEY: unique symbol = Symbol("alexi:actions");
+
+/**
+ * Decorator metadata type with our custom actions storage
+ */
+interface ActionDecoratorMetadata {
+  [ACTIONS_KEY]?: Map<string, ActionMetadata>;
+}
 
 /**
  * Register a custom action on a ViewSet method
+ *
+ * Uses TC39 stage 3 decorators (the default in Deno 2.x / TypeScript 5.x).
+ * Action metadata is stored via `context.metadata` and inherited through
+ * the prototype chain.
  *
  * @example
  * ```ts
@@ -135,25 +147,28 @@ const actionRegistry = new WeakMap<object, Map<string, ActionMetadata>>();
  * }
  * ```
  */
-export function action(options: ActionOptions): (
-  target: object,
-  propertyKey: string,
-  _descriptor: PropertyDescriptor,
+export function action(
+  options: ActionOptions,
+  // deno-lint-ignore no-explicit-any
+): (
+  _value: (...args: any[]) => any,
+  context: ClassMethodDecoratorContext,
 ) => void {
   return function (
-    target: object,
-    propertyKey: string,
-    _descriptor: PropertyDescriptor,
+    // deno-lint-ignore no-explicit-any
+    _value: (...args: any[]) => any,
+    context: ClassMethodDecoratorContext,
   ): void {
+    const propertyKey = String(context.name);
+    const meta = context.metadata as ActionDecoratorMetadata;
+
     // Get or create the action map for this class
-    let actions = actionRegistry.get(target);
-    if (!actions) {
-      actions = new Map();
-      actionRegistry.set(target, actions);
+    if (!meta[ACTIONS_KEY]) {
+      meta[ACTIONS_KEY] = new Map();
     }
 
     // Register the action
-    actions.set(propertyKey, {
+    meta[ACTIONS_KEY].set(propertyKey, {
       ...options,
       name: propertyKey,
       methods: options.methods ?? ["GET"],
@@ -163,10 +178,34 @@ export function action(options: ActionOptions): (
 
 /**
  * Get registered actions for a ViewSet instance
+ *
+ * Walks the constructor's prototype chain to collect actions from all parent
+ * classes, so subclass actions are merged with inherited ones.
  */
 export function getActions(instance: object): Map<string, ActionMetadata> {
-  const prototype = Object.getPrototypeOf(instance);
-  return actionRegistry.get(prototype) ?? new Map();
+  const result = new Map<string, ActionMetadata>();
+
+  // Walk the prototype chain to collect actions from all parent classes
+  // deno-lint-ignore no-explicit-any
+  let ctor = instance.constructor as any;
+  const chain: Map<string, ActionMetadata>[] = [];
+
+  while (ctor) {
+    const meta = ctor[Symbol.metadata] as ActionDecoratorMetadata | undefined;
+    if (meta?.[ACTIONS_KEY]) {
+      chain.unshift(meta[ACTIONS_KEY]);
+    }
+    ctor = Object.getPrototypeOf(ctor);
+  }
+
+  // Merge from base to derived so subclass actions override parent actions
+  for (const actionMap of chain) {
+    for (const [key, value] of actionMap) {
+      result.set(key, value);
+    }
+  }
+
+  return result;
 }
 
 // ============================================================================
