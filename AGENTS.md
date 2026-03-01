@@ -10,22 +10,23 @@ It brings Django's developer-friendly patterns to the Deno ecosystem.
 Alexi follows Django's modular architecture. Each module provides specific
 functionality:
 
-| Module                 | Django Equivalent            | Description                                   |
-| ---------------------- | ---------------------------- | --------------------------------------------- |
-| `@alexi/core`          | `django.core.management`     | Management commands, Application handler      |
-| `@alexi/db`            | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends |
-| `@alexi/urls`          | `django.urls`                | URL routing with `path()`, `include()`        |
-| `@alexi/middleware`    | `django.middleware.*`        | CORS, logging, error handling                 |
-| `@alexi/views`         | `django.views`               | Template views                                |
-| `@alexi/web`           | `django.core.handlers.wsgi`  | Web server (HTTP API)                         |
-| `@alexi/staticfiles`   | `django.contrib.staticfiles` | Static file handling, bundling                |
-| `@alexi/storage`       | `django.core.files.storage`  | File storage backends (Firebase, Memory)      |
-| `@alexi/restframework` | `djangorestframework`        | REST API: Serializers, ViewSets, Routers      |
-| `@alexi/auth`          | `django.contrib.auth`        | Authentication (JWT-based)                    |
-| `@alexi/admin`         | `django.contrib.admin`       | Auto-generated admin panel                    |
-| `@alexi/webui`         | -                            | Desktop app support via WebUI                 |
-| `@alexi/capacitor`     | -                            | Mobile app support (placeholder)              |
-| `@alexi/types`         | -                            | Shared TypeScript type definitions            |
+| Module                   | Django Equivalent            | Description                                            |
+| ------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `@alexi/core`            | `django.core`                | Universal setup (`setup`, `DatabasesConfig`)           |
+| `@alexi/core/management` | `django.core.management`     | Management commands, Application handler (server-only) |
+| `@alexi/db`              | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends          |
+| `@alexi/urls`            | `django.urls`                | URL routing with `path()`, `include()`                 |
+| `@alexi/middleware`      | `django.middleware.*`        | CORS, logging, error handling                          |
+| `@alexi/views`           | `django.views`               | Template views                                         |
+| `@alexi/web`             | `django.core.handlers.wsgi`  | Web server (HTTP API)                                  |
+| `@alexi/staticfiles`     | `django.contrib.staticfiles` | Static file handling, bundling                         |
+| `@alexi/storage`         | `django.core.files.storage`  | File storage backends (Firebase, Memory)               |
+| `@alexi/restframework`   | `djangorestframework`        | REST API: Serializers, ViewSets, Routers               |
+| `@alexi/auth`            | `django.contrib.auth`        | Authentication (JWT-based)                             |
+| `@alexi/admin`           | `django.contrib.admin`       | Auto-generated admin panel                             |
+| `@alexi/webui`           | -                            | Desktop app support via WebUI                          |
+| `@alexi/capacitor`       | -                            | Mobile app support (placeholder)                       |
+| `@alexi/types`           | -                            | Shared TypeScript type definitions                     |
 
 ---
 
@@ -95,19 +96,16 @@ Always use the `@alexi/` import aliases defined in `deno.json`:
 
 ```typescript
 // Core
+import { setup } from "@alexi/core";
+import type { DatabasesConfig } from "@alexi/core";
+
+// Management commands (server-only, not imported in browser bundles)
 import {
   Application,
   BaseCommand,
   ManagementUtility,
-  setup,
-} from "@alexi/core";
-import type {
-  CommandOptions,
-  CommandResult,
-  DatabasesConfig,
-} from "@alexi/core";
-
-// Management commands (server-only, not imported in browser bundles)
+} from "@alexi/core/management";
+import type { CommandOptions, CommandResult } from "@alexi/core/management";
 import { MakemigrationsCommand, MigrateCommand } from "@alexi/core/management";
 
 // Database ORM
@@ -2102,8 +2100,8 @@ deno run -A --unstable-kv manage.ts test
 ### Creating Custom Commands
 
 ```typescript
-import { BaseCommand, failure, success } from "@alexi/core";
-import type { CommandOptions, CommandResult } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
+import type { CommandOptions, CommandResult } from "@alexi/core/management";
 
 export class MyCommand extends BaseCommand {
   readonly name = "mycommand";

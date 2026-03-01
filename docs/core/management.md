@@ -164,12 +164,12 @@ Create a command by extending `BaseCommand`:
 
 ```ts
 // src/myapp/commands/mycommand.ts
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
+} from "@alexi/core/management";
 
 export class MyCommand extends BaseCommand {
   // Required: command name (what users type)
@@ -304,7 +304,7 @@ this.stderr.error("Error text");
 Commands must return a `CommandResult`:
 
 ```ts
-import { failure, success } from "@alexi/core";
+import { failure, success } from "@alexi/core/management";
 
 // Success
 return success();
@@ -351,7 +351,7 @@ You can also register commands manually in `manage.ts`:
 
 ```ts
 // manage.ts
-import { ManagementUtility } from "@alexi/core";
+import { ManagementUtility } from "@alexi/core/management";
 import { MyCommand } from "./src/myapp/commands/mycommand.ts";
 
 const cli = new ManagementUtility({
@@ -368,7 +368,7 @@ await cli.execute(Deno.args);
 The `ManagementUtility` class is the main entry point for the CLI:
 
 ```ts
-import { ManagementUtility } from "@alexi/core";
+import { ManagementUtility } from "@alexi/core/management";
 
 // Basic usage
 const cli = new ManagementUtility();
@@ -422,12 +422,12 @@ A practical example of a custom command that seeds the database:
 
 ```ts
 // src/myapp/commands/seed.ts
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
+} from "@alexi/core/management";
 import { setup } from "@alexi/db";
 import { TaskModel, UserModel } from "../models.ts";
 
