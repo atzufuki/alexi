@@ -15,15 +15,20 @@
  * @module @alexi/web/commands/runserver
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { setup } from "@alexi/core";
+import type { DatabasesConfig } from "@alexi/core";
+import {
+  Application,
+  BaseCommand,
+  failure,
+  success,
+} from "@alexi/core/management";
 import type {
+  ApplicationOptions,
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
-import { Application } from "@alexi/core";
-import { setup } from "@alexi/db";
-import { DenoKVBackend } from "@alexi/db/backends/denokv";
+} from "@alexi/core/management";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
@@ -184,15 +189,10 @@ export class RunServerCommand extends BaseCommand {
         return failure("Invalid port");
       }
 
-      // Initialize database
-      if (settings.DATABASE) {
-        const backend = new DenoKVBackend({
-          name: settings.DATABASE.name,
-          path: settings.DATABASE.path,
-        });
-        await backend.connect();
-        setup({ backend });
-        this.success("Database initialized (denokv)");
+      // Initialize database from DATABASES setting (Django-style)
+      if (settings.DATABASES) {
+        await setup({ DATABASES: settings.DATABASES as DatabasesConfig });
+        this.success("Database initialized");
       }
 
       // Bundle if needed

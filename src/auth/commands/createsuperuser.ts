@@ -10,14 +10,14 @@
  * @module @alexi/auth/commands/createsuperuser
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { setup } from "@alexi/core";
+import type { DatabasesConfig } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
-import { setup } from "@alexi/db";
-import { DenoKVBackend } from "@alexi/db/backends/denokv";
+} from "@alexi/core/management";
 
 // =============================================================================
 // Types
@@ -167,7 +167,6 @@ export class CreateSuperuserCommand extends BaseCommand {
 
   async handle(options: CommandOptions): Promise<CommandResult> {
     const noInput = options.args["no-input"] as boolean;
-    const databasePath = options.args.database as string | undefined;
     const settingsName = options.args.settings as string | undefined;
 
     this.stdout.log("");
@@ -214,13 +213,22 @@ export class CreateSuperuserCommand extends BaseCommand {
       return failure("Failed to load user model");
     }
 
-    // Initialize database
-    const kvPath = databasePath ??
-      (settings.DATABASE as { path?: string })?.path ??
-      Deno.env.get("DENO_KV_PATH");
-    const backend = new DenoKVBackend({ name: "default", path: kvPath });
-    await backend.connect();
-    setup({ backend });
+    // Initialize database from settings DATABASES
+    const databases = settings.DATABASES as DatabasesConfig | undefined;
+    if (!databases) {
+      this.error(
+        "DATABASES is not defined in settings. Cannot initialize database.",
+      );
+      this.info("Add a DATABASES dict to your settings file, e.g.:");
+      this.info(
+        '  import { DenoKVBackend } from "@alexi/db/backends/denokv";',
+      );
+      this.info(
+        '  export const DATABASES = { default: new DenoKVBackend({ name: "myapp" }) };',
+      );
+      return failure("DATABASES not configured");
+    }
+    await setup({ DATABASES: databases });
 
     try {
       // Get user details
@@ -308,7 +316,7 @@ export class CreateSuperuserCommand extends BaseCommand {
       );
       return failure("User creation failed");
     } finally {
-      await backend.disconnect();
+      // Backends are managed by the DATABASES registry; no explicit disconnect needed here.
     }
   }
 

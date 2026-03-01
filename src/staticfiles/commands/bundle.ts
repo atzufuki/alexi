@@ -16,12 +16,12 @@
  * @module @alexi/staticfiles/commands/bundle
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
+} from "@alexi/core/management";
 import type { AppConfig, BundleConfig } from "@alexi/types";
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";

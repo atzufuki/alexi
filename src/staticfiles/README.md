@@ -20,6 +20,7 @@ deno add jsr:@alexi/staticfiles
 ## Basic Usage
 
 ```typescript
+import { Application } from "@alexi/core/management";
 import { staticFilesMiddleware } from "@alexi/staticfiles";
 
 const app = new Application({

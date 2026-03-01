@@ -9,8 +9,8 @@
 
 import { assertEquals, assertExists, assertMatch } from "jsr:@std/assert@1";
 import { join } from "jsr:@std/path@1";
-import { StartAppCommand } from "../commands/startapp.ts";
-import type { IConsole } from "../types.ts";
+import { StartAppCommand } from "../management/commands/startapp.ts";
+import type { IConsole } from "../management/types.ts";
 
 // =============================================================================
 // Mock Console
@@ -227,8 +227,8 @@ Deno.test({
 
       assertMatch(
         swTs,
-        /import { Application } from "@alexi\/core"/,
-        "sw.ts should import Application",
+        /import { Application.*} from "@alexi\/core"/,
+        "sw.ts should import Application from @alexi/core",
       );
       assertMatch(
         swTs,

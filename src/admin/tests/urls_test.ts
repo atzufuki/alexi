@@ -9,8 +9,9 @@ import {
   assertExists,
   assertStringIncludes,
 } from "jsr:@std/assert@1";
-import { reset, setup } from "@alexi/db";
+import { reset } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { setup } from "@alexi/core";
 import { AutoField, CharField, Manager, Model } from "@alexi/db";
 
 // Import admin classes (to be implemented)
@@ -340,7 +341,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    await setup({ DATABASES: { default: backend } });
     try {
       const site = new AdminSite({ urlPrefix: "/admin" });
       const router = new AdminRouter(site, backend);
@@ -367,7 +368,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    await setup({ DATABASES: { default: backend } });
     try {
       const site = new AdminSite({ urlPrefix: "/admin" });
       const router = new AdminRouter(site, backend);
@@ -396,7 +397,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    await setup({ DATABASES: { default: backend } });
     try {
       const site = new AdminSite({ urlPrefix: "/admin" });
       const router = new AdminRouter(site, backend);

@@ -16,7 +16,7 @@ import { TodoSerializer } from "./serializers.ts";
 
 class TodoViewSet extends ModelViewSet {
   model = TodoModel;
-  serializerClass = TodoSerializer;
+  serializer_class = TodoSerializer;
 }
 ```
 
@@ -42,16 +42,16 @@ import { ModelViewSet } from "@alexi/restframework";
 
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 }
 ```
 
 ### Required Properties
 
-| Property          | Type               | Description          |
-| ----------------- | ------------------ | -------------------- |
-| `model`           | `ModelWithManager` | The model class      |
-| `serializerClass` | `SerializerClass`  | The serializer class |
+| Property           | Type               | Description          |
+| ------------------ | ------------------ | -------------------- |
+| `model`            | `ModelWithManager` | The model class      |
+| `serializer_class` | `SerializerClass`  | The serializer class |
 
 ### Optional Properties
 
@@ -92,7 +92,7 @@ import type { ViewSetContext } from "@alexi/restframework";
 
 class TodoViewSet extends ModelViewSet {
   model = TodoModel;
-  serializerClass = TodoSerializer;
+  serializer_class = TodoSerializer;
 
   @action({ detail: true, methods: ["POST"] })
   async toggle(context: ViewSetContext): Promise<Response> {
@@ -133,7 +133,7 @@ Override `getQueryset()` to customize which objects are returned:
 ```typescript
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 
   override async getQueryset(
     context: ViewSetContext,
@@ -158,7 +158,7 @@ class ArticleViewSet extends ModelViewSet {
 ```typescript
 class TaskViewSet extends ModelViewSet {
   model = TaskModel;
-  serializerClass = TaskSerializer;
+  serializer_class = TaskSerializer;
 
   override async getQueryset(
     context: ViewSetContext,
@@ -183,7 +183,7 @@ Override `getObject()` to customize how a single object is retrieved:
 ```typescript
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 
   // Use slug instead of id
   lookupField = "slug";
@@ -208,7 +208,7 @@ class ArticleViewSet extends ModelViewSet {
 ```typescript
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 
   override async performCreate(serializer: Serializer): Promise<ArticleModel> {
     // Get current user
@@ -230,7 +230,7 @@ class ArticleViewSet extends ModelViewSet {
 ```typescript
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 
   override async performUpdate(
     serializer: Serializer,
@@ -255,7 +255,7 @@ class ArticleViewSet extends ModelViewSet {
 ```typescript
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 
   override async performDestroy(instance: ArticleModel): Promise<void> {
     // Soft delete instead of hard delete
@@ -277,7 +277,7 @@ import { ReadOnlyModelViewSet } from "@alexi/restframework";
 
 class PublicArticleViewSet extends ReadOnlyModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 }
 ```
 
@@ -295,7 +295,7 @@ Use different serializers for different actions:
 ```typescript
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 
   override getSerializerClass(): SerializerClass {
     switch (this.action) {
@@ -307,7 +307,7 @@ class ArticleViewSet extends ModelViewSet {
       case "update":
         return ArticleWriteSerializer; // Write fields
       default:
-        return this.serializerClass;
+        return this.serializer_class;
     }
   }
 }
@@ -385,7 +385,7 @@ class ProjectSerializer extends ModelSerializer {
 // ViewSet
 class ProjectViewSet extends ModelViewSet {
   model = ProjectModel;
-  serializerClass = ProjectSerializer;
+  serializer_class = ProjectSerializer;
 
   // Filtering
   filterBackends = [new QueryParamFilterBackend(), new OrderingFilter()];

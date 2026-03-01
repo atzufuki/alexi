@@ -290,7 +290,7 @@ event. It imports backends from `settings.ts` and connects them on install.
 
 ```typescript
 // src/my-app-sw/sw.ts
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 import { setup } from "@alexi/db";
 import { urlpatterns } from "./urls.ts";
 import { DATABASES } from "./settings.ts";
@@ -386,7 +386,7 @@ your SW app's `AppConfig`:
 
 ```typescript
 // src/my-app-sw/mod.ts
-import type { AppConfig } from "@alexi/core";
+import type { AppConfig } from "@alexi/types";
 
 const config: AppConfig = {
   name: "my-app-sw",

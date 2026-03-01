@@ -39,7 +39,7 @@ const myMiddleware: Middleware = async (
 Add middleware to your `Application` configuration:
 
 ```ts
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 import {
   corsMiddleware,
   errorHandlerMiddleware,

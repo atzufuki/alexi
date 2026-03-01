@@ -95,7 +95,7 @@ Create `main.ts` in your project root:
 
 ```ts
 // main.ts - Entry point for Deno Deploy
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 import { setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import {

@@ -6,7 +6,7 @@
  */
 
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
-import { reset, setup } from "@alexi/db";
+import { reset } from "@alexi/db";
 import {
   AutoField,
   BooleanField,
@@ -18,6 +18,7 @@ import {
   TextField,
 } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { setup } from "@alexi/core";
 import { ModelAdmin } from "../model_admin.ts";
 import { AdminSite } from "../site.ts";
 
@@ -54,7 +55,7 @@ class ArticleAdmin extends ModelAdmin {
 async function makeBackend(name: string) {
   const backend = new DenoKVBackend({ name, path: ":memory:" });
   await backend.connect();
-  await setup({ backend });
+  await setup({ DATABASES: { default: backend } });
   return backend;
 }
 

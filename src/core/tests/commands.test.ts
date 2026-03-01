@@ -8,14 +8,14 @@ import {
   assertEquals,
   assertThrows,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { BaseCommand, failure, success } from "../base_command.ts";
-import { CommandRegistry } from "../registry.ts";
+import { BaseCommand, failure, success } from "../management/base_command.ts";
+import { CommandRegistry } from "../management/registry.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
   IConsole,
-} from "../types.ts";
+} from "../management/types.ts";
 
 // =============================================================================
 // Mock Console for Testing
