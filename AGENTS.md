@@ -2035,7 +2035,7 @@ export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 
 | Type      | Description                       | Has Settings |
 | --------- | --------------------------------- | ------------ |
-| `server`  | HTTP API server                   | ✅           |
+| `server`  | HTTP server                       | ✅           |
 | `desktop` | Desktop app (WebUI)               | ✅           |
 | `mobile`  | Mobile app (Capacitor)            | ✅           |
 | `cli`     | Command-line tool                 | ✅           |

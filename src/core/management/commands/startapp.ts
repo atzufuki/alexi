@@ -32,7 +32,7 @@ interface AppTypeInfo {
 }
 
 const APP_TYPES: AppTypeInfo[] = [
-  { name: "server", description: "HTTP API server", hasSettings: true },
+  { name: "server", description: "HTTP server", hasSettings: true },
   { name: "desktop", description: "Desktop app (WebUI)", hasSettings: true },
   { name: "mobile", description: "Mobile app (Capacitor)", hasSettings: true },
   { name: "cli", description: "Command-line tool", hasSettings: true },
@@ -71,7 +71,7 @@ export class StartAppCommand extends BaseCommand {
 
   override readonly examples = [
     "manage.ts startapp myapp              - Create app (interactive type selection)",
-    "manage.ts startapp myapi --type server   - Create a server API app",
+    "manage.ts startapp myapi --type server   - Create a server app",
     "manage.ts startapp mybrowser --type browser - Create a browser app",
     "manage.ts startapp mylib --type library - Create a library",
   ];
