@@ -59,6 +59,18 @@ Deno.test({
     });
 
     // =========================================================================
+    // Root Route
+    // =========================================================================
+
+    await t.step("GET / returns welcome message", async () => {
+      const response = await fetch(`http://localhost:${DEFAULT_API_PORT}/`);
+      assertEquals(response.status, 200);
+
+      const data = await response.json();
+      assertExists(data.message);
+    });
+
+    // =========================================================================
     // Health Check
     // =========================================================================
 
