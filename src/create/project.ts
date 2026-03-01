@@ -56,6 +56,8 @@ import { generateAlexiViewsSkillMd } from "./templates/skills/alexi_views_skill_
 import { generateAlexiWebSkillMd } from "./templates/skills/alexi_web_skill_md.ts";
 import { generateAlexiWebuiSkillMd } from "./templates/skills/alexi_webui_skill_md.ts";
 
+import { VERSION } from "./version.ts";
+
 export interface ProjectOptions {
   name: string;
 }
@@ -63,16 +65,6 @@ export interface ProjectOptions {
 export interface InstallSkillsOptions {
   /** Target directory (defaults to current working directory) */
   targetDir?: string;
-}
-
-/**
- * Read the package version from deno.jsonc.
- */
-async function getPackageVersion(): Promise<string> {
-  const configUrl = new URL("./deno.jsonc", import.meta.url);
-  const content = await Deno.readTextFile(configUrl);
-  const config = JSON.parse(content);
-  return config.version ?? "0.0.0";
 }
 
 /**
@@ -104,7 +96,7 @@ export async function createProject(options: ProjectOptions): Promise<void> {
   console.log("");
 
   // Read the framework version for import map generation
-  const version = await getPackageVersion();
+  const version = VERSION;
 
   // Create directory structure
   await createDirectories(name);

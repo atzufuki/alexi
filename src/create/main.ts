@@ -17,16 +17,7 @@
 import { parseArgs } from "./args.ts";
 import { createProject, installSkills } from "./project.ts";
 import { printHelp, printVersion } from "./help.ts";
-
-/**
- * Read the package version from deno.jsonc at runtime.
- */
-async function getVersion(): Promise<string> {
-  const configUrl = new URL("./deno.jsonc", import.meta.url);
-  const content = await Deno.readTextFile(configUrl);
-  const config = JSON.parse(content);
-  return config.version ?? "0.0.0";
-}
+import { VERSION } from "./version.ts";
 
 async function main(): Promise<number> {
   const args = parseArgs(Deno.args);
@@ -37,8 +28,7 @@ async function main(): Promise<number> {
   }
 
   if (args.version) {
-    const version = await getVersion();
-    printVersion(version);
+    printVersion(VERSION);
     return 0;
   }
 

@@ -150,6 +150,22 @@ async function main() {
   console.log(`   Total: ${subpackages.length}`);
 
   if (updatedCount > 0) {
+    // Update the embedded VERSION constant in src/create/version.ts
+    const versionTsPath = join("src", "create", "version.ts");
+    try {
+      const versionTs = await Deno.readTextFile(versionTsPath);
+      const updatedVersionTs = versionTs.replace(
+        /export const VERSION = "[^"]+";/,
+        `export const VERSION = "${targetVersion}";`,
+      );
+      if (updatedVersionTs !== versionTs) {
+        await Deno.writeTextFile(versionTsPath, updatedVersionTs);
+        console.log(`\n✓ Updated ${versionTsPath} to ${targetVersion}`);
+      }
+    } catch {
+      console.log(`\n⚠️  Could not update ${versionTsPath}`);
+    }
+
     console.log(`\n🔄 Regenerating deno.lock...`);
 
     // Remove old lock file
