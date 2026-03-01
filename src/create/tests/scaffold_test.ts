@@ -2,7 +2,8 @@
  * Scaffold Tests for @alexi/create
  *
  * Tests that project scaffolding creates the correct directory structure
- * and files. These tests run without starting servers or browser.
+ * and files for the unified app layout. These tests run without starting
+ * servers or browser.
  *
  * @module @alexi/create/tests/scaffold_test
  */
@@ -51,14 +52,13 @@ Deno.test({
       const expectedDirs = [
         "project",
         "src",
-        `src/${project.name}-web`,
-        `src/${project.name}-web/tests`,
-        `src/${project.name}-ui`,
-        `src/${project.name}-ui/templates`,
-        `src/${project.name}-ui/components`,
-        `src/${project.name}-ui/styles`,
-        `src/${project.name}-ui/static/${project.name}-ui`,
-        `src/${project.name}-desktop`,
+        `src/${project.name}`,
+        `src/${project.name}/tests`,
+        `src/${project.name}/migrations`,
+        `src/${project.name}/static/${project.name}`,
+        `src/${project.name}/assets/${project.name}`,
+        `src/${project.name}/workers/${project.name}`,
+        `src/${project.name}/workers/${project.name}/templates/${project.name}`,
       ];
 
       for (const dir of expectedDirs) {
@@ -106,7 +106,7 @@ Deno.test({
 
     await t.step("deno.jsonc has required tasks", async () => {
       const content = await Deno.readTextFile(`${project.path}/deno.jsonc`);
-      const requiredTasks = ["dev", "dev:web", "dev:ui", "dev:desktop", "test"];
+      const requiredTasks = ["dev", "test"];
 
       for (const task of requiredTasks) {
         assertEquals(
@@ -117,6 +117,28 @@ Deno.test({
       }
     });
 
+    await t.step("deno.jsonc has unified import map entries", async () => {
+      const content = await Deno.readTextFile(`${project.path}/deno.jsonc`);
+      const config = JSON.parse(content);
+
+      // Check app import entries
+      assertEquals(
+        `@${project.name}/` in config.imports,
+        true,
+        `should have @${project.name}/ import`,
+      );
+      assertEquals(
+        `@${project.name}/workers` in config.imports,
+        true,
+        `should have @${project.name}/workers import`,
+      );
+      assertEquals(
+        `@${project.name}/workers/urls` in config.imports,
+        true,
+        `should have @${project.name}/workers/urls import`,
+      );
+    });
+
     // ==========================================================================
     // Project Settings Tests
     // ==========================================================================
@@ -125,8 +147,6 @@ Deno.test({
       const settingsFiles = [
         "project/settings.ts",
         "project/web.settings.ts",
-        "project/ui.settings.ts",
-        "project/desktop.settings.ts",
       ];
 
       for (const file of settingsFiles) {
@@ -140,191 +160,211 @@ Deno.test({
       }
     });
 
-    // ==========================================================================
-    // Web App Tests
-    // ==========================================================================
-
-    await t.step("creates web app files", async () => {
-      const webFiles = [
-        `src/${project.name}-web/app.ts`,
-        `src/${project.name}-web/mod.ts`,
-        `src/${project.name}-web/models.ts`,
-        `src/${project.name}-web/serializers.ts`,
-        `src/${project.name}-web/viewsets.ts`,
-        `src/${project.name}-web/urls.ts`,
-        `src/${project.name}-web/tests/todo_test.ts`,
+    await t.step("does NOT create old settings files", async () => {
+      const oldFiles = [
+        "project/ui.settings.ts",
+        "project/desktop.settings.ts",
       ];
 
-      for (const file of webFiles) {
+      for (const file of oldFiles) {
+        const fullPath = `${project.path}/${file}`;
+        try {
+          await Deno.stat(fullPath);
+          throw new Error(`Old settings file ${file} should NOT exist`);
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) {
+            throw error;
+          }
+          // NotFound is expected — file correctly does not exist
+        }
+      }
+    });
+
+    // ==========================================================================
+    // Unified App — Server-side Files
+    // ==========================================================================
+
+    await t.step("creates unified app server-side files", async () => {
+      const appFiles = [
+        `src/${project.name}/app.ts`,
+        `src/${project.name}/mod.ts`,
+        `src/${project.name}/models.ts`,
+        `src/${project.name}/serializers.ts`,
+        `src/${project.name}/viewsets.ts`,
+        `src/${project.name}/urls.ts`,
+        `src/${project.name}/views.ts`,
+        `src/${project.name}/tests/post_test.ts`,
+        `src/${project.name}/migrations/0001_init.ts`,
+      ];
+
+      for (const file of appFiles) {
         const fullPath = `${project.path}/${file}`;
         try {
           const stat = await Deno.stat(fullPath);
           assertEquals(stat.isFile, true, `${file} should be a file`);
         } catch {
-          throw new Error(`Web app file ${file} does not exist`);
+          throw new Error(`App file ${file} does not exist`);
         }
       }
     });
 
-    await t.step("web models.ts defines TodoModel", async () => {
+    await t.step("models.ts defines PostModel", async () => {
       const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}-web/models.ts`,
+        `${project.path}/src/${project.name}/models.ts`,
       );
       assertEquals(
-        content.includes("TodoModel"),
+        content.includes("PostModel"),
         true,
-        "models.ts should define TodoModel",
+        "models.ts should define PostModel",
       );
       assertEquals(
-        content.includes("class TodoModel extends Model"),
+        content.includes("class PostModel extends Model"),
         true,
-        "TodoModel should extend Model",
+        "PostModel should extend Model",
+      );
+    });
+
+    await t.step("models.ts imports from @alexi/db", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/models.ts`,
+      );
+      assertEquals(
+        content.includes("@alexi/db"),
+        true,
+        "models.ts should import from @alexi/db",
       );
     });
 
     // ==========================================================================
-    // UI App Tests
+    // Unified App — Static Files
     // ==========================================================================
 
-    await t.step("creates UI app files", async () => {
-      const uiFiles = [
-        `src/${project.name}-ui/app.ts`,
-        `src/${project.name}-ui/mod.ts`,
-        `src/${project.name}-ui/models.ts`,
-        `src/${project.name}-ui/endpoints.ts`,
-        `src/${project.name}-ui/settings.ts`,
-        `src/${project.name}-ui/utils.ts`,
-        `src/${project.name}-ui/views.ts`,
-        `src/${project.name}-ui/urls.ts`,
-        `src/${project.name}-ui/main.ts`,
-        `src/${project.name}-ui/templates/home.ts`,
-        `src/${project.name}-ui/styles/global.css`,
-        `src/${project.name}-ui/static/${project.name}-ui/index.html`,
-      ];
+    await t.step("creates static index.html", async () => {
+      const filePath =
+        `${project.path}/src/${project.name}/static/${project.name}/index.html`;
+      const stat = await Deno.stat(filePath);
+      assertEquals(stat.isFile, true, "index.html should be a file");
 
-      for (const file of uiFiles) {
-        const fullPath = `${project.path}/${file}`;
-        try {
-          const stat = await Deno.stat(fullPath);
-          assertEquals(stat.isFile, true, `${file} should be a file`);
-        } catch {
-          throw new Error(`UI app file ${file} does not exist`);
-        }
-      }
-    });
-
-    await t.step("creates UI component files", async () => {
-      const componentFiles = [
-        `src/${project.name}-ui/components/mod.ts`,
-        `src/${project.name}-ui/components/ds_button.ts`,
-        `src/${project.name}-ui/components/ds_input.ts`,
-        `src/${project.name}-ui/components/ds_checkbox.ts`,
-        `src/${project.name}-ui/components/ds_icon.ts`,
-        `src/${project.name}-ui/components/ds_text.ts`,
-        `src/${project.name}-ui/components/ds_card.ts`,
-        `src/${project.name}-ui/components/ds_theme_toggle.ts`,
-      ];
-
-      for (const file of componentFiles) {
-        const fullPath = `${project.path}/${file}`;
-        try {
-          const stat = await Deno.stat(fullPath);
-          assertEquals(stat.isFile, true, `${file} should be a file`);
-        } catch {
-          throw new Error(`UI component file ${file} does not exist`);
-        }
-      }
-    });
-
-    await t.step("home.ts defines HomePage component", async () => {
-      const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}-ui/templates/home.ts`,
-      );
-      assertEquals(
-        content.includes("HomePage"),
-        true,
-        "home.ts should define HomePage",
-      );
-      assertEquals(
-        content.includes('HomePage.define("home-page")'),
-        true,
-        "HomePage should be registered as home-page custom element",
-      );
-    });
-
-    await t.step("index.html contains project name", async () => {
-      const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}-ui/static/${project.name}-ui/index.html`,
-      );
+      const content = await Deno.readTextFile(filePath);
       assertEquals(
         content.includes("<!DOCTYPE html>"),
         true,
         "index.html should be valid HTML",
       );
       assertEquals(
-        content.includes("<title>"),
+        content.includes("serviceWorker"),
         true,
-        "index.html should have a title",
-      );
-    });
-
-    await t.step("global.css contains Alexi design tokens", async () => {
-      const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}-ui/styles/global.css`,
-      );
-      assertEquals(
-        content.includes("--alexi-"),
-        true,
-        "global.css should contain Alexi CSS variables",
+        "index.html should register Service Worker",
       );
     });
 
     // ==========================================================================
-    // Desktop App Tests
+    // Unified App — Assets (Frontend)
     // ==========================================================================
 
-    await t.step("creates desktop app files", async () => {
-      const desktopFiles = [
-        `src/${project.name}-desktop/app.ts`,
-        `src/${project.name}-desktop/mod.ts`,
-        `src/${project.name}-desktop/bindings.ts`,
+    await t.step("creates assets entry point", async () => {
+      const filePath =
+        `${project.path}/src/${project.name}/assets/${project.name}/mod.ts`;
+      const stat = await Deno.stat(filePath);
+      assertEquals(stat.isFile, true, "assets/mod.ts should be a file");
+    });
+
+    // ==========================================================================
+    // Unified App — Workers (Service Worker)
+    // ==========================================================================
+
+    await t.step("creates worker files", async () => {
+      const workerFiles = [
+        `src/${project.name}/workers/${project.name}/app.ts`,
+        `src/${project.name}/workers/${project.name}/mod.ts`,
+        `src/${project.name}/workers/${project.name}/models.ts`,
+        `src/${project.name}/workers/${project.name}/endpoints.ts`,
+        `src/${project.name}/workers/${project.name}/settings.ts`,
+        `src/${project.name}/workers/${project.name}/urls.ts`,
+        `src/${project.name}/workers/${project.name}/views.ts`,
+        `src/${project.name}/workers/${project.name}/templates/${project.name}/base.html`,
+        `src/${project.name}/workers/${project.name}/templates/${project.name}/index.html`,
       ];
 
-      for (const file of desktopFiles) {
+      for (const file of workerFiles) {
         const fullPath = `${project.path}/${file}`;
         try {
           const stat = await Deno.stat(fullPath);
           assertEquals(stat.isFile, true, `${file} should be a file`);
         } catch {
-          throw new Error(`Desktop app file ${file} does not exist`);
+          throw new Error(`Worker file ${file} does not exist`);
         }
       }
     });
 
-    // ==========================================================================
-    // Import Validation Tests
-    // ==========================================================================
+    await t.step(
+      "worker app.ts defines staticfiles with two entry points",
+      async () => {
+        const content = await Deno.readTextFile(
+          `${project.path}/src/${project.name}/workers/${project.name}/app.ts`,
+        );
+        assertEquals(
+          content.includes("staticfiles"),
+          true,
+          "worker app.ts should define staticfiles",
+        );
+        assertEquals(
+          content.includes("worker.js"),
+          true,
+          "worker app.ts should output worker.js",
+        );
+        assertEquals(
+          content.includes(`${project.name}.js`),
+          true,
+          `worker app.ts should output ${project.name}.js`,
+        );
+      },
+    );
 
-    await t.step("UI components import from @html-props/core", async () => {
-      const buttonContent = await Deno.readTextFile(
-        `${project.path}/src/${project.name}-ui/components/ds_button.ts`,
+    await t.step("worker mod.ts sets up Service Worker", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/workers/${project.name}/mod.ts`,
       );
       assertEquals(
-        buttonContent.includes("@html-props/core"),
+        content.includes("ServiceWorkerGlobalScope"),
         true,
-        "DSButton should import from @html-props/core",
+        "worker mod.ts should declare ServiceWorkerGlobalScope",
+      );
+      assertEquals(
+        content.includes("install"),
+        true,
+        "worker mod.ts should handle install event",
+      );
+      assertEquals(
+        content.includes("fetch"),
+        true,
+        "worker mod.ts should handle fetch event",
       );
     });
 
-    await t.step("web models import from @alexi/db", async () => {
-      const modelsContent = await Deno.readTextFile(
-        `${project.path}/src/${project.name}-web/models.ts`,
-      );
-      assertEquals(
-        modelsContent.includes("@alexi/db"),
-        true,
-        "models.ts should import from @alexi/db",
-      );
+    // ==========================================================================
+    // No Old App Directories
+    // ==========================================================================
+
+    await t.step("does NOT create old app directories", async () => {
+      const oldDirs = [
+        `src/${project.name}-web`,
+        `src/${project.name}-ui`,
+        `src/${project.name}-desktop`,
+      ];
+
+      for (const dir of oldDirs) {
+        const fullPath = `${project.path}/${dir}`;
+        try {
+          await Deno.stat(fullPath);
+          throw new Error(`Old directory ${dir} should NOT exist`);
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) {
+            throw error;
+          }
+          // NotFound is expected
+        }
+      }
     });
 
     // ==========================================================================

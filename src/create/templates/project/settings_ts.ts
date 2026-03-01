@@ -34,8 +34,6 @@ export const SECRET_KEY = Deno.env.get("SECRET_KEY") ??
 /**
  * Django-style DATABASES configuration.
  * Keys are aliases (e.g. "default"); values are pre-built backend instances.
- * Importing the backend here (not in core) means bundlers can tree-shake
- * server-only code from browser bundles.
  */
 export const DATABASES = {
   default: new DenoKVBackend({
@@ -51,8 +49,6 @@ export const DATABASES = {
 export const CORS_ORIGINS = Deno.env.get("CORS_ORIGINS")?.split(",") ?? [
   "http://localhost:8000",
   "http://127.0.0.1:8000",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
 ];
 `;
 }

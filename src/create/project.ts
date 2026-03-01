@@ -1,7 +1,8 @@
 /**
  * Project generator for @alexi/create CLI
  *
- * Generates a full-stack Todo application with web, ui, and desktop apps.
+ * Generates a unified Posts application with a single app directory
+ * containing server-side code, frontend assets, and Service Worker.
  *
  * @module @alexi/create/project
  */
@@ -15,43 +16,32 @@ import { generateReadme } from "./templates/root/readme.ts";
 // Template imports - Project settings
 import { generateSharedSettings } from "./templates/project/settings_ts.ts";
 import { generateWebSettings } from "./templates/project/web_settings_ts.ts";
-import { generateUiSettings } from "./templates/project/ui_settings_ts.ts";
-import { generateDesktopSettings } from "./templates/project/desktop_settings_ts.ts";
 
-// Template imports - Web app
-import { generateWebAppTs } from "./templates/web/app_ts.ts";
-import { generateWebModTs } from "./templates/web/mod_ts.ts";
-import { generateWebModelsTs } from "./templates/web/models_ts.ts";
-import { generateWebSerializersTs } from "./templates/web/serializers_ts.ts";
-import { generateWebViewsetsTs } from "./templates/web/viewsets_ts.ts";
-import { generateWebUrlsTs } from "./templates/web/urls_ts.ts";
+// Template imports - Unified app (server-side)
+import { generateAppTs } from "./templates/unified/app_ts.ts";
+import { generateModTs } from "./templates/unified/mod_ts.ts";
+import { generateModelsTs } from "./templates/unified/models_ts.ts";
+import { generateSerializersTs } from "./templates/unified/serializers_ts.ts";
+import { generateViewsetsTs } from "./templates/unified/viewsets_ts.ts";
+import { generateUrlsTs } from "./templates/unified/urls_ts.ts";
+import { generateViewsTs } from "./templates/unified/views_ts.ts";
+import { generatePostTestTs } from "./templates/unified/test_ts.ts";
+import { generateInitMigration } from "./templates/unified/migration_ts.ts";
+import { generateStaticIndexHtml } from "./templates/unified/static_index_html.ts";
 
-// Template imports - UI app
-import { generateUiAppTs } from "./templates/ui/app_ts.ts";
-import { generateUiModTs } from "./templates/ui/mod_ts.ts";
-import { generateUiModelsTs } from "./templates/ui/models_ts.ts";
-import { generateUiEndpointsTs } from "./templates/ui/endpoints_ts.ts";
-import { generateUiSettingsTs } from "./templates/ui/settings_ts.ts";
-import { generateUiSessionTs } from "./templates/ui/session_ts.ts";
-import { generateUiUtilsTs } from "./templates/ui/utils_ts.ts";
-import { generateUiViewsTs } from "./templates/ui/views_ts.ts";
-import { generateUiUrlsTs } from "./templates/ui/urls_ts.ts";
-import { generateUiMainTs } from "./templates/ui/main_ts.ts";
-import { generateUiHomeTs } from "./templates/ui/templates/home_ts.ts";
-import { generateUiComponentsModTs } from "./templates/ui/components/mod_ts.ts";
-import { generateDSButtonTs } from "./templates/ui/components/ds_button_ts.ts";
-import { generateDSInputTs } from "./templates/ui/components/ds_input_ts.ts";
-import { generateDSCheckboxTs } from "./templates/ui/components/ds_checkbox_ts.ts";
-import { generateDSIconTs } from "./templates/ui/components/ds_icon_ts.ts";
-import { generateDSTextTs } from "./templates/ui/components/ds_text_ts.ts";
-import { generateDSCardTs } from "./templates/ui/components/ds_card_ts.ts";
-import { generateDSThemeToggleTs } from "./templates/ui/components/ds_theme_toggle_ts.ts";
-import { generateGlobalCss } from "./templates/ui/styles_css.ts";
+// Template imports - Unified app (assets - frontend)
+import { generateAssetModTs } from "./templates/unified/assets/mod_ts.ts";
 
-// Template imports - Desktop app
-import { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
-import { generateDesktopModTs } from "./templates/desktop/mod_ts.ts";
-import { generateDesktopBindingsTs } from "./templates/desktop/bindings_ts.ts";
+// Template imports - Unified app (workers - Service Worker)
+import { generateWorkerAppTs } from "./templates/unified/workers/app_ts.ts";
+import { generateWorkerModTs } from "./templates/unified/workers/mod_ts.ts";
+import { generateWorkerModelsTs } from "./templates/unified/workers/models_ts.ts";
+import { generateWorkerEndpointsTs } from "./templates/unified/workers/endpoints_ts.ts";
+import { generateWorkerSettingsTs } from "./templates/unified/workers/settings_ts.ts";
+import { generateWorkerUrlsTs } from "./templates/unified/workers/urls_ts.ts";
+import { generateWorkerViewsTs } from "./templates/unified/workers/views_ts.ts";
+import { generateWorkerBaseHtml } from "./templates/unified/workers/base_html.ts";
+import { generateWorkerIndexHtml } from "./templates/unified/workers/index_html.ts";
 
 // Template imports - Skills (Agent Skills for AI coding assistants)
 import { generateAlexiAdminSkillMd } from "./templates/skills/alexi_admin_skill_md.ts";
@@ -101,7 +91,7 @@ export async function createProject(options: ProjectOptions): Promise<void> {
     }
   }
 
-  console.log(`Creating full-stack project "${name}"...`);
+  console.log(`Creating project "${name}"...`);
   console.log("");
 
   // Create directory structure
@@ -175,19 +165,15 @@ async function createDirectories(name: string): Promise<void> {
     name,
     // Project settings
     `${name}/project`,
-    // Source
+    // Source — unified app
     `${name}/src`,
-    // Web app
-    `${name}/src/${name}-web`,
-    `${name}/src/${name}-web/tests`,
-    // UI app
-    `${name}/src/${name}-ui`,
-    `${name}/src/${name}-ui/templates`,
-    `${name}/src/${name}-ui/components`,
-    `${name}/src/${name}-ui/styles`,
-    `${name}/src/${name}-ui/static/${name}-ui`,
-    // Desktop app
-    `${name}/src/${name}-desktop`,
+    `${name}/src/${name}`,
+    `${name}/src/${name}/tests`,
+    `${name}/src/${name}/migrations`,
+    `${name}/src/${name}/static/${name}`,
+    `${name}/src/${name}/assets/${name}`,
+    `${name}/src/${name}/workers/${name}`,
+    `${name}/src/${name}/workers/${name}/templates/${name}`,
     // Agent Skills (for AI coding assistants)
     `${name}/.opencode/skills/alexi-admin`,
     `${name}/.opencode/skills/alexi-auth`,
@@ -245,149 +231,101 @@ async function generateFiles(name: string): Promise<void> {
       path: `${name}/project/web.settings.ts`,
       content: generateWebSettings(name),
     },
+
+    // ==========================================================================
+    // Unified app — server-side (root level)
+    // ==========================================================================
     {
-      path: `${name}/project/ui.settings.ts`,
-      content: generateUiSettings(name),
+      path: `${name}/src/${name}/app.ts`,
+      content: generateAppTs(name),
     },
     {
-      path: `${name}/project/desktop.settings.ts`,
-      content: generateDesktopSettings(name),
+      path: `${name}/src/${name}/mod.ts`,
+      content: generateModTs(name),
+    },
+    {
+      path: `${name}/src/${name}/models.ts`,
+      content: generateModelsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/serializers.ts`,
+      content: generateSerializersTs(name),
+    },
+    {
+      path: `${name}/src/${name}/viewsets.ts`,
+      content: generateViewsetsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/urls.ts`,
+      content: generateUrlsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/views.ts`,
+      content: generateViewsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/tests/post_test.ts`,
+      content: generatePostTestTs(name),
+    },
+    {
+      path: `${name}/src/${name}/migrations/0001_init.ts`,
+      content: generateInitMigration(name),
     },
 
     // ==========================================================================
-    // Web app (backend API)
+    // Unified app — static files
     // ==========================================================================
     {
-      path: `${name}/src/${name}-web/app.ts`,
-      content: generateWebAppTs(name),
-    },
-    {
-      path: `${name}/src/${name}-web/mod.ts`,
-      content: generateWebModTs(name),
-    },
-    {
-      path: `${name}/src/${name}-web/models.ts`,
-      content: generateWebModelsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-web/serializers.ts`,
-      content: generateWebSerializersTs(name),
-    },
-    {
-      path: `${name}/src/${name}-web/viewsets.ts`,
-      content: generateWebViewsetsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-web/urls.ts`,
-      content: generateWebUrlsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-web/tests/todo_test.ts`,
-      content: generateWebTodoTest(name),
+      path: `${name}/src/${name}/static/${name}/index.html`,
+      content: generateStaticIndexHtml(name),
     },
 
     // ==========================================================================
-    // UI app (frontend SPA)
+    // Unified app — assets (frontend entry point)
     // ==========================================================================
     {
-      path: `${name}/src/${name}-ui/app.ts`,
-      content: generateUiAppTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/mod.ts`,
-      content: generateUiModTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/models.ts`,
-      content: generateUiModelsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/endpoints.ts`,
-      content: generateUiEndpointsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/settings.ts`,
-      content: generateUiSettingsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/session.ts`,
-      content: generateUiSessionTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/utils.ts`,
-      content: generateUiUtilsTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/views.ts`,
-      content: generateUiViewsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/urls.ts`,
-      content: generateUiUrlsTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/main.ts`,
-      content: generateUiMainTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/templates/home.ts`,
-      content: generateUiHomeTs(name),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/mod.ts`,
-      content: generateUiComponentsModTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/ds_button.ts`,
-      content: generateDSButtonTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/ds_input.ts`,
-      content: generateDSInputTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/ds_checkbox.ts`,
-      content: generateDSCheckboxTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/ds_icon.ts`,
-      content: generateDSIconTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/ds_text.ts`,
-      content: generateDSTextTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/ds_card.ts`,
-      content: generateDSCardTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/components/ds_theme_toggle.ts`,
-      content: generateDSThemeToggleTs(),
-    },
-    {
-      path: `${name}/src/${name}-ui/styles/global.css`,
-      content: generateGlobalCss(),
-    },
-    {
-      path: `${name}/src/${name}-ui/static/${name}-ui/index.html`,
-      content: generateIndexHtml(name),
+      path: `${name}/src/${name}/assets/${name}/mod.ts`,
+      content: generateAssetModTs(name),
     },
 
     // ==========================================================================
-    // Desktop app (WebUI)
+    // Unified app — workers (Service Worker)
     // ==========================================================================
     {
-      path: `${name}/src/${name}-desktop/app.ts`,
-      content: generateDesktopAppTs(name),
+      path: `${name}/src/${name}/workers/${name}/app.ts`,
+      content: generateWorkerAppTs(name),
     },
     {
-      path: `${name}/src/${name}-desktop/mod.ts`,
-      content: generateDesktopModTs(name),
+      path: `${name}/src/${name}/workers/${name}/mod.ts`,
+      content: generateWorkerModTs(name),
     },
     {
-      path: `${name}/src/${name}-desktop/bindings.ts`,
-      content: generateDesktopBindingsTs(),
+      path: `${name}/src/${name}/workers/${name}/models.ts`,
+      content: generateWorkerModelsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/workers/${name}/endpoints.ts`,
+      content: generateWorkerEndpointsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/workers/${name}/settings.ts`,
+      content: generateWorkerSettingsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/workers/${name}/urls.ts`,
+      content: generateWorkerUrlsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/workers/${name}/views.ts`,
+      content: generateWorkerViewsTs(name),
+    },
+    {
+      path: `${name}/src/${name}/workers/${name}/templates/${name}/base.html`,
+      content: generateWorkerBaseHtml(name),
+    },
+    {
+      path: `${name}/src/${name}/workers/${name}/templates/${name}/index.html`,
+      content: generateWorkerIndexHtml(name),
     },
 
     // ==========================================================================
@@ -447,134 +385,4 @@ async function generateFiles(name: string): Promise<void> {
     await Deno.writeTextFile(file.path, file.content);
     console.log(`  Created ${file.path}`);
   }
-}
-
-/**
- * Generate basic todo test file
- */
-function generateWebTodoTest(name: string): string {
-  const appName = toPascalCase(name);
-
-  return `/**
- * Todo API tests for ${name}
- */
-
-import { assertEquals, assertExists } from "jsr:@std/assert@1";
-import { reset } from "@alexi/db";
-import { DenoKVBackend } from "@alexi/db/backends/denokv";
-import { setup } from "@alexi/core";
-import { TodoModel } from "@${name}-web/models.ts";
-
-Deno.test({
-  name: "${appName}: TodoModel CRUD",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    // Setup in-memory database
-    const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
-    await setup({ DATABASES: { default: backend } });
-
-    try {
-      // Create
-      const todo = await TodoModel.objects.create({
-        title: "Test Todo",
-        completed: false,
-      });
-
-      assertExists(todo.id.get());
-      assertEquals(todo.title.get(), "Test Todo");
-      assertEquals(todo.completed.get(), false);
-
-      // Update
-      todo.completed.set(true);
-      await todo.save();
-
-      const updated = await TodoModel.objects.get({ id: todo.id.get() });
-      assertEquals(updated.completed.get(), true);
-
-      // Delete
-      await todo.delete();
-      const deleted = await TodoModel.objects
-        .filter({ id: todo.id.get() })
-        .first();
-      assertEquals(deleted, null);
-    } finally {
-      await reset();
-      await backend.disconnect();
-    }
-  },
-});
-`;
-}
-
-/**
- * Generate index.html for the UI app
- */
-function generateIndexHtml(name: string): string {
-  const appName = toPascalCase(name);
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${appName}</title>
-  <link rel="stylesheet" href="/styles/global.css">
-  <style>
-    /* Critical reset - must load before external CSS */
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; height: 100%; }
-    body { background: #09090b; }
-
-    /* Loading state styles (before JS loads) */
-    .alexi-loading {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      gap: 1rem;
-    }
-
-    .alexi-loading-spinner {
-      width: 48px;
-      height: 48px;
-      border: 4px solid var(--alexi-border, #e4e4e7);
-      border-top-color: var(--alexi-primary, #10b981);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
-    .alexi-loading-text {
-      font-family: "Nunito", system-ui, sans-serif;
-      font-size: 1rem;
-      color: var(--alexi-text-secondary, #71717a);
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
-</head>
-<body>
-  <div id="app">
-    <div class="alexi-loading">
-      <div class="alexi-loading-spinner"></div>
-      <p class="alexi-loading-text">Loading ${appName}...</p>
-    </div>
-  </div>
-  <script type="module" src="/bundle.js"></script>
-</body>
-</html>
-`;
-}
-
-/**
- * Convert kebab-case to PascalCase
- */
-function toPascalCase(str: string): string {
-  return str
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join("");
 }
