@@ -162,6 +162,8 @@ async function patchProjectForLocalAlexi(projectPath: string): Promise<void> {
     "@alexi/webui/launcher": `${alexiRoot}src/webui/launcher.ts`,
     "@alexi/webui/bindings": `${alexiRoot}src/webui/bindings.ts`,
     "@alexi/staticfiles": `${alexiRoot}src/staticfiles/mod.ts`,
+    "@alexi/staticfiles/commands":
+      `${alexiRoot}src/staticfiles/commands/mod.ts`,
     "@alexi/restframework": `${alexiRoot}src/restframework/mod.ts`,
     "@alexi/restframework/authentication":
       `${alexiRoot}src/restframework/authentication/mod.ts`,
@@ -272,6 +274,7 @@ export async function startApiServer(
       "run",
       "-A",
       "--unstable-kv",
+      "--unstable-bundle",
       "manage.ts",
       "runserver",
       "--settings",

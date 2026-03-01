@@ -17,6 +17,7 @@
     "npm:esbuild@0.24": "0.24.2",
     "npm:fake-indexeddb@6": "6.2.5",
     "npm:pg@8": "8.19.0",
+    "npm:playwright@*": "1.58.2",
     "npm:playwright@^1.48.0": "1.58.2"
   },
   "jsr": {
@@ -396,6 +397,22 @@
       "npm:playwright@^1.48.0"
     ],
     "members": {
+      "my-project": {
+        "dependencies": [
+          "jsr:@alexi/admin@~0.29.2",
+          "jsr:@alexi/auth@~0.29.2",
+          "jsr:@alexi/core@~0.29.2",
+          "jsr:@alexi/db@~0.29.2",
+          "jsr:@alexi/http@~0.29.2",
+          "jsr:@alexi/middleware@~0.29.2",
+          "jsr:@alexi/restframework@~0.29.2",
+          "jsr:@alexi/staticfiles@~0.29.2",
+          "jsr:@alexi/types@~0.29.2",
+          "jsr:@alexi/urls@~0.29.2",
+          "jsr:@alexi/views@~0.29.2",
+          "jsr:@alexi/web@~0.29.2"
+        ]
+      },
       "src/admin": {
         "dependencies": [
           "jsr:@alexi/core@0.29.2",
