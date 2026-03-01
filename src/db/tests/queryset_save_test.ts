@@ -16,7 +16,7 @@ import {
 import type { SaveResult } from "../mod.ts";
 
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
-import { reset, setup } from "../setup.ts";
+import { registerBackend, reset } from "../setup.ts";
 
 // ============================================================================
 // Test Models
@@ -43,7 +43,7 @@ async function setupTestBackend(): Promise<DenoKVBackend> {
   const dbPath = `:memory:`;
   const backend = new DenoKVBackend({ name: "save_test", path: dbPath });
   await backend.connect();
-  await setup({ backend });
+  registerBackend("default", backend);
   return backend;
 }
 
@@ -268,7 +268,7 @@ Deno.test({
 
     await backend1.connect();
     await backend2.connect();
-    await setup({ backend: backend1 });
+    registerBackend("default", backend1);
 
     try {
       // Create in backend1
@@ -314,7 +314,7 @@ Deno.test({
 
     await backend1.connect();
     await backend2.connect();
-    await setup({ backend: backend1 });
+    registerBackend("default", backend1);
 
     try {
       // Create two projects in backend1

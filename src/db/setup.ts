@@ -10,15 +10,6 @@
 import type { DatabaseBackend } from "./backends/backend.ts";
 
 // ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Named database backends configuration (Django-style DATABASES)
- */
-export type DatabasesConfig = Record<string, DatabaseBackend>;
-
-// ============================================================================
 // Global State
 // ============================================================================
 
@@ -57,63 +48,6 @@ export function getBackend(): DatabaseBackend {
  */
 export function isInitialized(): boolean {
   return _initialized;
-}
-
-// ============================================================================
-// Setup API (db-level, for tests and internal use)
-// ============================================================================
-
-/**
- * Low-level ORM setup.
- *
- * Registers one or more backends directly. For application use, prefer
- * `setup({ DATABASES })` from `@alexi/core`.
- *
- * Accepts:
- * - `setup({ backend })` — registers a single backend as "default"
- * - `setup({ databases: { default: ..., secondary: ... } })` — named backends
- *
- * @example
- * ```ts
- * import { setup, reset } from "@alexi/db";
- * import { DenoKVBackend } from "@alexi/db/backends/denokv";
- *
- * const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
- * await backend.connect();
- * await setup({ backend });
- *
- * // ... tests ...
- *
- * await reset();
- * ```
- */
-export async function setup(
-  config:
-    | { backend: DatabaseBackend; databases?: never }
-    | { databases: DatabasesConfig; backend?: never },
-): Promise<void> {
-  if ("backend" in config && config.backend) {
-    // Single-backend shorthand
-    const backend = config.backend;
-    if (!backend.isConnected) {
-      await backend.connect();
-    }
-    registerBackend("default", backend);
-  } else if ("databases" in config && config.databases) {
-    // Named backends — register "default" first
-    const entries = Object.entries(config.databases);
-    const sorted = entries.sort(([a], [b]) => {
-      if (a === "default") return -1;
-      if (b === "default") return 1;
-      return 0;
-    });
-    for (const [name, backend] of sorted) {
-      if (!backend.isConnected) {
-        await backend.connect();
-      }
-      registerBackend(name, backend);
-    }
-  }
 }
 
 // ============================================================================

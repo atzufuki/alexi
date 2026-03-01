@@ -34,10 +34,11 @@ export {
   ManagementUtility,
   registerCommand,
   resetConfiguration,
-  setup,
   success,
   TestCommand,
-} from "./core/mod.ts";
+} from "./core/management/mod.ts";
+
+export { setup } from "./core/mod.ts";
 
 export type {
   AlexiSettings as CoreSettings,
@@ -49,7 +50,6 @@ export type {
   CommandOptions,
   CommandResult,
   DatabaseConfig as CoreDatabaseConfig,
-  DatabasesConfig,
   Handler,
   IArgumentParser,
   ICommand,
@@ -60,7 +60,9 @@ export type {
   ServeOptions,
   ServerConfig,
   TestConfig,
-} from "./core/mod.ts";
+} from "./core/management/mod.ts";
+
+export type { DatabasesConfig } from "./core/mod.ts";
 
 // =============================================================================
 // Database ORM - models, fields, queries, backends

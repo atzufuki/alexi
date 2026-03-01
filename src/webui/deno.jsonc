@@ -11,6 +11,7 @@
   },
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.26.4",
+    "@alexi/core/management": "jsr:@alexi/core@0.26.4/management",
     "@alexi/types": "jsr:@alexi/types@0.26.4",
     "@webui/deno-webui": "jsr:@webui/deno-webui@^2.5.13"
   }

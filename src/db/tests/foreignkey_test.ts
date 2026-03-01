@@ -18,7 +18,7 @@ import {
   Model,
 } from "../mod.ts";
 import { ForeignKey, OnDelete } from "../fields/relations.ts";
-import { reset, setup } from "../setup.ts";
+import { registerBackend, reset } from "../setup.ts";
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
 
 // ============================================================================
@@ -103,7 +103,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-1", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create organisation
@@ -141,7 +141,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-2", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({
@@ -181,7 +181,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-3", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({
@@ -225,7 +225,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-4", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create project without organisation (null FK)
@@ -250,7 +250,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-5", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({
@@ -294,7 +294,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-6", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({
@@ -331,7 +331,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-7", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const project = new Project();
@@ -363,7 +363,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "fk-test-8", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create a project with a null organisation
@@ -410,7 +410,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create org -> project -> role -> competence chain
@@ -492,7 +492,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create org -> project -> role -> competence chain
@@ -562,7 +562,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({
@@ -618,7 +618,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "sr-test-1", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create organisations
@@ -683,7 +683,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "sr-test-2", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({
@@ -734,7 +734,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-1", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({
@@ -765,7 +765,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-2", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({ name: "Org A", country: "Finland" });
@@ -792,7 +792,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-3", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({ name: "Test", country: "Finland" });
@@ -822,7 +822,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-4", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Project.objects.create({
@@ -871,7 +871,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-5", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({
@@ -926,7 +926,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-6", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Project.objects.create({
@@ -976,7 +976,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-7", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({
@@ -1010,7 +1010,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-8", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({ name: "Org 1", country: "Finland" });
@@ -1044,7 +1044,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-9", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({
@@ -1074,7 +1074,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-10", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({ name: "Test", country: "Finland" });
@@ -1103,7 +1103,7 @@ Deno.test({
   async fn() {
     const backend = new DenoKVBackend({ name: "qs-test-11", path: ":memory:" });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       await Organisation.objects.create({ name: "Org A", country: "Finland" });
@@ -1156,7 +1156,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const unit = await Unit161.objects.create({ name: "Kilogram" });
@@ -1191,7 +1191,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const unit = await Unit161.objects.create({ name: "Meter" });

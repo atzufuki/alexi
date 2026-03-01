@@ -7,12 +7,12 @@
  * @module alexi_capacitor/commands/build
  */
 
-import { BaseCommand, failure, success } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
+} from "@alexi/core/management";
 
 // =============================================================================
 // Helper Functions

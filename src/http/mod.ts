@@ -2,7 +2,7 @@
  * Alexi HTTP - HTTP types and utilities
  *
  * This module provides HTTP-specific types and utilities.
- * For the main application framework, use @alexi/core.
+ * For the main application framework, use @alexi/core/management.
  * For middleware, use @alexi/middleware.
  * For views, use @alexi/views.
  *
@@ -11,18 +11,22 @@
  * @example
  * ```ts
  * // Use the new module locations:
- * import { Application } from "@alexi/core";
+ * import { Application } from "@alexi/core/management";
  * import { corsMiddleware, loggingMiddleware } from "@alexi/middleware";
  * import { templateView } from "@alexi/views";
  * ```
  */
 
 // ============================================================================
-// Re-exports from @alexi/core (for backward compatibility)
+// Re-exports from @alexi/core/management (for backward compatibility)
 // ============================================================================
 
-export { Application } from "@alexi/core";
-export type { ApplicationOptions, Handler, ServeOptions } from "@alexi/core";
+export { Application } from "@alexi/core/management";
+export type {
+  ApplicationOptions,
+  Handler,
+  ServeOptions,
+} from "@alexi/core/management";
 
 // ============================================================================
 // Re-exports from @alexi/middleware (for backward compatibility)

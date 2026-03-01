@@ -20,7 +20,7 @@ export function generateManageTs(): string {
  *   deno task test         # Run tests
  */
 
-import { ManagementUtility } from "@alexi/core";
+import { ManagementUtility } from "@alexi/core/management";
 
 const management = new ManagementUtility();
 await management.execute(Deno.args);

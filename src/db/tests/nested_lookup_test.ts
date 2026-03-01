@@ -15,7 +15,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { AutoField, CharField, IntegerField, Manager, Model } from "../mod.ts";
 import { ForeignKey, OnDelete } from "../fields/relations.ts";
-import { reset, setup } from "../setup.ts";
+import { registerBackend, reset } from "../setup.ts";
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
 
 // ============================================================================
@@ -99,7 +99,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create test data
@@ -171,7 +171,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Create two organisations
@@ -235,7 +235,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({ name: "Test Org" });
@@ -275,7 +275,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({ name: "Acme" });
@@ -334,7 +334,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({ name: "Corp" });
@@ -383,7 +383,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org1 = await Organisation.objects.create({ name: "Alpha Corp" });
@@ -442,7 +442,7 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       const org = await Organisation.objects.create({ name: "Test" });
