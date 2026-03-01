@@ -11,7 +11,8 @@ export function generateModelsTs(name: string): string {
   return `/**
  * ${toPascalCase(name)} Models
  *
- * Database models for the Todo application.
+ * Database models for the Posts application.
+ * Inspired by the Django tutorial.
  *
  * @module ${name}/models
  */
@@ -21,62 +22,30 @@ import {
   BooleanField,
   CharField,
   DateTimeField,
-  ForeignKey,
   Manager,
   Model,
-  OnDelete,
-  RelatedManager,
+  TextField,
 } from "@alexi/db";
 
 /**
- * Board model - represents a shareable todo list
+ * Post model - represents a blog post
  *
- * Each board has a unique 5-character ID (e.g., "abc12").
- * Sharing the board URL shares the todo list.
+ * A simple blog post with title, content, published flag, and timestamps.
  */
-export class BoardModel extends Model {
-  id = new CharField({ maxLength: 5, primaryKey: true });
-  createdAt = new DateTimeField({ autoNowAdd: true });
-
-  // Reverse relation - populated by ForeignKey relatedName
-  declare todos: RelatedManager<TodoModel>;
-
-  static objects = new Manager(BoardModel);
-
-  static override meta = {
-    dbTable: "boards",
-  };
-}
-
-/**
- * Todo model - represents a todo item
- *
- * Each todo belongs to a board via ForeignKey.
- */
-export class TodoModel extends Model {
+export class PostModel extends Model {
   id = new AutoField({ primaryKey: true });
-  board = new ForeignKey<BoardModel>("BoardModel", {
-    onDelete: OnDelete.CASCADE,
-    relatedName: "todos",
-  });
   title = new CharField({ maxLength: 200 });
-  completed = new BooleanField({ default: false });
+  content = new TextField({ blank: true });
+  published = new BooleanField({ default: false });
   createdAt = new DateTimeField({ autoNowAdd: true });
   updatedAt = new DateTimeField({ autoNow: true });
 
-  static objects = new Manager(TodoModel);
+  static objects = new Manager(PostModel);
 
   static override meta = {
-    dbTable: "todos",
+    dbTable: "posts",
     ordering: ["-createdAt"],
   };
-
-  /**
-   * Toggle the completed status
-   */
-  toggle(): void {
-    this.completed.set(!this.completed.get());
-  }
 }
 `;
 }

@@ -193,7 +193,7 @@ Deno.test({
         `src/${project.name}/viewsets.ts`,
         `src/${project.name}/urls.ts`,
         `src/${project.name}/views.ts`,
-        `src/${project.name}/tests/todo_test.ts`,
+        `src/${project.name}/tests/post_test.ts`,
         `src/${project.name}/migrations/0001_init.ts`,
       ];
 
@@ -208,19 +208,19 @@ Deno.test({
       }
     });
 
-    await t.step("models.ts defines TodoModel", async () => {
+    await t.step("models.ts defines PostModel", async () => {
       const content = await Deno.readTextFile(
         `${project.path}/src/${project.name}/models.ts`,
       );
       assertEquals(
-        content.includes("TodoModel"),
+        content.includes("PostModel"),
         true,
-        "models.ts should define TodoModel",
+        "models.ts should define PostModel",
       );
       assertEquals(
-        content.includes("class TodoModel extends Model"),
+        content.includes("class PostModel extends Model"),
         true,
-        "TodoModel should extend Model",
+        "PostModel should extend Model",
       );
     });
 

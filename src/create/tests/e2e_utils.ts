@@ -5,7 +5,7 @@
  *
  * Provides utilities for Playwright E2E tests including:
  * - Project scaffolding (creates temp project via @alexi/create)
- * - Server management (start/stop)
+ * - Server management (start/stop API server)
  * - Test data generation
  * - Common test helpers
  *
@@ -33,10 +33,9 @@ export interface ScaffoldedProject {
 // Constants
 // =============================================================================
 
-// Use unique test ports to avoid conflicts with dev servers (8000/5173)
+// Use unique test port to avoid conflicts with dev servers (8000)
 // The API URL is injected into the browser via page.addInitScript
 export const DEFAULT_API_PORT = 9200;
-export const DEFAULT_UI_PORT = 9201;
 export const DEFAULT_TIMEOUT = 30000;
 
 // Increased timeout for CI environments where dependencies
@@ -262,12 +261,10 @@ export async function startApiServer(
   const denoPath = Deno.execPath();
   console.log(`[e2e] Starting API server at ${projectPath} on port ${port}`);
 
-  // Build CORS origins that include the test UI port
+  // Build CORS origins for the test server
   const corsOrigins = [
     `http://localhost:${port}`,
     `http://127.0.0.1:${port}`,
-    `http://localhost:${DEFAULT_UI_PORT}`,
-    `http://127.0.0.1:${DEFAULT_UI_PORT}`,
   ].join(",");
 
   const command = new Deno.Command(denoPath, {
@@ -326,84 +323,6 @@ export async function startApiServer(
     await waitForServer(baseUrl, SERVER_STARTUP_TIMEOUT);
   } catch (e) {
     console.error(`[e2e] Server failed to start. Collected stderr:`);
-    console.error(stderrOutput.join(""));
-    throw e;
-  }
-
-  return {
-    process,
-    port,
-    baseUrl,
-    _stderrReader: stderrReader,
-    _stdoutReader: stdoutReader,
-  };
-}
-
-/**
- * Start the UI server (frontend SPA) for a scaffolded project
- *
- * @param projectPath - Path to the scaffolded project
- * @param port - Port to run the server on
- */
-export async function startUiServer(
-  projectPath: string,
-  port: number = DEFAULT_UI_PORT,
-): Promise<ServerProcess> {
-  const denoPath = Deno.execPath();
-  console.log(`[e2e] Starting UI server at ${projectPath} on port ${port}`);
-
-  const command = new Deno.Command(denoPath, {
-    args: [
-      "run",
-      "-A",
-      "--unstable-kv",
-      "manage.ts",
-      "runserver",
-      "--settings",
-      "ui",
-      "--port",
-      String(port),
-    ],
-    cwd: projectPath,
-    stdout: "piped",
-    stderr: "piped",
-  });
-
-  const process = command.spawn();
-  const baseUrl = `http://localhost:${port}`;
-
-  // Start reading stderr in background
-  const stderrOutput: string[] = [];
-  const stderrReader = (async () => {
-    const decoder = new TextDecoder();
-    try {
-      for await (const chunk of process.stderr) {
-        const text = decoder.decode(chunk);
-        stderrOutput.push(text);
-        console.error(`[UI Server stderr] ${text}`);
-      }
-    } catch {
-      // Process may have been killed
-    }
-  })();
-
-  // Start reading stdout in background
-  const stdoutReader = (async () => {
-    const decoder = new TextDecoder();
-    try {
-      for await (const chunk of process.stdout) {
-        const text = decoder.decode(chunk);
-        console.log(`[UI Server stdout] ${text}`);
-      }
-    } catch {
-      // Process may have been killed
-    }
-  })();
-
-  try {
-    await waitForServer(baseUrl, SERVER_STARTUP_TIMEOUT);
-  } catch (e) {
-    console.error(`[e2e] UI Server failed to start. Collected stderr:`);
     console.error(stderrOutput.join(""));
     throw e;
   }

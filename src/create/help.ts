@@ -11,7 +11,7 @@ export function printHelp(): void {
   console.log(`
 @alexi/create - Alexi Full-Stack Project Generator
 
-Creates a full-stack Todo application with a unified app structure:
+Creates a full-stack Posts application with a unified app structure:
   • Server-side code (models, views, viewsets, URLs)
   • Frontend assets (bundled into static files)
   • Service Worker (offline-capable HTMX frontend)

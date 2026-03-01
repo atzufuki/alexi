@@ -17,13 +17,13 @@ export function generateWorkerEndpointsTs(name: string): string {
  */
 
 // import { DetailAction, ListAction, ModelEndpoint, SingletonQuery } from "@alexi/db/backends/rest";
-// import { TodoModel } from "./models.ts";
+// import { PostModel } from "./models.ts";
 
 // Example endpoint:
-// class TodoEndpoint extends ModelEndpoint {
-//   model = TodoModel;
-//   path = "/todos/";
-//   toggle = new DetailAction();
+// class PostEndpoint extends ModelEndpoint {
+//   model = PostModel;
+//   path = "/posts/";
+//   publish = new DetailAction();
 // }
 `;
 }

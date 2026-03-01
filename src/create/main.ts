@@ -2,7 +2,7 @@
 /**
  * @alexi/create - Project scaffolding CLI for Alexi
  *
- * Creates a full-stack Todo application with a unified app structure.
+ * Creates a full-stack Posts application with a unified app structure.
  *
  * @example
  * ```bash

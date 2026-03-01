@@ -16,17 +16,17 @@ export function generateUrlsTs(name: string): string {
 
 import { path, include } from "@alexi/urls";
 import { DefaultRouter } from "@alexi/restframework";
-import { TodoViewSet } from "@${name}/viewsets.ts";
+import { PostViewSet } from "@${name}/viewsets.ts";
 
 // Create router and register viewsets
 const router = new DefaultRouter();
-router.register("todos", TodoViewSet);
+router.register("posts", PostViewSet);
 
 // API patterns
 const apiPatterns = [
   // Health check endpoint
   path("health/", async () => Response.json({ status: "ok" })),
-  // Todo endpoints from router
+  // Post endpoints from router
   ...router.urls,
 ];
 
