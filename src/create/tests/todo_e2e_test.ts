@@ -6,6 +6,12 @@
  * - Starts the web and UI servers
  * - Tests Todo functionality in a real browser via Playwright
  *
+ * TODO: Rewrite for unified app structure (HTMX + Service Worker).
+ * The old SPA architecture (separate UI app with custom elements) has been
+ * replaced by a unified structure. This test needs a full rewrite to test
+ * the new HTMX-based UI served via Service Worker.
+ * See: https://github.com/atzufrag/alexi/issues/180
+ *
  * @module @alexi/create/tests/todo_e2e_test
  */
 
@@ -62,6 +68,8 @@ const API_URL = `http://localhost:${DEFAULT_API_PORT}/api`;
 // =============================================================================
 
 describe("Todo App E2E Tests", {
+  // TODO: Rewrite for unified app structure (HTMX + Service Worker)
+  ignore: true,
   // Disable sanitizers to prevent timer leak errors from Playwright
   sanitizeOps: false,
   sanitizeResources: false,

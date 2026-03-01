@@ -1,24 +1,22 @@
 /**
- * Web urls.ts template generator
+ * Unified urls.ts template generator
  *
- * @module @alexi/create/templates/web/urls_ts
+ * @module @alexi/create/templates/unified/urls_ts
  */
 
 /**
- * Generate urls.ts content for the web app
+ * Generate urls.ts content for the unified app
  */
-export function generateWebUrlsTs(name: string): string {
+export function generateUrlsTs(name: string): string {
   return `/**
- * ${toPascalCase(name)} Web URLs
+ * ${toPascalCase(name)} URL Configuration
  *
- * URL configuration for the REST API.
- *
- * @module ${name}-web/urls
+ * @module ${name}/urls
  */
 
 import { path, include } from "@alexi/urls";
 import { DefaultRouter } from "@alexi/restframework";
-import { TodoViewSet } from "@${name}-web/viewsets.ts";
+import { TodoViewSet } from "@${name}/viewsets.ts";
 
 // Create router and register viewsets
 const router = new DefaultRouter();

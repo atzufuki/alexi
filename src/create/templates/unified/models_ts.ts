@@ -1,20 +1,19 @@
 /**
- * UI models.ts template generator
+ * Unified models.ts template generator
  *
- * @module @alexi/create/templates/ui/models_ts
+ * @module @alexi/create/templates/unified/models_ts
  */
 
 /**
- * Generate models.ts content for the UI app
+ * Generate models.ts content for the unified app
  */
-export function generateUiModelsTs(name: string): string {
+export function generateModelsTs(name: string): string {
   return `/**
- * ${toPascalCase(name)} UI Models
+ * ${toPascalCase(name)} Models
  *
- * Frontend ORM models for the Todo application.
- * These mirror the backend models for use with IndexedDB and REST backends.
+ * Database models for the Todo application.
  *
- * @module ${name}-ui/models
+ * @module ${name}/models
  */
 
 import {
@@ -50,7 +49,7 @@ export class BoardModel extends Model {
 }
 
 /**
- * Todo model - frontend representation of a todo item
+ * Todo model - represents a todo item
  *
  * Each todo belongs to a board via ForeignKey.
  */
@@ -78,32 +77,6 @@ export class TodoModel extends Model {
   toggle(): void {
     this.completed.set(!this.completed.get());
   }
-}
-
-/**
- * Todo interface for UI consumption
- */
-export interface Todo {
-  id: number;
-  board: string;
-  title: string;
-  completed: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-/**
- * Convert TodoModel to Todo interface
- */
-export function modelToTodo(model: TodoModel): Todo {
-  return {
-    id: model.id.get() as number,
-    board: model.board.id as string,
-    title: model.title.get() as string,
-    completed: model.completed.get() as boolean,
-    createdAt: model.createdAt.get() as Date,
-    updatedAt: model.updatedAt.get() as Date,
-  };
 }
 `;
 }

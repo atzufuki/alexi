@@ -1,23 +1,23 @@
 /**
- * Web serializers.ts template generator
+ * Unified serializers.ts template generator
  *
- * @module @alexi/create/templates/web/serializers_ts
+ * @module @alexi/create/templates/unified/serializers_ts
  */
 
 /**
- * Generate serializers.ts content for the web app
+ * Generate serializers.ts content for the unified app
  */
-export function generateWebSerializersTs(name: string): string {
+export function generateSerializersTs(name: string): string {
   return `/**
- * ${toPascalCase(name)} Web Serializers
+ * ${toPascalCase(name)} Serializers
  *
  * Serializers for REST API request/response handling.
  *
- * @module ${name}-web/serializers
+ * @module ${name}/serializers
  */
 
 import { ModelSerializer } from "@alexi/restframework";
-import { TodoModel } from "@${name}-web/models.ts";
+import { TodoModel } from "@${name}/models.ts";
 
 /**
  * Todo serializer - handles serialization/deserialization of Todo objects

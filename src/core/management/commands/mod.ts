@@ -14,7 +14,6 @@ export { HelpCommand } from "./help.ts";
 export { TestCommand } from "./test.ts";
 export type { TestConfig } from "./test.ts";
 export { StartAppCommand } from "./startapp.ts";
-export type { AppType } from "./startapp.ts";
 export { FlushCommand } from "./flush.ts";
 
 // Migration commands (moved from @alexi/db to break circular dependency)

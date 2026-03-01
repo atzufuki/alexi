@@ -11,7 +11,7 @@ export function generateWebSettings(name: string): string {
   return `/**
  * ${name} - Web Server Settings
  *
- * Settings for the web server (REST API backend).
+ * Settings for the web server (REST API + static files).
  *
  * @module project/web.settings
  */
@@ -47,7 +47,8 @@ export const INSTALLED_APPS = [
   () => import("@alexi/web"),
   () => import("@alexi/db"),
   () => import("@alexi/restframework"),
-  () => import("@${name}/web"),
+  () => import("@${name}/mod.ts"),
+  () => import("@${name}/workers"),
 ];
 
 // =============================================================================
@@ -57,7 +58,7 @@ export const INSTALLED_APPS = [
 /**
  * ROOT_URLCONF is an import function that returns the URL patterns module.
  */
-export const ROOT_URLCONF = () => import("@${name}/web/urls");
+export const ROOT_URLCONF = () => import("@${name}/urls.ts");
 
 // =============================================================================
 // Static Files

@@ -1,7 +1,7 @@
 /**
  * @alexi/create - Project scaffolding CLI for Alexi
  *
- * Creates new Alexi projects with proper structure.
+ * Creates new Alexi projects with a unified app structure.
  *
  * @example
  * ```bash
@@ -27,33 +27,31 @@ export { generateManageTs } from "./templates/root/manage_ts.ts";
 export { generateReadme } from "./templates/root/readme.ts";
 
 // Project settings template generators
-export { generateDesktopSettings } from "./templates/project/desktop_settings_ts.ts";
 export { generateSharedSettings } from "./templates/project/settings_ts.ts";
-export { generateUiSettings as generateProjectUiSettings } from "./templates/project/ui_settings_ts.ts";
 export { generateWebSettings } from "./templates/project/web_settings_ts.ts";
 
-// Web app template generators
-export { generateWebAppTs } from "./templates/web/app_ts.ts";
-export { generateWebModTs } from "./templates/web/mod_ts.ts";
-export { generateWebModelsTs } from "./templates/web/models_ts.ts";
-export { generateWebSerializersTs } from "./templates/web/serializers_ts.ts";
-export { generateWebUrlsTs } from "./templates/web/urls_ts.ts";
-export { generateWebViewsetsTs } from "./templates/web/viewsets_ts.ts";
+// Unified app template generators
+export { generateAppTs } from "./templates/unified/app_ts.ts";
+export { generateModTs } from "./templates/unified/mod_ts.ts";
+export { generateModelsTs } from "./templates/unified/models_ts.ts";
+export { generateSerializersTs } from "./templates/unified/serializers_ts.ts";
+export { generateViewsetsTs } from "./templates/unified/viewsets_ts.ts";
+export { generateUrlsTs } from "./templates/unified/urls_ts.ts";
+export { generateViewsTs } from "./templates/unified/views_ts.ts";
+export { generateTodoTestTs } from "./templates/unified/test_ts.ts";
+export { generateInitMigration } from "./templates/unified/migration_ts.ts";
+export { generateStaticIndexHtml } from "./templates/unified/static_index_html.ts";
 
-// UI app template generators
-export { generateUiAppTs } from "./templates/ui/app_ts.ts";
-export { generateUiEndpointsTs } from "./templates/ui/endpoints_ts.ts";
-export { generateUiMainTs } from "./templates/ui/main_ts.ts";
-export { generateUiModTs } from "./templates/ui/mod_ts.ts";
-export { generateUiModelsTs } from "./templates/ui/models_ts.ts";
-export { generateUiSettingsTs } from "./templates/ui/settings_ts.ts";
-export { generateUiUrlsTs } from "./templates/ui/urls_ts.ts";
-export { generateUiUtilsTs } from "./templates/ui/utils_ts.ts";
-export { generateUiViewsTs } from "./templates/ui/views_ts.ts";
-export { generateUiHomeTs } from "./templates/ui/templates/home_ts.ts";
-export { generateUiComponentsModTs } from "./templates/ui/components/mod_ts.ts";
+// Unified app — assets template generators
+export { generateAssetModTs } from "./templates/unified/assets/mod_ts.ts";
 
-// Desktop app template generators
-export { generateDesktopAppTs } from "./templates/desktop/app_ts.ts";
-export { generateDesktopBindingsTs } from "./templates/desktop/bindings_ts.ts";
-export { generateDesktopModTs } from "./templates/desktop/mod_ts.ts";
+// Unified app — worker template generators
+export { generateWorkerAppTs } from "./templates/unified/workers/app_ts.ts";
+export { generateWorkerModTs } from "./templates/unified/workers/mod_ts.ts";
+export { generateWorkerModelsTs } from "./templates/unified/workers/models_ts.ts";
+export { generateWorkerEndpointsTs } from "./templates/unified/workers/endpoints_ts.ts";
+export { generateWorkerSettingsTs } from "./templates/unified/workers/settings_ts.ts";
+export { generateWorkerUrlsTs } from "./templates/unified/workers/urls_ts.ts";
+export { generateWorkerViewsTs } from "./templates/unified/workers/views_ts.ts";
+export { generateWorkerBaseHtml } from "./templates/unified/workers/base_html.ts";
+export { generateWorkerIndexHtml } from "./templates/unified/workers/index_html.ts";
