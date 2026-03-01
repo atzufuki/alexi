@@ -1,26 +1,27 @@
 /**
- * Desktop app.ts template generator
+ * Unified app.ts template generator
  *
- * @module @alexi/create/templates/desktop/app_ts
+ * @module @alexi/create/templates/unified/app_ts
  */
 
 /**
- * Generate app.ts content for the desktop app
+ * Generate app.ts content for the unified app (server-side)
  */
-export function generateDesktopAppTs(name: string): string {
+export function generateAppTs(name: string): string {
   const appName = toPascalCase(name);
 
   return `/**
- * ${appName} Desktop App Configuration
+ * ${appName} App Configuration
  *
- * @module ${name}-desktop/app
+ * @module ${name}/app
  */
 
 import type { AppConfig } from "@alexi/types";
 
 const config: AppConfig = {
-  name: "${name}-desktop",
-  verboseName: "${appName} Desktop",
+  name: "${name}",
+  verboseName: "${appName}",
+  staticDir: "static",
 };
 
 export default config;

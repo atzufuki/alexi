@@ -105,4 +105,4 @@ export {
   StartAppCommand,
   TestCommand,
 } from "./commands/mod.ts";
-export type { AppType, TestConfig } from "./commands/mod.ts";
+export type { TestConfig } from "./commands/mod.ts";

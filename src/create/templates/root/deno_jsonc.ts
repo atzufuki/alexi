@@ -10,16 +10,8 @@
 export function generateDenoJsonc(name: string): string {
   const config = {
     tasks: {
-      "dev:web":
+      dev:
         "deno run -A --unstable-kv --unstable-bundle manage.ts runserver --settings web",
-      "dev:ui":
-        "deno run -A --unstable-kv --unstable-bundle manage.ts runserver --settings ui",
-      "dev:desktop":
-        "deno run -A --unstable-kv --unstable-bundle --unstable-ffi manage.ts runserver --settings desktop",
-      dev: {
-        description: "Start all servers (opens desktop app)",
-        dependencies: ["dev:web", "dev:ui", "dev:desktop"],
-      },
       test: "deno test -A --unstable-kv",
       bundle:
         "deno run -A --unstable-kv --unstable-bundle manage.ts bundle --settings web",
@@ -38,29 +30,17 @@ export function generateDenoJsonc(name: string): string {
       "@alexi/middleware": "jsr:@alexi/middleware@^0.18",
       "@alexi/views": "jsr:@alexi/views@^0.18",
       "@alexi/web": "jsr:@alexi/web@^0.18",
-      "@alexi/webui": "jsr:@alexi/webui@^0.18",
       "@alexi/staticfiles": "jsr:@alexi/staticfiles@^0.18",
       "@alexi/restframework": "jsr:@alexi/restframework@^0.18",
       "@alexi/auth": "jsr:@alexi/auth@^0.18",
       "@alexi/admin": "jsr:@alexi/admin@^0.18",
+      "@alexi/types": "jsr:@alexi/types@^0.18",
 
-      // HTML Props (frontend)
-      "@html-props/core": "jsr:@html-props/core@^1.0.0-beta.6",
-      "@html-props/built-ins": "jsr:@html-props/built-ins@^1.0.0-beta.7",
-      "@html-props/layout": "jsr:@html-props/layout@^1.0.0-beta.10",
-      "@html-props/signals": "jsr:@html-props/signals@^1.0.0-beta.2",
-
-      // App imports (for INSTALLED_APPS import functions in settings)
-      [`@${name}/web`]: `./src/${name}-web/mod.ts`,
-      [`@${name}/web/urls`]: `./src/${name}-web/urls.ts`,
-      [`@${name}/ui`]: `./src/${name}-ui/mod.ts`,
-      [`@${name}/ui/urls`]: `./src/${name}-ui/urls.ts`,
-      [`@${name}/desktop`]: `./src/${name}-desktop/mod.ts`,
-
-      // App path imports (for imports within app code)
-      [`@${name}-web/`]: `./src/${name}-web/`,
-      [`@${name}-ui/`]: `./src/${name}-ui/`,
-      [`@${name}-desktop/`]: `./src/${name}-desktop/`,
+      // App imports — one entry point per app
+      [`@${name}/`]: `./src/${name}/`,
+      [`@${name}/workers`]: `./src/${name}/workers/${name}/mod.ts`,
+      [`@${name}/workers/urls`]: `./src/${name}/workers/${name}/urls.ts`,
+      [`@${name}/workers/`]: `./src/${name}/workers/${name}/`,
     },
     compilerOptions: {
       lib: ["deno.ns", "dom", "dom.iterable", "esnext"],

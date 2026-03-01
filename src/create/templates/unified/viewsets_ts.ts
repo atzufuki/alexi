@@ -1,25 +1,25 @@
 /**
- * Web viewsets.ts template generator
+ * Unified viewsets.ts template generator
  *
- * @module @alexi/create/templates/web/viewsets_ts
+ * @module @alexi/create/templates/unified/viewsets_ts
  */
 
 /**
- * Generate viewsets.ts content for the web app
+ * Generate viewsets.ts content for the unified app
  */
-export function generateWebViewsetsTs(name: string): string {
+export function generateViewsetsTs(name: string): string {
   return `/**
- * ${toPascalCase(name)} Web ViewSets
+ * ${toPascalCase(name)} ViewSets
  *
  * ViewSets for REST API endpoints.
  *
- * @module ${name}-web/viewsets
+ * @module ${name}/viewsets
  */
 
 import { ModelViewSet, action } from "@alexi/restframework";
 import type { ViewSetContext } from "@alexi/restframework";
-import { BoardModel, TodoModel } from "@${name}-web/models.ts";
-import { TodoSerializer } from "@${name}-web/serializers.ts";
+import { BoardModel, TodoModel } from "@${name}/models.ts";
+import { TodoSerializer } from "@${name}/serializers.ts";
 
 /**
  * Get or create a board by ID

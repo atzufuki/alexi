@@ -2,7 +2,7 @@
 /**
  * @alexi/create - Project scaffolding CLI for Alexi
  *
- * Creates a full-stack Todo application with web, ui, and desktop apps.
+ * Creates a full-stack Todo application with a unified app structure.
  *
  * @example
  * ```bash
@@ -76,9 +76,7 @@ async function main(): Promise<number> {
     console.log("  deno task dev");
     console.log("");
     console.log("This will start:");
-    console.log("  • Web server (REST API) on http://localhost:8000");
-    console.log("  • UI server (frontend) on http://localhost:5173");
-    console.log("  • Desktop WebUI window");
+    console.log("  • Web server on http://localhost:8000");
     console.log("");
     console.log("AI Coding Assistant:");
     console.log("  • Agent Skills installed in .opencode/skills/");
