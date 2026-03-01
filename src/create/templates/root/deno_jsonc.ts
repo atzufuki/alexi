@@ -6,35 +6,43 @@
 
 /**
  * Generate deno.jsonc content for a new full-stack project
+ *
+ * @param name - Project name
+ * @param version - Alexi framework version (e.g. "0.29.0")
  */
-export function generateDenoJsonc(name: string): string {
+export function generateDenoJsonc(name: string, version: string): string {
+  const versionRange = `^${version}`;
+
   const config = {
     tasks: {
       dev:
-        "deno run -A --unstable-kv --unstable-bundle manage.ts runserver --settings web",
+        "deno run -A --unstable-kv --unstable-bundle manage.ts runserver --settings ./project/settings.ts",
       test: "deno test -A --unstable-kv",
       bundle:
-        "deno run -A --unstable-kv --unstable-bundle manage.ts bundle --settings web",
+        "deno run -A --unstable-kv --unstable-bundle manage.ts bundle --settings ./project/settings.ts",
       collectstatic:
-        "deno run -A --unstable-kv --unstable-bundle manage.ts collectstatic --no-input --settings web",
+        "deno run -A --unstable-kv --unstable-bundle manage.ts collectstatic --no-input --settings ./project/settings.ts",
     },
     imports: {
       // Alexi framework
-      "@alexi/core": "jsr:@alexi/core@^0.18",
-      "@alexi/db": "jsr:@alexi/db@^0.18",
-      "@alexi/db/backends/denokv": "jsr:@alexi/db@^0.18/backends/denokv",
-      "@alexi/db/backends/indexeddb": "jsr:@alexi/db@^0.18/backends/indexeddb",
-      "@alexi/db/backends/rest": "jsr:@alexi/db@^0.18/backends/rest",
-      "@alexi/urls": "jsr:@alexi/urls@^0.18",
-      "@alexi/http": "jsr:@alexi/http@^0.18",
-      "@alexi/middleware": "jsr:@alexi/middleware@^0.18",
-      "@alexi/views": "jsr:@alexi/views@^0.18",
-      "@alexi/web": "jsr:@alexi/web@^0.18",
-      "@alexi/staticfiles": "jsr:@alexi/staticfiles@^0.18",
-      "@alexi/restframework": "jsr:@alexi/restframework@^0.18",
-      "@alexi/auth": "jsr:@alexi/auth@^0.18",
-      "@alexi/admin": "jsr:@alexi/admin@^0.18",
-      "@alexi/types": "jsr:@alexi/types@^0.18",
+      "@alexi/core": `jsr:@alexi/core@${versionRange}`,
+      "@alexi/core/management": `jsr:@alexi/core@${versionRange}/management`,
+      "@alexi/db": `jsr:@alexi/db@${versionRange}`,
+      "@alexi/db/backends/denokv":
+        `jsr:@alexi/db@${versionRange}/backends/denokv`,
+      "@alexi/db/backends/indexeddb":
+        `jsr:@alexi/db@${versionRange}/backends/indexeddb`,
+      "@alexi/db/backends/rest": `jsr:@alexi/db@${versionRange}/backends/rest`,
+      "@alexi/urls": `jsr:@alexi/urls@${versionRange}`,
+      "@alexi/http": `jsr:@alexi/http@${versionRange}`,
+      "@alexi/middleware": `jsr:@alexi/middleware@${versionRange}`,
+      "@alexi/views": `jsr:@alexi/views@${versionRange}`,
+      "@alexi/web": `jsr:@alexi/web@${versionRange}`,
+      "@alexi/staticfiles": `jsr:@alexi/staticfiles@${versionRange}`,
+      "@alexi/restframework": `jsr:@alexi/restframework@${versionRange}`,
+      "@alexi/auth": `jsr:@alexi/auth@${versionRange}`,
+      "@alexi/admin": `jsr:@alexi/admin@${versionRange}`,
+      "@alexi/types": `jsr:@alexi/types@${versionRange}`,
 
       // App imports — one entry point per app
       [`@${name}/`]: `./src/${name}/`,

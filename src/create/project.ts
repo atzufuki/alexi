@@ -14,8 +14,7 @@ import { generateGitignore } from "./templates/root/gitignore.ts";
 import { generateReadme } from "./templates/root/readme.ts";
 
 // Template imports - Project settings
-import { generateSharedSettings } from "./templates/project/settings_ts.ts";
-import { generateWebSettings } from "./templates/project/web_settings_ts.ts";
+import { generateSettings } from "./templates/project/settings_ts.ts";
 
 // Template imports - Unified app (server-side)
 import { generateAppTs } from "./templates/unified/app_ts.ts";
@@ -67,6 +66,16 @@ export interface InstallSkillsOptions {
 }
 
 /**
+ * Read the package version from deno.jsonc.
+ */
+async function getPackageVersion(): Promise<string> {
+  const configUrl = new URL("./deno.jsonc", import.meta.url);
+  const content = await Deno.readTextFile(configUrl);
+  const config = JSON.parse(content);
+  return config.version ?? "0.0.0";
+}
+
+/**
  * Create a new Alexi full-stack project
  */
 export async function createProject(options: ProjectOptions): Promise<void> {
@@ -94,11 +103,14 @@ export async function createProject(options: ProjectOptions): Promise<void> {
   console.log(`Creating project "${name}"...`);
   console.log("");
 
+  // Read the framework version for import map generation
+  const version = await getPackageVersion();
+
   // Create directory structure
   await createDirectories(name);
 
   // Generate files
-  await generateFiles(name);
+  await generateFiles(name, version);
 
   console.log("✓ Created project structure");
 }
@@ -198,14 +210,14 @@ async function createDirectories(name: string): Promise<void> {
 /**
  * Generate all project files
  */
-async function generateFiles(name: string): Promise<void> {
+async function generateFiles(name: string, version: string): Promise<void> {
   const files: Array<{ path: string; content: string }> = [
     // ==========================================================================
     // Root files
     // ==========================================================================
     {
       path: `${name}/deno.jsonc`,
-      content: generateDenoJsonc(name),
+      content: generateDenoJsonc(name, version),
     },
     {
       path: `${name}/manage.ts`,
@@ -225,11 +237,7 @@ async function generateFiles(name: string): Promise<void> {
     // ==========================================================================
     {
       path: `${name}/project/settings.ts`,
-      content: generateSharedSettings(name),
-    },
-    {
-      path: `${name}/project/web.settings.ts`,
-      content: generateWebSettings(name),
+      content: generateSettings(name),
     },
 
     // ==========================================================================
