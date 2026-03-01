@@ -12,12 +12,12 @@ import {
   failure,
   getSettingsModulePath,
   success,
-} from "@alexi/core";
+} from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
+} from "@alexi/core/management";
 import type { AppConfig } from "@alexi/types";
 
 // =============================================================================

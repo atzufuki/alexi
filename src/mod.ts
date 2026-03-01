@@ -36,7 +36,9 @@ export {
   resetConfiguration,
   success,
   TestCommand,
-} from "./core/mod.ts";
+} from "./core/management/mod.ts";
+
+export { setup } from "./core/mod.ts";
 
 export type {
   AlexiSettings as CoreSettings,
@@ -58,7 +60,9 @@ export type {
   ServeOptions,
   ServerConfig,
   TestConfig,
-} from "./core/mod.ts";
+} from "./core/management/mod.ts";
+
+export type { DatabasesConfig } from "./core/mod.ts";
 
 // =============================================================================
 // Database ORM - models, fields, queries, backends
@@ -86,7 +90,6 @@ export {
   ForeignKey,
   // Setup
   getBackend,
-  getSettings as getDbSettings,
   IntegerField as DbIntegerField,
   isInitialized,
   JSONField as DbJSONField,
@@ -106,7 +109,6 @@ export {
   QuerySet,
   reset,
   setBackend,
-  setup,
   shutdown,
   Sum,
   TextField as DbTextField,
@@ -119,16 +121,12 @@ export type {
   // Query
   Aggregation,
   Aggregations,
-  // Setup
-  AlexiSettings as DbSettings,
   Annotations,
   // Fields
   CharFieldOptions as DbCharFieldOptions,
   CompiledQuery,
   // Backend
   DatabaseConfig,
-  DatabaseEngine,
-  DatabaseSettings,
   DateFieldOptions,
   DecimalFieldOptions,
   FieldOptions,

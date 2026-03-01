@@ -22,7 +22,7 @@ import {
   TextField,
 } from "../mod.ts";
 import { ForeignKey, OnDelete } from "../fields/relations.ts";
-import { reset, setup } from "../setup.ts";
+import { registerBackend, reset } from "../setup.ts";
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
 
 // ============================================================================
@@ -128,7 +128,7 @@ async function setupTestBackend(): Promise<DenoKVBackend> {
     path: ":memory:",
   });
   await backend.connect();
-  await setup({ backend });
+  registerBackend("default", backend);
   return backend;
 }
 
@@ -1057,12 +1057,8 @@ Deno.test({
       path: ":memory:",
     });
     await backend.connect();
-    await setup({
-      databases: {
-        default: backend,
-        primary: backend, // Register with a specific name
-      },
-    });
+    registerBackend("default", backend);
+    registerBackend("primary", backend); // Register with a specific name
 
     try {
       // Create test data

@@ -10,22 +10,23 @@ It brings Django's developer-friendly patterns to the Deno ecosystem.
 Alexi follows Django's modular architecture. Each module provides specific
 functionality:
 
-| Module                 | Django Equivalent            | Description                                   |
-| ---------------------- | ---------------------------- | --------------------------------------------- |
-| `@alexi/core`          | `django.core.management`     | Management commands, Application handler      |
-| `@alexi/db`            | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends |
-| `@alexi/urls`          | `django.urls`                | URL routing with `path()`, `include()`        |
-| `@alexi/middleware`    | `django.middleware.*`        | CORS, logging, error handling                 |
-| `@alexi/views`         | `django.views`               | Template views                                |
-| `@alexi/web`           | `django.core.handlers.wsgi`  | Web server (HTTP API)                         |
-| `@alexi/staticfiles`   | `django.contrib.staticfiles` | Static file handling, bundling                |
-| `@alexi/storage`       | `django.core.files.storage`  | File storage backends (Firebase, Memory)      |
-| `@alexi/restframework` | `djangorestframework`        | REST API: Serializers, ViewSets, Routers      |
-| `@alexi/auth`          | `django.contrib.auth`        | Authentication (JWT-based)                    |
-| `@alexi/admin`         | `django.contrib.admin`       | Auto-generated admin panel                    |
-| `@alexi/webui`         | -                            | Desktop app support via WebUI                 |
-| `@alexi/capacitor`     | -                            | Mobile app support (placeholder)              |
-| `@alexi/types`         | -                            | Shared TypeScript type definitions            |
+| Module                   | Django Equivalent            | Description                                            |
+| ------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `@alexi/core`            | `django.core`                | Universal setup (`setup`, `DatabasesConfig`)           |
+| `@alexi/core/management` | `django.core.management`     | Management commands, Application handler (server-only) |
+| `@alexi/db`              | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends          |
+| `@alexi/urls`            | `django.urls`                | URL routing with `path()`, `include()`                 |
+| `@alexi/middleware`      | `django.middleware.*`        | CORS, logging, error handling                          |
+| `@alexi/views`           | `django.views`               | Template views                                         |
+| `@alexi/web`             | `django.core.handlers.wsgi`  | Web server (HTTP API)                                  |
+| `@alexi/staticfiles`     | `django.contrib.staticfiles` | Static file handling, bundling                         |
+| `@alexi/storage`         | `django.core.files.storage`  | File storage backends (Firebase, Memory)               |
+| `@alexi/restframework`   | `djangorestframework`        | REST API: Serializers, ViewSets, Routers               |
+| `@alexi/auth`            | `django.contrib.auth`        | Authentication (JWT-based)                             |
+| `@alexi/admin`           | `django.contrib.admin`       | Auto-generated admin panel                             |
+| `@alexi/webui`           | -                            | Desktop app support via WebUI                          |
+| `@alexi/capacitor`       | -                            | Mobile app support (placeholder)                       |
+| `@alexi/types`           | -                            | Shared TypeScript type definitions                     |
 
 ---
 
@@ -95,12 +96,21 @@ Always use the `@alexi/` import aliases defined in `deno.json`:
 
 ```typescript
 // Core
-import { Application, BaseCommand, ManagementUtility } from "@alexi/core";
-import type { CommandOptions, CommandResult } from "@alexi/core";
+import { setup } from "@alexi/core";
+import type { DatabasesConfig } from "@alexi/core";
+
+// Management commands (server-only, not imported in browser bundles)
+import {
+  Application,
+  BaseCommand,
+  ManagementUtility,
+} from "@alexi/core/management";
+import type { CommandOptions, CommandResult } from "@alexi/core/management";
+import { MakemigrationsCommand, MigrateCommand } from "@alexi/core/management";
 
 // Database ORM
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
-import { getBackend, isInitialized, setBackend, setup } from "@alexi/db";
+import { getBackend, isInitialized, setBackend } from "@alexi/db";
 import { Count, Q, QuerySet, RelatedManager, Sum } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
@@ -132,7 +142,7 @@ import { HttpError, NotFoundError, UnauthorizedError } from "@alexi/middleware";
 import type { Middleware, NextFunction } from "@alexi/middleware";
 
 // REST Framework
-import { ModelViewSet, Router, ViewSet } from "@alexi/restframework";
+import { DefaultRouter, ModelViewSet, ViewSet } from "@alexi/restframework";
 import {
   CharField,
   IntegerField,
@@ -537,23 +547,36 @@ This is essentially `updateOrCreate()` for each object.
 
 ### Database Setup
 
+App-level setup is done via `setup()` from `@alexi/core`. Pass a `DATABASES`
+dict of pre-built backend instances. The function connects each backend and
+registers it with the ORM.
+
 ```typescript
-import { setup } from "@alexi/db";
+import { setup } from "@alexi/core";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 
-// Option 1: Auto-create backend
+const backend = new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" });
+
 await setup({
-  database: {
-    engine: "denokv",
-    name: "myapp",
-    path: "./data/myapp.db",
+  DATABASES: {
+    default: backend,
   },
 });
+```
 
-// Option 2: Provide backend instance
-const backend = new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" });
+For tests, `@alexi/db` still exports a low-level `setup()` that accepts a single
+backend instance or a `databases` dict:
+
+```typescript
+import { reset, setup } from "@alexi/db";
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+
+const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
 await backend.connect();
-await setup({ backend });
+await setup({ backend }); // or setup({ databases: { default: backend } })
+// ... run tests ...
+await reset();
+await backend.disconnect();
 ```
 
 ### REST Backend (Browser)
@@ -1031,10 +1054,10 @@ export class HealthViewSet extends ViewSet {
 ### Router
 
 ```typescript
-import { Router } from "@alexi/restframework";
+import { DefaultRouter } from "@alexi/restframework";
 import { HealthViewSet, TaskViewSet } from "./viewsets.ts";
 
-const router = new Router();
+const router = new DefaultRouter();
 router.register("tasks", TaskViewSet);
 router.register("health", HealthViewSet, { basename: "health" });
 
@@ -1768,7 +1791,7 @@ content %}
 
 ```typescript
 import { include, path } from "@alexi/urls";
-import { Router } from "@alexi/restframework";
+import { DefaultRouter } from "@alexi/restframework";
 
 // Simple view function
 const healthView = async (request: Request, params: Record<string, string>) => {
@@ -2077,8 +2100,8 @@ deno run -A --unstable-kv manage.ts test
 ### Creating Custom Commands
 
 ```typescript
-import { BaseCommand, failure, success } from "@alexi/core";
-import type { CommandOptions, CommandResult } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
+import type { CommandOptions, CommandResult } from "@alexi/core/management";
 
 export class MyCommand extends BaseCommand {
   readonly name = "mycommand";
@@ -2118,6 +2141,8 @@ context (so import maps work correctly):
 ```typescript
 // project/web.settings.ts
 
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+
 export const DEBUG = Deno.env.get("DEBUG") === "true";
 export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 
@@ -2139,10 +2164,8 @@ export const INSTALLED_APPS = [
 // ROOT_URLCONF is an import function that returns the URL patterns module.
 export const ROOT_URLCONF = () => import("@myapp/web/urls");
 
-export const DATABASE = {
-  engine: "denokv" as const,
-  name: "myapp",
-  path: "./data/myapp.db",
+export const DATABASES = {
+  default: new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" }),
 };
 ```
 
@@ -2380,9 +2403,16 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
 5. **Backend must be connected**: Always call `await backend.connect()` before
    use
 
-6. **Setup before ORM operations**: Call `setup()` before any model operations:
+6. **Setup before ORM operations**: Call `setup()` from `@alexi/core` before any
+   model operations:
    ```typescript
-   await setup({ backend });
+   import { setup } from "@alexi/core";
+   import { DenoKVBackend } from "@alexi/db/backends/denokv";
+   await setup({
+     DATABASES: {
+       default: new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" }),
+     },
+   });
    // Now models work
    const tasks = await TaskModel.objects.all().fetch();
    ```

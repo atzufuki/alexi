@@ -14,7 +14,6 @@ import {
   hasBackend,
   registerBackend,
   reset,
-  setup,
 } from "../setup.ts";
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
 import { AutoField, CharField, IntegerField } from "../fields/mod.ts";
@@ -46,13 +45,11 @@ Deno.test({
 
     const backend1 = new DenoKVBackend({ name: "test1", path: ":memory:" });
     const backend2 = new DenoKVBackend({ name: "test2", path: ":memory:" });
+    await backend1.connect();
+    await backend2.connect();
 
-    await setup({
-      databases: {
-        default: backend1,
-        secondary: backend2,
-      },
-    });
+    registerBackend("default", backend1);
+    registerBackend("secondary", backend2);
 
     try {
       // Check backends are registered
@@ -86,14 +83,12 @@ Deno.test({
 
     const backend1 = new DenoKVBackend({ name: "test1", path: ":memory:" });
     const backend2 = new DenoKVBackend({ name: "test2", path: ":memory:" });
+    await backend1.connect();
+    await backend2.connect();
 
     // No 'default' key - should use first backend
-    await setup({
-      databases: {
-        primary: backend1,
-        secondary: backend2,
-      },
-    });
+    registerBackend("primary", backend1);
+    registerBackend("secondary", backend2);
 
     try {
       const defaultBackend = getBackend();
@@ -112,10 +107,7 @@ Deno.test({
 
     const backend1 = new DenoKVBackend({ name: "test1", path: ":memory:" });
     await backend1.connect();
-
-    await setup({
-      backend: backend1,
-    });
+    registerBackend("default", backend1);
 
     try {
       // Register additional backend
@@ -138,13 +130,10 @@ Deno.test({
 
     const backend1 = new DenoKVBackend({ name: "test1", path: ":memory:" });
     const backend2 = new DenoKVBackend({ name: "test2", path: ":memory:" });
-
-    await setup({
-      databases: {
-        default: backend1,
-        secondary: backend2,
-      },
-    });
+    await backend1.connect();
+    await backend2.connect();
+    registerBackend("default", backend1);
+    registerBackend("secondary", backend2);
 
     try {
       // Create article using named backend
@@ -176,13 +165,9 @@ Deno.test({
     await reset();
 
     const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
-
-    await setup({
-      databases: {
-        default: backend,
-        main: backend, // Same backend, different name for testing
-      },
-    });
+    await backend.connect();
+    registerBackend("default", backend);
+    registerBackend("main", backend); // Same backend, different name for testing
 
     try {
       // Create article
@@ -217,12 +202,8 @@ Deno.test({
     await reset();
 
     const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
-
-    await setup({
-      databases: {
-        default: backend,
-      },
-    });
+    await backend.connect();
+    registerBackend("default", backend);
 
     try {
       // Manager.using() with unknown name
@@ -254,12 +235,8 @@ Deno.test({
     await reset();
 
     const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
-
-    await setup({
-      databases: {
-        default: backend,
-      },
-    });
+    await backend.connect();
+    registerBackend("default", backend);
 
     try {
       // Pass backend instance directly (existing behavior)
@@ -292,13 +269,10 @@ Deno.test({
 
     const backend1 = new DenoKVBackend({ name: "db1", path: ":memory:" });
     const backend2 = new DenoKVBackend({ name: "db2", path: ":memory:" });
-
-    await setup({
-      databases: {
-        db1: backend1,
-        db2: backend2,
-      },
-    });
+    await backend1.connect();
+    await backend2.connect();
+    registerBackend("db1", backend1);
+    registerBackend("db2", backend2);
 
     try {
       // Create article in db1
@@ -336,13 +310,10 @@ Deno.test({
 
     const backend1 = new DenoKVBackend({ name: "test1", path: ":memory:" });
     const backend2 = new DenoKVBackend({ name: "test2", path: ":memory:" });
-
-    await setup({
-      databases: {
-        default: backend1,
-        secondary: backend2,
-      },
-    });
+    await backend1.connect();
+    await backend2.connect();
+    registerBackend("default", backend1);
+    registerBackend("secondary", backend2);
 
     // Verify connected
     assertEquals(backend1.isConnected, true);

@@ -11,7 +11,7 @@ import {
 import { describe, it } from "https://deno.land/std@0.208.0/testing/bdd.ts";
 
 import { path } from "../../urls/mod.ts";
-import { Application } from "../../core/application.ts";
+import { Application } from "../../core/management/application.ts";
 import type { Middleware } from "../../middleware/types.ts";
 import {
   BadRequestError,

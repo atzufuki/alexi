@@ -8,7 +8,7 @@ import {
   assertEquals,
   assertThrows,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { ArgumentParser } from "../argument_parser.ts";
+import { ArgumentParser } from "../management/argument_parser.ts";
 
 // =============================================================================
 // Basic Parsing Tests

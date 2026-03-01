@@ -4,7 +4,7 @@
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
-    "./commands": "./commands/mod.ts"
+    "./management": "./management/mod.ts"
   },
   "imports": {
     "@alexi/types": "jsr:@alexi/types@0.26.4",

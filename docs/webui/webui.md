@@ -91,7 +91,7 @@ export const WEBUI = {
 Use `WebUILauncher` to programmatically open desktop windows:
 
 ```ts
-import { WebUILauncher } from "@alexi/webui";
+import { WebUILauncher } from "@alexi/webui/launcher";
 
 const launcher = new WebUILauncher({
   config: {
@@ -135,7 +135,7 @@ Bindings allow JavaScript code in the browser to call Deno functions.
 Alexi provides default bindings for common operations:
 
 ```ts
-import { createDefaultBindings } from "@alexi/webui";
+import { createDefaultBindings } from "@alexi/webui/bindings";
 
 const bindings = createDefaultBindings();
 // Includes: getSystemInfo, openFileDialog, saveFileDialog,
@@ -172,8 +172,8 @@ Create custom bindings for your application:
 
 ```ts
 // src/myapp-desktop/bindings.ts
-import { createDefaultBindings } from "@alexi/webui";
-import type { WebUIBindings } from "@alexi/webui";
+import { createDefaultBindings } from "@alexi/webui/bindings";
+import type { WebUIBindings } from "@alexi/webui/bindings";
 
 export function createBindings(): WebUIBindings & CustomBindings {
   return {

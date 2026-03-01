@@ -17,8 +17,9 @@
  */
 
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { reset, setup } from "@alexi/db";
+import { reset } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { setup } from "@alexi/core";
 import {
   AutoField,
   BooleanField,
@@ -126,7 +127,7 @@ function makeRequest(path: string, token?: string): Request {
 async function makeBackend() {
   const backend = new DenoKVBackend({ name: "cl_test", path: ":memory:" });
   await backend.connect();
-  await setup({ backend });
+  await setup({ DATABASES: { default: backend } });
   return backend;
 }
 

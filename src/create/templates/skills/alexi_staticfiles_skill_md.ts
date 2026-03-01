@@ -167,14 +167,13 @@ export const BUNDLE_OPTIONS = {
 
 \`\`\`typescript
 // src/myapp-ui/main.ts
-import { setup } from "@alexi/db";
+import { setup } from "@alexi/core";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 
 // Setup database
 const backend = new IndexedDBBackend({ name: "myapp" });
-await backend.connect();
-await setup({ backend });
+await setup({ DATABASES: { default: backend } });
 
 // Initialize app
 const app = new Application();

@@ -13,8 +13,9 @@
  */
 
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
-import { reset, setup } from "@alexi/db";
+import { reset } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { setup } from "@alexi/core";
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
 import { AdminSite } from "../site.ts";
 import { ModelAdmin } from "../model_admin.ts";
@@ -90,7 +91,7 @@ function makePostRequest(path: string, token?: string): Request {
 async function makeBackend() {
   const backend = new DenoKVBackend({ name: "dv_test", path: ":memory:" });
   await backend.connect();
-  await setup({ backend });
+  await setup({ DATABASES: { default: backend } });
   return backend;
 }
 

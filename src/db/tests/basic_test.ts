@@ -18,7 +18,7 @@ import {
 } from "../mod.ts";
 
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
-import { reset, setup } from "../setup.ts";
+import { registerBackend, reset } from "../setup.ts";
 
 // ============================================================================
 // Test Models
@@ -97,7 +97,7 @@ Deno.test(
       path: ":memory:",
     });
     await backend.connect();
-    await setup({ backend });
+    registerBackend("default", backend);
 
     try {
       // Set a field value BEFORE any method that triggers _initializeFields()
@@ -440,7 +440,7 @@ Deno.test("DenoKVBackend - unique field constraint", async () => {
   const dbPath = `./.test-db-unique-${Date.now()}`;
   const backend = new DenoKVBackend({ name: "test-db", path: dbPath });
   await backend.connect();
-  await setup({ backend });
+  registerBackend("default", backend);
 
   try {
     // Create first record - should succeed

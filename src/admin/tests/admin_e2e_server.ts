@@ -7,8 +7,9 @@
  * @module
  */
 
-import { reset, setup } from "@alexi/db";
+import { reset } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { setup } from "@alexi/core";
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
 import { AdminRouter, AdminSite } from "@alexi/admin";
 import { ModelAdmin } from "@alexi/admin";
@@ -57,7 +58,7 @@ export async function startAdminE2EServer(
   // Setup database
   const backend = new DenoKVBackend({ name: "admin_e2e", path: ":memory:" });
   await backend.connect();
-  await setup({ backend });
+  await setup({ DATABASES: { default: backend } });
 
   // Setup admin site
   const adminSite = new AdminSite({

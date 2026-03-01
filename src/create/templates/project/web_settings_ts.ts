@@ -22,7 +22,7 @@ import {
   errorHandlerMiddleware,
 } from "@alexi/middleware";
 
-export { DEBUG, SECRET_KEY, DATABASE, CORS_ORIGINS } from "./settings.ts";
+export { DEBUG, SECRET_KEY, DATABASES, CORS_ORIGINS } from "./settings.ts";
 import { CORS_ORIGINS } from "./settings.ts";
 
 // =============================================================================

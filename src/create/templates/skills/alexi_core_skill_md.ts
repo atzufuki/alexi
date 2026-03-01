@@ -76,8 +76,8 @@ Create a command class extending \`BaseCommand\`:
 
 \`\`\`typescript
 // src/myapp-web/commands/sync_data.ts
-import { BaseCommand, failure, success } from "@alexi/core";
-import type { ArgumentParser, CommandOptions, CommandResult } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
+import type { ArgumentParser, CommandOptions, CommandResult } from "@alexi/core/management";
 
 export class SyncDataCommand extends BaseCommand {
   readonly name = "syncdata";
@@ -142,7 +142,7 @@ Commands are auto-discovered from app's \`commands/\` directory, or register in 
 
 \`\`\`typescript
 // src/myapp-web/app.ts
-import { AppConfig } from "@alexi/core";
+import { AppConfig } from "@alexi/core/management";
 import { SyncDataCommand } from "./commands/sync_data.ts";
 
 export default class MyAppConfig extends AppConfig {
@@ -173,18 +173,15 @@ Each app module exports an AppConfig:
 
 \`\`\`typescript
 // src/myapp-web/app.ts
-import { AppConfig } from "@alexi/core";
+import { AppConfig } from "@alexi/core/management";
 
 export default class MyAppConfig extends AppConfig {
-  name = "myapp-web";
-  label = "myapp";
-  verbose_name = "My Application";
+  name = "myapp";
   
-  // Optional: custom ready hook
-  override async ready(): Promise<void> {
-    // Called when app is loaded
-    console.log("MyApp is ready!");
+  override get commands() {
+    return [SyncDataCommand];
   }
+}
 }
 \`\`\`
 
@@ -272,7 +269,7 @@ export const INSTALLED_APPS = [
 
 \`\`\`typescript
 #!/usr/bin/env -S deno run -A --unstable-kv
-import { ManagementUtility } from "@alexi/core";
+import { ManagementUtility } from "@alexi/core/management";
 
 const utility = new ManagementUtility(Deno.args);
 await utility.execute();
@@ -360,12 +357,15 @@ export default class MyAppConfig extends AppConfig { }
 ## Import Reference
 
 \`\`\`typescript
-// Application
-import { Application, AppConfig, ManagementUtility } from "@alexi/core";
+// Application & commands (server-only)
+import { Application, AppConfig, ManagementUtility } from "@alexi/core/management";
 
 // Commands
-import { BaseCommand, failure, success } from "@alexi/core";
-import type { ArgumentParser, CommandOptions, CommandResult } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
+import type { ArgumentParser, CommandOptions, CommandResult } from "@alexi/core/management";
+
+// Database setup (universal)
+import { setup } from "@alexi/core";
 \`\`\`
 `;
 }

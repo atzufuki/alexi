@@ -159,7 +159,7 @@ Request
 The Application class handles requests:
 
 \`\`\`typescript
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 
 // Typically handled by runserver command
 const app = new Application();
@@ -173,7 +173,7 @@ const response = await app.handle(request);
 
 \`\`\`typescript
 #!/usr/bin/env -S deno run -A --unstable-kv
-import { ManagementUtility } from "@alexi/core";
+import { ManagementUtility } from "@alexi/core/management";
 
 const utility = new ManagementUtility(Deno.args);
 await utility.execute();
@@ -185,7 +185,7 @@ await utility.execute();
 
 \`\`\`typescript
 // main.ts - for Deno Deploy
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 
 const app = new Application();
 await app.setup("web");
@@ -315,7 +315,7 @@ export const INSTALLED_APPS = [
 // Direct imports are rarely needed
 
 // For custom server setup
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 \`\`\`
 `;
 }
