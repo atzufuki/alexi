@@ -11,7 +11,7 @@ import { assertEquals, assertExists, assertRejects } from "jsr:@std/assert";
 import { AutoField, CharField, IntegerField, Manager, Model } from "../mod.ts";
 
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
-import { registerBackend, reset, setup } from "../setup.ts";
+import { registerBackend, reset } from "../setup.ts";
 
 // ============================================================================
 // Test Models
@@ -44,7 +44,7 @@ Deno.test("Model.save() - uses using parameter over default backend", async () =
   await backend2.connect();
 
   // Setup with backend1 as default
-  await setup({ backend: backend1 });
+  registerBackend("default", backend1);
 
   try {
     // Create a task and save to backend2 using the using parameter
@@ -86,7 +86,7 @@ Deno.test("Model.save() - uses using parameter with named backend", async () => 
   await backend2.connect();
 
   // Setup with named backends
-  await setup({ backend: backend1 });
+  registerBackend("default", backend1);
   registerBackend("secondary", backend2);
 
   try {
@@ -128,7 +128,7 @@ Deno.test("Model.delete() - uses using parameter", async () => {
 
   await backend1.connect();
   await backend2.connect();
-  await setup({ backend: backend1 });
+  registerBackend("default", backend1);
 
   try {
     // Create task in both backends
@@ -186,7 +186,7 @@ Deno.test("Model.delete() - uses instance _backend when no using parameter", asy
 
   await backend1.connect();
   await backend2.connect();
-  await setup({ backend: backend1 });
+  registerBackend("default", backend1);
 
   try {
     // Create task in backend2 - the instance should remember it was fetched from backend2
@@ -224,7 +224,7 @@ Deno.test("Model.save() - update uses instance _backend when no using parameter"
   const backend = new DenoKVBackend({ name: "test", path: dbPath });
 
   await backend.connect();
-  await setup({ backend });
+  registerBackend("default", backend);
 
   try {
     // Create task
@@ -259,7 +259,7 @@ Deno.test("Model.refresh() - uses using parameter", async () => {
   const backend = new DenoKVBackend({ name: "test", path: dbPath });
 
   await backend.connect();
-  await setup({ backend });
+  registerBackend("default", backend);
 
   try {
     // Create task
@@ -292,7 +292,7 @@ Deno.test("Model.save() - throws error for unknown named backend", async () => {
   const backend = new DenoKVBackend({ name: "test", path: dbPath });
 
   await backend.connect();
-  await setup({ backend });
+  registerBackend("default", backend);
 
   try {
     const task = new Task();

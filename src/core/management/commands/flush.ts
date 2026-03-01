@@ -40,12 +40,12 @@ const DenoKvOpen = (Deno as any).openKv as (
   path?: string,
 ) => Promise<DenoKv>;
 
-import { BaseCommand, success } from "@alexi/core";
+import { BaseCommand, success } from "../base_command.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core";
+} from "../types.ts";
 
 // =============================================================================
 // FlushCommand Class

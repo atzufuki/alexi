@@ -169,7 +169,7 @@ export const BUNDLE_OPTIONS = {
 // src/myapp-ui/main.ts
 import { setup } from "@alexi/core";
 import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
-import { Application } from "@alexi/core";
+import { Application } from "@alexi/core/management";
 
 // Setup database
 const backend = new IndexedDBBackend({ name: "myapp" });

@@ -7,8 +7,8 @@
  * @module @alexi/core/config
  */
 
-import { setup } from "./setup.ts";
-import type { DatabasesConfig } from "./setup.ts";
+import { setup } from "../setup.ts";
+import type { DatabasesConfig } from "../setup.ts";
 import { Application } from "./application.ts";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";

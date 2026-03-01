@@ -3,7 +3,7 @@
  *
  * This module contains HTTP-specific types.
  * For middleware types, use @alexi/middleware.
- * For application types, use @alexi/core.
+ * For application types, use @alexi/core/management.
  *
  * @module @alexi/http/types
  */
@@ -17,8 +17,12 @@ import type { URLPattern } from "@alexi/urls";
 // Re-export middleware types from @alexi/middleware
 export type { Middleware, NextFunction } from "@alexi/middleware";
 
-// Re-export application types from @alexi/core
-export type { ApplicationOptions, Handler, ServeOptions } from "@alexi/core";
+// Re-export application types from @alexi/core/management
+export type {
+  ApplicationOptions,
+  Handler,
+  ServeOptions,
+} from "@alexi/core/management";
 
 // ============================================================================
 // HTTP-specific Types

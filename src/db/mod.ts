@@ -141,8 +141,5 @@ export {
   registerBackend,
   reset,
   setBackend,
-  setup,
   shutdown,
 } from "./setup.ts";
-
-export type { DatabasesConfig } from "./setup.ts";

@@ -7,6 +7,7 @@
   },
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.26.4",
+    "@alexi/core/management": "jsr:@alexi/core@0.26.4/management",
     "@alexi/middleware": "jsr:@alexi/middleware@0.26.4",
     "@alexi/views": "jsr:@alexi/views@0.26.4",
     "@alexi/staticfiles": "jsr:@alexi/staticfiles@0.26.4",

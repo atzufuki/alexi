@@ -12,8 +12,8 @@ import {
   Manager,
   Model,
   reset,
-  setup,
 } from "../mod.ts";
+import { registerBackend } from "../setup.ts";
 import { DenoKVBackend } from "../backends/denokv/mod.ts";
 
 // ============================================================================
@@ -47,7 +47,7 @@ let backend: DenoKVBackend;
 async function setupTestDb(): Promise<void> {
   backend = new DenoKVBackend({ name: "test", path: ":memory:" });
   await backend.connect();
-  await setup({ backend });
+  registerBackend("default", backend);
 }
 
 async function teardownTestDb(): Promise<void> {

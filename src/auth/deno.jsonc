@@ -9,6 +9,7 @@
   },
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.26.4",
+    "@alexi/core/management": "jsr:@alexi/core@0.26.4/management",
     "@alexi/db": "jsr:@alexi/db@0.26.4",
     "@alexi/types": "jsr:@alexi/types@0.26.4"
   }

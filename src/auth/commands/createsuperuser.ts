@@ -10,13 +10,14 @@
  * @module @alexi/auth/commands/createsuperuser
  */
 
-import { BaseCommand, failure, setup, success } from "@alexi/core";
+import { setup } from "@alexi/core";
+import type { DatabasesConfig } from "@alexi/core";
+import { BaseCommand, failure, success } from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
-  DatabasesConfig,
   IArgumentParser,
-} from "@alexi/core";
+} from "@alexi/core/management";
 
 // =============================================================================
 // Types

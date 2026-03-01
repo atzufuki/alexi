@@ -15,14 +15,20 @@
  * @module @alexi/web/commands/runserver
  */
 
-import { BaseCommand, failure, setup, success } from "@alexi/core";
+import { setup } from "@alexi/core";
+import type { DatabasesConfig } from "@alexi/core";
+import {
+  Application,
+  BaseCommand,
+  failure,
+  success,
+} from "@alexi/core/management";
 import type {
+  ApplicationOptions,
   CommandOptions,
   CommandResult,
-  DatabasesConfig,
   IArgumentParser,
-} from "@alexi/core";
-import { Application } from "@alexi/core";
+} from "@alexi/core/management";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
