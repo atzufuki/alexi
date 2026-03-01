@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.29.1] - 2026-03-01
+
+### Fixed
+
+- `@alexi/create`: scaffolded projects now use the correct `@alexi/*` version in
+  `deno.jsonc` instead of hardcoded `@^0.18` (#182, #183)
+- `@alexi/create`: added missing `@alexi/core/management` subpath to generated
+  import map (#183)
+- `@alexi/create`: CLI `--version` flag now reads version dynamically from
+  `deno.jsonc` instead of hardcoded `0.15.0` (#183)
+- `@alexi/restframework`: `@action` decorator rewritten to use TC39 stage 3
+  decorators (Deno 2.x default) — custom ViewSet actions like `publish` were
+  silently not registered with `DefaultRouter`, causing 404s (#183)
+
+### Changed
+
+- `@alexi/create`: merged `project/settings.ts` and `project/web.settings.ts`
+  into a single `project/settings.ts`; deno tasks now use
+  `--settings ./project/settings.ts` (#183)
+
 ## [0.29.0] - 2026-03-01
 
 ### Changed
