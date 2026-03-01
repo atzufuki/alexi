@@ -142,7 +142,7 @@ import { HttpError, NotFoundError, UnauthorizedError } from "@alexi/middleware";
 import type { Middleware, NextFunction } from "@alexi/middleware";
 
 // REST Framework
-import { ModelViewSet, Router, ViewSet } from "@alexi/restframework";
+import { DefaultRouter, ModelViewSet, ViewSet } from "@alexi/restframework";
 import {
   CharField,
   IntegerField,
@@ -1054,10 +1054,10 @@ export class HealthViewSet extends ViewSet {
 ### Router
 
 ```typescript
-import { Router } from "@alexi/restframework";
+import { DefaultRouter } from "@alexi/restframework";
 import { HealthViewSet, TaskViewSet } from "./viewsets.ts";
 
-const router = new Router();
+const router = new DefaultRouter();
 router.register("tasks", TaskViewSet);
 router.register("health", HealthViewSet, { basename: "health" });
 
@@ -1791,7 +1791,7 @@ content %}
 
 ```typescript
 import { include, path } from "@alexi/urls";
-import { Router } from "@alexi/restframework";
+import { DefaultRouter } from "@alexi/restframework";
 
 // Simple view function
 const healthView = async (request: Request, params: Record<string, string>) => {

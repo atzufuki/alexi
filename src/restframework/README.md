@@ -34,7 +34,7 @@ class TodoSerializer extends ModelSerializer {
 
 class TodoViewSet extends ModelViewSet {
   model = TodoModel;
-  serializerClass = TodoSerializer;
+  serializer_class = TodoSerializer;
 }
 
 const router = new DefaultRouter();
