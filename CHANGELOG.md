@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-03-01
+
+### Changed
+
+- `startapp` command now generates a single unified app structure for all
+  platforms — no more `--type` flag or separate
+  server/desktop/browser/cli/library templates. Every app gets both a server
+  module and a browser worker module following Django conventions (#180, #181)
+- Example app replaced: Todo (Board + Todo models) → Posts (single PostModel
+  with title, content, published flag) inspired by the Django tutorial
+- Scaffold README rewritten for the unified architecture
+
+### Removed
+
+- `startapp` app types (`server`, `desktop`, `mobile`, `cli`, `library`,
+  `browser`) — replaced by a single unified structure
+- `AppTypeCommand` class — `startapp` is now a single `StartappCommand`
+- Desktop (`WebUI`) and UI (SPA) app templates removed from scaffold
+- Old Todo example app templates (BoardModel, TodoModel, SPA components)
+
 ## [0.28.0] - 2026-03-01
 
 ### Added
