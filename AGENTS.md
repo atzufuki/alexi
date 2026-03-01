@@ -2042,6 +2042,7 @@ export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
 | `cli`     | Command-line tool                  | ✅           |
 | `library` | Reusable library (no entrypoint)   | ❌           |
 | `sw`      | Service Worker (offline-first MPA) | ✅           |
+| `browser` | Browser app with SW + DOM entries  | ✅           |
 
 ```bash
 # Create a Service Worker app
@@ -2083,6 +2084,56 @@ Then run the dev server:
 
 ```bash
 deno run -A manage.ts runserver --settings my-app-sw
+```
+
+#### `browser` App Type
+
+The `browser` type scaffolds a browser app with two separate entry points:
+`worker.ts` (Service Worker context) and `document.ts` (Document/DOM context).
+
+```bash
+deno run -A manage.ts startapp my-app --type browser
+```
+
+The `browser` type generates:
+
+```
+src/my-app/
+├── app.ts              # AppConfig with staticfiles[] (2 entry points)
+├── mod.ts              # Re-exports models, views, urls, endpoints
+├── models.ts           # ORM models (IndexedDB)
+├── endpoints.ts        # REST endpoint definitions
+├── views.ts            # templateView functions (used by worker.ts)
+├── urls.ts             # URL patterns (used by worker.ts)
+├── worker.ts           # SW entry: Application + install/activate/fetch events
+├── document.ts         # DOM entry: custom elements, client-side init (RestBackend)
+├── static/
+│   └── my-app/
+│       └── index.html  # SW registration + htmx bootstrap
+└── templates/
+    └── my-app/
+        ├── base.html   # HTML shell; loads document.js as <script type="module">
+        └── index.html  # Home page template extending base
+```
+
+The `app.ts` uses `staticfiles` (not `bundle`) to declare both outputs:
+
+```typescript
+staticfiles: [
+  { entrypoint: "./worker.ts", outputFile: "./static/my-app/worker.js" },
+  { entrypoint: "./document.ts", outputFile: "./static/my-app/document.js" },
+];
+```
+
+After scaffolding, wire up the import map in `deno.json`:
+
+```json
+{
+  "imports": {
+    "@my-app/browser": "./src/my-app/mod.ts",
+    "@my-app/browser/urls": "./src/my-app/urls.ts"
+  }
+}
 ```
 
 ### Running Commands

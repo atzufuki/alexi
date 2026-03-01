@@ -319,6 +319,51 @@ export interface TargetConfig {
 // =============================================================================
 
 /**
+ * Static file bundle configuration for a single entry point.
+ *
+ * Used in `AppConfig.staticfiles` to declare multiple bundles per app
+ * (e.g. a `worker.ts` Service Worker bundle and a `document.ts` DOM bundle).
+ */
+export interface StaticfileConfig {
+  /**
+   * Entrypoint file for bundling.
+   * Path is relative to the app's directory.
+   *
+   * @example "./worker.ts"
+   * @example "./document.ts"
+   */
+  entrypoint: string;
+
+  /**
+   * Output file path (including filename), relative to the app's directory.
+   *
+   * @example "./static/myapp/worker.js"
+   * @example "./static/myapp/document.js"
+   */
+  outputFile: string;
+
+  /**
+   * Additional options for the bundler.
+   */
+  options?: {
+    /**
+     * Enable minification for production builds.
+     */
+    minify?: boolean;
+
+    /**
+     * Enable source maps.
+     */
+    sourceMaps?: boolean;
+
+    /**
+     * External modules that should not be bundled.
+     */
+    external?: string[];
+  };
+}
+
+/**
  * Bundle configuration for frontend apps.
  */
 export interface BundleConfig {
@@ -556,6 +601,21 @@ export interface AppConfig {
    * If defined, the `bundle` command will compile TypeScript → JavaScript.
    */
   bundle?: BundleConfig;
+
+  /**
+   * Multiple frontend bundle entry points.
+   *
+   * Use this instead of `bundle` when an app produces more than one JS output
+   * (e.g. a browser app with a `worker.ts` Service Worker entry and a
+   * `document.ts` DOM entry).  Each item is bundled independently.
+   *
+   * @example
+   * staticfiles: [
+   *   { entrypoint: "./worker.ts",   outputFile: "./static/myapp/worker.js" },
+   *   { entrypoint: "./document.ts", outputFile: "./static/myapp/document.js" },
+   * ]
+   */
+  staticfiles?: StaticfileConfig[];
 
   /**
    * Static files directory.

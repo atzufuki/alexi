@@ -22,7 +22,7 @@ import type {
   CommandResult,
   IArgumentParser,
 } from "@alexi/core/management";
-import type { AppConfig, BundleConfig } from "@alexi/types";
+import type { AppConfig, BundleConfig, StaticfileConfig } from "@alexi/types";
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
 import { join, toFileUrl } from "@std/path";
@@ -720,14 +720,17 @@ export class BundleCommand extends BaseCommand {
           continue;
         }
 
-        // Check if app has bundle configuration
-        if (!config.bundle) {
+        // Check if app has bundle configuration (either bundle or staticfiles)
+        if (
+          !config.bundle &&
+          (!config.staticfiles || config.staticfiles.length === 0)
+        ) {
           this.debug(`App ${config.name} has no bundle configuration`, true);
           continue;
         }
 
         // Get the app path from bundle config or derive from name
-        const appPath = config.bundle.appPath ?? `./src/${config.name}`;
+        const appPath = config.bundle?.appPath ?? `./src/${config.name}`;
 
         apps.push({ name: config.name, path: appPath, config });
       } catch (error) {
@@ -757,8 +760,15 @@ export class BundleCommand extends BaseCommand {
     const results: BundleResult[] = [];
 
     for (const app of apps) {
-      const result = await this.bundleApp(app, options);
-      results.push(result);
+      if (app.config.bundle) {
+        const result = await this.bundleApp(app, options);
+        results.push(result);
+      } else if (app.config.staticfiles && app.config.staticfiles.length > 0) {
+        for (const staticfile of app.config.staticfiles) {
+          const result = await this.bundleStaticfile(app, staticfile, options);
+          results.push(result);
+        }
+      }
     }
 
     return results;
@@ -848,8 +858,70 @@ export class BundleCommand extends BaseCommand {
   }
 
   /**
-   * Bundle JavaScript/TypeScript entry point using esbuild with code-splitting
-   *
+   * Bundle a single staticfile entry (from config.staticfiles[])
+   */
+  private async bundleStaticfile(
+    app: { name: string; path: string; config: AppConfig },
+    staticfile: StaticfileConfig,
+    options: {
+      minify: boolean;
+      debug: boolean;
+      importFunctions?: AppImportFn[];
+    },
+  ): Promise<BundleResult> {
+    const startTime = performance.now();
+
+    try {
+      const appPath = app.path.replace(/^\.\//, "");
+      const entrypoint = staticfile.entrypoint.replace(/^\.\//, "");
+      const outputFile = staticfile.outputFile.replace(/^\.\//, "");
+
+      const appDir = `./${appPath}`;
+      const entryPoint = `${appDir}/${entrypoint}`;
+      const outputPath = `${appDir}/${outputFile}`;
+      const outputDir = outputPath.substring(0, outputPath.lastIndexOf("/"));
+
+      // Ensure output directory exists
+      await Deno.mkdir(outputDir, { recursive: true });
+
+      // Collect templates for embedding when there are import functions
+      let templates: DiscoveredTemplate[] = [];
+      if (options.importFunctions && options.importFunctions.length > 0) {
+        templates = await collectAllTemplates(
+          options.importFunctions,
+          this.projectRoot,
+        );
+        if (templates.length > 0) {
+          this.info(
+            `  Embedding ${templates.length} templates into ${outputFile}...`,
+          );
+        }
+      }
+
+      const minify = staticfile.options?.minify ?? options.minify;
+      const outputName = outputPath.substring(outputPath.lastIndexOf("/") + 1);
+
+      this.info(`Bundling ${app.name} (${outputName})...`);
+      await this.bundleJS(entryPoint, outputPath, minify, templates);
+
+      return {
+        appName: `${app.name}/${outputName}`,
+        success: true,
+        outputPath,
+        duration: performance.now() - startTime,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        appName: app.name,
+        success: false,
+        error: message,
+        duration: performance.now() - startTime,
+      };
+    }
+  }
+
+  /**
    * Code-splitting produces:
    * - main.js (entry point)
    * - chunk-XXXX.js (shared modules)
