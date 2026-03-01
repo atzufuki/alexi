@@ -36,8 +36,7 @@ ${name}/
 ├── manage.ts                 # Django-style management entry point
 ├── deno.jsonc                # Workspace config with tasks and import maps
 ├── project/
-│   ├── settings.ts           # Shared settings
-│   └── web.settings.ts       # Web server settings
+│   └── settings.ts           # Project settings
 │
 └── src/
     └── ${name}/              # Unified app

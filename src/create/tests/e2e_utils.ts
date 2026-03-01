@@ -275,7 +275,7 @@ export async function startApiServer(
       "manage.ts",
       "runserver",
       "--settings",
-      "web",
+      "./project/settings.ts",
       "--port",
       String(port),
     ],
