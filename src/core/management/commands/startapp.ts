@@ -717,9 +717,9 @@ export const homeView = templateView({
   <script src="https://unpkg.com/htmx.org@2" defer></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/static/${name}/worker.js").then((reg) => {
+      navigator.serviceWorker.register("/static/${name}/worker.js", { type: "module" }).then((reg) => {
         function render() {
-          htmx.ajax("GET", location.href, { target: "#content", swap: "innerHTML" });
+          htmx.ajax("GET", "/", { target: "#content", swap: "innerHTML" });
         }
         if (navigator.serviceWorker.controller) {
           render();

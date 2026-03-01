@@ -729,8 +729,9 @@ export class BundleCommand extends BaseCommand {
           continue;
         }
 
-        // Get the app path from bundle config or derive from name
-        const appPath = config.bundle?.appPath ?? `./src/${config.name}`;
+        // Get the app path from config (explicit appPath, legacy bundle.appPath, or convention)
+        const appPath = config.appPath ?? config.bundle?.appPath ??
+          `./src/${config.name}`;
 
         apps.push({ name: config.name, path: appPath, config });
       } catch (error) {
