@@ -51,7 +51,7 @@ jobs:
           deno-version: v2.x
 
       - name: Cache Deno dependencies
-        run: deno cache --unstable-kv src/create/tests/todo_e2e_test.ts
+        run: deno cache --unstable-kv src/create/tests/posts_e2e_test.ts
 
       - name: Install Playwright browsers
         run: deno run -A npm:playwright install chromium
