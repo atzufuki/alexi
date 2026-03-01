@@ -17,22 +17,16 @@ export function generateSerializersTs(name: string): string {
  */
 
 import { ModelSerializer } from "@alexi/restframework";
-import { TodoModel } from "@${name}/models.ts";
+import { PostModel } from "@${name}/models.ts";
 
 /**
- * Todo serializer - handles serialization/deserialization of Todo objects
- *
- * Note: board is read-only because:
- * 1. It shouldn't change after creation
- * 2. BoardModel uses CharField PK (session ID like "abc12"), but the
- *    serializer auto-generates IntegerField for ForeignKey. Making it
- *    read-only avoids validation issues on update.
+ * Post serializer - handles serialization/deserialization of Post objects
  */
-export class TodoSerializer extends ModelSerializer {
+export class PostSerializer extends ModelSerializer {
   static override Meta = {
-    model: TodoModel,
-    fields: ["id", "board", "title", "completed", "createdAt", "updatedAt"],
-    readOnlyFields: ["id", "board", "createdAt", "updatedAt"],
+    model: PostModel,
+    fields: ["id", "title", "content", "published", "createdAt", "updatedAt"],
+    readOnlyFields: ["id", "createdAt", "updatedAt"],
   };
 }
 `;

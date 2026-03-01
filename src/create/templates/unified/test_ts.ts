@@ -5,23 +5,23 @@
  */
 
 /**
- * Generate tests/todo_test.ts content for the unified app
+ * Generate tests/post_test.ts content for the unified app
  */
-export function generateTodoTestTs(name: string): string {
+export function generatePostTestTs(name: string): string {
   const appName = toPascalCase(name);
 
   return `/**
- * Todo API tests for ${name}
+ * Post API tests for ${name}
  */
 
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
 import { reset } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { setup } from "@alexi/core";
-import { TodoModel } from "@${name}/models.ts";
+import { PostModel } from "@${name}/models.ts";
 
 Deno.test({
-  name: "${appName}: TodoModel CRUD",
+  name: "${appName}: PostModel CRUD",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
@@ -31,26 +31,28 @@ Deno.test({
 
     try {
       // Create
-      const todo = await TodoModel.objects.create({
-        title: "Test Todo",
-        completed: false,
+      const post = await PostModel.objects.create({
+        title: "Test Post",
+        content: "Hello, world!",
+        published: false,
       });
 
-      assertExists(todo.id.get());
-      assertEquals(todo.title.get(), "Test Todo");
-      assertEquals(todo.completed.get(), false);
+      assertExists(post.id.get());
+      assertEquals(post.title.get(), "Test Post");
+      assertEquals(post.content.get(), "Hello, world!");
+      assertEquals(post.published.get(), false);
 
       // Update
-      todo.completed.set(true);
-      await todo.save();
+      post.published.set(true);
+      await post.save();
 
-      const updated = await TodoModel.objects.get({ id: todo.id.get() });
-      assertEquals(updated.completed.get(), true);
+      const updated = await PostModel.objects.get({ id: post.id.get() });
+      assertEquals(updated.published.get(), true);
 
       // Delete
-      await todo.delete();
-      const deleted = await TodoModel.objects
-        .filter({ id: todo.id.get() })
+      await post.delete();
+      const deleted = await PostModel.objects
+        .filter({ id: post.id.get() })
         .first();
       assertEquals(deleted, null);
     } finally {

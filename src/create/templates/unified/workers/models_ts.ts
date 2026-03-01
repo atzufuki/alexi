@@ -17,8 +17,8 @@ export function generateWorkerModelsTs(name: string): string {
  */
 
 // Re-export server models that should be available in the browser
-// import { TodoModel } from "../../models.ts";
-// export { TodoModel };
+// import { PostModel } from "../../models.ts";
+// export { PostModel };
 
 // Or define browser-only models here
 `;

@@ -18,105 +18,49 @@ export function generateViewsetsTs(name: string): string {
 
 import { ModelViewSet, action } from "@alexi/restframework";
 import type { ViewSetContext } from "@alexi/restframework";
-import { BoardModel, TodoModel } from "@${name}/models.ts";
-import { TodoSerializer } from "@${name}/serializers.ts";
+import { PostModel } from "@${name}/models.ts";
+import { PostSerializer } from "@${name}/serializers.ts";
 
 /**
- * Get or create a board by ID
- *
- * If the board doesn't exist, creates it automatically.
- * This enables the "share by URL" feature.
- */
-async function getOrCreateBoard(boardId: string): Promise<BoardModel> {
-  let board = await BoardModel.objects.filter({ id: boardId }).first();
-  if (!board) {
-    board = await BoardModel.objects.create({ id: boardId });
-  }
-  return board;
-}
-
-/**
- * Extract board from context
- *
- * Supports both URL param (/api/todos/:board/) and query string (?board=abc12)
- * RestBackend sends ForeignKey fields as field_id (e.g., board_id), so we check both.
- */
-function getBoardId(context: ViewSetContext): string | null {
-  // Check URL params first (nested route)
-  const board = context.params?.board;
-  if (board) return board;
-
-  // Check query string - RestBackend sends ForeignKey as board_id
-  const url = new URL(context.request.url);
-  return url.searchParams.get("board_id") || url.searchParams.get("board");
-}
-
-/**
- * Todo ViewSet - provides CRUD operations for todos
+ * Post ViewSet - provides CRUD operations for blog posts
  *
  * Endpoints:
- *   GET    /api/todos/?board=abc12     - List todos for a board
- *   POST   /api/todos/?board=abc12     - Create a new todo
- *   GET    /api/todos/:id/             - Get a single todo
- *   PUT    /api/todos/:id/             - Update a todo
- *   DELETE /api/todos/:id/             - Delete a todo
- *   POST   /api/todos/:id/toggle/      - Toggle completed status
+ *   GET    /api/posts/              - List all posts
+ *   POST   /api/posts/              - Create a new post
+ *   GET    /api/posts/:id/          - Get a single post
+ *   PUT    /api/posts/:id/          - Update a post
+ *   DELETE /api/posts/:id/          - Delete a post
+ *   POST   /api/posts/:id/publish/  - Publish a post
  */
-export class TodoViewSet extends ModelViewSet {
-  model = TodoModel;
-  serializer_class = TodoSerializer;
+export class PostViewSet extends ModelViewSet {
+  model = PostModel;
+  serializer_class = PostSerializer;
 
   /**
-   * Filter todos by board
+   * Optionally filter posts by published status
    */
   override async getQueryset(context: ViewSetContext) {
     const qs = await super.getQueryset(context);
-    const boardId = getBoardId(context);
-    if (boardId) {
-      return qs.filter({ board: boardId });
+    const url = new URL(context.request.url);
+    const published = url.searchParams.get("published");
+    if (published === "true") {
+      return qs.filter({ published: true });
+    }
+    if (published === "false") {
+      return qs.filter({ published: false });
     }
     return qs;
   }
 
   /**
-   * Create a todo with board automatically assigned
-   */
-  override async create(context: ViewSetContext): Promise<Response> {
-    // Parse the request body
-    const data = await context.request.json();
-
-    // Get board from body or query string
-    // RestBackend sends ForeignKey as board_id, so check both
-    const boardId = data.board_id || data.board || getBoardId(context);
-    if (!boardId) {
-      return Response.json(
-        { error: "board is required" },
-        { status: 400 },
-      );
-    }
-
-    // Ensure board exists (auto-create for shareable URLs)
-    await getOrCreateBoard(boardId);
-
-    // Create the todo with board reference
-    const todo = await TodoModel.objects.create({
-      ...data,
-      board: boardId,
-    });
-
-    const serializer = new TodoSerializer({ instance: todo });
-    return Response.json(await serializer.data, { status: 201 });
-  }
-
-  /**
-   * Toggle the completed status of a todo
+   * Publish a post
    */
   @action({ detail: true, methods: ["POST"] })
-  async toggle(context: ViewSetContext): Promise<Response> {
-    const todo = await this.getObject(context);
-    todo.toggle();
-    await todo.save();
-    return Response.json(await new TodoSerializer({ instance: todo }).data);
+  async publish(context: ViewSetContext): Promise<Response> {
+    const post = await this.getObject(context);
+    post.published.set(true);
+    await post.save();
+    return Response.json(await new PostSerializer({ instance: post }).data);
   }
 }
 `;

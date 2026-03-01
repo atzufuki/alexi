@@ -1,7 +1,7 @@
 /**
  * Project generator for @alexi/create CLI
  *
- * Generates a unified Todo application with a single app directory
+ * Generates a unified Posts application with a single app directory
  * containing server-side code, frontend assets, and Service Worker.
  *
  * @module @alexi/create/project
@@ -25,7 +25,7 @@ import { generateSerializersTs } from "./templates/unified/serializers_ts.ts";
 import { generateViewsetsTs } from "./templates/unified/viewsets_ts.ts";
 import { generateUrlsTs } from "./templates/unified/urls_ts.ts";
 import { generateViewsTs } from "./templates/unified/views_ts.ts";
-import { generateTodoTestTs } from "./templates/unified/test_ts.ts";
+import { generatePostTestTs } from "./templates/unified/test_ts.ts";
 import { generateInitMigration } from "./templates/unified/migration_ts.ts";
 import { generateStaticIndexHtml } from "./templates/unified/static_index_html.ts";
 
@@ -264,8 +264,8 @@ async function generateFiles(name: string): Promise<void> {
       content: generateViewsTs(name),
     },
     {
-      path: `${name}/src/${name}/tests/todo_test.ts`,
-      content: generateTodoTestTs(name),
+      path: `${name}/src/${name}/tests/post_test.ts`,
+      content: generatePostTestTs(name),
     },
     {
       path: `${name}/src/${name}/migrations/0001_init.ts`,

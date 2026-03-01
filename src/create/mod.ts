@@ -38,7 +38,7 @@ export { generateSerializersTs } from "./templates/unified/serializers_ts.ts";
 export { generateViewsetsTs } from "./templates/unified/viewsets_ts.ts";
 export { generateUrlsTs } from "./templates/unified/urls_ts.ts";
 export { generateViewsTs } from "./templates/unified/views_ts.ts";
-export { generateTodoTestTs } from "./templates/unified/test_ts.ts";
+export { generatePostTestTs } from "./templates/unified/test_ts.ts";
 export { generateInitMigration } from "./templates/unified/migration_ts.ts";
 export { generateStaticIndexHtml } from "./templates/unified/static_index_html.ts";
 
