@@ -35,7 +35,7 @@ Deno.test({
   name: "Posts App E2E Tests",
   // E2E tests are slow (project scaffolding + server startup + API calls).
   // Run manually or in CI with: deno test -A --unstable-kv --filter "Posts App E2E"
-  ignore: true,
+  ignore: false,
   sanitizeOps: false,
   sanitizeResources: false,
   async fn(t) {

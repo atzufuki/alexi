@@ -13,11 +13,8 @@ export function generateManageTs(): string {
  * Django-style management entry point
  *
  * Run with:
- *   deno task dev          # Start all servers
- *   deno task dev:web      # Web server only
- *   deno task dev:ui       # UI server only
- *   deno task dev:desktop  # Desktop app only
- *   deno task test         # Run tests
+ *   deno task dev     # Start the web server
+ *   deno task test    # Run tests
  */
 
 import { ManagementUtility } from "@alexi/core/management";
