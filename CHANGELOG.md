@@ -8,6 +8,46 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-03-01
+
+### Added
+
+- `setup()` function exported from `@alexi/core` for universal framework
+  initialization (works in both server and browser contexts)
+- `@alexi/core/management` sub-path export for all server-only code:
+  `Application`, `BaseCommand`, `ManagementUtility`, `failure`, `success`,
+  `CommandOptions`, `CommandResult`, `IArgumentParser`, `MakemigrationsCommand`,
+  `MigrateCommand`, and all other management utilities
+
+### Changed
+
+- `DATABASES` config key replaces the old `DATABASE` key in settings and
+  `setup()` call — allows multiple named backends
+
+### Breaking Changes
+
+- `Application`, `BaseCommand`, `ManagementUtility`, `failure`, `success`, and
+  all other server-only exports have been moved from `@alexi/core` to
+  `@alexi/core/management`. Update imports:
+  ```typescript
+  // Before
+  import { Application, BaseCommand, ManagementUtility } from "@alexi/core";
+  // After
+  import {
+    Application,
+    BaseCommand,
+    ManagementUtility,
+  } from "@alexi/core/management";
+  ```
+- `@alexi/core` now only exports `setup` and `DatabasesConfig`
+- `DATABASE` renamed to `DATABASES` in settings and `setup()` options:
+  ```typescript
+  // Before
+  await setup({ DATABASE: backend });
+  // After
+  await setup({ DATABASES: { default: backend } });
+  ```
+
 ## [0.26.4] - 2026-02-28
 
 ### Fixed
