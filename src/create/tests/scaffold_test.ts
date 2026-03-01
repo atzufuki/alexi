@@ -315,6 +315,22 @@ Deno.test({
       );
     });
 
+    await t.step("urls.ts includes root route with homeView", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/urls.ts`,
+      );
+      assertEquals(
+        content.includes("homeView"),
+        true,
+        "urls.ts should import and use homeView",
+      );
+      assertEquals(
+        content.includes('path("", homeView)'),
+        true,
+        'urls.ts should have path("", homeView) for the root route',
+      );
+    });
+
     // ==========================================================================
     // Unified App — Static Files
     // ==========================================================================

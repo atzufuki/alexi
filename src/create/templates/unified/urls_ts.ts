@@ -17,6 +17,7 @@ export function generateUrlsTs(name: string): string {
 import { path, include } from "@alexi/urls";
 import { DefaultRouter } from "@alexi/restframework";
 import { PostViewSet } from "@${name}/viewsets.ts";
+import { homeView } from "@${name}/views.ts";
 
 // Create router and register viewsets
 const router = new DefaultRouter();
@@ -32,6 +33,7 @@ const apiPatterns = [
 
 // Main URL patterns
 export const urlpatterns = [
+  path("", homeView),
   path("api/", include(apiPatterns)),
 ];
 `;
