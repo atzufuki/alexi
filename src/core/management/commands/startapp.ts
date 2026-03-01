@@ -19,12 +19,11 @@ import type {
 
 export type AppType =
   | "cli"
-  | "web"
-  | "ui"
+  | "server"
   | "desktop"
   | "mobile"
   | "library"
-  | "sw";
+  | "browser";
 
 interface AppTypeInfo {
   name: AppType;
@@ -33,8 +32,7 @@ interface AppTypeInfo {
 }
 
 const APP_TYPES: AppTypeInfo[] = [
-  { name: "web", description: "HTTP API server", hasSettings: true },
-  { name: "ui", description: "Frontend application", hasSettings: true },
+  { name: "server", description: "HTTP server", hasSettings: true },
   { name: "desktop", description: "Desktop app (WebUI)", hasSettings: true },
   { name: "mobile", description: "Mobile app (Capacitor)", hasSettings: true },
   { name: "cli", description: "Command-line tool", hasSettings: true },
@@ -44,8 +42,8 @@ const APP_TYPES: AppTypeInfo[] = [
     hasSettings: false,
   },
   {
-    name: "sw",
-    description: "Service Worker (offline-first MPA)",
+    name: "browser",
+    description: "Browser app (Service Worker + DOM entry points)",
     hasSettings: true,
   },
 ];
@@ -69,13 +67,12 @@ export class StartAppCommand extends BaseCommand {
   readonly help = "Create a new app within the project";
   override readonly description =
     "Creates a new app with the specified name and type. " +
-    "Entrypoint apps (web, ui, desktop, mobile, cli) get their own settings file.";
+    "Entrypoint apps (server, desktop, mobile, cli) get their own settings file.";
 
   override readonly examples = [
     "manage.ts startapp myapp              - Create app (interactive type selection)",
-    "manage.ts startapp myapi --type web   - Create a web API app",
-    "manage.ts startapp myui --type ui     - Create a UI frontend app",
-    "manage.ts startapp mysw --type sw     - Create a Service Worker app",
+    "manage.ts startapp myapi --type server   - Create a server app",
+    "manage.ts startapp mybrowser --type browser - Create a browser app",
     "manage.ts startapp mylib --type library - Create a library",
   ];
 
@@ -92,7 +89,7 @@ export class StartAppCommand extends BaseCommand {
     parser.addArgument("--type", {
       type: "string",
       alias: "-t",
-      help: "App type: cli, web, ui, desktop, mobile, library, sw",
+      help: "App type: cli, server, desktop, mobile, library, browser",
     });
 
     parser.addArgument("--no-input", {
@@ -234,9 +231,9 @@ export class StartAppCommand extends BaseCommand {
       return typeByName.name;
     }
 
-    // Default to web
-    this.warn(`Invalid selection, defaulting to "web"`);
-    return "web";
+    // Default to server
+    this.warn(`Invalid selection, defaulting to "server"`);
+    return "server";
   }
 
   // ===========================================================================
@@ -263,13 +260,8 @@ export class StartAppCommand extends BaseCommand {
     // Type-specific directories
     if (type === "cli") {
       dirs.push(`${appDir}/commands`);
-    } else if (type === "ui") {
-      dirs.push(`${appDir}/templates`);
-      dirs.push(`${appDir}/components`);
-      dirs.push(`${appDir}/static`);
-    } else if (type === "sw") {
+    } else if (type === "browser") {
       dirs.push(`${appDir}/static/${name}`);
-      dirs.push(`${appDir}/templates/${name}`);
     }
 
     for (const dir of dirs) {
@@ -303,7 +295,7 @@ export class StartAppCommand extends BaseCommand {
 
     // Type-specific files
     switch (type) {
-      case "web":
+      case "server":
         files.push({
           path: `${appDir}/models.ts`,
           content: this.generateModelsTs(name),
@@ -326,34 +318,7 @@ export class StartAppCommand extends BaseCommand {
         });
         files.push({
           path: `project/${name}.settings.ts`,
-          content: this.generateWebSettings(name),
-        });
-        break;
-
-      case "ui":
-        files.push({
-          path: `${appDir}/urls.ts`,
-          content: this.generateUiUrlsTs(name),
-        });
-        files.push({
-          path: `${appDir}/views.ts`,
-          content: this.generateUiViewsTs(name),
-        });
-        files.push({
-          path: `${appDir}/templates/base.ts`,
-          content: this.generateBaseTemplate(name),
-        });
-        files.push({
-          path: `${appDir}/components/mod.ts`,
-          content: this.generateComponentsMod(name),
-        });
-        files.push({
-          path: `${appDir}/static/index.html`,
-          content: this.generateIndexHtml(name),
-        });
-        files.push({
-          path: `project/${name}.settings.ts`,
-          content: this.generateUiSettings(name),
+          content: this.generateServerSettings(name),
         });
         break;
 
@@ -410,38 +375,46 @@ export class StartAppCommand extends BaseCommand {
         // No settings file for library
         break;
 
-      case "sw":
+      case "browser":
         files.push({
           path: `${appDir}/models.ts`,
           content: this.generateModelsTs(name),
         });
         files.push({
+          path: `${appDir}/endpoints.ts`,
+          content: this.generateBrowserEndpointsTs(name),
+        });
+        files.push({
           path: `${appDir}/views.ts`,
-          content: this.generateSwViewsTs(name),
+          content: this.generateBrowserViewsTs(name),
         });
         files.push({
           path: `${appDir}/urls.ts`,
-          content: this.generateSwUrlsTs(name),
+          content: this.generateBrowserUrlsTs(name),
         });
         files.push({
-          path: `${appDir}/sw.ts`,
-          content: this.generateSwTs(name),
+          path: `${appDir}/worker.ts`,
+          content: this.generateBrowserWorkerTs(name),
+        });
+        files.push({
+          path: `${appDir}/document.ts`,
+          content: this.generateBrowserDocumentTs(name),
         });
         files.push({
           path: `${appDir}/static/${name}/index.html`,
-          content: this.generateSwIndexHtml(name),
+          content: this.generateBrowserIndexHtml(name),
         });
         files.push({
           path: `${appDir}/templates/${name}/base.html`,
-          content: this.generateSwBaseHtml(name),
+          content: this.generateBrowserBaseHtml(name),
         });
         files.push({
           path: `${appDir}/templates/${name}/index.html`,
-          content: this.generateSwHomeHtml(name),
+          content: this.generateBrowserHomeHtml(name),
         });
         files.push({
           path: `project/${name}.settings.ts`,
-          content: this.generateSwSettingsTs(name),
+          content: this.generateBrowserSettingsTs(name),
         });
         break;
     }
@@ -465,7 +438,7 @@ export class StartAppCommand extends BaseCommand {
     const className = this.toPascalCase(name);
     const hasCommands = type === "cli";
 
-    if (type === "sw") {
+    if (type === "browser") {
       return `/**
  * ${className} App Configuration
  *
@@ -477,15 +450,19 @@ import type { AppConfig } from "@alexi/types";
 const config: AppConfig = {
   name: "${name}",
   verboseName: "${className}",
-  bundle: {
-    entrypoint: "./sw.ts",
-    outputDir: "./static/${name}",
-    outputName: "sw.js",
-    options: {
-      minify: false,
-      sourceMaps: true,
+  staticfiles: [
+    {
+      entrypoint: "./worker.ts",
+      outputFile: "./static/${name}/worker.js",
+      options: { minify: false, sourceMaps: true },
     },
-  },
+    {
+      entrypoint: "./document.ts",
+      outputFile: "./static/${name}/document.js",
+      options: { minify: false, sourceMaps: true },
+    },
+  ],
+  staticDir: "static",
   templatesDir: "src/${name}/templates",
 };
 
@@ -516,16 +493,12 @@ export default config;
     const exports: string[] = [];
 
     switch (type) {
-      case "web":
+      case "server":
         exports.push('export * from "./models.ts";');
         exports.push('export * from "./views.ts";');
         exports.push('export * from "./urls.ts";');
         exports.push('export * from "./serializers.ts";');
         exports.push('export * from "./viewsets.ts";');
-        break;
-      case "ui":
-        exports.push('export * from "./views.ts";');
-        exports.push('export * from "./urls.ts";');
         break;
       case "desktop":
         exports.push('export * from "./bindings.ts";');
@@ -540,10 +513,11 @@ export default config;
       case "library":
         exports.push('export * from "./models.ts";');
         break;
-      case "sw":
+      case "browser":
         exports.push('export * from "./models.ts";');
         exports.push('export * from "./views.ts";');
         exports.push('export * from "./urls.ts";');
+        exports.push('export * from "./endpoints.ts";');
         break;
     }
 
@@ -663,94 +637,6 @@ export class ExampleViewSet extends ModelViewSet {
 `;
   }
 
-  private generateUiUrlsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} UI URL Configuration
- *
- * @module ${name}/urls
- */
-
-import { path } from "@alexi/urls";
-import { homeView } from "./views.ts";
-
-export const urlpatterns = [
-  path("", homeView, { name: "home" }),
-];
-`;
-  }
-
-  private generateUiViewsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} UI Views
- *
- * @module ${name}/views
- */
-
-export async function homeView(_request: Request): Promise<Response> {
-  // Return the SPA shell
-  const html = await Deno.readTextFile("src/${name}/static/index.html");
-  return new Response(html, {
-    headers: { "Content-Type": "text/html" },
-  });
-}
-`;
-  }
-
-  private generateBaseTemplate(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Base Template
- *
- * @module ${name}/templates/base
- */
-
-import { HTMLPropsMixin } from "@html-props/core";
-import { Div } from "@html-props/built-ins";
-
-export class BaseLayout extends HTMLPropsMixin(HTMLElement) {
-  render() {
-    return new Div({
-      content: [
-        // Add your layout here
-      ],
-    });
-  }
-}
-
-BaseLayout.define("base-layout");
-`;
-  }
-
-  private generateComponentsMod(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Components
- *
- * @module ${name}/components
- */
-
-// Export your components here
-// export { MyComponent } from "./my_component.ts";
-`;
-  }
-
-  private generateIndexHtml(name: string): string {
-    const title = this.toPascalCase(name);
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <link rel="stylesheet" href="/bundle.css">
-</head>
-<body>
-  <div id="app"></div>
-  <script type="module" src="/bundle.js"></script>
-</body>
-</html>
-`;
-  }
-
   private generateBindingsTs(name: string): string {
     return `/**
  * ${this.toPascalCase(name)} Desktop Bindings
@@ -847,9 +733,9 @@ Deno.exit(exitCode);
 `;
   }
 
-  private generateWebSettings(name: string): string {
+  private generateServerSettings(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} Web Settings
+ * ${this.toPascalCase(name)} Server Settings
  *
  * @module project/${name}.settings
  */
@@ -868,10 +754,10 @@ export const INSTALLED_APPS = [
   () => import("@alexi/staticfiles"),
   () => import("@alexi/web"),
   () => import("@alexi/db"),
-  () => import("@${name}/web"),
+  () => import("@${name}/server"),
 ];
 
-export const ROOT_URLCONF = () => import("@${name}/web/urls");
+export const ROOT_URLCONF = () => import("@${name}/server/urls");
 
 export function createMiddleware() {
   return [
@@ -880,27 +766,6 @@ export function createMiddleware() {
     errorHandlerMiddleware(),
   ];
 }
-`;
-  }
-
-  private generateUiSettings(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} UI Settings
- *
- * @module project/${name}.settings
- */
-
-export const DEBUG = Deno.env.get("DEBUG") === "true";
-export const DEFAULT_HOST = "127.0.0.1";
-export const DEFAULT_PORT = 5173;
-
-export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@${name}/ui"),
-];
-
-export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
-export const SPA_ROOT = "./src/${name}/static";
 `;
   }
 
@@ -967,27 +832,9 @@ export const INSTALLED_APPS = [
 `;
   }
 
-  private generateSwViewsTs(name: string): string {
+  private generateBrowserUrlsTs(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} SW Views
- *
- * @module ${name}/views
- */
-
-import { templateView } from "@alexi/views";
-
-export const homeView = templateView({
-  templateName: "${name}/index.html",
-  context: async (_request, _params) => ({
-    title: "${this.toPascalCase(name)}",
-  }),
-});
-`;
-  }
-
-  private generateSwUrlsTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} SW URL Configuration
+ * ${this.toPascalCase(name)} Browser URL Configuration
  *
  * @module ${name}/urls
  */
@@ -1001,11 +848,11 @@ export const urlpatterns = [
 `;
   }
 
-  private generateSwTs(name: string): string {
+  private generateBrowserWorkerTs(name: string): string {
     return `/**
  * ${this.toPascalCase(name)} Service Worker Entry Point
  *
- * @module ${name}/sw
+ * @module ${name}/worker
  */
 
 import { Application, setup } from "@alexi/core";
@@ -1039,7 +886,110 @@ self.addEventListener("fetch", (event) => {
 `;
   }
 
-  private generateSwIndexHtml(name: string): string {
+  private generateBrowserDocumentTs(name: string): string {
+    return `/**
+ * ${this.toPascalCase(name)} Document Entry Point
+ *
+ * Runs in the browser's Document (DOM) context.
+ * Use this file for custom element registration, client-side initialisation,
+ * and anything that requires access to the DOM or browser APIs.
+ *
+ * @module ${name}/document
+ */
+
+import { RestBackend } from "@alexi/db/backends/rest";
+import { setup } from "@alexi/core";
+
+// Initialise the REST backend so models can sync with the server
+const restBackend = new RestBackend({
+  apiUrl: (globalThis as Record<string, unknown>)["API_URL"] as string ??
+    "http://localhost:8000/api",
+});
+
+await setup({
+  DATABASES: {
+    rest: restBackend,
+  },
+});
+
+// Register your custom elements here
+// customElements.define("my-element", MyElement);
+`;
+  }
+
+  private generateBrowserEndpointsTs(name: string): string {
+    return `/**
+ * ${this.toPascalCase(name)} REST Endpoints
+ *
+ * Declarative REST API endpoint definitions used by the REST backend.
+ *
+ * @module ${name}/endpoints
+ */
+
+// import { DetailAction, ListAction, ModelEndpoint, SingletonQuery } from "@alexi/db/backends/rest";
+// import { ExampleModel } from "./models.ts";
+
+// Example endpoint:
+// class ExampleEndpoint extends ModelEndpoint {
+//   model = ExampleModel;
+//   path = "/examples/";
+// }
+`;
+  }
+
+  private generateBrowserViewsTs(name: string): string {
+    return `/**
+ * ${this.toPascalCase(name)} Browser Views
+ *
+ * @module ${name}/views
+ */
+
+import { templateView } from "@alexi/views";
+
+export const homeView = templateView({
+  templateName: "${name}/index.html",
+  context: async (_request, _params) => ({
+    title: "${this.toPascalCase(name)}",
+  }),
+});
+`;
+  }
+
+  private generateBrowserBaseHtml(name: string): string {
+    const title = this.toPascalCase(name);
+
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}${title}{% endblock %}</title>
+  <script type="module" src="/static/${name}/document.js"></script>
+</head>
+<body>
+  <main hx-boost="true">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
+`;
+  }
+
+  private generateBrowserHomeHtml(name: string): string {
+    const title = this.toPascalCase(name);
+
+    return `{% extends "${name}/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>Welcome to ${title}</h1>
+<p>This page is rendered by a Service Worker using Alexi.</p>
+{% endblock %}
+`;
+  }
+
+  private generateBrowserIndexHtml(name: string): string {
     const title = this.toPascalCase(name);
 
     return `<!DOCTYPE html>
@@ -1054,7 +1004,7 @@ self.addEventListener("fetch", (event) => {
   <script src="https://unpkg.com/htmx.org@2" defer></script>
   <script>
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/static/${name}/sw.js").then((reg) => {
+      navigator.serviceWorker.register("/static/${name}/worker.js").then((reg) => {
         function render() {
           htmx.ajax("GET", location.href, { target: "#content", swap: "innerHTML" });
         }
@@ -1076,42 +1026,9 @@ self.addEventListener("fetch", (event) => {
 `;
   }
 
-  private generateSwBaseHtml(name: string): string {
-    const title = this.toPascalCase(name);
-
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}${title}{% endblock %}</title>
-</head>
-<body>
-  <main hx-boost="true">
-    {% block content %}{% endblock %}
-  </main>
-</body>
-</html>
-`;
-  }
-
-  private generateSwHomeHtml(name: string): string {
-    const title = this.toPascalCase(name);
-
-    return `{% extends "${name}/base.html" %}
-
-{% block title %}{{ title }}{% endblock %}
-
-{% block content %}
-<h1>Welcome to ${title}</h1>
-<p>This page is rendered by a Service Worker using Alexi.</p>
-{% endblock %}
-`;
-  }
-
-  private generateSwSettingsTs(name: string): string {
+  private generateBrowserSettingsTs(name: string): string {
     return `/**
- * ${this.toPascalCase(name)} SW Settings
+ * ${this.toPascalCase(name)} Browser Settings
  *
  * @module project/${name}.settings
  */
@@ -1123,10 +1040,12 @@ export const DEFAULT_PORT = 8000;
 export const INSTALLED_APPS = [
   () => import("@alexi/staticfiles"),
   () => import("@alexi/web"),
-  () => import("@${name}/sw"),
+  () => import("@${name}/browser"),
 ];
 
-export const ROOT_URLCONF = () => import("@${name}/sw/urls");
+export const ROOT_URLCONF = () => import("@${name}/browser/urls");
+
+export const API_URL = Deno.env.get("API_URL") ?? "http://localhost:8000/api";
 `;
   }
 
