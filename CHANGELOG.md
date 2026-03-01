@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.28.0] - 2026-03-01
+
+### Added
+
+- `browser` app type for `startapp` command: scaffolds a browser app with two
+  separate entry points — `worker.ts` (Service Worker context) and `document.ts`
+  (DOM context) — using `staticfiles[]` in `AppConfig` (#179)
+- `StaticfileConfig` interface in `@alexi/types` for declaring multiple bundle
+  entry points per app
+- `staticfiles?: StaticfileConfig[]` property on `AppConfig`
+
+### Changed
+
+- `startapp` command `web` type renamed to `server`
+- `bundle` command updated to handle `staticfiles[]` in `AppConfig`
+
+### Removed
+
+- `startapp` app types `sw` and `ui` removed; use `browser` type instead
+
 ## [0.27.0] - 2026-03-01
 
 ### Added
