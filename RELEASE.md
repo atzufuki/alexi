@@ -7,7 +7,9 @@ This document describes how to release new versions of Alexi packages.
 Alexi is a monorepo that publishes multiple packages to JSR under the `@alexi`
 scope:
 
-- `@alexi/core` - Core framework and management commands
+- `@alexi/core` - Universal setup (`setup`, `DatabasesConfig`)
+- `@alexi/core` (management) - Management commands and CLI framework
+  (`@alexi/core/management`)
 - `@alexi/db` - ORM with DenoKV and IndexedDB backends
 - `@alexi/urls` - URL routing
 - `@alexi/middleware` - Middleware system

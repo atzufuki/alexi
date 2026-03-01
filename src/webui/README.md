@@ -16,7 +16,7 @@ deno add jsr:@alexi/webui
 ## Usage
 
 ```typescript
-import { WebUILauncher } from "@alexi/webui";
+import { WebUILauncher } from "@alexi/webui/launcher";
 
 const launcher = new WebUILauncher({
   title: "My App",
