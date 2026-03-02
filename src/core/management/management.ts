@@ -23,50 +23,7 @@ import type { AppConfig } from "@alexi/types";
 // Helper Functions
 // =============================================================================
 
-/**
- * Convert a file path to a file:// URL string for dynamic import.
- *
- * This is an internal helper for loading project-local settings files.
- * It handles Windows paths correctly.
- *
- * NOTE: This is only used for settings files (loaded via --settings CLI arg).
- * App modules use import functions provided by the user in settings.
- *
- * @param filePath - File system path
- * @returns file:// URL string suitable for dynamic import
- * @internal
- */
-function toImportUrl(filePath: string): string {
-  // Normalize backslashes to forward slashes
-  let normalized = filePath.replace(/\\/g, "/");
-
-  // Remove leading ./ if present
-  if (normalized.startsWith("./")) {
-    normalized = normalized.slice(2);
-  }
-
-  // Check if it's a Windows absolute path (e.g., C:/...)
-  if (/^[a-zA-Z]:\//.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  // Check if it's a Windows path without forward slash yet (e.g., C:\...)
-  if (/^[a-zA-Z]:/.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  // Unix absolute path
-  if (normalized.startsWith("/")) {
-    return `file://${normalized}`;
-  }
-
-  // Relative path - make it absolute
-  const cwd = Deno.cwd().replace(/\\/g, "/");
-  if (/^[a-zA-Z]:\//.test(cwd)) {
-    return `file:///${cwd}/${normalized}`;
-  }
-  return `file://${cwd}/${normalized}`;
-}
+import { resolveSettingsPath, toImportUrl } from "./settings_utils.ts";
 
 /**
  * @deprecated This export will be removed in v0.9.0.
@@ -320,24 +277,13 @@ export class ManagementUtility {
 
   /**
    * Resolve settings path from argument.
+   * Delegates to the shared resolveSettingsPath utility.
    */
-  private resolveSettingsPath(settingsArg: string, projectDir: string): string {
-    if (settingsArg.endsWith(".ts")) {
-      // Full path with .ts extension
-      if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
-        return `${this.projectRoot}/${settingsArg.slice(2)}`;
-      }
-      return `${this.projectRoot}/${settingsArg}`;
-    }
-
-    if (settingsArg.includes(".")) {
-      // Dotted module path like project.test
-      const modulePath = settingsArg.replace(/\./g, "/");
-      return `${this.projectRoot}/${modulePath}.ts`;
-    }
-
-    // Short name: test -> project/test.settings.ts
-    return `${projectDir}/${settingsArg}.settings.ts`;
+  private resolveSettingsPath(
+    settingsArg: string,
+    _projectDir: string,
+  ): string {
+    return resolveSettingsPath(settingsArg, this.projectRoot);
   }
 
   /**
