@@ -167,6 +167,8 @@ Deno.test({
         "STATIC_URL",
         "CORS_ORIGINS",
         "createMiddleware",
+        "ASSETFILES_DIRS",
+        "STATICFILES_DIRS",
       ];
 
       for (const exp of requiredExports) {
@@ -360,9 +362,13 @@ Deno.test({
 
     await t.step("creates assets entry point", async () => {
       const filePath =
-        `${project.path}/src/${project.name}/assets/${project.name}/mod.ts`;
+        `${project.path}/src/${project.name}/assets/${project.name}/${project.name}.ts`;
       const stat = await Deno.stat(filePath);
-      assertEquals(stat.isFile, true, "assets/mod.ts should be a file");
+      assertEquals(
+        stat.isFile,
+        true,
+        `assets/${project.name}.ts should be a file`,
+      );
     });
 
     // ==========================================================================
@@ -371,8 +377,7 @@ Deno.test({
 
     await t.step("creates worker files", async () => {
       const workerFiles = [
-        `src/${project.name}/workers/${project.name}/app.ts`,
-        `src/${project.name}/workers/${project.name}/mod.ts`,
+        `src/${project.name}/workers/${project.name}/worker.ts`,
         `src/${project.name}/workers/${project.name}/models.ts`,
         `src/${project.name}/workers/${project.name}/endpoints.ts`,
         `src/${project.name}/workers/${project.name}/settings.ts`,
@@ -394,47 +399,47 @@ Deno.test({
     });
 
     await t.step(
-      "worker app.ts defines staticfiles with two entry points",
+      "settings.ts defines ASSETFILES_DIRS with worker and asset entry points",
       async () => {
         const content = await Deno.readTextFile(
-          `${project.path}/src/${project.name}/workers/${project.name}/app.ts`,
+          `${project.path}/project/settings.ts`,
         );
         assertEquals(
-          content.includes("staticfiles"),
+          content.includes("ASSETFILES_DIRS"),
           true,
-          "worker app.ts should define staticfiles",
+          "settings.ts should define ASSETFILES_DIRS",
         );
         assertEquals(
-          content.includes("worker.js"),
+          content.includes("worker.ts"),
           true,
-          "worker app.ts should output worker.js",
+          "settings.ts ASSETFILES_DIRS should include worker.ts entry point",
         );
         assertEquals(
-          content.includes(`${project.name}.js`),
+          content.includes(`${project.name}.ts`),
           true,
-          `worker app.ts should output ${project.name}.js`,
+          `settings.ts ASSETFILES_DIRS should include ${project.name}.ts entry point`,
         );
       },
     );
 
-    await t.step("worker mod.ts sets up Service Worker", async () => {
+    await t.step("worker.ts sets up Service Worker", async () => {
       const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}/workers/${project.name}/mod.ts`,
+        `${project.path}/src/${project.name}/workers/${project.name}/worker.ts`,
       );
       assertEquals(
         content.includes("ServiceWorkerGlobalScope"),
         true,
-        "worker mod.ts should declare ServiceWorkerGlobalScope",
+        "worker.ts should declare ServiceWorkerGlobalScope",
       );
       assertEquals(
         content.includes("install"),
         true,
-        "worker mod.ts should handle install event",
+        "worker.ts should handle install event",
       );
       assertEquals(
         content.includes("fetch"),
         true,
-        "worker mod.ts should handle fetch event",
+        "worker.ts should handle fetch event",
       );
     });
 

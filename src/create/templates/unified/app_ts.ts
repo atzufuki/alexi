@@ -21,7 +21,6 @@ import type { AppConfig } from "@alexi/types";
 const config: AppConfig = {
   name: "${name}",
   verboseName: "${appName}",
-  staticDir: "static",
 };
 
 export default config;

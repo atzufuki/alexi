@@ -33,7 +33,6 @@ import { generateStaticIndexHtml } from "./templates/unified/static_index_html.t
 import { generateAssetModTs } from "./templates/unified/assets/mod_ts.ts";
 
 // Template imports - Unified app (workers - Service Worker)
-import { generateWorkerAppTs } from "./templates/unified/workers/app_ts.ts";
 import { generateWorkerModTs } from "./templates/unified/workers/mod_ts.ts";
 import { generateWorkerModelsTs } from "./templates/unified/workers/models_ts.ts";
 import { generateWorkerEndpointsTs } from "./templates/unified/workers/endpoints_ts.ts";
@@ -289,7 +288,7 @@ async function generateFiles(name: string, version: string): Promise<void> {
     // Unified app — assets (frontend entry point)
     // ==========================================================================
     {
-      path: `${name}/src/${name}/assets/${name}/mod.ts`,
+      path: `${name}/src/${name}/assets/${name}/${name}.ts`,
       content: generateAssetModTs(name),
     },
 
@@ -297,11 +296,7 @@ async function generateFiles(name: string, version: string): Promise<void> {
     // Unified app — workers (Service Worker)
     // ==========================================================================
     {
-      path: `${name}/src/${name}/workers/${name}/app.ts`,
-      content: generateWorkerAppTs(name),
-    },
-    {
-      path: `${name}/src/${name}/workers/${name}/mod.ts`,
+      path: `${name}/src/${name}/workers/${name}/worker.ts`,
       content: generateWorkerModTs(name),
     },
     {

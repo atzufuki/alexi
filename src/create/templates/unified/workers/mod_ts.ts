@@ -1,11 +1,11 @@
 /**
- * Worker mod.ts template generator (Service Worker entry point)
+ * Worker worker.ts template generator (Service Worker entry point)
  *
  * @module @alexi/create/templates/unified/workers/mod_ts
  */
 
 /**
- * Generate workers/<name>/mod.ts content
+ * Generate workers/<name>/worker.ts content
  */
 export function generateWorkerModTs(name: string): string {
   return `/**
@@ -17,7 +17,7 @@ export function generateWorkerModTs(name: string): string {
  * Analogous to Django's wsgi.py / asgi.py — a thin shell that calls
  * getApplication(settings) and wires it to the SW lifecycle events.
  *
- * @module ${name}/workers/${name}/mod
+ * @module ${name}/workers/${name}/worker
  */
 
 import { getApplication } from "@alexi/core";
