@@ -294,7 +294,8 @@ export class RunServerCommand extends BaseCommand {
    * Load all installed apps' configurations.
    *
    * This populates:
-   * - `templateRegistry` from each app's `templatesDir` (legacy) or `<appPath>/templates/` (convention)
+   * - `templateRegistry` via TEMPLATES setting (APP_DIRS + DIRS), or fallback
+   *   to legacy `config.templatesDir` / convention-based `<appPath>/templates/`
    * - `this.appNames` and `this.appPaths` for static file serving
    *   (includes explicit `STATICFILES_DIRS` from settings)
    *
@@ -309,51 +310,112 @@ export class RunServerCommand extends BaseCommand {
 
     if (!installedApps || !Array.isArray(installedApps)) return;
 
-    let templatesRegistered = 0;
-
+    // Collect app paths first (needed for APP_DIRS discovery)
+    const appPathMap: Record<string, string> = {};
     for (const importFn of installedApps) {
       if (typeof importFn !== "function") continue;
-
       try {
         const module = await importFn();
         const config = module.default as AppConfig | undefined;
         if (!config?.name) continue;
 
-        // Collect app name and path for static file serving
         const appPath = this.resolveAppPath(config);
         if (appPath) {
           this.appNames.push(config.name);
           this.appPaths[config.name] = appPath;
+          appPathMap[config.name] = appPath;
         }
+      } catch {
+        // Skip apps that fail to load
+      }
+    }
 
-        // Load templates:
-        // 1. Legacy: explicit `config.templatesDir` on AppConfig
-        // 2. Convention: `<appPath>/templates/` auto-discovery
-        let templatesDir: string | null = null;
-        if (config.templatesDir) {
-          templatesDir = this.resolveTemplatesDir(config.templatesDir);
-        } else if (appPath) {
-          // Convention-based: resolve appPath to absolute dir, then append /templates
-          const absAppDir = appPath.startsWith("/")
-            ? appPath
-            : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
-          const conventionDir = `${absAppDir}/templates`;
-          try {
-            const stat = await Deno.stat(conventionDir);
-            if (stat.isDirectory) {
-              templatesDir = conventionDir;
+    let templatesRegistered = 0;
+
+    // Check for Django-style TEMPLATES setting
+    const templatesConfig = settings.TEMPLATES as
+      | Array<{ APP_DIRS?: boolean; DIRS?: string[] }>
+      | undefined;
+
+    if (Array.isArray(templatesConfig) && templatesConfig.length > 0) {
+      // New-style: TEMPLATES setting
+      for (const config of templatesConfig) {
+        // APP_DIRS: auto-discover <appPath>/templates/ for all installed apps
+        if (config.APP_DIRS) {
+          for (const [, appPath] of Object.entries(appPathMap)) {
+            const absAppDir = appPath.startsWith("/")
+              ? appPath
+              : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
+            const conventionDir = `${absAppDir}/templates`;
+            try {
+              const stat = await Deno.stat(conventionDir);
+              if (stat.isDirectory) {
+                await this.scanAndRegisterTemplates(conventionDir);
+                templatesRegistered++;
+              }
+            } catch {
+              // No templates dir by convention, skip
             }
-          } catch {
-            // No templates dir by convention, skip
           }
         }
 
-        if (templatesDir) {
-          await this.scanAndRegisterTemplates(templatesDir);
-          templatesRegistered++;
+        // DIRS: explicit extra template directories
+        if (Array.isArray(config.DIRS)) {
+          for (const dir of config.DIRS) {
+            const resolved = this.resolveTemplatesDir(dir);
+            if (!resolved) continue;
+            try {
+              const stat = await Deno.stat(resolved);
+              if (stat.isDirectory) {
+                await this.scanAndRegisterTemplates(resolved);
+                templatesRegistered++;
+              }
+            } catch {
+              // Skip unreadable directories
+            }
+          }
         }
-      } catch {
-        // Skip apps that fail to load or have unreadable template dirs
+      }
+    } else {
+      // Legacy fallback: explicit `config.templatesDir` on AppConfig or
+      // convention-based `<appPath>/templates/` auto-discovery
+      for (const importFn of installedApps) {
+        if (typeof importFn !== "function") continue;
+
+        try {
+          const module = await importFn();
+          const config = module.default as AppConfig | undefined;
+          if (!config?.name) continue;
+
+          const appPath = appPathMap[config.name];
+
+          let templatesDir: string | null = null;
+          if (config.templatesDir) {
+            // 1. Legacy: explicit `config.templatesDir` on AppConfig
+            templatesDir = this.resolveTemplatesDir(config.templatesDir);
+          } else if (appPath) {
+            // 2. Convention: `<appPath>/templates/` auto-discovery
+            const absAppDir = appPath.startsWith("/")
+              ? appPath
+              : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
+            const conventionDir = `${absAppDir}/templates`;
+            try {
+              const stat = await Deno.stat(conventionDir);
+              if (stat.isDirectory) {
+                templatesDir = conventionDir;
+              }
+            } catch {
+              // No templates dir by convention, skip
+            }
+          }
+
+          if (templatesDir) {
+            await this.scanAndRegisterTemplates(templatesDir);
+            templatesRegistered++;
+          }
+        } catch {
+          // Skip apps that fail to load or have unreadable template dirs
+        }
       }
     }
 

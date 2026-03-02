@@ -16,6 +16,7 @@ import { setup } from "./setup.ts";
 import type { DatabasesConfig } from "./setup.ts";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
+import type { TemplatesConfig } from "@alexi/types";
 
 // =============================================================================
 // Types
@@ -51,6 +52,17 @@ export interface GetApplicationSettings {
 
   /** Debug mode */
   DEBUG?: boolean;
+
+  /**
+   * Django-style TEMPLATES setting.
+   * Controls template discovery for runserver and bundle commands.
+   *
+   * @example
+   * export const TEMPLATES = [
+   *   { APP_DIRS: true, DIRS: ["./src/my-app/templates"] },
+   * ];
+   */
+  TEMPLATES?: TemplatesConfig[];
 }
 
 // =============================================================================

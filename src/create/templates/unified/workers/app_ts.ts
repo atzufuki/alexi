@@ -41,7 +41,6 @@ const config: AppConfig = {
     },
   ],
   staticDir: "static",
-  templatesDir: "src/${name}/workers/${name}/templates",
 };
 
 export default config;

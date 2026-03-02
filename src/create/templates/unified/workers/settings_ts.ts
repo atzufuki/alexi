@@ -42,6 +42,22 @@ export const DATABASES = {
 // Static import — dynamic import() is disallowed in Service Workers.
 // See https://github.com/w3c/ServiceWorker/issues/1356
 export const ROOT_URLCONF = urlpatterns;
+
+// =============================================================================
+// Templates
+// =============================================================================
+
+/**
+ * Django-style TEMPLATES setting.
+ * APP_DIRS: true automatically discovers <appPath>/templates/ for each
+ * installed app. DIRS lists additional explicit template directories.
+ */
+export const TEMPLATES = [
+  {
+    APP_DIRS: true,
+    DIRS: [] as string[],
+  },
+];
 `;
 }
 
