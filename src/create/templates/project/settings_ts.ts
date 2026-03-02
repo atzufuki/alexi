@@ -100,9 +100,9 @@ export const TEMPLATES = [
   {
     APP_DIRS: true,
     DIRS: [
-      // Worker (Service Worker) templates — nested deeper than the app root,
-      // so APP_DIRS alone cannot discover them.
-      "./src/${name}/workers/${name}/templates",
+      // Shared templates used by both the server and the Service Worker.
+      // Nested deeper than the app root, so APP_DIRS alone cannot discover them.
+      "./src/${name}/templates",
     ],
   },
 ];
@@ -132,7 +132,7 @@ export const ASSETFILES_DIRS = [
     path: "./src/${name}/workers/${name}",
     outputDir: "./src/${name}/static/${name}",
     entrypoints: ["worker.ts"],
-    templatesDir: "./src/${name}/workers/${name}/templates",
+    templatesDir: "./src/${name}/templates",
   },
   {
     // Frontend bundle: assets/${name}/${name}.ts → static/${name}/${name}.js

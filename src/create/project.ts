@@ -27,7 +27,6 @@ import { generateUrlsTs } from "./templates/unified/urls_ts.ts";
 import { generateViewsTs } from "./templates/unified/views_ts.ts";
 import { generatePostTestTs } from "./templates/unified/test_ts.ts";
 import { generateInitMigration } from "./templates/unified/migration_ts.ts";
-import { generateStaticIndexHtml } from "./templates/unified/static_index_html.ts";
 
 // Template imports - Unified app (assets - frontend)
 import { generateAssetModTs } from "./templates/unified/assets/mod_ts.ts";
@@ -179,7 +178,7 @@ async function createDirectories(name: string): Promise<void> {
     `${name}/src/${name}/static/${name}`,
     `${name}/src/${name}/assets/${name}`,
     `${name}/src/${name}/workers/${name}`,
-    `${name}/src/${name}/workers/${name}/templates/${name}`,
+    `${name}/src/${name}/templates/${name}`,
     // Agent Skills (for AI coding assistants)
     `${name}/.opencode/skills/alexi-admin`,
     `${name}/.opencode/skills/alexi-auth`,
@@ -279,14 +278,6 @@ async function generateFiles(name: string, version: string): Promise<void> {
     },
 
     // ==========================================================================
-    // Unified app — static files
-    // ==========================================================================
-    {
-      path: `${name}/src/${name}/static/${name}/index.html`,
-      content: generateStaticIndexHtml(name),
-    },
-
-    // ==========================================================================
     // Unified app — assets (frontend entry point)
     // ==========================================================================
     {
@@ -322,21 +313,19 @@ async function generateFiles(name: string, version: string): Promise<void> {
       content: generateWorkerViewsTs(name),
     },
     {
-      path: `${name}/src/${name}/workers/${name}/templates/${name}/base.html`,
+      path: `${name}/src/${name}/templates/${name}/base.html`,
       content: generateWorkerBaseHtml(name),
     },
     {
-      path: `${name}/src/${name}/workers/${name}/templates/${name}/index.html`,
+      path: `${name}/src/${name}/templates/${name}/index.html`,
       content: generateWorkerIndexHtml(name),
     },
     {
-      path:
-        `${name}/src/${name}/workers/${name}/templates/${name}/post_list.html`,
+      path: `${name}/src/${name}/templates/${name}/post_list.html`,
       content: generateWorkerPostListHtml(name),
     },
     {
-      path:
-        `${name}/src/${name}/workers/${name}/templates/${name}/post_form.html`,
+      path: `${name}/src/${name}/templates/${name}/post_form.html`,
       content: generateWorkerPostFormHtml(name),
     },
 
