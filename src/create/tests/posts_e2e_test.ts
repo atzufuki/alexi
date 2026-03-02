@@ -3,9 +3,14 @@
  *
  * Tests the scaffolded Posts application end-to-end:
  * - Creates a new project using @alexi/create
- * - Starts the web server (which bundles the Service Worker)
+ * - Starts the web server
  * - Tests REST API endpoints via fetch
- * - Tests the browser UI via Playwright (HTML shell, SW registration, static files)
+ * - Tests the browser UI via Playwright (server-rendered HTML, static files)
+ *
+ * The scaffolded app uses a server-side MPA architecture:
+ * - The server renders all routes directly (/, /posts/, /posts/new/)
+ * - The Service Worker is a progressive enhancement (fire-and-forget registration)
+ * - There is no static SPA shell — the server is the source of truth for HTML
  *
  * Run manually with:
  *   deno test -A --unstable-kv src/create/tests/posts_e2e_test.ts
@@ -71,18 +76,17 @@ Deno.test.afterAll(async () => {
 // =============================================================================
 
 Deno.test({
-  name: "API: GET / redirects to static SPA shell",
+  name: "API: GET / returns server-rendered HTML",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
-    // Follow redirects is the default — check we land on the SPA shell
     const response = await fetch(`${baseUrl}/`);
     assertEquals(response.status, 200);
     const body = await response.text();
     assertEquals(
-      body.includes("<!DOCTYPE html>") || body.includes("serviceWorker"),
+      body.includes("<!DOCTYPE html>"),
       true,
-      "GET / should redirect to the SPA shell HTML",
+      "GET / should return a server-rendered HTML page",
     );
   },
 });
@@ -267,26 +271,25 @@ Deno.test({
 });
 
 // =============================================================================
-// Browser Tests — Playwright
+// Browser Tests — Server-rendered pages
 // =============================================================================
 
 Deno.test({
-  name: "Browser: static index.html loads and returns HTTP 200",
+  name: "Browser: GET / returns server-rendered home page with 200",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
     const page = await browser.newPage();
     try {
-      // The scaffolded app serves static/index.html which is the SPA shell
-      const projectName = project.name;
-      const response = await page.goto(
-        `${baseUrl}/static/${projectName}/index.html`,
-      );
+      const response = await page.goto(`${baseUrl}/`);
       assertExists(response, "Navigation response must not be null");
+      assertEquals(response!.status(), 200, "GET / must return 200");
+
+      const html = await page.content();
       assertEquals(
-        response!.status(),
-        200,
-        "Static index.html must return 200",
+        html.includes("<!DOCTYPE html>") || html.includes("<!doctype html>"),
+        true,
+        "Home page must be a valid HTML document",
       );
     } finally {
       await page.close();
@@ -295,33 +298,107 @@ Deno.test({
 });
 
 Deno.test({
-  name: "Browser: index.html contains SPA shell structure",
+  name: "Browser: home page contains nav links and Welcome heading",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
     const page = await browser.newPage();
     try {
-      const projectName = project.name;
-      await page.goto(`${baseUrl}/static/${projectName}/index.html`);
+      await page.goto(`${baseUrl}/`);
 
-      // The shell must have a #content mounting point for HTMX
-      const contentCount = await page.locator("#content").count();
-      assertEquals(contentCount, 1, "Page must contain a #content element");
-
-      // The shell must reference the Service Worker script
+      // The base template has nav links
       const html = await page.content();
+      assertEquals(
+        html.includes("/posts/"),
+        true,
+        "Home page must contain a link to /posts/",
+      );
+
+      // The index template renders a Welcome heading
+      const heading = await page.locator("h1").first().textContent({
+        timeout: 5000,
+      });
+      assertEquals(
+        heading?.includes("Welcome"),
+        true,
+        "Home page must render a Welcome heading",
+      );
+    } finally {
+      await page.close();
+    }
+  },
+});
+
+Deno.test({
+  name: "Browser: home page registers Service Worker (fire-and-forget)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const page = await browser.newPage();
+    try {
+      await page.goto(`${baseUrl}/`);
+      const html = await page.content();
+      assertEquals(
+        html.includes("serviceWorker"),
+        true,
+        "Home page must contain SW registration script",
+      );
       assertEquals(
         html.includes("worker.js"),
         true,
-        "HTML must reference worker.js for SW registration",
+        "SW registration must reference worker.js",
+      );
+    } finally {
+      await page.close();
+    }
+  },
+});
+
+Deno.test({
+  name: "Browser: GET /posts/ returns server-rendered posts list",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const page = await browser.newPage();
+    try {
+      const response = await page.goto(`${baseUrl}/posts/`);
+      assertExists(response, "Navigation response must not be null");
+      assertEquals(response!.status(), 200, "GET /posts/ must return 200");
+
+      const heading = await page.locator("h1").first().textContent({
+        timeout: 5000,
+      });
+      assertEquals(
+        heading?.includes("Posts"),
+        true,
+        "Posts page must render a Posts heading",
+      );
+    } finally {
+      await page.close();
+    }
+  },
+});
+
+Deno.test({
+  name: "Browser: GET /posts/new/ returns server-rendered post create form",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const page = await browser.newPage();
+    try {
+      const response = await page.goto(`${baseUrl}/posts/new/`);
+      assertExists(response, "Navigation response must not be null");
+      assertEquals(response!.status(), 200, "GET /posts/new/ must return 200");
+
+      const formCount = await page.locator("form").count();
+      assertEquals(
+        formCount >= 1,
+        true,
+        "Post create page must contain a form",
       );
 
-      // The shell must load HTMX
-      assertEquals(
-        html.includes("htmx"),
-        true,
-        "HTML must include htmx script",
-      );
+      const titleInput = await page.locator('input[name="title"]').count();
+      assertEquals(titleInput >= 1, true, "Form must have a title input");
     } finally {
       await page.close();
     }
@@ -340,7 +417,6 @@ Deno.test({
     assertEquals(response.status, 200, "worker.js must be served");
     const body = await response.text();
     assertEquals(body.length > 0, true, "worker.js must not be empty");
-    // The bundled SW should contain Application setup code
     assertEquals(
       body.includes("Application") || body.includes("addEventListener"),
       true,
@@ -361,186 +437,5 @@ Deno.test({
     assertEquals(response.status, 200, "App JS bundle must be served");
     const body = await response.text();
     assertEquals(body.length > 0, true, "App JS bundle must not be empty");
-  },
-});
-
-Deno.test({
-  name: "Browser: Service Worker registers and activates",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    try {
-      const projectName = project.name;
-      const indexUrl = `${baseUrl}/static/${projectName}/index.html`;
-      await page.goto(indexUrl);
-
-      // Wait for SW to register and activate
-      const isActive = await page.evaluate(async () => {
-        const nav = navigator as unknown as {
-          serviceWorker?: {
-            ready: Promise<{ active: unknown }>;
-          };
-        };
-        if (!nav.serviceWorker) return false;
-
-        const timeout = new Promise<never>((_resolve, reject) => {
-          setTimeout(() => reject(new Error("SW ready timeout (20s)")), 20000);
-        });
-
-        try {
-          const reg = await Promise.race([nav.serviceWorker.ready, timeout]);
-          return reg.active !== null;
-        } catch {
-          return false;
-        }
-      });
-
-      assertEquals(
-        isActive,
-        true,
-        "Service Worker must be active",
-      );
-    } finally {
-      await page.close();
-      await context.close();
-    }
-  },
-});
-
-Deno.test({
-  name: "Browser: SW renders welcome page via HTMX",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    try {
-      const projectName = project.name;
-      await page.goto(`${baseUrl}/static/${projectName}/index.html`);
-
-      // Wait for SW to activate
-      await page.evaluate(async () => {
-        const nav = navigator as unknown as {
-          serviceWorker?: { ready: Promise<unknown> };
-        };
-        if (!nav.serviceWorker) return;
-        await nav.serviceWorker.ready;
-      });
-
-      // HTMX fetches "/" from the SW and injects into #content.
-      // Use .first() because the SW-rendered content may create nested #content elements.
-      const content = await page.locator("#content").first().textContent({
-        timeout: 15000,
-      });
-      assertExists(content, "#content must have text rendered by SW");
-      assertEquals(
-        content!.includes("Welcome"),
-        true,
-        "SW-rendered content must contain 'Welcome'",
-      );
-    } finally {
-      await page.close();
-      await context.close();
-    }
-  },
-});
-
-// =============================================================================
-// Browser Tests — Posts UI
-// =============================================================================
-
-Deno.test({
-  name: "Browser: SW renders posts list page",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    try {
-      const projectName = project.name;
-      // Navigate to the SPA shell first so SW registers
-      await page.goto(`${baseUrl}/static/${projectName}/index.html`);
-      await page.evaluate(async () => {
-        const nav = navigator as unknown as {
-          serviceWorker?: { ready: Promise<unknown> };
-        };
-        if (!nav.serviceWorker) return;
-        await nav.serviceWorker.ready;
-      });
-
-      // Load /posts/ via HTMX — SW intercepts and renders into #content
-      await page.evaluate(() => {
-        (window as unknown as {
-          htmx: { ajax: (m: string, u: string, opts: unknown) => void };
-        })
-          .htmx.ajax("GET", "/posts/", {
-            target: "#content",
-            swap: "innerHTML",
-          });
-      });
-
-      // Wait for the posts list heading to appear
-      await page.waitForSelector("h1", { timeout: 15000 });
-      const heading = await page.locator("h1").first().textContent();
-      assertEquals(
-        heading?.includes("Posts"),
-        true,
-        "Posts list page must render an 'Posts' heading",
-      );
-    } finally {
-      await page.close();
-      await context.close();
-    }
-  },
-});
-
-Deno.test({
-  name: "Browser: SW renders post create form",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const context = await browser.newContext();
-    const page = await context.newPage();
-    try {
-      const projectName = project.name;
-      await page.goto(`${baseUrl}/static/${projectName}/index.html`);
-      await page.evaluate(async () => {
-        const nav = navigator as unknown as {
-          serviceWorker?: { ready: Promise<unknown> };
-        };
-        if (!nav.serviceWorker) return;
-        await nav.serviceWorker.ready;
-      });
-
-      // Load /posts/new/ via HTMX — SW intercepts and renders into #content
-      await page.evaluate(() => {
-        (window as unknown as {
-          htmx: { ajax: (m: string, u: string, opts: unknown) => void };
-        })
-          .htmx.ajax("GET", "/posts/new/", {
-            target: "#content",
-            swap: "innerHTML",
-          });
-      });
-
-      // Wait for the form to appear
-      await page.waitForSelector("form", { timeout: 15000 });
-      const formCount = await page.locator("form").count();
-      assertEquals(
-        formCount >= 1,
-        true,
-        "Post create page must contain a form",
-      );
-
-      // The form should have a title input
-      const titleInput = await page.locator('input[name="title"]').count();
-      assertEquals(titleInput >= 1, true, "Form must have a title input");
-    } finally {
-      await page.close();
-      await context.close();
-    }
   },
 });
