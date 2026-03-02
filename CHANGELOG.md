@@ -8,6 +8,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.31.0] - 2026-03-02
+
+### Added
+
+- `@alexi/create`: scaffolded projects now include a fully functional Posts UI
+  (list + create form) powered by Service Worker + HTMX and the REST backend
+  instead of just a welcome page (#190, #193)
+- `@alexi/create`: `post_list.html` and `post_form.html` templates with
+  HTMX-powered navigation and form submission
+- `@alexi/create`: `http.ts` entry point moved to `project/http.ts` to keep the
+  project root tidy (#190, #193)
+
+### Changed
+
+- `@alexi/staticfiles`: `AppConfig` fields `staticfiles`, `staticDir`, and
+  `templatesDir` replaced with `ASSETFILES_DIRS` and `STATICFILES_DIRS`
+  settings-level configuration (#192)
+
 ## [0.30.0] - 2026-03-02
 
 ### Added
