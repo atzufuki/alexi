@@ -34,6 +34,7 @@ import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
 import type { AppConfig } from "@alexi/types";
 import { templateRegistry } from "@alexi/views";
+import { staticFilesMiddleware } from "@alexi/staticfiles";
 
 // =============================================================================
 // Helper Functions
@@ -279,16 +280,26 @@ export class RunServerCommand extends BaseCommand {
   }
 
   // ==========================================================================
-  // Template Loading
+  // Installed Apps Loading
   // ==========================================================================
 
   /**
-   * Populate the global `templateRegistry` from all installed apps' `templatesDir`.
-   *
-   * Called at server startup so that `templateView` with `templateName` can
-   * resolve templates without any filesystem access per-request.
+   * Collected app info from INSTALLED_APPS.
+   * Used for static file serving and template loading.
    */
-  private async loadTemplates(
+  private appNames: string[] = [];
+  private appPaths: Record<string, string> = {};
+
+  /**
+   * Load all installed apps' configurations.
+   *
+   * This populates:
+   * - `templateRegistry` from each app's `templatesDir`
+   * - `this.appNames` and `this.appPaths` for static file serving
+   *
+   * Called at server startup before creating the Application.
+   */
+  private async loadInstalledApps(
     settings: Record<string, unknown>,
   ): Promise<void> {
     const installedApps = settings.INSTALLED_APPS as
@@ -297,7 +308,7 @@ export class RunServerCommand extends BaseCommand {
 
     if (!installedApps || !Array.isArray(installedApps)) return;
 
-    let registered = 0;
+    let templatesRegistered = 0;
 
     for (const importFn of installedApps) {
       if (typeof importFn !== "function") continue;
@@ -305,21 +316,88 @@ export class RunServerCommand extends BaseCommand {
       try {
         const module = await importFn();
         const config = module.default as AppConfig | undefined;
-        if (!config?.templatesDir) continue;
+        if (!config?.name) continue;
 
-        const dir = this.resolveTemplatesDir(config.templatesDir);
-        if (!dir) continue;
+        // Collect app name and path for static file serving
+        const appPath = this.resolveAppPath(config);
+        if (appPath) {
+          this.appNames.push(config.name);
+          this.appPaths[config.name] = appPath;
+        }
 
-        await this.scanAndRegisterTemplates(dir);
-        registered++;
+        // Load templates
+        if (config.templatesDir) {
+          const dir = this.resolveTemplatesDir(config.templatesDir);
+          if (dir) {
+            await this.scanAndRegisterTemplates(dir);
+            templatesRegistered++;
+          }
+        }
       } catch {
         // Skip apps that fail to load or have unreadable template dirs
       }
     }
 
-    if (registered > 0) {
-      this.success(`Templates loaded from ${registered} app(s)`);
+    if (templatesRegistered > 0) {
+      this.success(`Templates loaded from ${templatesRegistered} app(s)`);
     }
+
+    if (this.appNames.length > 0) {
+      this.success(
+        `Static file serving enabled for ${this.appNames.length} app(s)`,
+      );
+    }
+  }
+
+  /**
+   * Resolve an app's source directory from its AppConfig.
+   *
+   * Returns a path suitable for `AppDirectoriesFinder` (which resolves
+   * relative paths against `projectRoot`).
+   *
+   * Supports two strategies:
+   * - `staticDir` with `file://` URL → derive absolute parent directory
+   * - Convention: `./src/${config.name}` (relative, resolved by the finder)
+   *
+   * Returns the app's source directory path, or null if not resolvable.
+   */
+  private resolveAppPath(config: AppConfig): string | null {
+    // Strategy 0: explicit appPath on config (e.g. worker apps whose name
+    // doesn't match their directory)
+    if (config.appPath) {
+      return config.appPath;
+    }
+
+    // Strategy 1: derive from file:// staticDir (published packages)
+    if (config.staticDir?.startsWith("file://")) {
+      try {
+        const url = new URL(config.staticDir);
+        let pathname = url.pathname.replace(/\/$/, "");
+        // Remove leading slash on Windows absolute paths (/C:/...)
+        if (/^\/[a-zA-Z]:\//.test(pathname)) {
+          pathname = pathname.slice(1);
+        }
+        // staticDir points to e.g. /path/to/src/admin/static
+        // The app dir is the parent of the static dir
+        const lastSlash = pathname.lastIndexOf("/");
+        if (lastSlash > 0) {
+          // Return absolute path — starts with / (Unix) or C:/ (Windows)
+          // The finder recognises / as absolute; for Windows, we prefix with /
+          const absPath = pathname.slice(0, lastSlash);
+          if (/^[a-zA-Z]:\//.test(absPath)) {
+            return `/${absPath}`;
+          }
+          return absPath;
+        }
+        return null;
+      } catch {
+        return null;
+      }
+    }
+
+    // Strategy 2: convention-based relative path from app name
+    // The finder resolves this against projectRoot
+    return `./src/${config.name}`;
   }
 
   /**
@@ -438,7 +516,7 @@ export class RunServerCommand extends BaseCommand {
     }
 
     // Load templates from all installed apps into templateRegistry
-    await this.loadTemplates(settings);
+    await this.loadInstalledApps(settings);
 
     // Create middleware
     let middleware: Middleware[] = [];
@@ -450,6 +528,18 @@ export class RunServerCommand extends BaseCommand {
       middleware = createMiddleware({
         debug: config.debug,
       }) as Middleware[];
+    }
+
+    // Auto-inject static file serving middleware (like Django's runserver)
+    // This must come before user middleware so static files are served first.
+    if (this.appNames.length > 0) {
+      const staticMiddleware = staticFilesMiddleware({
+        installedApps: this.appNames,
+        appPaths: this.appPaths,
+        projectRoot: this.projectRoot,
+        debug: config.debug,
+      });
+      middleware = [staticMiddleware, ...middleware];
     }
 
     // Create application

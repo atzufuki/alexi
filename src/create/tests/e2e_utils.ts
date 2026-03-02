@@ -162,6 +162,8 @@ async function patchProjectForLocalAlexi(projectPath: string): Promise<void> {
     "@alexi/webui/launcher": `${alexiRoot}src/webui/launcher.ts`,
     "@alexi/webui/bindings": `${alexiRoot}src/webui/bindings.ts`,
     "@alexi/staticfiles": `${alexiRoot}src/staticfiles/mod.ts`,
+    "@alexi/staticfiles/commands":
+      `${alexiRoot}src/staticfiles/commands/mod.ts`,
     "@alexi/restframework": `${alexiRoot}src/restframework/mod.ts`,
     "@alexi/restframework/authentication":
       `${alexiRoot}src/restframework/authentication/mod.ts`,
@@ -272,6 +274,7 @@ export async function startApiServer(
       "run",
       "-A",
       "--unstable-kv",
+      "--unstable-bundle",
       "manage.ts",
       "runserver",
       "--settings",
@@ -364,7 +367,9 @@ export async function stopServer(server: ServerProcess): Promise<void> {
 }
 
 /**
- * Wait for a server to be ready
+ * Wait for a server to be ready by checking that the health endpoint returns
+ * a successful (2xx) response. This ensures the server is actually serving
+ * routes correctly, not just accepting connections.
  */
 export async function waitForServer(
   baseUrl: string,
@@ -373,23 +378,17 @@ export async function waitForServer(
   console.log(`[e2e] Waiting for server at ${baseUrl}...`);
   const startTime = Date.now();
 
-  // Try different endpoints that might be available
-  const urls = [
-    `${baseUrl}/`,
-    `${baseUrl}/api/health/`,
-  ];
-
   while (Date.now() - startTime < timeoutMs) {
-    for (const url of urls) {
-      try {
-        const response = await fetch(url);
-        // Any response means server is up
+    try {
+      const response = await fetch(`${baseUrl}/api/health/`);
+      if (response.ok) {
         await response.body?.cancel();
         console.log(`[e2e] Server is ready at ${baseUrl}`);
         return;
-      } catch {
-        // Server not ready yet
       }
+      await response.body?.cancel();
+    } catch {
+      // Server not ready yet
     }
     await sleep(500);
   }

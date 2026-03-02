@@ -597,6 +597,20 @@ export interface AppConfig {
   verboseName?: string;
 
   /**
+   * Explicit path to the app's source directory.
+   *
+   * If not specified, the convention `./src/${name}` is used.
+   * Use this when the app's directory doesn't match the convention
+   * (e.g. a worker sub-app that lives inside another app's directory).
+   *
+   * Path is relative to the project root.
+   *
+   * @example "./src/myapp"
+   * @example "./src/myapp/workers/myapp"
+   */
+  appPath?: string;
+
+  /**
    * Frontend bundle configuration.
    * If defined, the `bundle` command will compile TypeScript → JavaScript.
    */
