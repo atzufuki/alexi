@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-03-02
+
+### Added
+
+- `@alexi/views`: Django-style `TEMPLATES` setting — configure template
+  directories via `TEMPLATES: [{ BACKEND: "alexi", DIRS: [...] }]` in settings;
+  `runserver` auto-registers templates at startup and `bundle` embeds them in SW
+  bundles (#195)
+
+### Fixed
+
+- `@alexi/create`: scaffolded projects now use a shared `templates/<name>/`
+  directory for all HTML templates, served by the server directly via
+  `templateView` — eliminates the broken SPA shell redirect loop (#196)
+- `@alexi/create`: removed the static `index.html` SPA shell that caused
+  infinite redirect loops on first load (#196)
+- `@alexi/create`: Service Worker is now a progressive enhancement
+  (fire-and-forget registration in `base.html`) instead of a required bootstrap
+  step (#196)
+
 ## [0.31.0] - 2026-03-02
 
 ### Added
