@@ -12,15 +12,27 @@ export function generateAssetModTs(name: string): string {
  * ${toPascalCase(name)} Frontend Entry Point
  *
  * This file is bundled by @alexi/staticfiles into static/${name}/${name}.js.
- * Import your Web Components and client-side code here.
+ * It runs in the Document context (the browser page itself, not the SW).
+ * Use it for Web Components, DOM interactions, and client-side init.
  *
  * @module ${name}/assets/${name}/${name}
  */
 
-// Import and register components
-// import "./components/my_component.ts";
+import { setBackend } from "@alexi/db";
+import { RestBackend } from "@alexi/db/backends/rest";
+import { PostEndpoint } from "../../workers/${name}/endpoints.ts";
 
-console.log("${toPascalCase(name)} frontend loaded");
+// Initialize the REST backend for use in the document context.
+// The Service Worker uses its own backend (configured in workers/settings.ts).
+const backend = new RestBackend({
+  apiUrl: "/api",
+  endpoints: [PostEndpoint],
+});
+
+backend.connect().then(() => {
+  setBackend(backend);
+  console.log("${toPascalCase(name)} frontend loaded");
+});
 `;
 }
 

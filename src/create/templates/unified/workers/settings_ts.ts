@@ -20,15 +20,19 @@ export function generateWorkerSettingsTs(name: string): string {
  * @module ${name}/workers/${name}/settings
  */
 
-import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
+import { RestBackend } from "@alexi/db/backends/rest";
+import { PostEndpoint } from "./endpoints.ts";
 import { urlpatterns } from "./urls.ts";
 
 // =============================================================================
-// Database
+// Database — REST backend proxies ORM queries to the server API
 // =============================================================================
 
 export const DATABASES = {
-  default: new IndexedDBBackend({ name: "${name}" }),
+  default: new RestBackend({
+    apiUrl: "/api",
+    endpoints: [PostEndpoint],
+  }),
 };
 
 // =============================================================================

@@ -16,10 +16,13 @@ export function generateViewsTs(name: string): string {
  * @module ${name}/views
  */
 
-export function homeView(_request: Request): Response {
-  return Response.json({
-    message: "Welcome to ${name}!",
-  });
+export function homeView(request: Request): Response {
+  // Redirect to the SPA shell (Service Worker handles rendering)
+  const url = new URL(request.url);
+  return Response.redirect(
+    \`\${url.protocol}//\${url.host}/static/${name}/index.html\`,
+    302,
+  );
 }
 
 export function healthView(_request: Request): Response {
