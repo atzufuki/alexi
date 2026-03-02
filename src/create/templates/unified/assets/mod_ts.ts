@@ -15,24 +15,12 @@ export function generateAssetModTs(name: string): string {
  * It runs in the Document context (the browser page itself, not the SW).
  * Use it for Web Components, DOM interactions, and client-side init.
  *
+ * The Service Worker handles all routing and data access.
+ *
  * @module ${name}/assets/${name}/${name}
  */
 
-import { setBackend } from "@alexi/db";
-import { RestBackend } from "@alexi/db/backends/rest";
-import { PostEndpoint } from "../../workers/${name}/endpoints.ts";
-
-// Initialize the REST backend for use in the document context.
-// The Service Worker uses its own backend (configured in workers/settings.ts).
-const backend = new RestBackend({
-  apiUrl: "/api",
-  endpoints: [PostEndpoint],
-});
-
-backend.connect().then(() => {
-  setBackend(backend);
-  console.log("${toPascalCase(name)} frontend loaded");
-});
+console.log("${toPascalCase(name)} frontend loaded");
 `;
 }
 
