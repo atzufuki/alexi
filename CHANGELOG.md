@@ -8,6 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.32.1] - 2026-03-02
+
+### Fixed
+
+- `@alexi/core/management`: extracted shared `resolveSettingsPath` and
+  `toImportUrl` utilities into `settings_utils.ts`, exported from
+  `@alexi/core/management` — eliminates duplicated logic across commands (#198)
+- `@alexi/auth`: fixed `createsuperuser` command not accepting `--settings` with
+  a file path (e.g. `--settings=./project/settings.ts`) — the old implementation
+  hardcoded a path template causing double-path construction and a double
+  `.settings.ts` extension (#198)
+- `@alexi/staticfiles`: fixed cosmetic log message in `collectstatic` that
+  always appended `.settings.ts` to the settings argument regardless of input
+  format (#198)
+
 ## [0.32.0] - 2026-03-02
 
 ### Added

@@ -12,7 +12,13 @@
 
 import { setup } from "@alexi/core";
 import type { DatabasesConfig } from "@alexi/core";
-import { BaseCommand, failure, success } from "@alexi/core/management";
+import {
+  BaseCommand,
+  failure,
+  resolveSettingsPath,
+  success,
+  toImportUrl,
+} from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
@@ -325,16 +331,21 @@ export class CreateSuperuserCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Load project settings
+   * Load project settings.
+   *
+   * Accepts the same argument formats as other management commands:
+   * - Short name:    "web"                  → <cwd>/project/web.settings.ts
+   * - Dotted module: "project.web"          → <cwd>/project/web.ts
+   * - Relative path: "./project/settings.ts" → <cwd>/project/settings.ts
+   * - Absolute path: "/home/user/settings.ts"
    */
   private async loadSettings(
     settingsName: string,
   ): Promise<Record<string, unknown> | null> {
-    const projectDir = Deno.cwd();
-    const settingsPath = `${projectDir}/project/${settingsName}.settings.ts`;
+    const settingsPath = resolveSettingsPath(settingsName);
 
     try {
-      const settingsUrl = this.pathToFileUrl(settingsPath);
+      const settingsUrl = toImportUrl(settingsPath);
       const settings = await import(settingsUrl);
       return settings;
     } catch (error) {
@@ -364,7 +375,7 @@ export class CreateSuperuserCommand extends BaseCommand {
     }
 
     try {
-      const moduleUrl = this.pathToFileUrl(fullPath);
+      const moduleUrl = toImportUrl(fullPath);
       const module = await import(moduleUrl);
 
       const UserModel = module.UserModel as UserModelInterface | undefined;
@@ -397,40 +408,6 @@ export class CreateSuperuserCommand extends BaseCommand {
       this.error(error instanceof Error ? error.message : String(error));
       return { UserModel: null, hashPassword: null };
     }
-  }
-
-  /**
-   * Convert a file path to a file:// URL
-   * Handles Windows and Unix paths
-   */
-  private pathToFileUrl(path: string): string {
-    // Already a URL
-    if (path.startsWith("file://")) {
-      return path;
-    }
-
-    // Normalize path separators
-    const normalized = path.replace(/\\/g, "/");
-
-    // Windows absolute path (C:/...)
-    if (/^[A-Za-z]:\//.test(normalized)) {
-      return `file:///${normalized}`;
-    }
-
-    // Unix absolute path
-    if (normalized.startsWith("/")) {
-      return `file://${normalized}`;
-    }
-
-    // Relative path - make absolute
-    const cwd = Deno.cwd().replace(/\\/g, "/");
-    const absolute = `${cwd}/${normalized}`;
-
-    if (/^[A-Za-z]:\//.test(absolute)) {
-      return `file:///${absolute}`;
-    }
-
-    return `file://${absolute}`;
   }
 
   // ===========================================================================

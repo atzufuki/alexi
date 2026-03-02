@@ -10,59 +10,11 @@
 import { setup } from "../setup.ts";
 import type { DatabasesConfig } from "../setup.ts";
 import { Application } from "./application.ts";
+import { toImportUrl } from "./settings_utils.ts";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
 import type { AppConfig } from "@alexi/types";
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Convert a file path to a file:// URL string for dynamic import.
- *
- * This is an internal helper for loading project-local settings files.
- * It handles Windows paths correctly.
- *
- * NOTE: This is only used for settings files (loaded via --settings CLI arg).
- * App modules use import functions provided by the user in settings.
- *
- * @param filePath - File system path
- * @returns file:// URL string suitable for dynamic import
- * @internal
- */
-function toImportUrl(filePath: string): string {
-  // Normalize backslashes to forward slashes
-  let normalized = filePath.replace(/\\/g, "/");
-
-  // Remove leading ./ if present
-  if (normalized.startsWith("./")) {
-    normalized = normalized.slice(2);
-  }
-
-  // Check if it's a Windows absolute path (e.g., C:/...)
-  if (/^[a-zA-Z]:\//.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  // Check if it's a Windows path without forward slash yet (e.g., C:\...)
-  if (/^[a-zA-Z]:/.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  // Unix absolute path
-  if (normalized.startsWith("/")) {
-    return `file://${normalized}`;
-  }
-
-  // Relative path - make it absolute
-  const cwd = Deno.cwd().replace(/\\/g, "/");
-  if (/^[a-zA-Z]:\//.test(cwd)) {
-    return `file:///${cwd}/${normalized}`;
-  }
-  return `file://${cwd}/${normalized}`;
-}
 
 // =============================================================================
 // Types
