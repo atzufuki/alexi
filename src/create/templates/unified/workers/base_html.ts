@@ -1,11 +1,11 @@
 /**
- * Worker base.html template generator
+ * Base HTML template generator (shared by server and Service Worker)
  *
  * @module @alexi/create/templates/unified/workers/base_html
  */
 
 /**
- * Generate workers/<name>/templates/<name>/base.html content
+ * Generate templates/<name>/base.html content
  */
 export function generateWorkerBaseHtml(name: string): string {
   const title = toPascalCase(name);
@@ -19,14 +19,19 @@ export function generateWorkerBaseHtml(name: string): string {
   <script src="https://unpkg.com/htmx.org@2/dist/htmx.min.js"></script>
   <script type="module" src="/static/${name}/${name}.js"></script>
 </head>
-<body>
+<body hx-boost="true">
   <nav>
     <a href="/">Home</a>
     <a href="/posts/">Posts</a>
   </nav>
-  <main hx-boost="true">
+  <main>
     {% block content %}{% endblock %}
   </main>
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("/static/${name}/worker.js", { type: "module" });
+    }
+  </script>
 </body>
 </html>
 `;
