@@ -18,7 +18,13 @@
  * @module @alexi/staticfiles/commands/bundle
  */
 
-import { BaseCommand, failure, success } from "@alexi/core/management";
+import {
+  BaseCommand,
+  failure,
+  resolveSettingsPath,
+  success,
+  toImportUrl,
+} from "@alexi/core/management";
 import type {
   CommandOptions,
   CommandResult,
@@ -38,36 +44,6 @@ import { isAbsolute, join, toFileUrl } from "@std/path";
 // =============================================================================
 // Helper Functions
 // =============================================================================
-
-/**
- * Convert a file path to a file:// URL string for dynamic import.
- * Only used for loading settings files.
- */
-function toImportUrl(filePath: string): string {
-  let normalized = filePath.replace(/\\/g, "/");
-
-  if (normalized.startsWith("./")) {
-    normalized = normalized.slice(2);
-  }
-
-  if (/^[a-zA-Z]:\//.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  if (/^[a-zA-Z]:/.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  if (normalized.startsWith("/")) {
-    return `file://${normalized}`;
-  }
-
-  const cwd = Deno.cwd().replace(/\\/g, "/");
-  if (/^[a-zA-Z]:\//.test(cwd)) {
-    return `file:///${cwd}/${normalized}`;
-  }
-  return `file://${cwd}/${normalized}`;
-}
 
 // =============================================================================
 // Types
@@ -716,22 +692,10 @@ export class BundleCommand extends BaseCommand {
 
   /**
    * Resolve a short settings name (e.g. "farmhub-sw") to an absolute file path.
-   * Mirrors the logic used by web/commands/runserver.ts.
+   * Delegates to the shared resolveSettingsPath utility.
    */
   private resolveSettingsPath(settingsArg: string): string {
-    if (settingsArg.endsWith(".ts")) {
-      if (settingsArg.startsWith("./") || settingsArg.startsWith("../")) {
-        return `${this.projectRoot}/${settingsArg.slice(2)}`;
-      }
-      return `${this.projectRoot}/${settingsArg}`;
-    }
-
-    if (settingsArg.includes(".")) {
-      const modulePath = settingsArg.replace(/\./g, "/");
-      return `${this.projectRoot}/${modulePath}.ts`;
-    }
-
-    return `${this.projectRoot}/project/${settingsArg}.settings.ts`;
+    return resolveSettingsPath(settingsArg, this.projectRoot);
   }
 
   /**

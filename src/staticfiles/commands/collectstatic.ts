@@ -12,6 +12,7 @@ import {
   failure,
   getSettingsModulePath,
   success,
+  toImportUrl,
 } from "@alexi/core/management";
 import type {
   CommandOptions,
@@ -23,36 +24,6 @@ import type { AppConfig } from "@alexi/types";
 // =============================================================================
 // Helper Functions
 // =============================================================================
-
-/**
- * Convert a file path to a file:// URL string for dynamic import.
- * Only used for loading settings files.
- */
-function toImportUrl(filePath: string): string {
-  let normalized = filePath.replace(/\\/g, "/");
-
-  if (normalized.startsWith("./")) {
-    normalized = normalized.slice(2);
-  }
-
-  if (/^[a-zA-Z]:\//.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  if (/^[a-zA-Z]:/.test(normalized)) {
-    return `file:///${normalized}`;
-  }
-
-  if (normalized.startsWith("/")) {
-    return `file://${normalized}`;
-  }
-
-  const cwd = Deno.cwd().replace(/\\/g, "/");
-  if (/^[a-zA-Z]:\//.test(cwd)) {
-    return `file:///${cwd}/${normalized}`;
-  }
-  return `file://${cwd}/${normalized}`;
-}
 
 /**
  * Import function type for apps.
@@ -175,7 +146,7 @@ export class CollectStaticCommand extends BaseCommand {
 
     try {
       // Load settings from specified module
-      this.info(`Loading settings: ${settingsArg}.settings.ts`);
+      this.info(`Loading settings: ${settingsArg}`);
       const settings = await this.loadSettings(settingsArg);
       if (!settings) {
         return failure("Failed to load settings");

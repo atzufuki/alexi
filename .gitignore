@@ -41,3 +41,6 @@ coverage/
 *.dll
 *.so
 *.dylib
+
+# Local scaffolded test projects
+posts/
