@@ -17,6 +17,7 @@ export function generateWorkerIndexHtml(name: string): string {
 {% block content %}
 <h1>Welcome to ${title}</h1>
 <p>This page is rendered by a Service Worker using Alexi.</p>
+<p><a href="/posts/">Browse Posts</a></p>
 {% endblock %}
 `;
 }

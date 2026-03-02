@@ -17,7 +17,7 @@ export function generateDenoJsonc(name: string, version: string): string {
     tasks: {
       dev:
         "deno run -A --unstable-kv --unstable-bundle manage.ts runserver --settings ./project/settings.ts",
-      serve: "deno serve -A --unstable-kv http.ts",
+      serve: "deno serve -A --unstable-kv project/http.ts",
       test: "deno test -A --unstable-kv",
       bundle:
         "deno run -A --unstable-kv --unstable-bundle manage.ts bundle --settings ./project/settings.ts",

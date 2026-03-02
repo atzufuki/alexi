@@ -71,14 +71,19 @@ Deno.test.afterAll(async () => {
 // =============================================================================
 
 Deno.test({
-  name: "API: GET / returns welcome message",
+  name: "API: GET / redirects to static SPA shell",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
+    // Follow redirects is the default — check we land on the SPA shell
     const response = await fetch(`${baseUrl}/`);
     assertEquals(response.status, 200);
-    const data = await response.json();
-    assertExists(data.message);
+    const body = await response.text();
+    assertEquals(
+      body.includes("<!DOCTYPE html>") || body.includes("serviceWorker"),
+      true,
+      "GET / should redirect to the SPA shell HTML",
+    );
   },
 });
 
@@ -436,6 +441,103 @@ Deno.test({
         true,
         "SW-rendered content must contain 'Welcome'",
       );
+    } finally {
+      await page.close();
+      await context.close();
+    }
+  },
+});
+
+// =============================================================================
+// Browser Tests — Posts UI
+// =============================================================================
+
+Deno.test({
+  name: "Browser: SW renders posts list page",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      const projectName = project.name;
+      // Navigate to the SPA shell first so SW registers
+      await page.goto(`${baseUrl}/static/${projectName}/index.html`);
+      await page.evaluate(async () => {
+        const nav = navigator as unknown as {
+          serviceWorker?: { ready: Promise<unknown> };
+        };
+        if (!nav.serviceWorker) return;
+        await nav.serviceWorker.ready;
+      });
+
+      // Load /posts/ via HTMX — SW intercepts and renders into #content
+      await page.evaluate(() => {
+        (window as unknown as {
+          htmx: { ajax: (m: string, u: string, opts: unknown) => void };
+        })
+          .htmx.ajax("GET", "/posts/", {
+            target: "#content",
+            swap: "innerHTML",
+          });
+      });
+
+      // Wait for the posts list heading to appear
+      await page.waitForSelector("h1", { timeout: 15000 });
+      const heading = await page.locator("h1").first().textContent();
+      assertEquals(
+        heading?.includes("Posts"),
+        true,
+        "Posts list page must render an 'Posts' heading",
+      );
+    } finally {
+      await page.close();
+      await context.close();
+    }
+  },
+});
+
+Deno.test({
+  name: "Browser: SW renders post create form",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const context = await browser.newContext();
+    const page = await context.newPage();
+    try {
+      const projectName = project.name;
+      await page.goto(`${baseUrl}/static/${projectName}/index.html`);
+      await page.evaluate(async () => {
+        const nav = navigator as unknown as {
+          serviceWorker?: { ready: Promise<unknown> };
+        };
+        if (!nav.serviceWorker) return;
+        await nav.serviceWorker.ready;
+      });
+
+      // Load /posts/new/ via HTMX — SW intercepts and renders into #content
+      await page.evaluate(() => {
+        (window as unknown as {
+          htmx: { ajax: (m: string, u: string, opts: unknown) => void };
+        })
+          .htmx.ajax("GET", "/posts/new/", {
+            target: "#content",
+            swap: "innerHTML",
+          });
+      });
+
+      // Wait for the form to appear
+      await page.waitForSelector("form", { timeout: 15000 });
+      const formCount = await page.locator("form").count();
+      assertEquals(
+        formCount >= 1,
+        true,
+        "Post create page must contain a form",
+      );
+
+      // The form should have a title input
+      const titleInput = await page.locator('input[name="title"]').count();
+      assertEquals(titleInput >= 1, true, "Form must have a title input");
     } finally {
       await page.close();
       await context.close();

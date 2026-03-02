@@ -83,6 +83,7 @@ Deno.test({
         "manage.ts",
         ".gitignore",
         "README.md",
+        "project/http.ts",
       ];
 
       for (const file of expectedFiles) {
@@ -262,6 +263,31 @@ Deno.test({
       },
     );
 
+    await t.step(
+      "deno.jsonc serve task references project/http.ts",
+      async () => {
+        const content = await Deno.readTextFile(`${project.path}/deno.jsonc`);
+        assertEquals(
+          content.includes("project/http.ts"),
+          true,
+          "serve task should reference project/http.ts",
+        );
+      },
+    );
+
+    await t.step("http.ts is NOT generated at project root", async () => {
+      const fullPath = `${project.path}/http.ts`;
+      try {
+        await Deno.stat(fullPath);
+        throw new Error("http.ts should NOT exist at project root");
+      } catch (error) {
+        if (!(error instanceof Deno.errors.NotFound)) {
+          throw error;
+        }
+        // NotFound is expected — file correctly does not exist at root
+      }
+    });
+
     // ==========================================================================
     // Unified App — Server-side Files
     // ==========================================================================
@@ -385,6 +411,8 @@ Deno.test({
         `src/${project.name}/workers/${project.name}/views.ts`,
         `src/${project.name}/workers/${project.name}/templates/${project.name}/base.html`,
         `src/${project.name}/workers/${project.name}/templates/${project.name}/index.html`,
+        `src/${project.name}/workers/${project.name}/templates/${project.name}/post_list.html`,
+        `src/${project.name}/workers/${project.name}/templates/${project.name}/post_form.html`,
       ];
 
       for (const file of workerFiles) {
@@ -440,6 +468,105 @@ Deno.test({
         content.includes("fetch"),
         true,
         "worker.ts should handle fetch event",
+      );
+    });
+
+    await t.step("worker endpoints.ts defines PostEndpoint", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/workers/${project.name}/endpoints.ts`,
+      );
+      assertEquals(
+        content.includes("PostEndpoint"),
+        true,
+        "endpoints.ts should define PostEndpoint",
+      );
+      assertEquals(
+        content.includes("class PostEndpoint extends ModelEndpoint"),
+        true,
+        "PostEndpoint should extend ModelEndpoint",
+      );
+    });
+
+    await t.step("worker models.ts re-exports PostModel", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/workers/${project.name}/models.ts`,
+      );
+      assertEquals(
+        content.includes("PostModel"),
+        true,
+        "worker models.ts should re-export PostModel",
+      );
+    });
+
+    await t.step(
+      "worker views.ts defines homeView, postListView, postCreateView",
+      async () => {
+        const content = await Deno.readTextFile(
+          `${project.path}/src/${project.name}/workers/${project.name}/views.ts`,
+        );
+        assertEquals(
+          content.includes("homeView"),
+          true,
+          "views.ts should define homeView",
+        );
+        assertEquals(
+          content.includes("postListView"),
+          true,
+          "views.ts should define postListView",
+        );
+        assertEquals(
+          content.includes("postCreateView"),
+          true,
+          "views.ts should define postCreateView",
+        );
+      },
+    );
+
+    await t.step("worker urls.ts includes posts routes", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/workers/${project.name}/urls.ts`,
+      );
+      assertEquals(
+        content.includes("posts/"),
+        true,
+        "urls.ts should include posts/ route",
+      );
+      assertEquals(
+        content.includes("posts/new/"),
+        true,
+        "urls.ts should include posts/new/ route",
+      );
+    });
+
+    await t.step("post_list.html extends base and lists posts", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/workers/${project.name}/templates/${project.name}/post_list.html`,
+      );
+      assertEquals(
+        content.includes(`extends "${project.name}/base.html"`),
+        true,
+        "post_list.html should extend base.html",
+      );
+      assertEquals(
+        content.includes("{% for post in posts %}"),
+        true,
+        "post_list.html should iterate posts",
+      );
+    });
+
+    await t.step("post_form.html extends base and has form", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/workers/${project.name}/templates/${project.name}/post_form.html`,
+      );
+      assertEquals(
+        content.includes(`extends "${project.name}/base.html"`),
+        true,
+        "post_form.html should extend base.html",
+      );
+      assertEquals(
+        content.includes("<form"),
+        true,
+        "post_form.html should contain a form element",
       );
     });
 
