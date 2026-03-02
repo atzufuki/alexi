@@ -86,6 +86,28 @@ export const INSTALLED_APPS = [
 export const ROOT_URLCONF = () => import("@${name}/urls.ts");
 
 // =============================================================================
+// Templates
+// =============================================================================
+
+/**
+ * Django-style TEMPLATES configuration.
+ * APP_DIRS: true auto-discovers <appPath>/templates/ for all INSTALLED_APPS.
+ * DIRS: explicit extra template directories (e.g. worker/SW templates).
+ *
+ * See: https://docs.djangoproject.com/en/5.2/ref/settings/#templates
+ */
+export const TEMPLATES = [
+  {
+    APP_DIRS: true,
+    DIRS: [
+      // Worker (Service Worker) templates — nested deeper than the app root,
+      // so APP_DIRS alone cannot discover them.
+      "./src/${name}/workers/${name}/templates",
+    ],
+  },
+];
+
+// =============================================================================
 // Static Files
 // =============================================================================
 

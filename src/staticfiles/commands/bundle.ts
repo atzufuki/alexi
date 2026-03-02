@@ -29,10 +29,11 @@ import type {
   AssetfilesDirConfig,
   BundleConfig,
   StaticfileConfig,
+  TemplatesConfig,
 } from "@alexi/types";
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
-import { join, toFileUrl } from "@std/path";
+import { isAbsolute, join, toFileUrl } from "@std/path";
 
 // =============================================================================
 // Helper Functions
@@ -158,6 +159,7 @@ export function resolveTemplatesDir(
   }
 
   // Relative path → resolve against project root
+  if (isAbsolute(templatesDir)) return templatesDir;
   const rel = templatesDir.replace(/^\.\//, "");
   return `${projectRoot}/${rel}`;
 }
@@ -245,6 +247,87 @@ export async function collectAllTemplates(
       allTemplates.push(...templates);
     } catch {
       // Skip apps that fail to load
+    }
+  }
+
+  return allTemplates;
+}
+
+/**
+ * Collect templates using the Django-style TEMPLATES setting.
+ *
+ * When `APP_DIRS: true`, auto-discovers `<appPath>/templates/` for each
+ * installed app.  `DIRS` entries add explicit extra directories.
+ *
+ * Falls back to `collectAllTemplates()` (legacy `config.templatesDir`) when
+ * no TEMPLATES setting is provided.
+ *
+ * @param templatesConfig - Array from the `TEMPLATES` project setting
+ * @param importFunctions - Array of app import functions from INSTALLED_APPS
+ * @param projectRoot     - Absolute path to the project root
+ *
+ * @internal Exported for testing only.
+ */
+export async function collectTemplatesFromConfig(
+  templatesConfig: TemplatesConfig[],
+  importFunctions: AppImportFn[],
+  projectRoot: string,
+): Promise<DiscoveredTemplate[]> {
+  const allTemplates: DiscoveredTemplate[] = [];
+
+  // Build a map of appName → absolute appPath for APP_DIRS discovery
+  const appPaths: string[] = [];
+  for (const importFn of importFunctions) {
+    try {
+      const module = await importFn();
+      const config = module.default as AppConfig | undefined;
+      if (!config) continue;
+
+      const appPath = (config.appPath ?? `./src/${config.name}`).replace(
+        /^\.?\//,
+        "",
+      );
+      const absAppDir = isAbsolute(appPath)
+        ? appPath
+        : `${projectRoot}/${appPath}`;
+      appPaths.push(absAppDir);
+    } catch {
+      // Skip apps that fail to load
+    }
+  }
+
+  for (const config of templatesConfig) {
+    // APP_DIRS: auto-discover <appPath>/templates/ for all installed apps
+    if (config.APP_DIRS) {
+      for (const absAppDir of appPaths) {
+        const conventionDir = `${absAppDir}/templates`;
+        try {
+          const stat = await Deno.stat(conventionDir);
+          if (stat.isDirectory) {
+            const templates = await scanTemplatesDir(conventionDir);
+            allTemplates.push(...templates);
+          }
+        } catch {
+          // No templates dir by convention, skip
+        }
+      }
+    }
+
+    // DIRS: explicit extra template directories
+    if (Array.isArray(config.DIRS)) {
+      for (const dir of config.DIRS) {
+        const resolved = resolveTemplatesDir(dir, projectRoot);
+        if (!resolved) continue;
+        try {
+          const stat = await Deno.stat(resolved);
+          if (stat.isDirectory) {
+            const templates = await scanTemplatesDir(resolved);
+            allTemplates.push(...templates);
+          }
+        } catch {
+          // Skip unreadable directories
+        }
+      }
     }
   }
 
@@ -594,6 +677,7 @@ export class BundleCommand extends BaseCommand {
         includeCss: !noCss,
         debug,
         importFunctions: settings.importFunctions,
+        templatesConfig: settings.templatesConfig,
       });
 
       // Print results
@@ -612,6 +696,7 @@ export class BundleCommand extends BaseCommand {
           includeCss: !noCss,
           debug,
           importFunctions: settings.importFunctions,
+          templatesConfig: settings.templatesConfig,
         });
         // Keep running until interrupted (only when run as CLI command)
         await new Promise(() => {}); // Never resolves
@@ -664,11 +749,13 @@ export class BundleCommand extends BaseCommand {
     {
       importFunctions: AppImportFn[];
       assetfilesDirs: AssetfilesDirConfig[];
+      templatesConfig: TemplatesConfig[];
     } | null
   > {
     try {
       const importFunctions: AppImportFn[] = [];
       const assetfilesDirs: AssetfilesDirConfig[] = [];
+      const templatesConfig: TemplatesConfig[] = [];
 
       const processSettingsModule = (settings: Record<string, unknown>) => {
         const installedApps = settings.INSTALLED_APPS ?? [];
@@ -681,6 +768,12 @@ export class BundleCommand extends BaseCommand {
         if (Array.isArray(dirs)) {
           for (const d of dirs) {
             assetfilesDirs.push(d as AssetfilesDirConfig);
+          }
+        }
+        const templates = settings.TEMPLATES;
+        if (Array.isArray(templates)) {
+          for (const t of templates) {
+            templatesConfig.push(t as TemplatesConfig);
           }
         }
       };
@@ -715,7 +808,7 @@ export class BundleCommand extends BaseCommand {
         return null;
       }
 
-      return { importFunctions, assetfilesDirs };
+      return { importFunctions, assetfilesDirs, templatesConfig };
     } catch (error) {
       if (this.watcher === null) {
         // Only log error if not in watch mode (to avoid spam)
@@ -847,6 +940,7 @@ export class BundleCommand extends BaseCommand {
       includeCss: boolean;
       debug: boolean;
       importFunctions?: AppImportFn[];
+      templatesConfig?: TemplatesConfig[];
     },
   ): Promise<BundleResult[]> {
     const results: BundleResult[] = [];
@@ -868,6 +962,7 @@ export class BundleCommand extends BaseCommand {
       minify: boolean;
       debug: boolean;
       importFunctions?: AppImportFn[];
+      templatesConfig?: TemplatesConfig[];
     },
   ): Promise<BundleResult> {
     const startTime = performance.now();
@@ -880,8 +975,9 @@ export class BundleCommand extends BaseCommand {
       await Deno.mkdir(outputDir, { recursive: true });
 
       // Determine templates to embed:
-      // 1. If target specifies its own templatesDir, use that (new ASSETFILES_DIRS style)
-      // 2. Otherwise fall back to collecting from all apps via importFunctions (legacy)
+      // 1. If target specifies its own templatesDir, use that (ASSETFILES_DIRS style)
+      // 2. Otherwise use TEMPLATES setting (new Django-style) if provided
+      // 3. Otherwise fall back to collecting from all apps via importFunctions (legacy)
       let templates: DiscoveredTemplate[] = [];
       if (target.templatesDir) {
         const dir = resolveTemplatesDir(target.templatesDir, this.projectRoot);
@@ -892,6 +988,21 @@ export class BundleCommand extends BaseCommand {
               `  Embedding ${templates.length} templates from ${target.templatesDir}...`,
             );
           }
+        }
+      } else if (
+        options.templatesConfig && options.templatesConfig.length > 0 &&
+        options.importFunctions && options.importFunctions.length > 0
+      ) {
+        templates = await collectTemplatesFromConfig(
+          options.templatesConfig,
+          options.importFunctions,
+          this.projectRoot,
+        );
+        if (templates.length > 0) {
+          const outputName = outputPath.split("/").pop() ?? outputPath;
+          this.info(
+            `  Embedding ${templates.length} templates into ${outputName}...`,
+          );
         }
       } else if (
         options.importFunctions && options.importFunctions.length > 0
@@ -1011,6 +1122,7 @@ export class BundleCommand extends BaseCommand {
       includeCss: boolean;
       debug: boolean;
       importFunctions?: AppImportFn[];
+      templatesConfig?: TemplatesConfig[];
     },
   ): Promise<void> {
     // Collect all source directories to watch
@@ -1178,6 +1290,7 @@ export class BundleCommand extends BaseCommand {
         includeCss: true,
         debug,
         importFunctions: settings.importFunctions,
+        templatesConfig: settings.templatesConfig,
       });
 
       // Print results
@@ -1198,6 +1311,7 @@ export class BundleCommand extends BaseCommand {
         includeCss: true,
         debug,
         importFunctions: settings.importFunctions,
+        templatesConfig: settings.templatesConfig,
       });
 
       return { success: true };
@@ -1217,6 +1331,7 @@ export class BundleCommand extends BaseCommand {
       includeCss: boolean;
       debug: boolean;
       importFunctions?: AppImportFn[];
+      templatesConfig?: TemplatesConfig[];
     },
   ): void {
     // Collect all source directories to watch
