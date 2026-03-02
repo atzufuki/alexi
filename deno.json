@@ -17,8 +17,7 @@
     "./src/webui",
     "./src/create",
     "./src/admin",
-    "./src/capacitor",
-    "./posts"
+    "./src/capacitor"
   ],
   "exports": {
     ".": "./src/mod.ts",
