@@ -39,13 +39,11 @@ export { generateUrlsTs } from "./templates/unified/urls_ts.ts";
 export { generateViewsTs } from "./templates/unified/views_ts.ts";
 export { generatePostTestTs } from "./templates/unified/test_ts.ts";
 export { generateInitMigration } from "./templates/unified/migration_ts.ts";
-export { generateStaticIndexHtml } from "./templates/unified/static_index_html.ts";
 
 // Unified app — assets template generators
 export { generateAssetModTs } from "./templates/unified/assets/mod_ts.ts";
 
 // Unified app — worker template generators
-export { generateWorkerAppTs } from "./templates/unified/workers/app_ts.ts";
 export { generateWorkerModTs } from "./templates/unified/workers/mod_ts.ts";
 export { generateWorkerModelsTs } from "./templates/unified/workers/models_ts.ts";
 export { generateWorkerEndpointsTs } from "./templates/unified/workers/endpoints_ts.ts";

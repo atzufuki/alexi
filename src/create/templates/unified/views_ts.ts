@@ -11,18 +11,46 @@ export function generateViewsTs(name: string): string {
   return `/**
  * ${toPascalCase(name)} Views
  *
- * Server-side views for the app.
+ * Server-side views for the app. Templates are shared between the server
+ * and the Service Worker — both render from src/${name}/templates/.
  *
  * @module ${name}/views
  */
 
-export function homeView(request: Request): Response {
-  // Redirect to the SPA shell (Service Worker handles rendering)
-  const url = new URL(request.url);
-  return Response.redirect(
-    \`\${url.protocol}//\${url.host}/static/${name}/index.html\`,
-    302,
-  );
+import { templateView } from "@alexi/views";
+import { PostModel } from "@${name}/models.ts";
+
+export const homeView = templateView({
+  templateName: "${name}/index.html",
+  context: async (_request, _params) => ({ title: "${toPascalCase(name)}" }),
+});
+
+export const postListView = templateView({
+  templateName: "${name}/post_list.html",
+  context: async (_request, _params) => {
+    const posts = await PostModel.objects.all().fetch();
+    return {
+      posts: posts.array().map((p) => ({
+        id: p.id.get(),
+        title: p.title.get(),
+        published: p.published.get(),
+      })),
+    };
+  },
+});
+
+export async function postCreateView(request: Request): Promise<Response> {
+  if (request.method === "POST") {
+    const formData = await request.formData();
+    const title = (formData.get("title") as string | null) ?? "";
+    const content = (formData.get("content") as string | null) ?? "";
+    await PostModel.objects.create({ title, content, published: false });
+    return Response.redirect(new URL("/posts/", request.url), 303);
+  }
+  return templateView({
+    templateName: "${name}/post_form.html",
+    context: async () => ({}),
+  })(request, {});
 }
 
 export function healthView(_request: Request): Response {

@@ -59,7 +59,7 @@ Deno.test({
         `src/${project.name}/static/${project.name}`,
         `src/${project.name}/assets/${project.name}`,
         `src/${project.name}/workers/${project.name}`,
-        `src/${project.name}/workers/${project.name}/templates/${project.name}`,
+        `src/${project.name}/templates/${project.name}`,
       ];
 
       for (const dir of expectedDirs) {
@@ -363,25 +363,6 @@ Deno.test({
     // Unified App — Static Files
     // ==========================================================================
 
-    await t.step("creates static index.html", async () => {
-      const filePath =
-        `${project.path}/src/${project.name}/static/${project.name}/index.html`;
-      const stat = await Deno.stat(filePath);
-      assertEquals(stat.isFile, true, "index.html should be a file");
-
-      const content = await Deno.readTextFile(filePath);
-      assertEquals(
-        content.includes("<!DOCTYPE html>"),
-        true,
-        "index.html should be valid HTML",
-      );
-      assertEquals(
-        content.includes("serviceWorker"),
-        true,
-        "index.html should register Service Worker",
-      );
-    });
-
     // ==========================================================================
     // Unified App — Assets (Frontend)
     // ==========================================================================
@@ -409,10 +390,10 @@ Deno.test({
         `src/${project.name}/workers/${project.name}/settings.ts`,
         `src/${project.name}/workers/${project.name}/urls.ts`,
         `src/${project.name}/workers/${project.name}/views.ts`,
-        `src/${project.name}/workers/${project.name}/templates/${project.name}/base.html`,
-        `src/${project.name}/workers/${project.name}/templates/${project.name}/index.html`,
-        `src/${project.name}/workers/${project.name}/templates/${project.name}/post_list.html`,
-        `src/${project.name}/workers/${project.name}/templates/${project.name}/post_form.html`,
+        `src/${project.name}/templates/${project.name}/base.html`,
+        `src/${project.name}/templates/${project.name}/index.html`,
+        `src/${project.name}/templates/${project.name}/post_list.html`,
+        `src/${project.name}/templates/${project.name}/post_form.html`,
       ];
 
       for (const file of workerFiles) {
@@ -540,7 +521,7 @@ Deno.test({
 
     await t.step("post_list.html extends base and lists posts", async () => {
       const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}/workers/${project.name}/templates/${project.name}/post_list.html`,
+        `${project.path}/src/${project.name}/templates/${project.name}/post_list.html`,
       );
       assertEquals(
         content.includes(`extends "${project.name}/base.html"`),
@@ -556,7 +537,7 @@ Deno.test({
 
     await t.step("post_form.html extends base and has form", async () => {
       const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}/workers/${project.name}/templates/${project.name}/post_form.html`,
+        `${project.path}/src/${project.name}/templates/${project.name}/post_form.html`,
       );
       assertEquals(
         content.includes(`extends "${project.name}/base.html"`),
