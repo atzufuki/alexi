@@ -11,20 +11,22 @@ export function generateWorkerEndpointsTs(name: string): string {
   return `/**
  * ${toPascalCase(name)} REST Endpoints
  *
- * Declarative REST API endpoint definitions used by the REST backend.
+ * Declarative REST API endpoint definitions used by the REST backend
+ * to map ORM operations to server API calls.
  *
  * @module ${name}/workers/${name}/endpoints
  */
 
-// import { DetailAction, ListAction, ModelEndpoint, SingletonQuery } from "@alexi/db/backends/rest";
-// import { PostModel } from "./models.ts";
+import { DetailAction, ModelEndpoint } from "@alexi/db/backends/rest";
+import { PostModel } from "./models.ts";
 
-// Example endpoint:
-// class PostEndpoint extends ModelEndpoint {
-//   model = PostModel;
-//   path = "/posts/";
-//   publish = new DetailAction();
-// }
+export class PostEndpoint extends ModelEndpoint {
+  model = PostModel;
+  path = "/posts/";
+
+  // POST /posts/:id/publish/
+  publish = new DetailAction();
+}
 `;
 }
 

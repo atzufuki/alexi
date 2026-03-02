@@ -16,9 +16,14 @@ export function generateWorkerBaseHtml(name: string): string {
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}${title}{% endblock %}</title>
+  <script src="https://unpkg.com/htmx.org@2/dist/htmx.min.js"></script>
   <script type="module" src="/static/${name}/${name}.js"></script>
 </head>
 <body>
+  <nav>
+    <a href="/">Home</a>
+    <a href="/posts/">Posts</a>
+  </nav>
   <main hx-boost="true">
     {% block content %}{% endblock %}
   </main>

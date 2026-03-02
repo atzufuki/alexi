@@ -20,14 +20,14 @@ export function generateHttpTs(name: string): string {
  * getApplication(settings) and exports the result.
  *
  * Usage:
- *   deno serve -A --unstable-kv http.ts
+ *   deno serve -A --unstable-kv project/http.ts
  *   # or just deploy to Deno Deploy — it picks up the default export.
  *
  * @module http
  */
 
 import { getApplication } from "@alexi/core";
-import * as settings from "./project/settings.ts";
+import * as settings from "./settings.ts";
 
 export default await getApplication(settings);
 `;
