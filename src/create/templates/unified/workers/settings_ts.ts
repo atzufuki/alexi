@@ -6,23 +6,38 @@
 
 /**
  * Generate workers/<name>/settings.ts content
+ *
+ * This is the Service Worker's settings module — the browser-side equivalent
+ * of project/settings.ts. It is passed to getApplication(settings) in mod.ts.
  */
 export function generateWorkerSettingsTs(name: string): string {
   return `/**
  * ${toPascalCase(name)} Worker Settings
  *
- * Client-side DATABASES config for the Service Worker context.
+ * Service Worker settings module — the browser-side equivalent of
+ * project/settings.ts. Passed to getApplication() in mod.ts.
  *
  * @module ${name}/workers/${name}/settings
  */
 
-// import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
-// import { RestBackend } from "@alexi/db/backends/rest";
-//
-// export const DATABASES = {
-//   default: new IndexedDBBackend({ name: "${name}" }),
-//   rest: new RestBackend({ apiUrl: "http://localhost:8000/api" }),
-// };
+import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
+import { urlpatterns } from "./urls.ts";
+
+// =============================================================================
+// Database
+// =============================================================================
+
+export const DATABASES = {
+  default: new IndexedDBBackend({ name: "${name}" }),
+};
+
+// =============================================================================
+// URL Configuration
+// =============================================================================
+
+// Static import — dynamic import() is disallowed in Service Workers.
+// See https://github.com/w3c/ServiceWorker/issues/1356
+export const ROOT_URLCONF = urlpatterns;
 `;
 }
 

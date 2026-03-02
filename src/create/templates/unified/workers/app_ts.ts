@@ -27,6 +27,7 @@ import type { AppConfig } from "@alexi/types";
 const config: AppConfig = {
   name: "${name}-worker",
   verboseName: "${appName} Worker",
+  appPath: "./src/${name}",
   staticfiles: [
     {
       entrypoint: "./workers/${name}/mod.ts",

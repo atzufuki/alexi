@@ -14,22 +14,28 @@ export function generateWorkerModTs(name: string): string {
  * Service Worker entry point — bundled into static/${name}/worker.js.
  * Runs in the browser's Service Worker context, never on the Deno server.
  *
+ * Analogous to Django's wsgi.py / asgi.py — a thin shell that calls
+ * getApplication(settings) and wires it to the SW lifecycle events.
+ *
  * @module ${name}/workers/${name}/mod
  */
 
-import { Application, setup } from "@alexi/core";
-import { IndexedDBBackend } from "@alexi/db/backends/indexeddb";
-import { urlpatterns } from "./urls.ts";
+import { getApplication } from "@alexi/core";
+import * as settings from "./settings.ts";
 
 declare const self: ServiceWorkerGlobalScope;
 
-const app = new Application({ urls: urlpatterns });
+let app: Awaited<ReturnType<typeof getApplication>>;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      const backend = new IndexedDBBackend({ name: "${name}" });
-      await setup({ DATABASES: { default: backend } });
+      try {
+        app = await getApplication(settings);
+      } catch (error) {
+        console.error("[SW] install failed:", error);
+        throw error;
+      }
       await self.skipWaiting();
     })(),
   );
