@@ -716,11 +716,17 @@ export const homeView = templateView({
   <div id="content"></div>
   <script src="https://unpkg.com/htmx.org@2" defer></script>
   <script>
+    function render() {
+      if (typeof htmx !== "undefined") {
+        htmx.ajax("GET", "/", { target: "#content", swap: "innerHTML" });
+      } else {
+        document.addEventListener("DOMContentLoaded", function () {
+          htmx.ajax("GET", "/", { target: "#content", swap: "innerHTML" });
+        });
+      }
+    }
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("/static/${name}/worker.js", { type: "module" }).then((reg) => {
-        function render() {
-          htmx.ajax("GET", "/", { target: "#content", swap: "innerHTML" });
-        }
         if (navigator.serviceWorker.controller) {
           render();
         } else {
