@@ -11,6 +11,7 @@ import { join, toFileUrl } from "@std/path";
 import {
   buildSWBundle,
   collectAllTemplates,
+  collectTemplatesFromConfig,
   generateTemplatesModule,
   resolveTemplatesDir,
   scanTemplatesDir,
@@ -415,3 +416,147 @@ Deno.test({
     }
   },
 });
+
+// =============================================================================
+// collectTemplatesFromConfig
+// =============================================================================
+
+Deno.test({
+  name: "collectTemplatesFromConfig: APP_DIRS discovers <appPath>/templates/",
+  // esbuild subprocess from buildSWBundle tests may still be exiting — disable
+  // resource sanitizer to avoid false positives from the prior test's cleanup.
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      // Create an app with a convention-based templates/ directory
+      const appDir = join(tmpDir, "src", "my-app");
+      const appTemplatesDir = join(appDir, "templates");
+      await Deno.mkdir(join(appTemplatesDir, "my-app"), { recursive: true });
+      await Deno.writeTextFile(
+        join(appTemplatesDir, "my-app", "index.html"),
+        "<h1>Hello</h1>",
+      );
+
+      const importFunctions = [
+        () =>
+          Promise.resolve({
+            default: {
+              name: "my-app",
+              appPath: "src/my-app",
+            },
+          }),
+      ];
+
+      const results = await collectTemplatesFromConfig(
+        [{ APP_DIRS: true, DIRS: [] }],
+        importFunctions as never,
+        tmpDir,
+      );
+
+      assertEquals(results.length, 1);
+      assertEquals(results[0].name, "my-app/index.html");
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test(
+  "collectTemplatesFromConfig: DIRS picks up explicit extra directories",
+  async () => {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const extraDir = join(tmpDir, "workers", "templates");
+      await Deno.mkdir(join(extraDir, "my-app"), { recursive: true });
+      await Deno.writeTextFile(
+        join(extraDir, "my-app", "base.html"),
+        "<html></html>",
+      );
+
+      const results = await collectTemplatesFromConfig(
+        [{ APP_DIRS: false, DIRS: [extraDir] }],
+        [],
+        tmpDir,
+      );
+
+      assertEquals(results.length, 1);
+      assertEquals(results[0].name, "my-app/base.html");
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+);
+
+Deno.test(
+  "collectTemplatesFromConfig: returns empty when no dirs match",
+  async () => {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const results = await collectTemplatesFromConfig(
+        [{ APP_DIRS: true, DIRS: [] }],
+        [],
+        tmpDir,
+      );
+      assertEquals(results, []);
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+);
+
+Deno.test(
+  "collectTemplatesFromConfig: APP_DIRS + DIRS collects from both sources",
+  async () => {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      // App with convention-based templates dir
+      const appDir = join(tmpDir, "src", "my-app");
+      await Deno.mkdir(join(appDir, "templates", "my-app"), {
+        recursive: true,
+      });
+      await Deno.writeTextFile(
+        join(appDir, "templates", "my-app", "app.html"),
+        "<p>App</p>",
+      );
+
+      // Explicit extra dir (simulating worker templates)
+      const extraDir = join(
+        tmpDir,
+        "src",
+        "my-app",
+        "workers",
+        "my-app",
+        "templates",
+      );
+      await Deno.mkdir(join(extraDir, "my-app"), { recursive: true });
+      await Deno.writeTextFile(
+        join(extraDir, "my-app", "worker.html"),
+        "<p>Worker</p>",
+      );
+
+      const importFunctions = [
+        () =>
+          Promise.resolve({
+            default: {
+              name: "my-app",
+              appPath: "src/my-app",
+            },
+          }),
+      ];
+
+      const results = await collectTemplatesFromConfig(
+        [{ APP_DIRS: true, DIRS: [extraDir] }],
+        importFunctions as never,
+        tmpDir,
+      );
+
+      assertEquals(results.length, 2);
+      const names = results.map((r) => r.name).sort();
+      assertEquals(names, ["my-app/app.html", "my-app/worker.html"]);
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+);

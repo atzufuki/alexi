@@ -446,6 +446,48 @@ export interface AssetfilesDirConfig {
 }
 
 /**
+ * Django-style TEMPLATES setting configuration.
+ *
+ * Controls how Alexi discovers and loads server-side HTML templates.
+ * Mirrors Django's TEMPLATES setting with APP_DIRS and DIRS support.
+ *
+ * @example
+ * // project/settings.ts
+ * export const TEMPLATES: TemplatesConfig[] = [
+ *   {
+ *     APP_DIRS: true,   // auto-discover <appPath>/templates/ for all INSTALLED_APPS
+ *     DIRS: [           // additional explicit template directories
+ *       "./src/my-project/templates",
+ *     ],
+ *   },
+ * ];
+ *
+ * @see https://docs.djangoproject.com/en/5.2/ref/settings/#templates
+ */
+export interface TemplatesConfig {
+  /**
+   * Whether to automatically discover `<appPath>/templates/` directories
+   * for every app in INSTALLED_APPS.
+   *
+   * When `true`, `runserver` and `bundle` scan each installed app's
+   * `<appPath>/templates/` directory and register all `.html` files.
+   *
+   * @default false
+   */
+  APP_DIRS?: boolean;
+
+  /**
+   * Explicit additional template directories to scan.
+   * Each entry is a path relative to the project root, or an absolute path.
+   *
+   * These directories are scanned regardless of the `APP_DIRS` setting.
+   *
+   * @example ["./src/my-project/templates", "./templates"]
+   */
+  DIRS?: string[];
+}
+
+/**
  * Bundle configuration for frontend apps.
  */
 export interface BundleConfig {
