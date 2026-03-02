@@ -74,7 +74,6 @@ export const INSTALLED_APPS = [
   () => import("@alexi/db"),
   () => import("@alexi/restframework"),
   () => import("@${name}/mod.ts"),
-  () => import("@${name}/workers/app.ts"),
 ];
 
 // =============================================================================
@@ -92,6 +91,34 @@ export const ROOT_URLCONF = () => import("@${name}/urls.ts");
 
 export const STATIC_URL = "/static/";
 export const STATIC_ROOT = "./static";
+
+/**
+ * Explicit extra static file directories to serve / collect.
+ * Each entry is a path relative to the project root (or an absolute path).
+ * Convention-based <appPath>/static/ directories are discovered automatically.
+ */
+export const STATICFILES_DIRS: string[] = [];
+
+/**
+ * Frontend asset bundles to build.
+ * Each entry specifies a source directory, output directory, and entry points.
+ * The output filename matches the entrypoint filename (e.g. "worker.ts" → "worker.js").
+ */
+export const ASSETFILES_DIRS = [
+  {
+    // Service Worker bundle: workers/${name}/worker.ts → static/${name}/worker.js
+    path: "./src/${name}/workers/${name}",
+    outputDir: "./src/${name}/static/${name}",
+    entrypoints: ["worker.ts"],
+    templatesDir: "./src/${name}/workers/${name}/templates",
+  },
+  {
+    // Frontend bundle: assets/${name}/${name}.ts → static/${name}/${name}.js
+    path: "./src/${name}/assets/${name}",
+    outputDir: "./src/${name}/static/${name}",
+    entrypoints: ["${name}.ts"],
+  },
+];
 
 // =============================================================================
 // CORS

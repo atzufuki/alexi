@@ -294,8 +294,9 @@ export class RunServerCommand extends BaseCommand {
    * Load all installed apps' configurations.
    *
    * This populates:
-   * - `templateRegistry` from each app's `templatesDir`
+   * - `templateRegistry` from each app's `templatesDir` (legacy) or `<appPath>/templates/` (convention)
    * - `this.appNames` and `this.appPaths` for static file serving
+   *   (includes explicit `STATICFILES_DIRS` from settings)
    *
    * Called at server startup before creating the Application.
    */
@@ -325,21 +326,82 @@ export class RunServerCommand extends BaseCommand {
           this.appPaths[config.name] = appPath;
         }
 
-        // Load templates
+        // Load templates:
+        // 1. Legacy: explicit `config.templatesDir` on AppConfig
+        // 2. Convention: `<appPath>/templates/` auto-discovery
+        let templatesDir: string | null = null;
         if (config.templatesDir) {
-          const dir = this.resolveTemplatesDir(config.templatesDir);
-          if (dir) {
-            await this.scanAndRegisterTemplates(dir);
-            templatesRegistered++;
+          templatesDir = this.resolveTemplatesDir(config.templatesDir);
+        } else if (appPath) {
+          // Convention-based: resolve appPath to absolute dir, then append /templates
+          const absAppDir = appPath.startsWith("/")
+            ? appPath
+            : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
+          const conventionDir = `${absAppDir}/templates`;
+          try {
+            const stat = await Deno.stat(conventionDir);
+            if (stat.isDirectory) {
+              templatesDir = conventionDir;
+            }
+          } catch {
+            // No templates dir by convention, skip
           }
+        }
+
+        if (templatesDir) {
+          await this.scanAndRegisterTemplates(templatesDir);
+          templatesRegistered++;
         }
       } catch {
         // Skip apps that fail to load or have unreadable template dirs
       }
     }
 
+    // Also register templates from explicit STATICFILES_DIRS entries that
+    // live alongside a templates/ sibling — but this is intentionally NOT done
+    // here: STATICFILES_DIRS is for static assets only; templates from
+    // ASSETFILES_DIRS are embedded at bundle time, not served by runserver.
+
     if (templatesRegistered > 0) {
       this.success(`Templates loaded from ${templatesRegistered} app(s)`);
+    }
+
+    // Handle explicit STATICFILES_DIRS: add each as a synthetic "app"
+    const staticfilesDirs = settings.STATICFILES_DIRS as string[] | undefined;
+    if (Array.isArray(staticfilesDirs)) {
+      for (const dir of staticfilesDirs) {
+        const resolved = dir.startsWith("file://")
+          ? (() => {
+            try {
+              const url = new URL(dir);
+              let pathname = url.pathname.replace(/\/$/, "");
+              if (/^\/[a-zA-Z]:\//.test(pathname)) {
+                pathname = pathname.slice(1);
+              }
+              return pathname;
+            } catch {
+              return null;
+            }
+          })()
+          : dir.startsWith("/")
+          ? dir
+          : `${this.projectRoot}/${dir.replace(/^\.\//, "")}`;
+
+        if (!resolved) continue;
+
+        try {
+          const stat = await Deno.stat(resolved);
+          if (stat.isDirectory) {
+            // Use a synthetic name based on path; store absolute path directly
+            const syntheticName = `__staticfiles_dir_${this.appNames.length}__`;
+            this.appNames.push(syntheticName);
+            // Store absolute dir path; staticFilesMiddleware resolves via appPaths
+            this.appPaths[syntheticName] = resolved;
+          }
+        } catch {
+          // Directory doesn't exist, skip
+        }
+      }
     }
 
     if (this.appNames.length > 0) {

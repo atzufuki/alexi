@@ -323,6 +323,8 @@ export interface TargetConfig {
  *
  * Used in `AppConfig.staticfiles` to declare multiple bundles per app
  * (e.g. a `worker.ts` Service Worker bundle and a `document.ts` DOM bundle).
+ *
+ * @deprecated Use `ASSETFILES_DIRS` in project settings instead.
  */
 export interface StaticfileConfig {
   /**
@@ -344,6 +346,86 @@ export interface StaticfileConfig {
 
   /**
    * Additional options for the bundler.
+   */
+  options?: {
+    /**
+     * Enable minification for production builds.
+     */
+    minify?: boolean;
+
+    /**
+     * Enable source maps.
+     */
+    sourceMaps?: boolean;
+
+    /**
+     * External modules that should not be bundled.
+     */
+    external?: string[];
+  };
+}
+
+/**
+ * Configuration for a single asset files directory entry.
+ *
+ * Replaces `AppConfig.staticfiles` — bundle configuration now lives in
+ * project settings, not in individual app configs.
+ *
+ * Each entry specifies a source directory, one or more TypeScript entry
+ * points to compile, and an output directory for the resulting JS files.
+ * An optional `templatesDir` may be provided to embed HTML templates into
+ * Service Worker bundles at build time.
+ *
+ * @example
+ * ```ts
+ * export const ASSETFILES_DIRS = [
+ *   {
+ *     path: "./src/my-project/workers/my-project",
+ *     outputDir: "./src/my-project/static/my-project",
+ *     entrypoints: ["worker.ts", "document.ts"],
+ *     templatesDir: "./src/my-project/workers/my-project/templates",
+ *   },
+ * ];
+ * ```
+ */
+export interface AssetfilesDirConfig {
+  /**
+   * Path to the source directory containing TypeScript entry points.
+   * Relative to the project root.
+   *
+   * @example "./src/my-project/workers/my-project"
+   */
+  path: string;
+
+  /**
+   * Output directory for compiled JS files.
+   * Relative to the project root.
+   *
+   * @example "./src/my-project/static/my-project"
+   */
+  outputDir: string;
+
+  /**
+   * Explicit list of entry point filenames (relative to `path`).
+   *
+   * @example ["worker.ts", "document.ts"]
+   */
+  entrypoints: string[];
+
+  /**
+   * Path to a templates directory to embed into Service Worker bundles.
+   * All `.html` files under this directory are embedded via the virtual
+   * `alexi:templates` module so that `templateView` works without filesystem
+   * access inside a Service Worker.
+   *
+   * Relative to the project root, or an absolute `file://` URL.
+   *
+   * @example "./src/my-project/workers/my-project/templates"
+   */
+  templatesDir?: string;
+
+  /**
+   * Additional bundler options applied to all entry points in this directory.
    */
   options?: {
     /**
@@ -580,6 +662,16 @@ export interface DesktopConfig {
  *
  * Django-style app configuration that tells the framework
  * what the app contains and how to handle it.
+ *
+ * Following Django conventions, `AppConfig` contains only app identity
+ * metadata (`name`, `verboseName`, `appPath`).  Build and file-serving
+ * configuration now lives in project settings:
+ * - `ASSETFILES_DIRS` — TypeScript source directories for the bundler
+ * - `STATICFILES_DIRS` — additional static file directories for collectstatic
+ *
+ * Per-app static files are auto-discovered by convention from
+ * `<appPath>/static/` (like Django's `AppDirectoriesFinder`), and templates
+ * from `<appPath>/templates/` at `runserver` time.
  */
 export interface AppConfig {
   /**
@@ -601,18 +693,23 @@ export interface AppConfig {
    *
    * If not specified, the convention `./src/${name}` is used.
    * Use this when the app's directory doesn't match the convention
-   * (e.g. a worker sub-app that lives inside another app's directory).
+   * (e.g. a published package whose static/template dirs are absolute paths).
+   *
+   * Can be a relative path (resolved against the project root) or an
+   * absolute `file://` URL (recommended for published packages).
    *
    * Path is relative to the project root.
    *
    * @example "./src/myapp"
-   * @example "./src/myapp/workers/myapp"
+   * @example "file:///path/to/package"
    */
   appPath?: string;
 
   /**
    * Frontend bundle configuration.
    * If defined, the `bundle` command will compile TypeScript → JavaScript.
+   *
+   * @deprecated Use `ASSETFILES_DIRS` in project settings instead.
    */
   bundle?: BundleConfig;
 
@@ -622,6 +719,8 @@ export interface AppConfig {
    * Use this instead of `bundle` when an app produces more than one JS output
    * (e.g. a browser app with a `worker.ts` Service Worker entry and a
    * `document.ts` DOM entry).  Each item is bundled independently.
+   *
+   * @deprecated Use `ASSETFILES_DIRS` in project settings instead.
    *
    * @example
    * staticfiles: [
@@ -635,15 +734,14 @@ export interface AppConfig {
    * Static files directory.
    * These files are copied to STATIC_ROOT by the collectstatic command.
    *
+   * @deprecated Static file discovery is now convention-based (`<appPath>/static/`).
+   * Extra directories can be registered via `STATICFILES_DIRS` in project settings.
+   *
    * Can be either:
    * - A path relative to the app's `src/<name>/` directory: `"static"`
    * - An absolute `file://` URL derived from `import.meta.url` (recommended
    *   for published packages so the path resolves correctly regardless of
    *   whether the package is installed from JSR, npm, or a local path):
-   *
-   * @example
-   * // Relative path (project-local apps)
-   * staticDir: "static"
    *
    * @example
    * // Absolute URL (published packages — works in JSR cache, local dev, etc.)
@@ -698,6 +796,10 @@ export interface AppConfig {
   /**
    * Template directory for this app.
    *
+   * @deprecated Template discovery is now convention-based (`<appPath>/templates/`)
+   * at `runserver` time, and `templatesDir` in `ASSETFILES_DIRS` is used for
+   * bundle-time SW template embedding.
+   *
    * Django-style namespacing: a template named `"my-app/note_list.html"`
    * should live at `<templatesDir>/my-app/note_list.html`.
    *
@@ -705,14 +807,6 @@ export interface AppConfig {
    * - A path relative to the project root: `"src/my-app/templates"`
    * - An absolute `file://` URL (recommended for published packages):
    *   `new URL("./templates/", import.meta.url).href`
-   *
-   * When the Application starts, it reads all `.html` files from this
-   * directory tree and registers them in the global `templateRegistry`
-   * so templates are available to `templateView`.
-   *
-   * @example
-   * // Relative path (project-local apps)
-   * templatesDir: "src/my-app/templates"
    *
    * @example
    * // Absolute URL (published packages)
