@@ -8,6 +8,41 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.30.0] - 2026-03-02
+
+### Added
+
+- `@alexi/core`: isomorphic `getApplication()` factory — Django-style entry
+  point that initialises databases, resolves URL patterns, builds the middleware
+  chain, and returns a ready-to-use `Application` instance. Works in both Deno
+  server and Service Worker contexts (#188, #189)
+- `@alexi/core`: `Application` class with `handler()` method for request
+  dispatch
+- `@alexi/create`: scaffolded projects now include `http.ts` — a production
+  server entrypoint for `deno serve` and Deno Deploy (#188, #189)
+- `@alexi/create`: Playwright-based E2E browser tests for scaffolded projects,
+  covering static file serving, Service Worker lifecycle, and HTMX content
+  rendering
+
+### Fixed
+
+- `@alexi/create`: scaffolded browser worker's `mod.ts` now re-exports `default`
+  from `app.ts`, fixing SW app config resolution
+- `@alexi/create`: Service Worker registration now uses `{ type: "module" }` to
+  match the ES module output from the bundler
+- `@alexi/create`: worker settings use static imports instead of dynamic
+  `import()` which is disallowed in Service Workers per HTML spec
+- `@alexi/create`: SPA shell `render()` guards against `htmx` not yet loaded
+  when the deferred script hasn't executed
+- `@alexi/create`: `homeView` is now wired to the root route (`""`) in
+  scaffolded worker URL patterns
+- `@alexi/core`: `setup.ts` uses static import of `@alexi/db` instead of dynamic
+  `import()` for Service Worker compatibility
+- `@alexi/web`: `runserver` now auto-injects `staticFilesMiddleware` by scanning
+  installed apps for static file directories
+- `@alexi/types`: added `appPath` to `AppConfig` interface for explicit app
+  directory resolution
+
 ## [0.29.2] - 2026-03-01
 
 ### Fixed
