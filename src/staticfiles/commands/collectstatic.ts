@@ -183,7 +183,7 @@ export class CollectStaticCommand extends BaseCommand {
 
       const staticRoot = settings.staticRoot;
 
-      // Find apps with static directories
+      // Find apps with static directories (convention + explicit STATICFILES_DIRS)
       const appsWithStatic = await this.findAppsWithStatic(settings);
 
       if (appsWithStatic.length === 0) {
@@ -268,11 +268,12 @@ export class CollectStaticCommand extends BaseCommand {
 
   /**
    * Load project settings from specified settings module.
-   * Collects import functions from INSTALLED_APPS.
+   * Collects import functions from INSTALLED_APPS and explicit STATICFILES_DIRS.
    */
   private async loadSettings(settingsName: string): Promise<
     {
       importFunctions: AppImportFn[];
+      staticfilesDirs: string[];
       staticRoot: string;
     } | null
   > {
@@ -295,8 +296,20 @@ export class CollectStaticCommand extends BaseCommand {
         }
       }
 
+      // Collect explicit static dirs from STATICFILES_DIRS
+      const staticfilesDirs: string[] = [];
+      const rawDirs = settings.STATICFILES_DIRS;
+      if (Array.isArray(rawDirs)) {
+        for (const d of rawDirs) {
+          if (typeof d === "string") {
+            staticfilesDirs.push(d);
+          }
+        }
+      }
+
       return {
         importFunctions,
+        staticfilesDirs,
         staticRoot: settings.STATIC_ROOT ?? "./static",
       };
     } catch (error) {
@@ -313,11 +326,14 @@ export class CollectStaticCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Find apps that have static directories.
-   * Calls each import function to get the app module.
+   * Find all static directories to collect from, combining:
+   * 1. New-style: explicit `STATICFILES_DIRS` from project settings
+   * 2. Convention-based auto-discovery: `<appPath>/static/` for each installed app
+   *    (still respects legacy `config.staticDir` and `file://` paths)
    */
   private async findAppsWithStatic(settings: {
     importFunctions: AppImportFn[];
+    staticfilesDirs: string[];
     staticRoot: string;
   }): Promise<
     Array<{ name: string; path: string; staticDir: string; config?: AppConfig }>
@@ -326,9 +342,38 @@ export class CollectStaticCommand extends BaseCommand {
       { name: string; path: string; staticDir: string; config?: AppConfig }
     > = [];
 
+    // --- New-style: explicit STATICFILES_DIRS ---
+    for (const dir of settings.staticfilesDirs) {
+      const resolved = dir.startsWith("file://")
+        ? (() => {
+          try {
+            const url = new URL(dir);
+            let pathname = url.pathname.replace(/\/$/, "");
+            if (/^\/[a-zA-Z]:\//.test(pathname)) pathname = pathname.slice(1);
+            return pathname;
+          } catch {
+            return null;
+          }
+        })()
+        : dir.replace(/^\.\//, "").startsWith("/")
+        ? dir
+        : `${this.projectRoot}/${dir.replace(/^\.\//, "")}`;
+
+      if (!resolved) continue;
+
+      try {
+        const stat = await Deno.stat(resolved);
+        if (stat.isDirectory) {
+          apps.push({ name: dir, path: resolved, staticDir: resolved });
+        }
+      } catch {
+        // Directory doesn't exist, skip
+      }
+    }
+
+    // --- Convention-based: INSTALLED_APPS auto-discovery ---
     for (const importFn of settings.importFunctions) {
       try {
-        // Call the user's import function
         const module = await importFn();
         const config = module.default as AppConfig | undefined;
 
@@ -351,15 +396,19 @@ export class CollectStaticCommand extends BaseCommand {
           }
           staticDir = pathname;
           appPath = config.appPath ?? `./src/${config.name}`;
-        } else {
-          // Traditional: relative path resolved against project src/ directory
-          const staticDirRel = config.staticDir
-            ? config.staticDir.replace(/^\.\//, "")
-            : "static";
+        } else if (config.staticDir) {
+          // Legacy: explicit relative staticDir on AppConfig
+          const staticDirRel = config.staticDir.replace(/^\.\//, "");
           appPath = config.appPath ?? `./src/${config.name}`;
           const appPathNormalized = appPath.replace(/^\.\//, "");
           const appDir = `${this.projectRoot}/${appPathNormalized}`;
           staticDir = `${appDir}/${staticDirRel}`;
+        } else {
+          // Convention: <appPath>/static/
+          appPath = config.appPath ?? `./src/${config.name}`;
+          const appPathNormalized = appPath.replace(/^\.\//, "");
+          const appDir = `${this.projectRoot}/${appPathNormalized}`;
+          staticDir = `${appDir}/static`;
         }
 
         // Check if static directory exists

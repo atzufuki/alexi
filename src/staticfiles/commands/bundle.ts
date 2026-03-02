@@ -2,7 +2,9 @@
  * Bundle Command for Alexi Static Files
  *
  * Django-style command that bundles TypeScript frontends to JavaScript.
- * Reads INSTALLED_APPS and finds apps with bundle configuration.
+ * Reads INSTALLED_APPS and finds apps with bundle configuration, and also
+ * reads ASSETFILES_DIRS from project settings for the new settings-level
+ * bundle configuration.
  *
  * Uses esbuild with code-splitting for lazy-loading templates.
  *
@@ -22,7 +24,12 @@ import type {
   CommandResult,
   IArgumentParser,
 } from "@alexi/core/management";
-import type { AppConfig, BundleConfig, StaticfileConfig } from "@alexi/types";
+import type {
+  AppConfig,
+  AssetfilesDirConfig,
+  BundleConfig,
+  StaticfileConfig,
+} from "@alexi/types";
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
 import { join, toFileUrl } from "@std/path";
@@ -81,6 +88,26 @@ interface BundleResult {
   error?: string;
   outputPath?: string;
   duration?: number;
+}
+
+/**
+ * A normalised build target derived from either ASSETFILES_DIRS (new) or
+ * AppConfig.bundle / AppConfig.staticfiles (legacy).
+ */
+interface BuildTarget {
+  /** Display name shown in progress output */
+  name: string;
+  /** Entry point path relative to project root (e.g. "./src/app/worker.ts") */
+  entryPoint: string;
+  /** Absolute output file path */
+  outputPath: string;
+  /** Whether to minify (can be overridden per-entry) */
+  minify?: boolean;
+  /**
+   * Templates directory to embed — scanned when this target is a SW bundle.
+   * Absolute path or relative to project root.
+   */
+  templatesDir?: string;
 }
 
 /**
@@ -636,22 +663,34 @@ export class BundleCommand extends BaseCommand {
   private async loadSettings(settingsPath?: string): Promise<
     {
       importFunctions: AppImportFn[];
+      assetfilesDirs: AssetfilesDirConfig[];
     } | null
   > {
     try {
       const importFunctions: AppImportFn[] = [];
+      const assetfilesDirs: AssetfilesDirConfig[] = [];
+
+      const processSettingsModule = (settings: Record<string, unknown>) => {
+        const installedApps = settings.INSTALLED_APPS ?? [];
+        for (const app of installedApps as unknown[]) {
+          if (typeof app === "function") {
+            importFunctions.push(app as AppImportFn);
+          }
+        }
+        const dirs = settings.ASSETFILES_DIRS;
+        if (Array.isArray(dirs)) {
+          for (const d of dirs) {
+            assetfilesDirs.push(d as AssetfilesDirConfig);
+          }
+        }
+      };
 
       if (settingsPath) {
         // Load only the active settings file
         try {
           const settingsUrl = toImportUrl(settingsPath);
           const settings = await import(settingsUrl);
-          const installedApps = settings.INSTALLED_APPS ?? [];
-          for (const app of installedApps) {
-            if (typeof app === "function") {
-              importFunctions.push(app as AppImportFn);
-            }
-          }
+          processSettingsModule(settings as Record<string, unknown>);
         } catch {
           // Invalid settings file
         }
@@ -664,12 +703,7 @@ export class BundleCommand extends BaseCommand {
               const filePath = `${projectDir}/${entry.name}`;
               const settingsUrl = toImportUrl(filePath);
               const settings = await import(settingsUrl);
-              const installedApps = settings.INSTALLED_APPS ?? [];
-              for (const app of installedApps) {
-                if (typeof app === "function") {
-                  importFunctions.push(app as AppImportFn);
-                }
-              }
+              processSettingsModule(settings as Record<string, unknown>);
             } catch {
               // Skip invalid settings files
             }
@@ -677,11 +711,11 @@ export class BundleCommand extends BaseCommand {
         }
       }
 
-      if (importFunctions.length === 0) {
+      if (importFunctions.length === 0 && assetfilesDirs.length === 0) {
         return null;
       }
 
-      return { importFunctions };
+      return { importFunctions, assetfilesDirs };
     } catch (error) {
       if (this.watcher === null) {
         // Only log error if not in watch mode (to avoid spam)
@@ -696,31 +730,58 @@ export class BundleCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Find apps that have bundle configuration.
-   * Calls each import function to get the app module.
+   * Build the list of targets to bundle, combining:
+   * 1. New-style: ASSETFILES_DIRS entries from project settings
+   * 2. Legacy: AppConfig.staticfiles / AppConfig.bundle from INSTALLED_APPS
    */
   private async findAppsToBuild(
-    settings: { importFunctions: AppImportFn[] },
+    settings: {
+      importFunctions: AppImportFn[];
+      assetfilesDirs: AssetfilesDirConfig[];
+    },
     targetApp?: string,
-  ): Promise<Array<{ name: string; path: string; config: AppConfig }>> {
-    const apps: Array<{ name: string; path: string; config: AppConfig }> = [];
+  ): Promise<BuildTarget[]> {
+    const targets: BuildTarget[] = [];
 
+    // --- New-style: ASSETFILES_DIRS ---
+    for (const entry of settings.assetfilesDirs) {
+      const entryPath = entry.path.replace(/^\.\//, "");
+      for (const ep of entry.entrypoints) {
+        const epName = ep.replace(/^\.\//, "").replace(/\.ts$/, "");
+        const outputFile = `${ep.replace(/^\.\//, "").replace(/\.ts$/, "")}.js`;
+        const outputDir = entry.outputDir.replace(/^\.\//, "");
+        const outputPath = `${this.projectRoot}/${outputDir}/${outputFile}`;
+        const entryPoint = `./${entryPath}/${ep.replace(/^\.\//, "")}`;
+
+        // --app filter by path/name heuristic
+        if (targetApp) {
+          if (!entry.path.includes(targetApp) && !ep.includes(targetApp)) {
+            continue;
+          }
+        }
+
+        targets.push({
+          name: `${entry.path}/${epName}`,
+          entryPoint,
+          outputPath,
+          minify: entry.options?.minify,
+          templatesDir: entry.templatesDir,
+        });
+      }
+    }
+
+    // --- Legacy: INSTALLED_APPS with AppConfig.bundle / AppConfig.staticfiles ---
     for (const importFn of settings.importFunctions) {
       try {
-        // Call the user's import function
         const module = await importFn();
         const config = module.default as AppConfig | undefined;
 
-        if (!config) {
-          continue;
-        }
+        if (!config) continue;
 
         // Skip if targeting a specific app
-        if (targetApp && config.name !== targetApp) {
-          continue;
-        }
+        if (targetApp && config.name !== targetApp) continue;
 
-        // Check if app has bundle configuration (either bundle or staticfiles)
+        // Check if app has legacy bundle configuration
         if (
           !config.bundle &&
           (!config.staticfiles || config.staticfiles.length === 0)
@@ -729,17 +790,47 @@ export class BundleCommand extends BaseCommand {
           continue;
         }
 
-        // Get the app path from config (explicit appPath, legacy bundle.appPath, or convention)
-        const appPath = config.appPath ?? config.bundle?.appPath ??
-          `./src/${config.name}`;
+        const appPath = (config.appPath ?? config.bundle?.appPath ??
+          `./src/${config.name}`).replace(/^\.\//, "");
 
-        apps.push({ name: config.name, path: appPath, config });
+        if (config.bundle) {
+          const entrypoint = config.bundle.entrypoint.replace(/^\.\//, "");
+          const outputDirRel = config.bundle.outputDir.replace(/^\.\//, "");
+          const entryPoint = `./${appPath}/${entrypoint}`;
+          const outputPath =
+            `./${appPath}/${outputDirRel}/${config.bundle.outputName}`;
+
+          targets.push({
+            name: config.name,
+            entryPoint,
+            outputPath,
+            minify: config.bundle.options?.minify,
+            // Legacy bundle: collect templates from all apps via importFunctions
+          });
+        }
+
+        if (config.staticfiles && config.staticfiles.length > 0) {
+          for (const sf of config.staticfiles) {
+            const entrypoint = sf.entrypoint.replace(/^\.\//, "");
+            const outputFile = sf.outputFile.replace(/^\.\//, "");
+            const entryPoint = `./${appPath}/${entrypoint}`;
+            const outputPath = `./${appPath}/${outputFile}`;
+
+            targets.push({
+              name: `${config.name}/${outputFile.split("/").pop()}`,
+              entryPoint,
+              outputPath,
+              minify: sf.options?.minify,
+              // Legacy staticfiles: collect templates from all apps via importFunctions
+            });
+          }
+        }
       } catch (error) {
         this.debug(`Failed to load app: ${error}`, true);
       }
     }
 
-    return apps;
+    return targets;
   }
 
   // ===========================================================================
@@ -747,10 +838,10 @@ export class BundleCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Bundle all apps
+   * Bundle all targets
    */
   private async bundleApps(
-    apps: Array<{ name: string; path: string; config: AppConfig }>,
+    targets: BuildTarget[],
     options: {
       minify: boolean;
       includeCss: boolean;
@@ -760,110 +851,19 @@ export class BundleCommand extends BaseCommand {
   ): Promise<BundleResult[]> {
     const results: BundleResult[] = [];
 
-    for (const app of apps) {
-      if (app.config.bundle) {
-        const result = await this.bundleApp(app, options);
-        results.push(result);
-      } else if (app.config.staticfiles && app.config.staticfiles.length > 0) {
-        for (const staticfile of app.config.staticfiles) {
-          const result = await this.bundleStaticfile(app, staticfile, options);
-          results.push(result);
-        }
-      }
+    for (const target of targets) {
+      const result = await this.bundleTarget(target, options);
+      results.push(result);
     }
 
     return results;
   }
 
   /**
-   * Normalize path separators (Windows backslash → forward slash)
+   * Bundle a single BuildTarget
    */
-  private normalizePath(path: string): string {
-    return path.replace(/\\/g, "/");
-  }
-
-  /**
-   * Bundle a single app
-   */
-  private async bundleApp(
-    app: { name: string; path: string; config: AppConfig },
-    options: {
-      minify: boolean;
-      includeCss: boolean;
-      debug: boolean;
-      importFunctions?: AppImportFn[];
-    },
-  ): Promise<BundleResult> {
-    const startTime = performance.now();
-    const bundleConfig = app.config.bundle!;
-
-    try {
-      // Resolve paths (normalize ./ prefixes)
-      // Use relative paths for esbuild compatibility on Windows
-      const appPath = app.path.replace(/^\.\//, "");
-      const entrypoint = bundleConfig.entrypoint.replace(/^\.\//, "");
-      const outputDirRel = bundleConfig.outputDir.replace(/^\.\//, "");
-
-      // Relative paths for esbuild (works better cross-platform)
-      const appDir = `./${appPath}`;
-      const entryPoint = `${appDir}/${entrypoint}`;
-      const outputDir = `${appDir}/${outputDirRel}`;
-      const outputPath = `${outputDir}/${bundleConfig.outputName}`;
-
-      // Ensure output directory exists
-      await Deno.mkdir(outputDir, { recursive: true });
-
-      // Collect templates for embedding when bundling a Service Worker.
-      // We embed templates when the output is a JS bundle (not CSS-only) and
-      // there are import functions available from settings.
-      let templates: DiscoveredTemplate[] = [];
-      if (options.importFunctions && options.importFunctions.length > 0) {
-        templates = await collectAllTemplates(
-          options.importFunctions,
-          this.projectRoot,
-        );
-        if (templates.length > 0) {
-          this.info(
-            `  Embedding ${templates.length} templates into ${bundleConfig.outputName}...`,
-          );
-        }
-      }
-
-      // Bundle JavaScript/TypeScript
-      this.info(`Bundling ${app.name}...`);
-      await this.bundleJS(entryPoint, outputPath, options.minify, templates);
-
-      // Bundle CSS if configured
-      if (options.includeCss && bundleConfig.cssOutputName) {
-        const cssOutputPath = `${outputDir}/${bundleConfig.cssOutputName}`;
-        await this.bundleCSS(appDir, cssOutputPath);
-      }
-
-      const duration = performance.now() - startTime;
-
-      return {
-        appName: app.name,
-        success: true,
-        outputPath,
-        duration,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        appName: app.name,
-        success: false,
-        error: message,
-        duration: performance.now() - startTime,
-      };
-    }
-  }
-
-  /**
-   * Bundle a single staticfile entry (from config.staticfiles[])
-   */
-  private async bundleStaticfile(
-    app: { name: string; path: string; config: AppConfig },
-    staticfile: StaticfileConfig,
+  private async bundleTarget(
+    target: BuildTarget,
     options: {
       minify: boolean;
       debug: boolean;
@@ -873,40 +873,47 @@ export class BundleCommand extends BaseCommand {
     const startTime = performance.now();
 
     try {
-      const appPath = app.path.replace(/^\.\//, "");
-      const entrypoint = staticfile.entrypoint.replace(/^\.\//, "");
-      const outputFile = staticfile.outputFile.replace(/^\.\//, "");
-
-      const appDir = `./${appPath}`;
-      const entryPoint = `${appDir}/${entrypoint}`;
-      const outputPath = `${appDir}/${outputFile}`;
+      const outputPath = target.outputPath.replace(/\\/g, "/");
       const outputDir = outputPath.substring(0, outputPath.lastIndexOf("/"));
 
       // Ensure output directory exists
       await Deno.mkdir(outputDir, { recursive: true });
 
-      // Collect templates for embedding when there are import functions
+      // Determine templates to embed:
+      // 1. If target specifies its own templatesDir, use that (new ASSETFILES_DIRS style)
+      // 2. Otherwise fall back to collecting from all apps via importFunctions (legacy)
       let templates: DiscoveredTemplate[] = [];
-      if (options.importFunctions && options.importFunctions.length > 0) {
+      if (target.templatesDir) {
+        const dir = resolveTemplatesDir(target.templatesDir, this.projectRoot);
+        if (dir) {
+          templates = await scanTemplatesDir(dir);
+          if (templates.length > 0) {
+            this.info(
+              `  Embedding ${templates.length} templates from ${target.templatesDir}...`,
+            );
+          }
+        }
+      } else if (
+        options.importFunctions && options.importFunctions.length > 0
+      ) {
         templates = await collectAllTemplates(
           options.importFunctions,
           this.projectRoot,
         );
         if (templates.length > 0) {
+          const outputName = outputPath.split("/").pop() ?? outputPath;
           this.info(
-            `  Embedding ${templates.length} templates into ${outputFile}...`,
+            `  Embedding ${templates.length} templates into ${outputName}...`,
           );
         }
       }
 
-      const minify = staticfile.options?.minify ?? options.minify;
-      const outputName = outputPath.substring(outputPath.lastIndexOf("/") + 1);
-
-      this.info(`Bundling ${app.name} (${outputName})...`);
-      await this.bundleJS(entryPoint, outputPath, minify, templates);
+      const minify = target.minify ?? options.minify;
+      this.info(`Bundling ${target.name}...`);
+      await this.bundleJS(target.entryPoint, outputPath, minify, templates);
 
       return {
-        appName: `${app.name}/${outputName}`,
+        appName: target.name,
         success: true,
         outputPath,
         duration: performance.now() - startTime,
@@ -914,7 +921,7 @@ export class BundleCommand extends BaseCommand {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
-        appName: app.name,
+        appName: target.name,
         success: false,
         error: message,
         duration: performance.now() - startTime,
@@ -998,7 +1005,7 @@ export class BundleCommand extends BaseCommand {
    * Start watching for file changes
    */
   private async startWatching(
-    apps: Array<{ name: string; path: string; config: AppConfig }>,
+    apps: BuildTarget[],
     options: {
       minify: boolean;
       includeCss: boolean;
@@ -1009,21 +1016,19 @@ export class BundleCommand extends BaseCommand {
     // Collect all source directories to watch
     const watchDirs: string[] = [];
 
-    for (const app of apps) {
-      const appDir = `${this.projectRoot}/${app.path}`;
-      const srcDir = `${appDir}/src`;
+    for (const target of apps) {
+      // Derive watch dir from entryPoint (e.g. "./src/my-app/worker.ts" → "<root>/src/my-app")
+      const entryRel = target.entryPoint.replace(/^\.\//, "");
+      const entryDir = entryRel.includes("/")
+        ? entryRel.substring(0, entryRel.lastIndexOf("/"))
+        : entryRel;
+      const appDir = `${this.projectRoot}/${entryDir}`;
 
       try {
-        await Deno.stat(srcDir);
-        watchDirs.push(srcDir);
+        await Deno.stat(appDir);
+        watchDirs.push(appDir);
       } catch {
-        // src directory doesn't exist, watch app directory directly
-        try {
-          await Deno.stat(appDir);
-          watchDirs.push(appDir);
-        } catch {
-          // App directory doesn't exist either
-        }
+        // Directory doesn't exist, skip
       }
     }
 
@@ -1206,7 +1211,7 @@ export class BundleCommand extends BaseCommand {
    * Start watching for file changes (non-blocking, runs in background)
    */
   private startWatchingBackground(
-    apps: Array<{ name: string; path: string; config: AppConfig }>,
+    apps: BuildTarget[],
     options: {
       minify: boolean;
       includeCss: boolean;
@@ -1217,26 +1222,21 @@ export class BundleCommand extends BaseCommand {
     // Collect all source directories to watch
     const watchDirs: string[] = [];
 
-    for (const app of apps) {
-      const appPath = app.path.replace(/^\.\//, "");
-      const appDir = `${this.projectRoot}/${appPath}`;
-      const srcDir = `${appDir}/src`;
+    for (const target of apps) {
+      // Derive watch dir from entryPoint (e.g. "./src/my-app/worker.ts" → "<root>/src/my-app")
+      const entryRel = target.entryPoint.replace(/^\.\//, "");
+      const entryDir = entryRel.includes("/")
+        ? entryRel.substring(0, entryRel.lastIndexOf("/"))
+        : entryRel;
+      const appDir = `${this.projectRoot}/${entryDir}`;
 
       try {
-        const stat = Deno.statSync(srcDir);
+        const stat = Deno.statSync(appDir);
         if (stat.isDirectory) {
-          watchDirs.push(srcDir);
+          watchDirs.push(appDir);
         }
       } catch {
-        // src directory doesn't exist, watch app directory directly
-        try {
-          const appStat = Deno.statSync(appDir);
-          if (appStat.isDirectory) {
-            watchDirs.push(appDir);
-          }
-        } catch {
-          // App directory doesn't exist either
-        }
+        // Directory doesn't exist, skip
       }
     }
 
@@ -1280,7 +1280,7 @@ export class BundleCommand extends BaseCommand {
    * Print startup banner
    */
   private printBanner(
-    apps: Array<{ name: string; path: string; config: AppConfig }>,
+    apps: BuildTarget[],
     options: { watch: boolean; minify: boolean; debug: boolean },
   ): void {
     const lines: string[] = [];
@@ -1295,8 +1295,8 @@ export class BundleCommand extends BaseCommand {
     lines.push(`  Debug mode:        ${options.debug ? "On" : "Off"}`);
     lines.push("");
     lines.push("Apps to bundle:");
-    for (const app of apps) {
-      lines.push(`  - ${app.name} (${app.path})`);
+    for (const target of apps) {
+      lines.push(`  - ${target.name} (${target.entryPoint})`);
     }
     lines.push("");
 

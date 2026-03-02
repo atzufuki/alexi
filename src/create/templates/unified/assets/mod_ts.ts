@@ -1,11 +1,11 @@
 /**
- * Assets mod.ts template generator (frontend entry point)
+ * Assets entry point template generator (frontend entry point)
  *
  * @module @alexi/create/templates/unified/assets/mod_ts
  */
 
 /**
- * Generate assets/<name>/mod.ts content
+ * Generate assets/<name>/<name>.ts content
  */
 export function generateAssetModTs(name: string): string {
   return `/**
@@ -14,7 +14,7 @@ export function generateAssetModTs(name: string): string {
  * This file is bundled by @alexi/staticfiles into static/${name}/${name}.js.
  * Import your Web Components and client-side code here.
  *
- * @module ${name}/assets/${name}/mod
+ * @module ${name}/assets/${name}/${name}
  */
 
 // Import and register components
