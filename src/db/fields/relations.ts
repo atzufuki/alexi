@@ -7,6 +7,7 @@ import { Field, FieldOptions } from "./field.ts";
 import type { QuerySet } from "../query/queryset.ts";
 import type { Model } from "../models/model.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
+import { getBackend, isInitialized } from "../setup.ts";
 
 // ============================================================================
 // Relation Types
@@ -285,8 +286,6 @@ export class ForeignKey<T> extends Field<T> {
     // Get the backend - try instance backend first, then global
     let backend = this._backend;
     if (!backend) {
-      // Import dynamically to avoid circular dependency
-      const { getBackend, isInitialized } = await import("../setup.ts");
       if (!isInitialized()) {
         throw new Error(
           `Database not initialized. Call setup() before fetching related objects.`,
