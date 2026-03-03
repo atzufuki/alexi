@@ -13,6 +13,7 @@ import {
   setModelResolver,
 } from "../fields/relations.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
+import { getBackend, getBackendByName, isInitialized } from "../setup.ts";
 
 // ============================================================================
 // Save/Delete Options
@@ -777,7 +778,7 @@ export abstract class Model {
   async save(options?: ModelOperationOptions): Promise<this> {
     this._ensureFieldsInitialized();
 
-    const backend = await this._resolveBackend(options?.using);
+    const backend = this._resolveBackend(options?.using);
     const pk = this.pk;
 
     if (pk === null || pk === undefined) {
@@ -815,7 +816,7 @@ export abstract class Model {
       throw new Error("Cannot delete an instance without a primary key");
     }
 
-    const backend = await this._resolveBackend(options?.using);
+    const backend = this._resolveBackend(options?.using);
     await backend.delete(this);
   }
 
@@ -831,14 +832,9 @@ export abstract class Model {
    * @returns The resolved DatabaseBackend
    * @throws Error if no backend is available
    */
-  private async _resolveBackend(
+  private _resolveBackend(
     using?: DatabaseBackend | string,
-  ): Promise<DatabaseBackend> {
-    // Import dynamically to avoid circular dependency
-    const { getBackend, getBackendByName, isInitialized } = await import(
-      "../setup.ts"
-    );
-
+  ): DatabaseBackend {
     // 1. Explicit using parameter
     if (using) {
       if (typeof using === "string") {
@@ -894,7 +890,7 @@ export abstract class Model {
       throw new Error("Cannot refresh an instance without a primary key");
     }
 
-    const backend = await this._resolveBackend(options?.using);
+    const backend = this._resolveBackend(options?.using);
     const ModelClass = this.constructor as new () => this;
     const data = await backend.getById(ModelClass, pk);
 
