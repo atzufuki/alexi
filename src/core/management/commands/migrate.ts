@@ -12,6 +12,7 @@ import type {
   CommandResult,
   IArgumentParser,
 } from "../types.ts";
+import { configure } from "../config.ts";
 import { MigrationExecutor, MigrationLoader } from "@alexi/db/migrations";
 import { getBackend, getBackendByName } from "@alexi/db";
 
@@ -69,6 +70,12 @@ export class MigrateCommand extends BaseCommand {
   // ===========================================================================
 
   override addArguments(parser: IArgumentParser): void {
+    parser.addArgument("--settings", {
+      type: "string",
+      required: false,
+      help: "Settings module to use (e.g. web, desktop, or a file path)",
+    });
+
     parser.addArgument("app", {
       type: "string",
       required: false,
@@ -130,6 +137,7 @@ export class MigrateCommand extends BaseCommand {
   // ===========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
+    const settingsName = options.args.settings as string | undefined;
     const appLabel = options.args.app as string | undefined;
     const targetMigration = options.args.migration as string | undefined;
     const showPlan = options.args.plan as boolean;
@@ -141,6 +149,9 @@ export class MigrateCommand extends BaseCommand {
     const verbosity = options.args.verbosity as number;
 
     try {
+      // Load settings and initialize database
+      await configure(settingsName);
+
       // Get database backend
       const backend = databaseName
         ? getBackendByName(databaseName)
