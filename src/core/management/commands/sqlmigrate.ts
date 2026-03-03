@@ -12,6 +12,7 @@ import type {
   CommandResult,
   IArgumentParser,
 } from "../types.ts";
+import { configure } from "../config.ts";
 import {
   type CreateIndexOptions,
   type IBackendSchemaEditor,
@@ -64,6 +65,12 @@ export class SqlmigrateCommand extends BaseCommand {
   // ===========================================================================
 
   override addArguments(parser: IArgumentParser): void {
+    parser.addArgument("--settings", {
+      type: "string",
+      required: false,
+      help: "Settings module to use (e.g. web, desktop, or a file path)",
+    });
+
     parser.addArgument("app", {
       type: "string",
       required: true,
@@ -107,6 +114,7 @@ export class SqlmigrateCommand extends BaseCommand {
   // ===========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
+    const settingsName = options.args.settings as string | undefined;
     const appLabel = options.args.app as string;
     const migrationName = options.args.migration as string;
     const backwards = options.args.backwards as boolean;
@@ -115,6 +123,9 @@ export class SqlmigrateCommand extends BaseCommand {
     const noColor = options.args["no-color"] as boolean;
 
     try {
+      // Load settings and initialize database
+      await configure(settingsName);
+
       // Get database backend
       const backend = databaseName
         ? getBackendByName(databaseName)

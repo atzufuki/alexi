@@ -12,6 +12,7 @@ import type {
   CommandResult,
   IArgumentParser,
 } from "../types.ts";
+import { configure } from "../config.ts";
 import {
   createDeprecationRecorder,
   createMigrationRecorder,
@@ -60,6 +61,12 @@ export class ShowmigrationsCommand extends BaseCommand {
   // ===========================================================================
 
   override addArguments(parser: IArgumentParser): void {
+    parser.addArgument("--settings", {
+      type: "string",
+      required: false,
+      help: "Settings module to use (e.g. web, desktop, or a file path)",
+    });
+
     parser.addArgument("app", {
       type: "string",
       required: false,
@@ -97,6 +104,7 @@ export class ShowmigrationsCommand extends BaseCommand {
   // ===========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
+    const settingsName = options.args.settings as string | undefined;
     const appLabel = options.args.app as string | undefined;
     const showDeprecations = options.args.deprecations as boolean;
     const listFormat = options.args.list as boolean;
@@ -104,6 +112,9 @@ export class ShowmigrationsCommand extends BaseCommand {
     const migrationsDir = options.args["migrations-dir"] as string | undefined;
 
     try {
+      // Load settings and initialize database
+      await configure(settingsName);
+
       // Get database backend
       const backend = databaseName
         ? getBackendByName(databaseName)
