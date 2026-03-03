@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.32.3] - 2026-03-03
+
+### Fixed
+
+- `@alexi/core/management`: `migrate`, `makemigrations`, `showmigrations`, and
+  `sqlmigrate` commands are now registered as built-ins in `ManagementUtility` —
+  they were never available because `loadCommandsFromImportFn` exited early when
+  `commandsModule` was absent, and `src/db/commands/mod.ts` was empty; the
+  orphaned `src/db/commands/` directory has been removed (#202)
+
 ## [0.32.2] - 2026-03-03
 
 ### Fixed

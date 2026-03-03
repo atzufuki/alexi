@@ -1,6 +1,6 @@
 {
   "name": "@alexi/webui",
-  "version": "0.32.2",
+  "version": "0.32.3",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -10,9 +10,9 @@
     "./commands": "./commands/mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.32.2",
-    "@alexi/core/management": "jsr:@alexi/core@0.32.2/management",
-    "@alexi/types": "jsr:@alexi/types@0.32.2",
+    "@alexi/core": "jsr:@alexi/core@0.32.3",
+    "@alexi/core/management": "jsr:@alexi/core@0.32.3/management",
+    "@alexi/types": "jsr:@alexi/types@0.32.3",
     "@webui/deno-webui": "jsr:@webui/deno-webui@^2.5.13"
   }
 }
