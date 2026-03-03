@@ -8,6 +8,25 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.32.4] - 2026-03-03
+
+### Fixed
+
+- `@alexi/core/management`: `migrate`, `showmigrations`, and `sqlmigrate`
+  commands now call `configure()` before accessing the ORM — previously they
+  failed with "Alexi ORM is not configured" because no database setup was
+  performed before `getBackend()` was called; all three commands now accept a
+  `--settings` argument (#111, #204)
+- `@alexi/db`: `MigrationLoader` Windows path bug — `file://${realPath}`
+  produced an invalid `file://C:\...` URL on Windows; backslashes are now
+  normalised to forward slashes and the URL is correctly formed as
+  `file:///C:/...`; path separators in `appLabel` derivation are also normalised
+  (#110, #205)
+- `@alexi/db`: `DenoKVBackend.getSchemaEditor()` returned the legacy
+  `DenoKVSchemaEditor` which was missing `addColumn()` and other
+  `IBackendSchemaEditor` methods; it now returns `DenoKVMigrationSchemaEditor`
+  which fully implements the interface (#112, #205)
+
 ## [0.32.3] - 2026-03-03
 
 ### Fixed
