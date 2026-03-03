@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.32.2] - 2026-03-03
+
+### Fixed
+
+- `@alexi/db`: `Model.save()`, `Model.delete()`, and `Model.refresh()` now work
+  in Service Worker contexts — the unnecessary `dynamic import()` in
+  `_resolveBackend` (which is disallowed in `ServiceWorkerGlobalScope`) has been
+  replaced with a static import, consistent with how `QuerySet` and `Manager`
+  already import `setup.ts`; `ForeignKey.fetch()` received the same fix (#200)
+
 ## [0.32.1] - 2026-03-02
 
 ### Fixed
