@@ -284,7 +284,8 @@ export class MigrationLoader {
   private async _loadMigrationsFromDir(dir: string): Promise<void> {
     // Extract app label from directory path
     // e.g., "project/apps/users/migrations" -> "users"
-    const parts = dir.split("/");
+    // Normalise separators so this works on Windows too.
+    const parts = dir.replace(/\\/g, "/").split("/");
     const migrationsIndex = parts.indexOf("migrations");
     const appLabel = migrationsIndex > 0
       ? parts[migrationsIndex - 1]
@@ -313,7 +314,14 @@ export class MigrationLoader {
   ): Promise<void> {
     try {
       // Dynamic import of the migration file
-      const module = await import(`file://${Deno.realPathSync(filePath)}`);
+      // Use a proper file:// URL that works on both Unix and Windows.
+      // On Windows, Deno.realPathSync() returns "C:\...", so we need
+      // file:///C:/... (three slashes + forward-slash-normalised path).
+      const realPath = Deno.realPathSync(filePath).replace(/\\/g, "/");
+      const fileUrl = realPath.startsWith("/")
+        ? `file://${realPath}`
+        : `file:///${realPath}`;
+      const module = await import(fileUrl);
 
       // Get the default export (the migration class)
       const MigrationClass = module.default;
@@ -328,7 +336,7 @@ export class MigrationLoader {
 
       // Derive app label if not provided
       if (!appLabel) {
-        const parts = filePath.split("/");
+        const parts = filePath.replace(/\\/g, "/").split("/");
         const migrationsIndex = parts.indexOf("migrations");
         appLabel = migrationsIndex > 0 ? parts[migrationsIndex - 1] : "default";
       }

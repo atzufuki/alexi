@@ -96,6 +96,7 @@ import {
   type SchemaEditor,
   type Transaction,
 } from "../backend.ts";
+import { DenoKVMigrationSchemaEditor } from "../../migrations/schema/denokv.ts";
 
 // ============================================================================
 // DenoKV Configuration
@@ -710,7 +711,10 @@ export class DenoKVBackend extends DatabaseBackend {
 
   getSchemaEditor(): SchemaEditor {
     this.ensureConnected();
-    return new DenoKVSchemaEditor(this._kv!);
+    // deno-lint-ignore no-explicit-any
+    return new DenoKVMigrationSchemaEditor(
+      this._kv! as any,
+    ) as unknown as SchemaEditor;
   }
 
   async tableExists(tableName: string): Promise<boolean> {

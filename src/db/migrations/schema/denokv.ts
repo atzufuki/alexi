@@ -22,7 +22,9 @@ type AnyField = Field<any>;
 
 // DenoKV type definitions
 interface DenoKv {
-  get<T>(key: Deno.KvKey): Promise<{ value: T | null; versionstamp: string }>;
+  get<T>(
+    key: Deno.KvKey,
+  ): Promise<{ value: T | null; versionstamp: string | null }>;
   set(
     key: Deno.KvKey,
     value: unknown,
