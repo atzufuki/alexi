@@ -10,7 +10,6 @@
     "./query": "./query/mod.ts",
     "./migrations": "./migrations/mod.ts",
     "./migrations/schema": "./migrations/schema/mod.ts",
-    "./commands": "./commands/mod.ts",
     "./backends/denokv": "./backends/denokv/mod.ts",
     "./backends/indexeddb": "./backends/indexeddb/mod.ts",
     "./backends/postgres": "./backends/postgres/mod.ts",

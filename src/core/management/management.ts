@@ -12,6 +12,10 @@ import { HelpCommand } from "./commands/help.ts";
 import { TestCommand } from "./commands/test.ts";
 import { StartAppCommand } from "./commands/startapp.ts";
 import { FlushCommand } from "./commands/flush.ts";
+import { MakemigrationsCommand } from "./commands/makemigrations.ts";
+import { MigrateCommand } from "./commands/migrate.ts";
+import { ShowmigrationsCommand } from "./commands/showmigrations.ts";
+import { SqlmigrateCommand } from "./commands/sqlmigrate.ts";
 import type {
   CommandConstructor,
   IConsole,
@@ -131,7 +135,6 @@ export class ManagementUtility {
    * - runserver (web) → @alexi/web
    * - runserver (desktop) → @alexi/webui
    * - createsuperuser → @alexi/auth
-   * - flush → @alexi/db
    */
   private registerBuiltinCommands(): void {
     // Register help command and set registry reference
@@ -157,6 +160,13 @@ export class ManagementUtility {
 
     // Register flush command (core command, like Django's flush)
     this.registry.register(FlushCommand);
+
+    // Register migration commands (live in @alexi/core/management to avoid
+    // circular dependency with @alexi/db)
+    this.registry.register(MakemigrationsCommand);
+    this.registry.register(MigrateCommand);
+    this.registry.register(ShowmigrationsCommand);
+    this.registry.register(SqlmigrateCommand);
 
     // Note: Other commands (createsuperuser, bundle, collectstatic, runserver)
     // are loaded dynamically from INSTALLED_APPS via loadAppCommands()
@@ -315,9 +325,11 @@ export class ManagementUtility {
       }
 
       // Check if app has commands
-      if (!config.commandsModule) {
+      if (!config.commandsModule && !config.commandsImport) {
         if (this.debug) {
-          console.log(`  ${config.name}: no commandsModule defined`);
+          console.log(
+            `  ${config.name}: no commandsModule or commandsImport defined`,
+          );
         }
         return;
       }
