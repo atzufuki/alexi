@@ -1736,27 +1736,30 @@ templateView({
 
 Reads from disk and does simple `{{KEY}}` replacement. No template inheritance.
 
-### `AppConfig.templatesDir`
+### Template Auto-Discovery
 
-Add `templatesDir` to your app config so templates are automatically available
-at runtime:
+Templates are auto-discovered by convention from `<appPath>/templates/`. Set
+`appPath` in your app config to help the framework locate the directory:
 
 ```typescript
 const config: AppConfig = {
   name: "my-app",
-  templatesDir: new URL("./templates/", import.meta.url).href,
-  // or for project-local apps:
-  // templatesDir: "src/my-app/templates",
+  // Published packages use a file:// URL so the runtime knows the absolute path:
+  appPath: new URL("./", import.meta.url).href,
+  // Project-local apps default to ./src/<name> — set appPath explicitly when
+  // the directory differs:
+  // appPath: "src/my-app",
 };
 ```
 
 **`runserver` auto-loading:** At startup, `runserver` scans each installed app's
-`templatesDir` and registers all `.html` files into the global
+`<appPath>/templates/` directory and registers all `.html` files into the global
 `templateRegistry`. Templates are available immediately in `templateView`
 without any manual registration.
 
 **`bundle` auto-embedding:** When building a Service Worker bundle, `bundle`
-scans each installed app's `templatesDir` and embeds all `.html` files as a
+discovers templates via the `TEMPLATES` setting (`APP_DIRS: true`) or an
+explicit `templatesDir` in `ASSETFILES_DIRS`, and embeds all `.html` files as a
 virtual esbuild module (`alexi:templates`). This ensures templates are available
 in the SW context at runtime without requiring filesystem access.
 
@@ -2133,7 +2136,7 @@ The `browser` type generates:
 
 ```
 src/my-app/
-├── app.ts              # AppConfig with staticfiles[] (2 entry points)
+├── app.ts              # AppConfig (name, verboseName, appPath)
 ├── mod.ts              # Re-exports models, views, urls, endpoints
 ├── models.ts           # ORM models (IndexedDB)
 ├── endpoints.ts        # REST endpoint definitions
@@ -2150,12 +2153,15 @@ src/my-app/
         └── index.html  # Home page template extending base
 ```
 
-The `app.ts` uses `staticfiles` (not `bundle`) to declare both outputs:
+Build targets are declared in project settings via `ASSETFILES_DIRS`:
 
 ```typescript
-staticfiles: [
-  { entrypoint: "./worker.ts", outputFile: "./static/my-app/worker.js" },
-  { entrypoint: "./document.ts", outputFile: "./static/my-app/document.js" },
+export const ASSETFILES_DIRS = [
+  {
+    path: "./src/my-app",
+    outputDir: "./src/my-app/static/my-app",
+    entrypoints: ["worker.ts", "document.ts"],
+  },
 ];
 ```
 

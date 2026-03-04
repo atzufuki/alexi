@@ -319,53 +319,6 @@ export interface TargetConfig {
 // =============================================================================
 
 /**
- * Static file bundle configuration for a single entry point.
- *
- * Used in `AppConfig.staticfiles` to declare multiple bundles per app
- * (e.g. a `worker.ts` Service Worker bundle and a `document.ts` DOM bundle).
- *
- * @deprecated Use `ASSETFILES_DIRS` in project settings instead.
- */
-export interface StaticfileConfig {
-  /**
-   * Entrypoint file for bundling.
-   * Path is relative to the app's directory.
-   *
-   * @example "./worker.ts"
-   * @example "./document.ts"
-   */
-  entrypoint: string;
-
-  /**
-   * Output file path (including filename), relative to the app's directory.
-   *
-   * @example "./static/myapp/worker.js"
-   * @example "./static/myapp/document.js"
-   */
-  outputFile: string;
-
-  /**
-   * Additional options for the bundler.
-   */
-  options?: {
-    /**
-     * Enable minification for production builds.
-     */
-    minify?: boolean;
-
-    /**
-     * Enable source maps.
-     */
-    sourceMaps?: boolean;
-
-    /**
-     * External modules that should not be bundled.
-     */
-    external?: string[];
-  };
-}
-
-/**
  * Configuration for a single asset files directory entry.
  *
  * Replaces `AppConfig.staticfiles` — bundle configuration now lives in
@@ -507,245 +460,33 @@ export interface TemplatesConfig {
 }
 
 /**
- * Bundle configuration for frontend apps.
- */
-export interface BundleConfig {
-  /**
-   * Path to the app directory.
-   * If not specified, derived from app name as `./src/${name}`.
-   *
-   * @example "./src/myapp-ui"
-   */
-  appPath?: string;
-
-  /**
-   * Entrypoint file for bundling.
-   * Path is relative to the app's directory.
-   *
-   * @example "./src/main.ts"
-   */
-  entrypoint: string;
-
-  /**
-   * Output directory for bundled files.
-   * Path is relative to the app's directory.
-   * This is typically the app's static directory.
-   *
-   * @example "./static/myapp"
-   */
-  outputDir: string;
-
-  /**
-   * Output filename for the bundled JavaScript.
-   *
-   * @example "bundle.js"
-   */
-  outputName: string;
-
-  /**
-   * Output filename for CSS (if bundler produces CSS).
-   *
-   * @example "bundle.css"
-   */
-  cssOutputName?: string;
-
-  /**
-   * Additional options for the bundler.
-   */
-  options?: {
-    /**
-     * Enable minification for production builds.
-     */
-    minify?: boolean;
-
-    /**
-     * Enable source maps.
-     */
-    sourceMaps?: boolean;
-
-    /**
-     * External modules that should not be bundled.
-     */
-    external?: string[];
-  };
-}
-
-/**
- * Project-level desktop settings.
- *
- * These settings are defined in project/desktop.settings.ts and apply
- * when running with `--settings desktop`.
- */
-export interface DesktopSettings {
-  /**
-   * Whether desktop mode is enabled.
-   * Set to true in desktop.settings.ts, false/null in web.settings.ts.
-   */
-  enabled?: boolean;
-
-  /**
-   * Window title shown in the title bar.
-   *
-   * @default Project name from settings
-   */
-  title?: string;
-
-  /**
-   * Window width in pixels.
-   *
-   * @default 1280
-   */
-  width?: number;
-
-  /**
-   * Window height in pixels.
-   *
-   * @default 800
-   */
-  height?: number;
-
-  /**
-   * Preferred browser to use.
-   *
-   * @default "any"
-   */
-  browser?: "chrome" | "firefox" | "edge" | "safari" | "chromium" | "any";
-
-  /**
-   * Whether to start in kiosk/fullscreen mode.
-   *
-   * @default false
-   */
-  kiosk?: boolean;
-
-  /**
-   * Whether to show DevTools on startup.
-   *
-   * @default false
-   */
-  devTools?: boolean;
-
-  /**
-   * Custom icon path (relative to project root).
-   *
-   * @example "./assets/icon.png"
-   */
-  icon?: string;
-}
-
-/**
- * Desktop app configuration using WebUI.
- *
- * When an app has this configuration, the `desktop` command
- * can launch it as a native-like desktop application using
- * the user's web browser.
- */
-export interface DesktopConfig {
-  /**
-   * Window title shown in the title bar.
-   *
-   * @example "MyApp"
-   */
-  title: string;
-
-  /**
-   * Window width in pixels.
-   *
-   * @default 1280
-   */
-  width?: number;
-
-  /**
-   * Window height in pixels.
-   *
-   * @default 800
-   */
-  height?: number;
-
-  /**
-   * Preferred browser to use.
-   * If not specified, WebUI will use any available browser.
-   *
-   * @example "chrome" | "firefox" | "edge" | "any"
-   */
-  browser?: "chrome" | "firefox" | "edge" | "safari" | "chromium" | "any";
-
-  /**
-   * Whether to start the browser in kiosk/fullscreen mode.
-   *
-   * @default false
-   */
-  kiosk?: boolean;
-
-  /**
-   * Custom icon path (relative to app directory).
-   * Used when the app is compiled.
-   *
-   * @example "./assets/icon.png"
-   */
-  icon?: string;
-
-  /**
-   * Whether to hide the browser's URL bar and navigation.
-   * WebUI does this by default in app mode.
-   *
-   * @default true
-   */
-  hideNavigation?: boolean;
-
-  /**
-   * The SPA app name to serve.
-   * This should match an app in INSTALLED_APPS that has bundle config.
-   * If not specified, defaults to the first app with bundle config.
-   *
-   * @example "myapp"
-   */
-  serveApp?: string;
-
-  /**
-   * Port for the embedded HTTP server.
-   * If not specified, uses a random available port.
-   *
-   * @example 8000
-   */
-  port?: number;
-
-  /**
-   * Whether to show DevTools on startup (development only).
-   *
-   * @default false
-   */
-  devTools?: boolean;
-}
-
-/**
  * App configuration.
  *
- * Django-style app configuration that tells the framework
- * what the app contains and how to handle it.
+ * Django-style app configuration that tells the framework what the app is.
+ * Mirrors Django's `AppConfig` — only app identity metadata lives here.
  *
- * Following Django conventions, `AppConfig` contains only app identity
- * metadata (`name`, `verboseName`, `appPath`).  Build and file-serving
- * configuration now lives in project settings:
+ * Build and file-serving configuration belongs in project settings:
  * - `ASSETFILES_DIRS` — TypeScript source directories for the bundler
  * - `STATICFILES_DIRS` — additional static file directories for collectstatic
+ * - `TEMPLATES` — template discovery configuration
  *
- * Per-app static files are auto-discovered by convention from
- * `<appPath>/static/` (like Django's `AppDirectoriesFinder`), and templates
- * from `<appPath>/templates/` at `runserver` time.
+ * Static files are auto-discovered by convention from `<appPath>/static/`
+ * (like Django's `AppDirectoriesFinder`), templates from
+ * `<appPath>/templates/`, and management commands from
+ * `<appPath>/commands/mod.ts`.
  */
 export interface AppConfig {
   /**
-   * App name. Must match the name in INSTALLED_APPS.
+   * App name. Must match the import map key / name in INSTALLED_APPS.
    *
-   * @example "myapp"
+   * @example "my-app"
    */
   name: string;
 
   /**
    * Human-readable name for the app.
    *
-   * @example "MyApp Frontend"
+   * @example "My App"
    */
   verboseName?: string;
 
@@ -759,119 +500,8 @@ export interface AppConfig {
    * Can be a relative path (resolved against the project root) or an
    * absolute `file://` URL (recommended for published packages).
    *
-   * Path is relative to the project root.
-   *
    * @example "./src/myapp"
-   * @example "file:///path/to/package"
+   * @example "file:///path/to/package"  // new URL("./", import.meta.url).href
    */
   appPath?: string;
-
-  /**
-   * Frontend bundle configuration.
-   * If defined, the `bundle` command will compile TypeScript → JavaScript.
-   *
-   * @deprecated Use `ASSETFILES_DIRS` in project settings instead.
-   */
-  bundle?: BundleConfig;
-
-  /**
-   * Multiple frontend bundle entry points.
-   *
-   * Use this instead of `bundle` when an app produces more than one JS output
-   * (e.g. a browser app with a `worker.ts` Service Worker entry and a
-   * `document.ts` DOM entry).  Each item is bundled independently.
-   *
-   * @deprecated Use `ASSETFILES_DIRS` in project settings instead.
-   *
-   * @example
-   * staticfiles: [
-   *   { entrypoint: "./worker.ts",   outputFile: "./static/myapp/worker.js" },
-   *   { entrypoint: "./document.ts", outputFile: "./static/myapp/document.js" },
-   * ]
-   */
-  staticfiles?: StaticfileConfig[];
-
-  /**
-   * Static files directory.
-   * These files are copied to STATIC_ROOT by the collectstatic command.
-   *
-   * @deprecated Static file discovery is now convention-based (`<appPath>/static/`).
-   * Extra directories can be registered via `STATICFILES_DIRS` in project settings.
-   *
-   * Can be either:
-   * - A path relative to the app's `src/<name>/` directory: `"static"`
-   * - An absolute `file://` URL derived from `import.meta.url` (recommended
-   *   for published packages so the path resolves correctly regardless of
-   *   whether the package is installed from JSR, npm, or a local path):
-   *
-   * @example
-   * // Absolute URL (published packages — works in JSR cache, local dev, etc.)
-   * staticDir: new URL("./static/", import.meta.url).href
-   */
-  staticDir?: string;
-
-  /**
-   * URL patterns module.
-   * Path to a module that exports URL patterns.
-   * Path is relative to the app's directory.
-   *
-   * @example "./urls.ts"
-   */
-  urlsModule?: string;
-
-  /**
-   * Models module.
-   * Path to a module that exports database models.
-   * Path is relative to the app's directory.
-   *
-   * @example "./models/mod.ts"
-   */
-  modelsModule?: string;
-
-  /**
-   * Desktop app configuration.
-   * If defined, the `desktop` command can launch this app
-   * as a desktop application using WebUI.
-   */
-  desktop?: DesktopConfig;
-
-  /**
-   * Management commands provided by this app.
-   * Path to a module that exports command classes.
-   * Path is relative to the app's directory.
-   *
-   * @example "./commands/mod.ts"
-   */
-  commandsModule?: string;
-
-  /**
-   * Import function for loading commands module.
-   *
-   * This is the preferred way to load commands - it runs in the app's
-   * context so import maps work correctly.
-   *
-   * @example () => import("./commands/mod.ts")
-   */
-  commandsImport?: () => Promise<Record<string, unknown>>;
-
-  /**
-   * Template directory for this app.
-   *
-   * @deprecated Template discovery is now convention-based (`<appPath>/templates/`)
-   * at `runserver` time, and `templatesDir` in `ASSETFILES_DIRS` is used for
-   * bundle-time SW template embedding.
-   *
-   * Django-style namespacing: a template named `"my-app/note_list.html"`
-   * should live at `<templatesDir>/my-app/note_list.html`.
-   *
-   * Can be either:
-   * - A path relative to the project root: `"src/my-app/templates"`
-   * - An absolute `file://` URL (recommended for published packages):
-   *   `new URL("./templates/", import.meta.url).href`
-   *
-   * @example
-   * // Absolute URL (published packages)
-   * templatesDir: new URL("./templates/", import.meta.url).href
-   */
-  templatesDir?: string;
 }

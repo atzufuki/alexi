@@ -300,6 +300,7 @@ export class ManagementUtility {
    * Load commands from an import function.
    *
    * The import function is called in user's context, so import maps work correctly.
+   * Commands are discovered by convention from `<appPath>/commands/mod.ts`.
    */
   private async loadCommandsFromImportFn(importFn: AppImportFn): Promise<void> {
     try {
@@ -324,30 +325,39 @@ export class ManagementUtility {
         console.log(`Loading commands from app: ${config.name}`);
       }
 
-      // Check if app has commands
-      if (!config.commandsModule && !config.commandsImport) {
-        if (this.debug) {
-          console.log(
-            `  ${config.name}: no commandsModule or commandsImport defined`,
-          );
-        }
-        return;
+      // Resolve the app's source directory from appPath or convention
+      const appPath = config.appPath ?? `./src/${config.name}`;
+      let commandsUrl: string;
+
+      if (appPath.startsWith("file://")) {
+        // Published package: absolute file:// URL — append commands/mod.ts
+        const base = appPath.endsWith("/") ? appPath : `${appPath}/`;
+        commandsUrl = `${base}commands/mod.ts`;
+      } else {
+        // Relative path — resolve against project root
+        const rel = appPath.replace(/^\.\//, "");
+        commandsUrl = toImportUrl(
+          `${this.projectRoot}/${rel}/commands/mod.ts`,
+        );
       }
 
-      // Check if app provides a commandsImport function
-      if (
-        config.commandsImport && typeof config.commandsImport === "function"
-      ) {
-        // Use the provided import function for commands
-        const commandsModule = await config.commandsImport();
+      // Try to import commands/mod.ts by convention
+      try {
+        const commandsModule = await import(commandsUrl);
         this.registerCommandsFromModule(
           commandsModule as Record<string, unknown>,
           config.name,
         );
-        return;
+      } catch {
+        // No commands/mod.ts — this is normal for most apps
+        if (this.debug) {
+          console.log(
+            `  ${config.name}: no commands/mod.ts found at ${commandsUrl}`,
+          );
+        }
       }
 
-      // Fallback: commands might be exported from the main module
+      // Fallback: commands might be exported from the main module itself
       if (module.commands) {
         this.registerCommandsFromModule(
           module.commands as Record<string, unknown>,

@@ -321,8 +321,7 @@ export class RunServerCommand extends BaseCommand {
         }
       }
     } else {
-      // Legacy fallback: explicit `config.templatesDir` on AppConfig or
-      // convention-based `<appPath>/templates/` auto-discovery
+      // Convention-based: `<appPath>/templates/` auto-discovery
       for (const importFn of installedApps) {
         if (typeof importFn !== "function") continue;
 
@@ -332,30 +331,20 @@ export class RunServerCommand extends BaseCommand {
           if (!config?.name) continue;
 
           const appPath = appPathMap[config.name];
+          if (!appPath) continue;
 
-          let templatesDir: string | null = null;
-          if (config.templatesDir) {
-            // 1. Legacy: explicit `config.templatesDir` on AppConfig
-            templatesDir = this.resolveTemplatesDir(config.templatesDir);
-          } else if (appPath) {
-            // 2. Convention: `<appPath>/templates/` auto-discovery
-            const absAppDir = appPath.startsWith("/")
-              ? appPath
-              : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
-            const conventionDir = `${absAppDir}/templates`;
-            try {
-              const stat = await Deno.stat(conventionDir);
-              if (stat.isDirectory) {
-                templatesDir = conventionDir;
-              }
-            } catch {
-              // No templates dir by convention, skip
+          const absAppDir = appPath.startsWith("/")
+            ? appPath
+            : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
+          const conventionDir = `${absAppDir}/templates`;
+          try {
+            const stat = await Deno.stat(conventionDir);
+            if (stat.isDirectory) {
+              await this.scanAndRegisterTemplates(conventionDir);
+              templatesRegistered++;
             }
-          }
-
-          if (templatesDir) {
-            await this.scanAndRegisterTemplates(templatesDir);
-            templatesRegistered++;
+          } catch {
+            // No templates dir by convention, skip
           }
         } catch {
           // Skip apps that fail to load or have unreadable template dirs
@@ -424,48 +413,38 @@ export class RunServerCommand extends BaseCommand {
    * relative paths against `projectRoot`).
    *
    * Supports two strategies:
-   * - `staticDir` with `file://` URL → derive absolute parent directory
+   * - `appPath` with `file://` URL → return absolute directory path
+   * - `appPath` relative path → return as-is (resolved by the finder)
    * - Convention: `./src/${config.name}` (relative, resolved by the finder)
    *
    * Returns the app's source directory path, or null if not resolvable.
    */
   private resolveAppPath(config: AppConfig): string | null {
-    // Strategy 0: explicit appPath on config (e.g. worker apps whose name
-    // doesn't match their directory)
-    if (config.appPath) {
-      return config.appPath;
+    if (!config.appPath) {
+      // Convention-based relative path from app name
+      return `./src/${config.name}`;
     }
 
-    // Strategy 1: derive from file:// staticDir (published packages)
-    if (config.staticDir?.startsWith("file://")) {
+    if (config.appPath.startsWith("file://")) {
+      // Published package: absolute file:// URL
       try {
-        const url = new URL(config.staticDir);
+        const url = new URL(config.appPath);
         let pathname = url.pathname.replace(/\/$/, "");
         // Remove leading slash on Windows absolute paths (/C:/...)
         if (/^\/[a-zA-Z]:\//.test(pathname)) {
           pathname = pathname.slice(1);
         }
-        // staticDir points to e.g. /path/to/src/admin/static
-        // The app dir is the parent of the static dir
-        const lastSlash = pathname.lastIndexOf("/");
-        if (lastSlash > 0) {
-          // Return absolute path — starts with / (Unix) or C:/ (Windows)
-          // The finder recognises / as absolute; for Windows, we prefix with /
-          const absPath = pathname.slice(0, lastSlash);
-          if (/^[a-zA-Z]:\//.test(absPath)) {
-            return `/${absPath}`;
-          }
-          return absPath;
+        if (/^[a-zA-Z]:\//.test(pathname)) {
+          return `/${pathname}`;
         }
-        return null;
+        return pathname;
       } catch {
         return null;
       }
     }
 
-    // Strategy 2: convention-based relative path from app name
-    // The finder resolves this against projectRoot
-    return `./src/${config.name}`;
+    // Explicit relative path (e.g. "./src/myapp")
+    return config.appPath;
   }
 
   /**

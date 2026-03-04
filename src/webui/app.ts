@@ -20,11 +20,7 @@ const config: AppConfig = {
    */
   verboseName: "Alexi WebUI",
 
-  /**
-   * Commands module for desktop app management.
-   */
-  commandsModule: "./commands/mod.ts",
-  commandsImport: () => import("./commands/mod.ts"),
+  appPath: new URL("./", import.meta.url).href,
 };
 
 export default config;
