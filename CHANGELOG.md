@@ -8,6 +8,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-03-04
+
+### Added
+
+- `@alexi/core`: global settings registry (`conf`) — a lazy proxy equivalent to
+  Django's `django.conf.settings`; access any setting via `conf.MY_SETTING`
+  after `getApplication()` has been called; `configureSettings(settings)`,
+  `resetSettings()`, and `isSettingsConfigured()` helpers are also exported from
+  `@alexi/core` (#210)
+
+### Fixed
+
+- `@alexi/admin`: `AdminRouter` now falls back to the globally registered
+  default backend (via `getBackend("default")`) when no explicit `backend`
+  argument is provided — resolves authentication failures that occurred when
+  different settings files were used in the same process (#210)
+
 ## [0.34.0] - 2026-03-04
 
 ### Added
