@@ -85,6 +85,12 @@ interface BuildTarget {
    * Absolute path or relative to project root.
    */
   templatesDir?: string;
+  /**
+   * esbuild `entryNames` pattern (e.g. `'[name]-[hash]'`).
+   * Defaults to `'[name]'` (no hash).
+   * Service Worker entries always use `'[name]'` regardless.
+   */
+  entryNames?: string;
 }
 
 /**
@@ -369,6 +375,41 @@ export function generateTemplatesModule(
  * deno run -A manage.ts bundle --minify
  * ```
  */
+/**
+ * Returns true if the given entry point filename looks like a Service Worker.
+ *
+ * Matches: `worker.ts`, `my-worker.ts`, `my_worker.ts`, `my.worker.ts`
+ *
+ * @internal Exported for testing.
+ */
+export function isServiceWorkerEntry(ep: string): boolean {
+  const name = ep.replace(/^.*\//, "").replace(/\.[^.]+$/, ""); // stem
+  return (
+    name === "worker" ||
+    name.endsWith("-worker") ||
+    name.endsWith("_worker") ||
+    name.endsWith(".worker")
+  );
+}
+
+/**
+ * Manifest written to `<outputDir>/staticfiles.json` when `entryNames`
+ * contains `[hash]`.
+ *
+ * @example
+ * {
+ *   "version": 1,
+ *   "files": {
+ *     "myapp/document.js": "myapp/document-a1b2c3d4.js"
+ *   }
+ * }
+ */
+export interface StaticFilesManifest {
+  version: 1;
+  /** Maps canonical (un-hashed) path to the actual hashed output path. */
+  files: Record<string, string>;
+}
+
 // =============================================================================
 // buildSWBundle — exported for testing
 // =============================================================================
@@ -389,6 +430,12 @@ export interface BuildSWBundleOptions {
   cwd?: string;
   /** Path to the deno.json config file (defaults to <cwd>/deno.json) */
   configPath?: string;
+  /**
+   * esbuild `entryNames` pattern (e.g. `'[name]-[hash]'`).
+   * Service Worker entries always use `'[name]'` regardless.
+   * Defaults to `'[name]'` (no hash).
+   */
+  entryNames?: string;
 }
 
 /**
@@ -402,15 +449,18 @@ export interface BuildSWBundleOptions {
  * `absWorkingDir` is always set to `cwd` so that esbuild's node_modules
  * scanner does not walk above the project root and hit system directories
  * (e.g. `$Recycle.Bin`, `PerfLogs`) on Windows.
+ *
+ * Returns the esbuild metafile output record so callers can build a manifest.
  */
 export async function buildSWBundle(
   options: BuildSWBundleOptions,
-): Promise<void> {
+): Promise<esbuild.Metafile["outputs"]> {
   const {
     entryPoint,
     outputPath,
     minify = false,
     templates = [],
+    entryNames: entryNamesOption,
   } = options;
 
   const cwd = options.cwd ?? Deno.cwd();
@@ -502,13 +552,21 @@ export async function buildSWBundle(
     effectiveEntryPoint = "__alexi_sw_entry__.ts";
   }
 
+  // Determine effective entryNames:
+  // - SW entries always use '[name]' so the SW registration URL never changes
+  // - Otherwise use the caller-supplied pattern (default '[name]')
+  const isSW = isServiceWorkerEntry(entryPoint);
+  const effectiveEntryNames = isSW
+    ? outputName.replace(".js", "")
+    : (entryNamesOption ?? outputName.replace(".js", ""));
+
   const result = await esbuild.build({
     entryPoints: [effectiveEntryPoint],
     bundle: true,
     splitting: true,
     format: "esm",
     outdir: outputDir,
-    entryNames: outputName.replace(".js", ""),
+    entryNames: effectiveEntryNames,
     chunkNames: "chunks/[name]-[hash]",
     platform: "browser",
     target: ["es2020"],
@@ -529,6 +587,127 @@ export async function buildSWBundle(
   if (result.errors.length > 0) {
     const errorMessages = result.errors.map((e) => e.text).join("\n");
     throw new Error(`Bundle failed: ${errorMessages}`);
+  }
+
+  return result.metafile.outputs;
+}
+
+// =============================================================================
+// Manifest & HTML rewrite helpers — exported for testing
+// =============================================================================
+
+/**
+ * Build a `staticfiles.json` manifest from an esbuild metafile outputs map.
+ *
+ * Only entry-point outputs (those with an `entryPoint` property) are included.
+ * Chunk files are excluded.
+ *
+ * The manifest key is the canonical (un-hashed) relative path:
+ *   `<subdir>/<stem>.js`
+ * where `<subdir>` is the last component of the output directory and `<stem>`
+ * is the un-hashed stem derived by stripping the hash suffix `‑<8hexchars>`.
+ *
+ * @param outputs - `result.metafile.outputs` from an esbuild build
+ * @param outputDir - Absolute path to the directory that received the outputs
+ * @returns Manifest object, or `null` when no entry-point outputs are found
+ *
+ * @internal Exported for testing.
+ */
+export function buildManifest(
+  outputs: esbuild.Metafile["outputs"],
+  outputDir: string,
+): StaticFilesManifest | null {
+  const files: Record<string, string> = {};
+
+  // Normalise outputDir for consistent comparisons (forward slashes)
+  const outDirNorm = outputDir.replace(/\\/g, "/").replace(/\/$/, "");
+  // The "subdir" is the last path component of the output directory.
+  // E.g. ".../static/myapp" → "myapp"
+  const subdir = outDirNorm.split("/").pop() ?? "";
+
+  for (const [outputFile, meta] of Object.entries(outputs)) {
+    // Only include entry-point outputs (not chunks)
+    if (!meta.entryPoint) continue;
+
+    // outputFile is a relative path from absWorkingDir, e.g.
+    // "src/myapp/static/myapp/document-a1b2c3d4.js"
+    // Normalise to forward slashes on Windows.
+    const normOutput = outputFile.replace(/\\/g, "/");
+    const filename = normOutput.split("/").pop() ?? normOutput;
+
+    // Strip hash suffix: `document-a1b2c3d4.js` → `document`
+    // esbuild hashes are 8 lowercase hex digits
+    const stem = filename.replace(/\.js$/, "").replace(/-[0-9a-f]{8}$/i, "");
+    const canonicalKey = subdir ? `${subdir}/${stem}.js` : `${stem}.js`;
+
+    // Value: the actual output filename relative to outputDir
+    files[canonicalKey] = subdir ? `${subdir}/${filename}` : filename;
+  }
+
+  if (Object.keys(files).length === 0) return null;
+  return { version: 1, files };
+}
+
+/**
+ * Rewrite un-hashed JS references inside `.html` files to hashed equivalents.
+ *
+ * Scans `htmlSearchDir` recursively for `.html` files and replaces occurrences
+ * of each canonical path in the manifest with the hashed path.
+ *
+ * Replacements are performed inside:
+ * - `src="…"` / `href="…"` attribute values
+ * - `register('…')` / `register("…")` calls (SW registration)
+ *
+ * @param manifest - The manifest produced by {@link buildManifest}
+ * @param htmlSearchDir - Directory to scan for `.html` files
+ * @param staticUrlPrefix - URL prefix prepended to manifest keys in HTML
+ *   (e.g. `"/static/"`). Pass empty string if keys are full paths.
+ *
+ * @internal Exported for testing.
+ */
+export async function rewriteHtmlReferences(
+  manifest: StaticFilesManifest,
+  htmlSearchDir: string,
+  staticUrlPrefix = "/static/",
+): Promise<void> {
+  // Collect all .html files under htmlSearchDir
+  const htmlFiles: string[] = [];
+  async function walk(dir: string): Promise<void> {
+    try {
+      for await (const entry of Deno.readDir(dir)) {
+        const full = `${dir}/${entry.name}`;
+        if (entry.isDirectory) {
+          await walk(full);
+        } else if (entry.isFile && entry.name.endsWith(".html")) {
+          htmlFiles.push(full);
+        }
+      }
+    } catch {
+      // Directory does not exist — silently skip
+    }
+  }
+  await walk(htmlSearchDir);
+
+  for (const htmlFile of htmlFiles) {
+    let content: string;
+    try {
+      content = await Deno.readTextFile(htmlFile);
+    } catch {
+      continue;
+    }
+
+    let modified = content;
+    for (const [canonical, hashed] of Object.entries(manifest.files)) {
+      if (canonical === hashed) continue; // no-op when hash is absent
+      const canonicalUrl = `${staticUrlPrefix}${canonical}`;
+      const hashedUrl = `${staticUrlPrefix}${hashed}`;
+      // Replace all occurrences (attribute values + SW register calls)
+      modified = modified.replaceAll(canonicalUrl, hashedUrl);
+    }
+
+    if (modified !== content) {
+      await Deno.writeTextFile(htmlFile, modified);
+    }
   }
 }
 
@@ -823,6 +1002,7 @@ export class BundleCommand extends BaseCommand {
           outputPath,
           minify: entry.options?.minify,
           templatesDir: entry.templatesDir,
+          entryNames: entry.options?.entryNames,
         });
       }
     }
@@ -954,6 +1134,7 @@ export class BundleCommand extends BaseCommand {
           }
         }
       } else if (
+        isServiceWorkerEntry(target.entryPoint) &&
         options.templatesConfig && options.templatesConfig.length > 0 &&
         options.importFunctions && options.importFunctions.length > 0
       ) {
@@ -969,6 +1150,7 @@ export class BundleCommand extends BaseCommand {
           );
         }
       } else if (
+        isServiceWorkerEntry(target.entryPoint) &&
         options.importFunctions && options.importFunctions.length > 0
       ) {
         templates = await collectAllTemplates(
@@ -985,7 +1167,13 @@ export class BundleCommand extends BaseCommand {
 
       const minify = target.minify ?? options.minify;
       this.info(`Bundling ${target.name}...`);
-      await this.bundleJS(target.entryPoint, outputPath, minify, templates);
+      await this.bundleJS(
+        target.entryPoint,
+        outputPath,
+        minify,
+        templates,
+        target.entryNames,
+      );
 
       return {
         appName: target.name,
@@ -1020,10 +1208,14 @@ export class BundleCommand extends BaseCommand {
     outputPath: string,
     minify: boolean,
     templates: DiscoveredTemplate[] = [],
+    entryNames?: string,
   ): Promise<void> {
-    const outputDir = outputPath.substring(0, outputPath.lastIndexOf("/"));
+    const outputDir = outputPath.replace(/\\/g, "/").substring(
+      0,
+      outputPath.replace(/\\/g, "/").lastIndexOf("/"),
+    );
 
-    // Clean up old chunks before building
+    // Clean up old chunks and previously-hashed entry files before building
     try {
       for await (const entry of Deno.readDir(outputDir)) {
         if (
@@ -1038,11 +1230,31 @@ export class BundleCommand extends BaseCommand {
       // Directory might not exist yet
     }
 
-    await buildSWBundle({ entryPoint, outputPath, minify, templates });
+    const metaOutputs = await buildSWBundle({
+      entryPoint,
+      outputPath,
+      minify,
+      templates,
+      entryNames,
+    });
 
-    // Log a note in debug mode (metafile info is available inside buildSWBundle
-    // but we keep the class method thin — chunk counts are visible via esbuild
-    // stdout when running interactively).
+    // When entryNames contains [hash], write a staticfiles.json manifest and
+    // rewrite any .html files in the static tree so they reference the hashed
+    // filenames.
+    if (entryNames?.includes("[hash]")) {
+      const manifest = buildManifest(metaOutputs, outputDir);
+      if (manifest) {
+        const manifestPath = `${outputDir}/staticfiles.json`;
+        await Deno.writeTextFile(
+          manifestPath,
+          JSON.stringify(manifest, null, 2),
+        );
+
+        // Rewrite HTML files in the parent of outputDir (the static/ root)
+        const staticRoot = outputDir.substring(0, outputDir.lastIndexOf("/"));
+        await rewriteHtmlReferences(manifest, staticRoot);
+      }
+    }
   }
 
   /**

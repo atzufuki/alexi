@@ -156,6 +156,7 @@ export const STATICFILES_DIRS: string[] = [];
 export const ASSETFILES_DIRS = [
   {
     // Service Worker bundle: workers/${name}/worker.ts → static/${name}/worker.js
+    // SW entries always use plain [name] (no hash) so the registration URL is stable.
     path: "./src/${name}/workers/${name}",
     outputDir: "./src/${name}/static/${name}",
     entrypoints: ["worker.ts"],
@@ -163,9 +164,15 @@ export const ASSETFILES_DIRS = [
   },
   {
     // Frontend bundle: assets/${name}/${name}.ts → static/${name}/${name}.js
+    // entryNames: "[name]-[hash]" enables content-hash cache-busting.
+    // A staticfiles.json manifest is written to the output directory and any
+    // .html files in the static tree are rewritten to reference the hashed file.
     path: "./src/${name}/assets/${name}",
     outputDir: "./src/${name}/static/${name}",
     entrypoints: ["${name}.ts"],
+    options: {
+      entryNames: "[name]-[hash]",
+    },
   },
 ];
 
@@ -326,6 +333,9 @@ export const ASSETFILES_DIRS = [
     path: "./src/${name}/assets/${name}",
     outputDir: "./src/${name}/static/${name}",
     entrypoints: ["${name}.ts"],
+    options: {
+      entryNames: "[name]-[hash]",
+    },
   },
 ];
 

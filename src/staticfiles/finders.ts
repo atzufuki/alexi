@@ -141,7 +141,7 @@ export class AppDirectoriesFinder implements StaticFileFinder {
       const appDir = this.resolvePath(appPath);
       const staticDir = `${appDir}/static`;
 
-      // Try to find the file
+      // Try to find the file directly
       const filePath = `${staticDir}/${urlPath}`;
 
       if (await this.fileExists(filePath)) {
@@ -149,6 +149,33 @@ export class AppDirectoriesFinder implements StaticFileFinder {
           path: filePath,
           source: appName,
         };
+      }
+
+      // Manifest fallback: look for a hashed equivalent via staticfiles.json
+      // urlPath is e.g. "myapp/document.js"
+      // → check <staticDir>/myapp/staticfiles.json for key "myapp/document.js"
+      const parts = urlPath.split("/");
+      if (parts.length >= 2) {
+        const subdir = parts[0];
+        const manifestPath = `${staticDir}/${subdir}/staticfiles.json`;
+        try {
+          const raw = await Deno.readTextFile(manifestPath);
+          const manifest = JSON.parse(raw) as {
+            version: number;
+            files: Record<string, string>;
+          };
+          if (manifest.version === 1 && manifest.files[urlPath]) {
+            const hashedPath = `${staticDir}/${manifest.files[urlPath]}`;
+            if (await this.fileExists(hashedPath)) {
+              return {
+                path: hashedPath,
+                source: appName,
+              };
+            }
+          }
+        } catch {
+          // No manifest or parse error — continue
+        }
       }
     }
 

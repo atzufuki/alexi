@@ -9,11 +9,14 @@
 import { assertEquals, assertMatch, assertStringIncludes } from "@std/assert";
 import { join, toFileUrl } from "@std/path";
 import {
+  buildManifest,
   buildSWBundle,
   collectAllTemplates,
   collectTemplatesFromConfig,
   generateTemplatesModule,
+  isServiceWorkerEntry,
   resolveTemplatesDir,
+  rewriteHtmlReferences,
   scanTemplatesDir,
 } from "./bundle.ts";
 
@@ -558,5 +561,226 @@ Deno.test(
     } finally {
       await Deno.remove(tmpDir, { recursive: true });
     }
+  },
+);
+
+// =============================================================================
+// isServiceWorkerEntry
+// =============================================================================
+
+Deno.test("isServiceWorkerEntry: detects 'worker.ts'", () => {
+  assertEquals(isServiceWorkerEntry("worker.ts"), true);
+});
+
+Deno.test("isServiceWorkerEntry: detects 'my-worker.ts'", () => {
+  assertEquals(isServiceWorkerEntry("my-worker.ts"), true);
+});
+
+Deno.test("isServiceWorkerEntry: detects 'my_worker.ts'", () => {
+  assertEquals(isServiceWorkerEntry("my_worker.ts"), true);
+});
+
+Deno.test("isServiceWorkerEntry: detects 'my.worker.ts'", () => {
+  assertEquals(isServiceWorkerEntry("my.worker.ts"), true);
+});
+
+Deno.test("isServiceWorkerEntry: path prefix is ignored", () => {
+  assertEquals(isServiceWorkerEntry("./src/myapp/worker.ts"), true);
+});
+
+Deno.test("isServiceWorkerEntry: non-worker entry returns false", () => {
+  assertEquals(isServiceWorkerEntry("document.ts"), false);
+});
+
+Deno.test("isServiceWorkerEntry: 'myapp.ts' returns false", () => {
+  assertEquals(isServiceWorkerEntry("myapp.ts"), false);
+});
+
+// =============================================================================
+// buildManifest
+// =============================================================================
+
+Deno.test("buildManifest: returns null for outputs with no entryPoint", () => {
+  const outputs: Record<string, { entryPoint?: string; inputs: unknown }> = {
+    "src/myapp/static/myapp/chunks/chunk-abcd1234.js": {
+      inputs: {},
+    },
+  };
+  const result = buildManifest(
+    outputs as unknown as Parameters<typeof buildManifest>[0],
+    "/project/src/myapp/static/myapp",
+  );
+  assertEquals(result, null);
+});
+
+Deno.test("buildManifest: maps un-hashed key to hashed output", () => {
+  const outputs = {
+    "src/myapp/static/myapp/document-a1b2c3d4.js": {
+      entryPoint: "src/myapp/assets/myapp/document.ts",
+      inputs: {},
+      exports: [],
+      bytes: 1234,
+    },
+  };
+  const result = buildManifest(
+    outputs as unknown as Parameters<typeof buildManifest>[0],
+    "/project/src/myapp/static/myapp",
+  );
+  assertEquals(result?.version, 1);
+  assertEquals(
+    result?.files["myapp/document.js"],
+    "myapp/document-a1b2c3d4.js",
+  );
+});
+
+Deno.test("buildManifest: no hash suffix → key equals value", () => {
+  const outputs = {
+    "src/myapp/static/myapp/document.js": {
+      entryPoint: "src/myapp/assets/myapp/document.ts",
+      inputs: {},
+      exports: [],
+      bytes: 100,
+    },
+  };
+  const result = buildManifest(
+    outputs as unknown as Parameters<typeof buildManifest>[0],
+    "/project/src/myapp/static/myapp",
+  );
+  assertEquals(result?.files["myapp/document.js"], "myapp/document.js");
+});
+
+Deno.test("buildManifest: multiple entry points", () => {
+  const outputs = {
+    "src/myapp/static/myapp/document-a1b2c3d4.js": {
+      entryPoint: "src/myapp/assets/myapp/document.ts",
+      inputs: {},
+      exports: [],
+      bytes: 100,
+    },
+    "src/myapp/static/myapp/admin-beef1234.js": {
+      entryPoint: "src/myapp/assets/myapp/admin.ts",
+      inputs: {},
+      exports: [],
+      bytes: 200,
+    },
+    // chunk — no entryPoint, should be excluded
+    "src/myapp/static/myapp/chunks/chunk-deadbeef.js": {
+      inputs: {},
+      exports: [],
+      bytes: 50,
+    },
+  };
+  const result = buildManifest(
+    outputs as unknown as Parameters<typeof buildManifest>[0],
+    "/project/src/myapp/static/myapp",
+  );
+  assertEquals(Object.keys(result!.files).length, 2);
+  assertEquals(
+    result!.files["myapp/document.js"],
+    "myapp/document-a1b2c3d4.js",
+  );
+  assertEquals(result!.files["myapp/admin.js"], "myapp/admin-beef1234.js");
+});
+
+// =============================================================================
+// rewriteHtmlReferences
+// =============================================================================
+
+Deno.test(
+  "rewriteHtmlReferences: rewrites script src in html files",
+  async () => {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const myappDir = `${tmpDir}/myapp`;
+      await Deno.mkdir(myappDir);
+      const htmlFile = `${myappDir}/index.html`;
+      await Deno.writeTextFile(
+        htmlFile,
+        '<script type="module" src="/static/myapp/document.js"></script>',
+      );
+
+      const manifest = {
+        version: 1 as const,
+        files: { "myapp/document.js": "myapp/document-a1b2c3d4.js" },
+      };
+      await rewriteHtmlReferences(manifest, tmpDir);
+
+      const rewritten = await Deno.readTextFile(htmlFile);
+      assertStringIncludes(
+        rewritten,
+        "/static/myapp/document-a1b2c3d4.js",
+      );
+      assertEquals(
+        rewritten.includes("/static/myapp/document.js"),
+        false,
+      );
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+);
+
+Deno.test(
+  "rewriteHtmlReferences: rewrites SW register call",
+  async () => {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const myappDir = `${tmpDir}/myapp`;
+      await Deno.mkdir(myappDir);
+      const htmlFile = `${myappDir}/base.html`;
+      await Deno.writeTextFile(
+        htmlFile,
+        "navigator.serviceWorker.register('/static/myapp/document.js')",
+      );
+
+      const manifest = {
+        version: 1 as const,
+        files: { "myapp/document.js": "myapp/document-a1b2c3d4.js" },
+      };
+      await rewriteHtmlReferences(manifest, tmpDir);
+
+      const rewritten = await Deno.readTextFile(htmlFile);
+      assertStringIncludes(
+        rewritten,
+        "/static/myapp/document-a1b2c3d4.js",
+      );
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+);
+
+Deno.test(
+  "rewriteHtmlReferences: no-op when canonical equals hashed",
+  async () => {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const htmlFile = `${tmpDir}/index.html`;
+      const original = '<script src="/static/myapp/document.js"></script>';
+      await Deno.writeTextFile(htmlFile, original);
+
+      const manifest = {
+        version: 1 as const,
+        files: { "myapp/document.js": "myapp/document.js" }, // no change
+      };
+      await rewriteHtmlReferences(manifest, tmpDir);
+
+      const content = await Deno.readTextFile(htmlFile);
+      assertEquals(content, original);
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+);
+
+Deno.test(
+  "rewriteHtmlReferences: non-existent directory is silently skipped",
+  async () => {
+    const manifest = {
+      version: 1 as const,
+      files: { "myapp/document.js": "myapp/document-a1b2c3d4.js" },
+    };
+    // Should not throw even when the directory doesn't exist
+    await rewriteHtmlReferences(manifest, "/nonexistent/path");
   },
 );

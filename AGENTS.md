@@ -2182,6 +2182,58 @@ deno run -A --unstable-kv manage.ts createsuperuser
 deno run -A --unstable-kv manage.ts test
 ```
 
+### Static File Fingerprinting / Cache-Busting
+
+The `bundle` command supports content-hash fingerprinting via esbuild's native
+`entryNames` option. When `[hash]` is present in `entryNames`, the bundle
+command automatically:
+
+1. Writes a `staticfiles.json` manifest in the app's output directory mapping
+   canonical filenames to hashed filenames (e.g. `myapp/document.js` →
+   `myapp/document-a1b2c3d4.js`).
+2. Rewrites `<script src>` and `navigator.serviceWorker.register()` calls in
+   `.html` files under the app's `static/` root to point at the hashed URL.
+3. **Service Worker entries are always emitted with `[name]` only** (no hash),
+   because the SW registration URL must remain stable.
+
+#### Configuration (in `app.ts`)
+
+```typescript
+staticfiles: [
+  // SW entry — no hash (must be a stable URL)
+  { entrypoint: "./worker.ts", outputFile: "./static/my-app/worker.js" },
+  // Non-SW entry — fingerprinted
+  {
+    entrypoint: "./document.ts",
+    outputFile: "./static/my-app/document.js",
+    options: { entryNames: "[name]-[hash]" },
+  },
+];
+```
+
+The scaffold templates (`startproject`) generate this configuration by default.
+
+#### `staticfiles.json` manifest format
+
+```json
+{
+  "myapp/document.js": "myapp/document-a1b2c3d4.js"
+}
+```
+
+Keys use `<last-path-component-of-outputDir>/<stem>.js`. The
+`AppDirectoriesFinder` reads this manifest at request time to serve the hashed
+file when a canonical URL is requested.
+
+#### Exported helpers (from `@alexi/staticfiles`)
+
+| Export                    | Description                                              |
+| ------------------------- | -------------------------------------------------------- |
+| `isServiceWorkerEntry()`  | Returns `true` if an entry point filename is a SW entry  |
+| `StaticFilesManifest`     | Interface: `Record<string, string>` (canonical → hashed) |
+| `buildManifest()`         | Builds a manifest object from esbuild metafile outputs   |
+| `rewriteHtmlReferences()` | Rewrites un-hashed → hashed paths in `.html` files       |
+
 ### Creating Custom Commands
 
 ```typescript

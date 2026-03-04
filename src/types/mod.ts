@@ -362,6 +362,15 @@ export interface StaticfileConfig {
      * External modules that should not be bundled.
      */
     external?: string[];
+
+    /**
+     * esbuild `entryNames` pattern for output filenames.
+     * Use `"[name]-[hash]"` to enable content-hash fingerprinting.
+     * Service Worker entries ignore this and always use `[name]`.
+     *
+     * @example "[name]-[hash]"
+     */
+    entryNames?: string;
   };
 }
 
@@ -442,6 +451,22 @@ export interface AssetfilesDirConfig {
      * External modules that should not be bundled.
      */
     external?: string[];
+
+    /**
+     * esbuild `entryNames` pattern for output filenames.
+     *
+     * Use `'[name]-[hash]'` to enable content-hash cache-busting.
+     * Service Worker entry points always use `'[name]'` regardless of this
+     * setting (so the SW registration URL never changes).
+     *
+     * When `[hash]` is present the bundler writes a `staticfiles.json`
+     * manifest to the output directory and rewrites any `.html` files in the
+     * same static tree so they reference the hashed filenames.
+     *
+     * @default '[name]'
+     * @example '[name]-[hash]'
+     */
+    entryNames?: string;
   };
 }
 
