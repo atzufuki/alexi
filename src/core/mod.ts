@@ -54,3 +54,15 @@ export type { GetApplicationSettings } from "./get_application.ts";
 
 export { setup } from "./setup.ts";
 export type { DatabasesConfig } from "./setup.ts";
+
+// =============================================================================
+// Global Settings Registry (Django-style django.conf.settings)
+// =============================================================================
+
+export {
+  conf,
+  configureSettings,
+  isSettingsConfigured,
+  resetSettings,
+} from "./conf.ts";
+export type { GetApplicationSettings as ConfSettings } from "./get_application.ts";
