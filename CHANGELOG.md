@@ -8,6 +8,33 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-03-04
+
+### Added
+
+- `@alexi/core`: `getHttpApplication()` — server-side application factory,
+  Django's `get_wsgi_application()` equivalent; reads settings from the global
+  `conf` proxy (configured via `--settings` CLI flag), no parameters needed
+  (#213)
+- `@alexi/core`: `getWorkerApplication(settings)` — Service Worker application
+  factory; accepts a settings object directly since there is no `--settings`
+  flag in the browser context (#213)
+
+### Changed
+
+- `@alexi/web`: `runserver` now calls `configureSettings()` before
+  `getHttpApplication()` so the `conf` proxy is always populated at request
+  time, fixing `Error: Alexi settings are not configured` (#212, #213)
+- Scaffolded `http.ts` no longer imports a settings module directly — uses
+  `getHttpApplication()` instead (#213)
+- Scaffolded `worker.ts` uses `getWorkerApplication(settings)` instead of the
+  generic `getApplication(settings)` (#213)
+
+### Deprecated
+
+- `getApplication(settings)` — use `getHttpApplication()` for server-side code
+  or `getWorkerApplication(settings)` for Service Workers (#213)
+
 ## [0.35.0] - 2026-03-04
 
 ### Added
