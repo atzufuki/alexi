@@ -329,8 +329,12 @@ export class ManagementUtility {
       const appPath = config.appPath ?? `./src/${config.name}`;
       let commandsUrl: string;
 
-      if (appPath.startsWith("file://")) {
-        // Published package: absolute file:// URL — append commands/mod.ts
+      if (
+        appPath.startsWith("file://") ||
+        appPath.startsWith("https://") ||
+        appPath.startsWith("http://")
+      ) {
+        // Absolute URL (local file:// or remote https:// from JSR) — append commands/mod.ts
         const base = appPath.endsWith("/") ? appPath : `${appPath}/`;
         commandsUrl = `${base}commands/mod.ts`;
       } else {
