@@ -15,4 +15,7 @@
 export { default } from "./app.ts";
 export { default as config } from "./app.ts";
 
+// Abstract base user model
+export { AbstractUser } from "./models/mod.ts";
+
 // Commands are loaded dynamically via app.ts commandsModule

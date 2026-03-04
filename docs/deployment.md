@@ -189,6 +189,12 @@ deno run -A manage.ts collectstatic --no-input
      - `DEBUG` — `false`
      - `CORS_ORIGINS` — Your frontend URL(s)
 
+You can generate SECRET_KEY with this kind of command:
+
+```bash
+deno eval 'const c="abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)";const b=new Uint8Array(50);crypto.getRandomValues(b);console.log([...b].map(x=>c[x%c.length]).join(""))'
+```
+
 4. **Deploy**
 
    Every push to `main` will automatically deploy.
