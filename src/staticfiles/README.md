@@ -20,13 +20,13 @@ deno add jsr:@alexi/staticfiles
 ## Basic Usage
 
 ```typescript
-import { Application } from "@alexi/core/management";
-import { staticFilesMiddleware } from "@alexi/staticfiles";
+import { getHttpApplication } from "@alexi/core";
 
-const app = new Application({
-  middleware: [staticFilesMiddleware()],
-});
+export default await getHttpApplication();
 ```
+
+Middleware (including `staticFilesMiddleware`) is wired up automatically via
+your settings' `createMiddleware` function or `MIDDLEWARE` array.
 
 ## Documentation
 

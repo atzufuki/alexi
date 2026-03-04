@@ -17,7 +17,10 @@ export function generateHttpTs(name: string): string {
  *
  * Production server entrypoint for Deno Deploy and \`deno serve\`.
  * Analogous to Django's wsgi.py — a thin shell that calls
- * getApplication(settings) and exports the result.
+ * getHttpApplication() and exports the result.
+ *
+ * Settings are loaded by the management command via --settings flag,
+ * or configured via configureSettings() before this module is imported.
  *
  * Usage:
  *   deno serve -A --unstable-kv project/http.ts
@@ -26,10 +29,9 @@ export function generateHttpTs(name: string): string {
  * @module http
  */
 
-import { getApplication } from "@alexi/core";
-import * as settings from "./settings.ts";
+import { getHttpApplication } from "@alexi/core";
 
-export default await getApplication(settings);
+export default await getHttpApplication();
 `;
 }
 

@@ -15,10 +15,9 @@
  * @module @alexi/web/commands/runserver
  */
 
-import { setup } from "@alexi/core";
-import type { DatabasesConfig } from "@alexi/core";
+import { configureSettings, getHttpApplication } from "@alexi/core";
+import type { GetApplicationSettings } from "@alexi/core";
 import {
-  Application,
   BaseCommand,
   failure,
   resolveSettingsPath,
@@ -26,7 +25,6 @@ import {
   toImportUrl,
 } from "@alexi/core/management";
 import type {
-  ApplicationOptions,
   CommandOptions,
   CommandResult,
   IArgumentParser,
@@ -52,14 +50,6 @@ interface ServerConfig {
   debug: boolean;
   createHmrResponse?: () => Response;
 }
-
-/**
- * URL import function type.
- * User provides this as ROOT_URLCONF to ensure correct import context.
- */
-type UrlImportFn = () => Promise<
-  { urlpatterns?: unknown[]; default?: unknown[] }
->;
 
 /**
  * App import function type, matching INSTALLED_APPS entries.
@@ -160,12 +150,6 @@ export class RunServerCommand extends BaseCommand {
       if (port < 1 || port > 65535) {
         this.error(`Invalid port: ${port}`);
         return failure("Invalid port");
-      }
-
-      // Initialize database from DATABASES setting (Django-style)
-      if (settings.DATABASES) {
-        await setup({ DATABASES: settings.DATABASES as DatabasesConfig });
-        this.success("Database initialized");
       }
 
       // Bundle if needed
@@ -562,76 +546,80 @@ export class RunServerCommand extends BaseCommand {
   ): Promise<void> {
     this.serverAbortController = new AbortController();
 
-    // Load URL patterns from ROOT_URLCONF
-    let urlpatterns: URLPattern[] = [];
-
-    const rootUrlConf = settings.ROOT_URLCONF as UrlImportFn | undefined;
-
-    if (rootUrlConf) {
-      if (typeof rootUrlConf !== "function") {
-        throw new Error(
-          "ROOT_URLCONF must be an import function, e.g.:\n" +
-            '  export const ROOT_URLCONF = () => import("@myapp/web/urls");',
-        );
-      }
-
-      try {
-        // Call user's import function - runs in user's context
-        const urlsModule = await rootUrlConf();
-        urlpatterns =
-          (urlsModule.urlpatterns ?? urlsModule.default ?? []) as URLPattern[];
-        this.success("Loaded URL patterns from ROOT_URLCONF");
-      } catch (error) {
-        this.warn(`Could not load URL patterns: ${error}`);
-      }
-    } else {
-      this.warn("ROOT_URLCONF not set in settings. No URL patterns loaded.");
-    }
-
-    // Add HMR endpoint
-    if (config.createHmrResponse) {
-      urlpatterns = [
-        path("hmr", () => config.createHmrResponse!(), {
-          name: "hmr",
-          methods: ["GET"],
-        }),
-        ...urlpatterns,
-      ];
-    }
-
-    // Load templates from all installed apps into templateRegistry
+    // Load templates from all installed apps into templateRegistry and collect
+    // static file paths. Must happen before building the augmented settings so
+    // that this.appNames / this.appPaths are populated for staticFilesMiddleware.
     await this.loadInstalledApps(settings);
 
-    // Create middleware
-    let middleware: Middleware[] = [];
-    const createMiddleware = settings.createMiddleware as
-      | ((opts: { debug: boolean }) => unknown[])
-      | undefined;
+    // Build augmented settings for getApplication():
+    //   1. DEBUG is always true in dev mode
+    //   2. ROOT_URLCONF is wrapped to prepend the HMR endpoint (if active)
+    //   3. createMiddleware is wrapped to prepend staticFilesMiddleware
+    const baseSettings = settings as unknown as GetApplicationSettings;
 
-    if (createMiddleware) {
-      middleware = createMiddleware({
-        debug: config.debug,
-      }) as Middleware[];
+    const augmentedSettings: GetApplicationSettings = {
+      ...baseSettings,
+      DEBUG: config.debug,
+    };
+
+    // Wrap ROOT_URLCONF to inject HMR endpoint at the front
+    if (config.createHmrResponse) {
+      const hmrPattern = path("hmr", () => config.createHmrResponse!(), {
+        name: "hmr",
+        methods: ["GET"],
+      });
+      const originalUrlConf = baseSettings.ROOT_URLCONF;
+      augmentedSettings.ROOT_URLCONF = async () => {
+        let base: URLPattern[] = [];
+        if (typeof originalUrlConf === "function") {
+          const mod = await originalUrlConf();
+          base = (mod.urlpatterns ?? mod.default ?? []) as URLPattern[];
+        } else if (Array.isArray(originalUrlConf)) {
+          base = originalUrlConf;
+        }
+        return { urlpatterns: [hmrPattern, ...base] };
+      };
     }
 
-    // Auto-inject static file serving middleware (like Django's runserver)
-    // This must come before user middleware so static files are served first.
+    // Wrap middleware to prepend staticFilesMiddleware
     if (this.appNames.length > 0) {
-      const staticMiddleware = staticFilesMiddleware({
+      const staticMw = staticFilesMiddleware({
         installedApps: this.appNames,
         appPaths: this.appPaths,
         projectRoot: this.projectRoot,
         debug: config.debug,
       });
-      middleware = [staticMiddleware, ...middleware];
+
+      const originalCreateMiddleware = baseSettings.createMiddleware;
+      const originalMiddleware = baseSettings.MIDDLEWARE;
+
+      augmentedSettings.MIDDLEWARE = undefined;
+      augmentedSettings.createMiddleware = (opts) => {
+        let userMiddleware: Middleware[] = [];
+        if (originalCreateMiddleware) {
+          userMiddleware = originalCreateMiddleware(opts);
+        } else if (originalMiddleware) {
+          userMiddleware = originalMiddleware;
+        }
+        return [staticMw, ...userMiddleware];
+      };
     }
 
-    // Create application
-    const app = new Application({
-      urls: urlpatterns,
-      middleware,
-      debug: config.debug,
-    });
+    // Configure global settings registry, then build the application.
+    // configureSettings() must be called before getHttpApplication() so
+    // that conf proxy is populated.
+    configureSettings(augmentedSettings);
+    const app = await getHttpApplication();
+
+    if (settings.ROOT_URLCONF) {
+      this.success("Loaded URL patterns from ROOT_URLCONF");
+    } else {
+      this.warn("ROOT_URLCONF not set in settings. No URL patterns loaded.");
+    }
+
+    if (settings.DATABASES) {
+      this.success("Database initialized");
+    }
 
     // Log configuration
     console.log("");
@@ -644,8 +632,8 @@ export class RunServerCommand extends BaseCommand {
       port: config.port,
       hostname: config.host,
       signal: this.serverAbortController.signal,
-    }).catch((err) => {
-      if (err.name !== "AbortError") {
+    }).catch((err: unknown) => {
+      if ((err as { name?: string }).name !== "AbortError") {
         console.error("Server error:", err);
       }
     });

@@ -86,7 +86,9 @@ export const conf: GetApplicationSettings = new Proxy(
       if (_settings === null) {
         throw new Error(
           "Alexi settings are not configured. " +
-            "Call getApplication(settings) before accessing conf.",
+            "Call configureSettings() before accessing conf, or use " +
+            "getHttpApplication() which requires settings to be configured " +
+            "via the --settings CLI flag.",
         );
       }
       return _settings[prop as keyof GetApplicationSettings];
