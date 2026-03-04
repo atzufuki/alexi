@@ -2,8 +2,8 @@
  * CollectStatic Command Tests
  *
  * Tests for the collectstatic command, including support for
- * file:// URL-based staticDir values (e.g. from @alexi/admin using
- * `new URL("./static/", import.meta.url).href`).
+ * file:// URL-based appPath values (e.g. from @alexi/admin using
+ * `new URL("./", import.meta.url).href`).
  */
 
 import { assertEquals } from "@std/assert";
@@ -77,7 +77,7 @@ function toFileUrl(absPath: string): string {
 // =============================================================================
 
 Deno.test({
-  name: "collectstatic: copies files from traditional relative staticDir",
+  name: "collectstatic: copies files from traditional relative appPath",
   async fn() {
     const tmpDir = await Deno.makeTempDir({
       prefix: "alexi_collectstatic_test_",
@@ -88,7 +88,7 @@ Deno.test({
       const appConfig: AppConfig = {
         name: "myapp",
         verboseName: "My App",
-        staticDir: "./static",
+        appPath: "./src/myapp",
       };
 
       const { staticRoot } = await createTempProject({
@@ -128,21 +128,22 @@ Deno.test({
 });
 
 Deno.test({
-  name: "collectstatic: copies files from file:// URL-based staticDir",
+  name: "collectstatic: copies files from file:// URL-based appPath",
   async fn() {
     const tmpDir = await Deno.makeTempDir({
       prefix: "alexi_collectstatic_test_",
     });
 
     try {
-      // Simulate a package's static dir resolved via import.meta.url
-      const appStaticDir = join(tmpDir, "pkg_cache", "alexi_admin", "static");
-      const fileUrl = toFileUrl(appStaticDir);
+      // Simulate a package's app dir resolved via import.meta.url
+      const appDir = join(tmpDir, "pkg_cache", "alexi_admin");
+      const appStaticDir = join(appDir, "static");
+      const fileUrl = toFileUrl(appDir);
 
       const appConfig: AppConfig = {
         name: "alexi_admin",
         verboseName: "Alexi Admin",
-        staticDir: fileUrl,
+        appPath: fileUrl,
       };
 
       const { staticRoot } = await createTempProject({
@@ -186,20 +187,21 @@ Deno.test({
 });
 
 Deno.test({
-  name: "collectstatic: skips app when file:// staticDir does not exist",
+  name:
+    "collectstatic: skips app when file:// appPath static dir does not exist",
   async fn() {
     const tmpDir = await Deno.makeTempDir({
       prefix: "alexi_collectstatic_test_",
     });
 
     try {
-      const nonExistentDir = join(tmpDir, "does_not_exist", "static");
-      const fileUrl = toFileUrl(nonExistentDir);
+      const nonExistentAppDir = join(tmpDir, "does_not_exist");
+      const fileUrl = toFileUrl(nonExistentAppDir);
 
       const appConfig: AppConfig = {
         name: "ghost_app",
         verboseName: "Ghost",
-        staticDir: fileUrl,
+        appPath: fileUrl,
       };
 
       const staticRoot = join(tmpDir, "static");
