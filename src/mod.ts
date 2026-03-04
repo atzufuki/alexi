@@ -429,16 +429,8 @@ export { default as capacitorAppConfig } from "./capacitor/app.ts";
 
 export type {
   AppConfig,
-  BundleConfig,
-  CliTargetConfig,
-  DesktopConfig,
-  DesktopSettings,
-  DesktopTargetConfig,
-  SpaTargetConfig,
-  TargetConfig,
-  TargetOutputConfig,
-  TargetType,
-  WebTargetConfig,
+  AssetfilesDirConfig,
+  TemplatesConfig,
 } from "./types/mod.ts";
 
 // =============================================================================

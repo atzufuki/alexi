@@ -10,7 +10,6 @@ import { assertEquals, assertMatch, assertStringIncludes } from "@std/assert";
 import { join, toFileUrl } from "@std/path";
 import {
   buildSWBundle,
-  collectAllTemplates,
   collectTemplatesFromConfig,
   generateTemplatesModule,
   isServiceWorkerFilename,
@@ -216,61 +215,52 @@ Deno.test(
 );
 
 // =============================================================================
-// collectAllTemplates
+// collectTemplatesFromConfig — APP_DIRS multi-app tests
 // =============================================================================
 
 Deno.test(
-  "collectAllTemplates: collects templates from multiple apps",
+  "collectTemplatesFromConfig: APP_DIRS collects templates from multiple apps",
   async () => {
     const tmpDir = await Deno.makeTempDir();
     try {
-      // Set up two apps with template dirs
-      const app1Templates = join(tmpDir, "app1", "templates");
-      const app2Templates = join(tmpDir, "app2", "templates");
-      await Deno.mkdir(join(app1Templates, "app1"), { recursive: true });
-      await Deno.mkdir(join(app2Templates, "app2"), { recursive: true });
+      // Set up two apps each with a convention-based templates/ directory
+      const app1Dir = join(tmpDir, "src", "app1");
+      const app2Dir = join(tmpDir, "src", "app2");
+      await Deno.mkdir(join(app1Dir, "templates", "app1"), {
+        recursive: true,
+      });
+      await Deno.mkdir(join(app2Dir, "templates", "app2"), {
+        recursive: true,
+      });
 
       await Deno.writeTextFile(
-        join(app1Templates, "app1", "page.html"),
+        join(app1Dir, "templates", "app1", "page.html"),
         "<p>App1</p>",
       );
       await Deno.writeTextFile(
-        join(app2Templates, "app2", "home.html"),
+        join(app2Dir, "templates", "app2", "home.html"),
         "<p>App2</p>",
       );
-
-      // Create mock import functions that return AppConfig-like objects.
-      // Use file:// URLs so resolveTemplatesDir handles them as absolute paths
-      // on all platforms (avoids the relative-path branch).
-      const app1Url =
-        new URL(`file://${app1Templates.replace(/\\/g, "/")}`).href;
-      const app2Url =
-        new URL(`file://${app2Templates.replace(/\\/g, "/")}`).href;
 
       const importFunctions = [
         () =>
           Promise.resolve({
-            default: {
-              name: "app1",
-              templatesDir: app1Url,
-            },
+            default: { name: "app1", appPath: "src/app1" },
           }),
         () =>
           Promise.resolve({
-            default: {
-              name: "app2",
-              templatesDir: app2Url,
-            },
+            default: { name: "app2", appPath: "src/app2" },
           }),
       ];
 
-      const results = await collectAllTemplates(
+      const results = await collectTemplatesFromConfig(
+        [{ APP_DIRS: true, DIRS: [] }],
         importFunctions as never,
         tmpDir,
       );
 
       assertEquals(results.length, 2);
-      const names = results.map((r) => r.name).sort();
+      const names = results.map((r: { name: string }) => r.name).sort();
       assertEquals(names, ["app1/page.html", "app2/home.html"]);
     } finally {
       await Deno.remove(tmpDir, { recursive: true });
@@ -279,18 +269,19 @@ Deno.test(
 );
 
 Deno.test(
-  "collectAllTemplates: skips apps without templatesDir",
+  "collectTemplatesFromConfig: APP_DIRS skips apps without templates/ dir",
   async () => {
     const tmpDir = await Deno.makeTempDir();
     try {
       const importFunctions = [
         () =>
           Promise.resolve({
-            default: { name: "no-templates" }, // no templatesDir
+            default: { name: "no-templates", appPath: "src/no-templates" },
           }),
       ];
 
-      const results = await collectAllTemplates(
+      const results = await collectTemplatesFromConfig(
+        [{ APP_DIRS: true, DIRS: [] }],
         importFunctions as never,
         tmpDir,
       );
@@ -302,7 +293,7 @@ Deno.test(
 );
 
 Deno.test(
-  "collectAllTemplates: skips apps that fail to import",
+  "collectTemplatesFromConfig: APP_DIRS skips apps that fail to import",
   async () => {
     const tmpDir = await Deno.makeTempDir();
     try {
@@ -310,7 +301,8 @@ Deno.test(
         () => Promise.reject(new Error("import failed")),
       ];
 
-      const results = await collectAllTemplates(
+      const results = await collectTemplatesFromConfig(
+        [{ APP_DIRS: true, DIRS: [] }],
         importFunctions as never,
         tmpDir,
       );
