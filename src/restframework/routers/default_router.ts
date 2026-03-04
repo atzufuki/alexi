@@ -165,6 +165,23 @@ export class DefaultRouter {
       );
     }
 
+    // Custom list actions (detail=False) must come before /:id/ to avoid shadowing.
+    // e.g. GET /farms/count/ must not be matched by /:id/ with id="count".
+    const customActions = getActions(instance);
+    for (const [actionName, metadata] of customActions) {
+      if (!metadata.detail) {
+        patterns.push(
+          ...this.getCustomActionRoutes(
+            prefix,
+            viewset,
+            basename,
+            actionName,
+            metadata,
+          ),
+        );
+      }
+    }
+
     // Detail routes (GET/PUT/PATCH/DELETE /:id/)
     const detailActions: Partial<Record<HttpMethod, string>> = {};
     if (hasAction("retrieve")) {
@@ -190,18 +207,19 @@ export class DefaultRouter {
       );
     }
 
-    // Custom actions (from @action decorator)
-    const customActions = getActions(instance);
+    // Custom detail actions (detail=True) come after /:id/
     for (const [actionName, metadata] of customActions) {
-      patterns.push(
-        ...this.getCustomActionRoutes(
-          prefix,
-          viewset,
-          basename,
-          actionName,
-          metadata,
-        ),
-      );
+      if (metadata.detail) {
+        patterns.push(
+          ...this.getCustomActionRoutes(
+            prefix,
+            viewset,
+            basename,
+            actionName,
+            metadata,
+          ),
+        );
+      }
     }
 
     return patterns;
