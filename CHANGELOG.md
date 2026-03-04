@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.36.2] - 2026-03-04
+
+### Fixed
+
+- `@alexi/db`: `RestBackend.count()` now forwards filters as query parameters
+  (e.g. `GET /farms/count/?owner_id=1`). Previously filters were ignored,
+  causing `count()` and `RelatedManager.exists()` to always return the total
+  object count instead of the filtered subset (#216)
+
 ## [0.36.1] - 2026-03-04
 
 ### Fixed
