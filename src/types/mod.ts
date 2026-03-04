@@ -442,6 +442,25 @@ export interface AssetfilesDirConfig {
      * External modules that should not be bundled.
      */
     external?: string[];
+
+    /**
+     * esbuild `entryNames` pattern for output filenames.
+     *
+     * Use `'[name]-[hash]'` to add a content hash to the output filename for
+     * long-lived cache busting (e.g. `document-a1b2c3d4.js`).
+     *
+     * When the pattern contains `[hash]`, a `staticfiles.json` manifest is
+     * written to `outputDir` after the build so that `AppDirectoriesFinder`
+     * can resolve the hashed filenames at request time.
+     *
+     * Service Worker entries (filenames matching `*worker*.js`) always use
+     * `[name]` regardless of this option — the browser's native SW update
+     * mechanism (byte-diff on every page load) makes fingerprinting unnecessary.
+     *
+     * @default "[name]"
+     * @example "[name]-[hash]"  → document-a1b2c3d4.js
+     */
+    entryNames?: string;
   };
 }
 

@@ -2690,6 +2690,70 @@ deno run -A --unstable-kv --unstable-ffi manage.ts runserver
 
 ---
 
+## Static File Fingerprinting (Content-Hash Cache Busting)
+
+`@alexi/staticfiles` supports Django-style content-hash cache busting via
+esbuild's native `entryNames` option.
+
+### How It Works
+
+1. Set `options: { entryNames: "[name]-[hash]" }` on any non-SW entry in
+   `ASSETFILES_DIRS`.
+2. The `bundle` command passes the pattern to esbuild; the output filename
+   includes a content hash (e.g. `document-a1b2c3d4.js`).
+3. After the build, `bundle` parses `result.metafile` and writes (or merges) a
+   `staticfiles.json` manifest in the output directory:
+
+   ```json
+   {
+     "version": 1,
+     "files": {
+       "my-app/document.js": "my-app/document-a1b2c3d4.js"
+     }
+   }
+   ```
+
+4. `.html` files in the output directory that reference the un-hashed filename
+   are automatically rewritten to use the hashed filename.
+5. `AppDirectoriesFinder.find()` reads the manifest at request time to resolve
+   hashed filenames transparently — callers request the logical name (e.g.
+   `/static/my-app/document.js`) and are served the hashed file.
+
+### Service Worker Exception
+
+Service Worker entries (filenames matching `*worker*.js` or `sw.js`) **always**
+use `[name]` (no hash), regardless of the `entryNames` option. This ensures the
+SW registration URL stays stable across deploys.
+
+### Settings Example
+
+```typescript
+export const ASSETFILES_DIRS = [
+  {
+    // SW entry — always plain [name], no hash
+    path: "./src/my-app/workers/my-app",
+    outputDir: "./src/my-app/static/my-app",
+    entrypoints: ["worker.ts"],
+    templatesDir: "./src/my-app/templates",
+  },
+  {
+    // Frontend entry — content-hash cache busting
+    path: "./src/my-app/assets/my-app",
+    outputDir: "./src/my-app/static/my-app",
+    entrypoints: ["document.ts"],
+    options: { entryNames: "[name]-[hash]" },
+  },
+];
+```
+
+### Manifest Location
+
+The manifest is written to `<outputDir>/staticfiles.json` (one per output
+directory). Multiple entries in the same `outputDir` are merged into a single
+manifest file.
+
+---
+
 ## E2E Testing
 
 E2E tests create a scaffolded project and run it against the local Alexi source.

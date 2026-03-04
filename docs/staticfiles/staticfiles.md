@@ -428,6 +428,92 @@ const path = extractStaticPath("/static/myapp/logo.png", "/static/");
 
 ---
 
+## Content-Hash Cache Busting
+
+Alexi supports Django-style content-hash cache busting via esbuild's native
+`entryNames` option. When enabled, the `bundle` command produces output
+filenames that include a content hash (e.g. `document-a1b2c3d4.js`), writes a
+`staticfiles.json` manifest, and rewrites HTML references automatically.
+`AppDirectoriesFinder` then resolves logical filenames to their hashed
+counterparts at request time — callers never need to know the hash.
+
+### Enabling Cache Busting
+
+Set `options.entryNames` on the non-worker entry in `ASSETFILES_DIRS`:
+
+```ts
+// project/web.settings.ts
+export const ASSETFILES_DIRS = [
+  {
+    // Service Worker — always plain [name], no hash (SW URL must stay stable)
+    path: "./src/my-app/workers/my-app",
+    outputDir: "./src/my-app/static/my-app",
+    entrypoints: ["worker.ts"],
+    templatesDir: "./src/my-app/templates",
+  },
+  {
+    // Frontend entry — content-hash cache busting
+    path: "./src/my-app/assets/my-app",
+    outputDir: "./src/my-app/static/my-app",
+    entrypoints: ["document.ts"],
+    options: { entryNames: "[name]-[hash]" },
+  },
+];
+```
+
+Apps scaffolded with `startapp --type browser` get this configuration by
+default.
+
+### How It Works
+
+1. `bundle` passes `entryNames: "[name]-[hash]"` to esbuild; the output filename
+   includes a content hash (e.g. `document-a1b2c3d4.js`).
+2. After the build, `bundle` parses esbuild's metafile and writes a
+   `staticfiles.json` manifest to the **parent** of `outputDir` (e.g.
+   `static/staticfiles.json`):
+
+   ```json
+   {
+     "version": 1,
+     "files": {
+       "my-app/document.js": "my-app/document-a1b2c3d4.js"
+     }
+   }
+   ```
+
+3. `.html` files in the output directory that reference the un-hashed filename
+   are automatically rewritten to use the hashed filename.
+4. `AppDirectoriesFinder.find()` reads the manifest at request time — requesting
+   `/static/my-app/document.js` transparently serves
+   `my-app/document-a1b2c3d4.js`.
+
+### Service Worker Exception
+
+Service Worker entries (filenames matching `*worker*.js` or `sw.js`) **always**
+use `[name]` (no hash), regardless of the `entryNames` option. This keeps the SW
+registration URL stable across deploys:
+
+```ts
+// worker.js — never hashed
+// document-a1b2c3d4.js — hashed, cache-busted
+```
+
+### Manifest Location
+
+The manifest is written to `<outputDir>/../staticfiles.json` — one level above
+the namespaced output directory (i.e. the app's `static/` root). Multiple
+entries targeting the same `outputDir` are merged into a single manifest file.
+
+### entryNames Option Reference
+
+| Value             | Output filename        | Manifest written? |
+| ----------------- | ---------------------- | ----------------- |
+| `"[name]"`        | `document.js`          | No                |
+| `"[name]-[hash]"` | `document-a1b2c3d4.js` | Yes               |
+| _(omitted)_       | `document.js`          | No                |
+
+---
+
 ## Best Practices
 
 ### 1. Use Namespaced Directories
@@ -450,14 +536,19 @@ deno run -A manage.ts collectstatic --no-input
 # Serve from STATIC_ROOT or CDN
 ```
 
-### 3. Use Content Hashes
+### 3. Use Content Hashes for Cache Busting
 
-Include content hashes in filenames for cache busting:
+Use `options: { entryNames: "[name]-[hash]" }` on frontend entries in
+`ASSETFILES_DIRS` to enable automatic content-hash cache busting. See
+[Content-Hash Cache Busting](#content-hash-cache-busting) above.
 
+```ts
+options: {
+  entryNames: "[name]-[hash]";
+}
 ```
-bundle.a1b2c3d4.js
-styles.e5f6g7h8.css
-```
+
+Never manually name files with hashes — let esbuild and the manifest handle it.
 
 ### 4. Separate Static and Media Files
 
