@@ -2376,11 +2376,64 @@ Used for server-side applications with Deno's built-in KV store.
 ```typescript
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 
+// Local development
 const backend = new DenoKVBackend({
   name: "myapp",
   path: "./data/myapp.db", // Optional, uses default if not specified
 });
 await backend.connect();
+
+// Remote Deno Deploy KV (production)
+// Set DENO_KV_ACCESS_TOKEN env var — picked up automatically by Deno runtime
+const prodBackend = new DenoKVBackend({
+  name: "myapp",
+  url: Deno.env.get("DENO_KV_URL"), // e.g. https://api.deno.com/databases/<uuid>/connect
+});
+await prodBackend.connect();
+```
+
+#### DenoKVConfig Reference
+
+| Option | Type     | Default     | Description                                                    |
+| ------ | -------- | ----------- | -------------------------------------------------------------- |
+| `name` | `string` | (required)  | Logical name for this database instance                        |
+| `path` | `string` | `undefined` | Local file path (e.g. `"./data/app.db"` or `":memory:"`)       |
+| `url`  | `string` | `undefined` | Remote Deno Deploy KV URL; takes precedence over `path` if set |
+
+#### Production Settings Pattern
+
+Scaffold a `project/production.ts` settings file for connecting to Deno Deploy
+KV locally:
+
+```typescript
+// project/production.ts
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+
+export const DEBUG = false;
+export const SECRET_KEY = Deno.env.get("SECRET_KEY")!;
+
+export const DATABASES = {
+  default: new DenoKVBackend({
+    name: "myapp",
+    url: Deno.env.get("DENO_KV_URL"),
+  }),
+};
+```
+
+Store secrets in `.env.production.local` (git-ignored automatically via
+`.env.*.local`):
+
+```dotenv
+# .env.production.local
+DENO_KV_ACCESS_TOKEN=<your-token>
+DENO_KV_URL=https://api.deno.com/databases/<uuid>/connect
+SECRET_KEY=<your-production-secret>
+```
+
+Run management commands against production KV locally:
+
+```bash
+deno run -A --unstable-kv --env-file .env.production.local manage.ts createsuperuser --settings ./project/production.ts
 ```
 
 ### IndexedDB Backend (Browser)

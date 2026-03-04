@@ -15,7 +15,10 @@ import { generateGitignore } from "./templates/root/gitignore.ts";
 import { generateReadme } from "./templates/root/readme.ts";
 
 // Template imports - Project settings
-import { generateSettings } from "./templates/project/settings_ts.ts";
+import {
+  generateProductionSettings,
+  generateSettings,
+} from "./templates/project/settings_ts.ts";
 
 // Template imports - Unified app (server-side)
 import { generateAppTs } from "./templates/unified/app_ts.ts";
@@ -235,6 +238,10 @@ async function generateFiles(name: string, version: string): Promise<void> {
     {
       path: `${name}/project/settings.ts`,
       content: generateSettings(name),
+    },
+    {
+      path: `${name}/project/production.ts`,
+      content: generateProductionSettings(name),
     },
 
     // ==========================================================================
