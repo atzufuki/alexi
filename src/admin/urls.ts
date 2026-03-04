@@ -6,6 +6,7 @@
  * @module
  */
 
+import { conf, isSettingsConfigured } from "@alexi/core";
 import { getBackend, hasBackend } from "@alexi/db";
 import type { DatabaseBackend } from "@alexi/db";
 import type { AdminSite } from "./site.ts";
@@ -451,7 +452,16 @@ export class AdminRouter {
     // regardless of which settings file was imported by the caller.
     const resolvedBackend = backend ??
       (hasBackend("default") ? getBackend() : undefined);
-    this.patterns = getAdminUrls(site, resolvedBackend, settings);
+    // If no settings are explicitly provided, fall back to the global settings
+    // registry from @alexi/core (populated by getApplication() / setup()).
+    // This mirrors how `resolvedBackend` is resolved above, ensuring that
+    // `AUTH_USER_MODEL` and other settings are available at login time even
+    // when AdminRouter is instantiated without an explicit settings argument.
+    const resolvedSettings = settings ??
+      (isSettingsConfigured()
+        ? (conf as unknown as Record<string, unknown>)
+        : undefined);
+    this.patterns = getAdminUrls(site, resolvedBackend, resolvedSettings);
   }
 
   /**
