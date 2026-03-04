@@ -9,20 +9,29 @@
  *
  * @module @alexi/core
  *
- * @example Deno Deploy production entrypoint (http.ts)
+ * @example Deno Deploy / deno serve production entrypoint (http.ts)
  * ```ts
- * import { getApplication } from "@alexi/core";
- * import * as settings from "./project/settings.ts";
+ * import { getHttpApplication } from "@alexi/core";
  *
- * export default await getApplication(settings);
+ * export default await getHttpApplication();
  * ```
  *
  * @example Service Worker entrypoint (worker.ts)
  * ```ts
- * import { getApplication } from "@alexi/core";
+ * import { getWorkerApplication } from "@alexi/core";
  * import * as settings from "./settings.ts";
  *
- * const app = await getApplication(settings);
+ * declare const self: ServiceWorkerGlobalScope;
+ * let app: Awaited<ReturnType<typeof getWorkerApplication>>;
+ *
+ * self.addEventListener("install", (event) => {
+ *   event.waitUntil(
+ *     (async () => {
+ *       app = await getWorkerApplication(settings);
+ *       await self.skipWaiting();
+ *     })(),
+ *   );
+ * });
  *
  * self.addEventListener("fetch", (event) => {
  *   event.respondWith(app.handler(event.request));
@@ -42,10 +51,14 @@ export type {
 } from "./application.ts";
 
 // =============================================================================
-// Application Factory
+// Application Factories
 // =============================================================================
 
-export { getApplication } from "./get_application.ts";
+export {
+  getApplication,
+  getHttpApplication,
+  getWorkerApplication,
+} from "./get_application.ts";
 export type { GetApplicationSettings } from "./get_application.ts";
 
 // =============================================================================

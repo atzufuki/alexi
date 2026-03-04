@@ -10,23 +10,23 @@ It brings Django's developer-friendly patterns to the Deno ecosystem.
 Alexi follows Django's modular architecture. Each module provides specific
 functionality:
 
-| Module                   | Django Equivalent            | Description                                        |
-| ------------------------ | ---------------------------- | -------------------------------------------------- |
-| `@alexi/core`            | `django.core`                | Application, `getApplication()`, `setup()`, config |
-| `@alexi/core/management` | `django.core.management`     | Management commands, CLI utilities (server-only)   |
-| `@alexi/db`              | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends      |
-| `@alexi/urls`            | `django.urls`                | URL routing with `path()`, `include()`             |
-| `@alexi/middleware`      | `django.middleware.*`        | CORS, logging, error handling                      |
-| `@alexi/views`           | `django.views`               | Template views                                     |
-| `@alexi/web`             | `django.core.handlers.wsgi`  | Web server (HTTP API)                              |
-| `@alexi/staticfiles`     | `django.contrib.staticfiles` | Static file handling, bundling                     |
-| `@alexi/storage`         | `django.core.files.storage`  | File storage backends (Firebase, Memory)           |
-| `@alexi/restframework`   | `djangorestframework`        | REST API: Serializers, ViewSets, Routers           |
-| `@alexi/auth`            | `django.contrib.auth`        | Authentication (JWT-based)                         |
-| `@alexi/admin`           | `django.contrib.admin`       | Auto-generated admin panel                         |
-| `@alexi/webui`           | -                            | Desktop app support via WebUI                      |
-| `@alexi/capacitor`       | -                            | Mobile app support (placeholder)                   |
-| `@alexi/types`           | -                            | Shared TypeScript type definitions                 |
+| Module                   | Django Equivalent            | Description                                            |
+| ------------------------ | ---------------------------- | ------------------------------------------------------ |
+| `@alexi/core`            | `django.core`                | Application, `getHttpApplication()`, `setup()`, config |
+| `@alexi/core/management` | `django.core.management`     | Management commands, CLI utilities (server-only)       |
+| `@alexi/db`              | `django.db`                  | ORM with DenoKV, IndexedDB, and REST backends          |
+| `@alexi/urls`            | `django.urls`                | URL routing with `path()`, `include()`                 |
+| `@alexi/middleware`      | `django.middleware.*`        | CORS, logging, error handling                          |
+| `@alexi/views`           | `django.views`               | Template views                                         |
+| `@alexi/web`             | `django.core.handlers.wsgi`  | Web server (HTTP API)                                  |
+| `@alexi/staticfiles`     | `django.contrib.staticfiles` | Static file handling, bundling                         |
+| `@alexi/storage`         | `django.core.files.storage`  | File storage backends (Firebase, Memory)               |
+| `@alexi/restframework`   | `djangorestframework`        | REST API: Serializers, ViewSets, Routers               |
+| `@alexi/auth`            | `django.contrib.auth`        | Authentication (JWT-based)                             |
+| `@alexi/admin`           | `django.contrib.admin`       | Auto-generated admin panel                             |
+| `@alexi/webui`           | -                            | Desktop app support via WebUI                          |
+| `@alexi/capacitor`       | -                            | Mobile app support (placeholder)                       |
+| `@alexi/types`           | -                            | Shared TypeScript type definitions                     |
 
 ---
 
@@ -38,10 +38,10 @@ alexi/
 │   ├── admin/           # Admin panel MPA (HTMX + SSR)
 │   ├── auth/            # JWT authentication, decorators
 │   ├── capacitor/       # Mobile app support (placeholder)
-│   ├── core/            # Application, getApplication(), setup, management
+│   ├── core/            # Application, getHttpApplication(), setup, management
 │   │   ├── commands/    # Built-in commands (help, test, startproject, startapp)
 │   │   ├── application.ts   # Isomorphic Application class
-│   │   ├── get_application.ts # getApplication() factory
+│   │   ├── get_application.ts # getHttpApplication() / getWorkerApplication() factories
 │   │   ├── setup.ts     # Database setup
 │   │   ├── config.ts    # Settings loader (server-only)
 │   │   └── management.ts
@@ -98,7 +98,12 @@ Always use the `@alexi/` import aliases defined in `deno.json`:
 
 ```typescript
 // Core
-import { Application, getApplication, setup } from "@alexi/core";
+import {
+  Application,
+  getHttpApplication,
+  getWorkerApplication,
+  setup,
+} from "@alexi/core";
 import type { DatabasesConfig, GetApplicationSettings } from "@alexi/core";
 
 // Management commands (server-only, not imported in browser bundles)
@@ -2214,20 +2219,33 @@ export class MyCommand extends BaseCommand {
 
 ## Application Entry Points
 
-### `getApplication()` — Django-style Factory
+### `getHttpApplication()` — Django-style Server Factory
 
-`getApplication(settings)` is the Alexi equivalent of Django's
-`get_wsgi_application()`. It takes a settings module, initialises databases,
+`getHttpApplication()` is the Alexi equivalent of Django's
+`get_wsgi_application()`. It reads settings from the global `conf` proxy
+(populated by the management command via `--settings`), initialises databases,
 resolves URL patterns, builds the middleware chain, and returns a ready-to-use
 `Application` instance.
 
-It is **isomorphic** — works in both Deno server and Service Worker contexts.
+Use this in **server-side** entry points (`http.ts`, `runserver`).
 
 ```typescript
-import { getApplication } from "@alexi/core";
+import { getHttpApplication } from "@alexi/core";
+
+const app = await getHttpApplication();
+```
+
+### `getWorkerApplication()` — Service Worker Factory
+
+`getWorkerApplication(settings)` is the equivalent for **Service Workers**. The
+SW runs in the browser — there is no `--settings` flag or management command, so
+settings are passed directly.
+
+```typescript
+import { getWorkerApplication } from "@alexi/core";
 import * as settings from "./settings.ts";
 
-const app = await getApplication(settings);
+const app = await getWorkerApplication(settings);
 ```
 
 ### `http.ts` — Production Server Entrypoint
@@ -2237,10 +2255,9 @@ Named after the HTTP protocol (just as Django's `wsgi.py` is named after WSGI),
 
 ```typescript
 // project/http.ts
-import { getApplication } from "@alexi/core";
-import * as settings from "./settings.ts";
+import { getHttpApplication } from "@alexi/core";
 
-export default await getApplication(settings);
+export default await getHttpApplication();
 ```
 
 Run with:
@@ -2252,22 +2269,22 @@ deno serve -A --unstable-kv project/http.ts
 
 ### `worker.ts` (Service Worker)
 
-The Service Worker entry point uses the same `getApplication(settings)` pattern
-with browser-side settings (IndexedDB backend, worker URL patterns):
+The Service Worker entry point uses `getWorkerApplication(settings)` with
+browser-side settings (RestBackend, worker URL patterns):
 
 ```typescript
 // workers/<name>/mod.ts
-import { getApplication } from "@alexi/core";
+import { getWorkerApplication } from "@alexi/core";
 import * as settings from "./settings.ts";
 
 declare const self: ServiceWorkerGlobalScope;
 
-let app: Awaited<ReturnType<typeof getApplication>>;
+let app: Awaited<ReturnType<typeof getWorkerApplication>>;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      app = await getApplication(settings);
+      app = await getWorkerApplication(settings);
       await self.skipWaiting();
     })(),
   );
@@ -2283,7 +2300,8 @@ self.addEventListener("fetch", (event) => {
 
 ### `GetApplicationSettings` Interface
 
-The settings object accepted by `getApplication()`:
+The settings object accepted by `getWorkerApplication()` (and
+`configureSettings()`):
 
 | Key                | Type                                       | Description                               |
 | ------------------ | ------------------------------------------ | ----------------------------------------- |

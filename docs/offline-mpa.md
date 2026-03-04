@@ -286,24 +286,24 @@ export const urlpatterns = [
 ### The Service Worker Entry Point
 
 The SW entry point wires the Alexi application into the Service Worker `fetch`
-event using `getApplication()`, which handles database connection and setup
-automatically.
+event using `getWorkerApplication()`, which handles database connection and
+setup automatically.
 
 ```typescript
 // src/my-app-sw/sw.ts
-import { getApplication } from "@alexi/core";
+import { getWorkerApplication } from "@alexi/core";
 import * as settings from "./settings.ts";
 
 declare const self: ServiceWorkerGlobalScope;
 
-let app: Awaited<ReturnType<typeof getApplication>>;
+let app: Awaited<ReturnType<typeof getWorkerApplication>>;
 
 // Initialise the app (connects backends, loads URL patterns) on install
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       try {
-        app = await getApplication(settings);
+        app = await getWorkerApplication(settings);
       } catch (error) {
         console.error("[SW] install failed:", error);
         throw error;

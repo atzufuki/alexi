@@ -15,7 +15,7 @@
  * @module @alexi/web/commands/runserver
  */
 
-import { getApplication } from "@alexi/core";
+import { configureSettings, getHttpApplication } from "@alexi/core";
 import type { GetApplicationSettings } from "@alexi/core";
 import {
   BaseCommand,
@@ -605,9 +605,11 @@ export class RunServerCommand extends BaseCommand {
       };
     }
 
-    // Delegate to getApplication() — this calls configureSettings(), setup(),
-    // URL resolution, middleware building, and Application creation in one place.
-    const app = await getApplication(augmentedSettings);
+    // Configure global settings registry, then build the application.
+    // configureSettings() must be called before getHttpApplication() so
+    // that conf proxy is populated.
+    configureSettings(augmentedSettings);
+    const app = await getHttpApplication();
 
     if (settings.ROOT_URLCONF) {
       this.success("Loaded URL patterns from ROOT_URLCONF");
