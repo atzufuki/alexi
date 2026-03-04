@@ -183,10 +183,26 @@ export function staticServe(
     if (debug) {
       cacheControl = devCacheControl;
     } else {
-      // Chunks with hashes can be cached forever
-      const isImmutable = filePath.includes("/chunks/") ||
-        (filePath.includes("-") && filePath.match(/\.[a-f0-9]{8,}\./));
-      cacheControl = isImmutable ? prodImmutableCacheControl : prodCacheControl;
+      // Service Worker files must use no-cache so the browser's native SW
+      // update mechanism (byte-diff on every page load) works correctly.
+      const basename = filePath.split("/").pop() ?? filePath;
+      const stem = basename.replace(/\.(js|ts)$/, "");
+      const isServiceWorker = stem === "worker" ||
+        stem.endsWith("-worker") ||
+        stem.endsWith("_worker") ||
+        stem.endsWith(".worker");
+
+      if (isServiceWorker) {
+        cacheControl = "no-cache";
+      } else {
+        // Chunks with hashes, or entry bundles with content-hash fingerprints,
+        // can be cached forever (immutable).
+        const isImmutable = filePath.includes("/chunks/") ||
+          filePath.match(/\.[a-f0-9]{8}\.(js|css)(\.map)?$/) !== null;
+        cacheControl = isImmutable
+          ? prodImmutableCacheControl
+          : prodCacheControl;
+      }
     }
 
     // Build response headers

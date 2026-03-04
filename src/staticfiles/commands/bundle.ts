@@ -40,10 +40,36 @@ import type {
 import * as esbuild from "esbuild";
 import { denoPlugins } from "esbuild-deno-loader";
 import { isAbsolute, join, toFileUrl } from "@std/path";
+import {
+  cleanStaleHashedFiles,
+  fingerprintEntryBundle,
+  readManifest,
+  rewriteHtmlAssetRefs,
+} from "../fingerprint.ts";
 
 // =============================================================================
 // Helper Functions
 // =============================================================================
+
+/**
+ * Return true if a filename/stem looks like a Service Worker entry point.
+ *
+ * Heuristic: the filename (without extension) is exactly "worker" or ends
+ * with "-worker" / "_worker" / ".worker".
+ *
+ * Service Worker files are NOT fingerprinted — the browser's built-in SW
+ * update mechanism (byte-diff on every page load) handles cache invalidation.
+ */
+function isServiceWorkerEntry(name: string): boolean {
+  // Strip .js / .ts extension for comparison
+  const stem = name.replace(/\.(js|ts)$/, "");
+  return (
+    stem === "worker" ||
+    stem.endsWith("-worker") ||
+    stem.endsWith("_worker") ||
+    stem.endsWith(".worker")
+  );
+}
 
 // =============================================================================
 // Types
@@ -64,6 +90,7 @@ interface BundleResult {
   success: boolean;
   error?: string;
   outputPath?: string;
+  hashedOutputPath?: string;
   duration?: number;
 }
 
@@ -85,6 +112,19 @@ interface BuildTarget {
    * Absolute path or relative to project root.
    */
   templatesDir?: string;
+  /**
+   * Marks this target as a Service Worker bundle.
+   * Service Worker files are NOT fingerprinted — the browser's native SW
+   * update mechanism (byte-diff on every page load) handles cache invalidation.
+   * Instead, the middleware serves SW files with `Cache-Control: no-cache`.
+   */
+  isServiceWorker?: boolean;
+  /**
+   * Absolute path to the static root directory (e.g. `<project>/static`).
+   * Used to compute logical paths for the fingerprint manifest.
+   * When absent, fingerprinting is skipped for this target.
+   */
+  staticRoot?: string;
 }
 
 /**
@@ -800,6 +840,11 @@ export class BundleCommand extends BaseCommand {
   ): Promise<BuildTarget[]> {
     const targets: BuildTarget[] = [];
 
+    // Compute the static root (the parent directory of all output dirs).
+    // Used to derive logical manifest keys relative to the static root.
+    // We use <projectRoot>/static as the conventional default.
+    const staticRoot = `${this.projectRoot}/static`;
+
     // --- New-style: ASSETFILES_DIRS ---
     for (const entry of settings.assetfilesDirs) {
       const entryPath = entry.path.replace(/^\.\//, "");
@@ -823,6 +868,8 @@ export class BundleCommand extends BaseCommand {
           outputPath,
           minify: entry.options?.minify,
           templatesDir: entry.templatesDir,
+          isServiceWorker: isServiceWorkerEntry(epName),
+          staticRoot,
         });
       }
     }
@@ -856,12 +903,15 @@ export class BundleCommand extends BaseCommand {
           const entryPoint = `./${appPath}/${entrypoint}`;
           const outputPath =
             `./${appPath}/${outputDirRel}/${config.bundle.outputName}`;
+          const outputName = config.bundle.outputName;
 
           targets.push({
             name: config.name,
             entryPoint,
             outputPath,
             minify: config.bundle.options?.minify,
+            isServiceWorker: isServiceWorkerEntry(outputName),
+            staticRoot,
             // Legacy bundle: collect templates from all apps via importFunctions
           });
         }
@@ -872,12 +922,15 @@ export class BundleCommand extends BaseCommand {
             const outputFile = sf.outputFile.replace(/^\.\//, "");
             const entryPoint = `./${appPath}/${entrypoint}`;
             const outputPath = `./${appPath}/${outputFile}`;
+            const outputBasename = outputFile.split("/").pop() ?? outputFile;
 
             targets.push({
-              name: `${config.name}/${outputFile.split("/").pop()}`,
+              name: `${config.name}/${outputBasename}`,
               entryPoint,
               outputPath,
               minify: sf.options?.minify,
+              isServiceWorker: isServiceWorkerEntry(outputBasename),
+              staticRoot,
               // Legacy staticfiles: collect templates from all apps via importFunctions
             });
           }
@@ -985,12 +1038,33 @@ export class BundleCommand extends BaseCommand {
 
       const minify = target.minify ?? options.minify;
       this.info(`Bundling ${target.name}...`);
-      await this.bundleJS(target.entryPoint, outputPath, minify, templates);
+      const finalOutputPath = await this.bundleJS(
+        target.entryPoint,
+        outputPath,
+        minify,
+        templates,
+        {
+          isServiceWorker: target.isServiceWorker,
+          staticRoot: target.staticRoot,
+        },
+      );
+
+      // If the entry was fingerprinted (renamed), rewrite HTML references
+      if (finalOutputPath !== outputPath && target.staticRoot) {
+        await this.rewriteHtmlRefs(
+          outputDir,
+          target.staticRoot,
+          target.templatesDir,
+        );
+      }
 
       return {
         appName: target.name,
         success: true,
-        outputPath,
+        outputPath: finalOutputPath,
+        hashedOutputPath: finalOutputPath !== outputPath
+          ? finalOutputPath
+          : undefined,
         duration: performance.now() - startTime,
       };
     } catch (error) {
@@ -1005,6 +1079,67 @@ export class BundleCommand extends BaseCommand {
   }
 
   /**
+   * Rewrite HTML files in the output directory to use hashed bundle URLs.
+   *
+   * Scans for `index.html` in the output directory (SPA shell) and for
+   * `.html` files in the app templates directory (Django templates embedded
+   * into the SW bundle at build time), applying manifest rewrites so that
+   * all static asset references are updated to their hashed counterparts.
+   *
+   * Template source files are rewritten in-place so that the next build
+   * embeds the updated (hashed) URLs. This mirrors Django's
+   * ManifestStaticFilesStorage post-processing approach.
+   */
+  private async rewriteHtmlRefs(
+    outputDir: string,
+    staticRoot: string,
+    templatesDir?: string,
+  ): Promise<void> {
+    const manifest = await readManifest(outputDir);
+    if (Object.keys(manifest.files).length === 0) return;
+
+    // Rewrite index.html in the output directory (SPA shell)
+    const htmlPath = `${outputDir}/index.html`;
+    await rewriteHtmlAssetRefs(htmlPath, "/static/", manifest);
+
+    // Rewrite template source files so the next bundle embeds hashed URLs.
+    // This handles `base.html` and similar templates that reference entry bundles.
+    if (templatesDir) {
+      const resolvedTemplatesDir = resolveTemplatesDir(
+        templatesDir,
+        this.projectRoot,
+      );
+      if (resolvedTemplatesDir) {
+        const templates = await scanTemplatesDir(resolvedTemplatesDir);
+        for (const tmpl of templates) {
+          const tmplPath = `${resolvedTemplatesDir}/${tmpl.name}`;
+          await rewriteHtmlAssetRefs(tmplPath, "/static/", manifest);
+        }
+      }
+    } else {
+      // Fallback: look for a templates dir alongside the output dir.
+      // Convention: <staticRoot>/../templates  (e.g. static root is
+      // `src/my-app/static`, templates would be `src/my-app/templates`)
+      const appRoot = staticRoot.replace(/\/static$/, "");
+      if (appRoot !== staticRoot) {
+        const conventionTemplatesDir = `${appRoot}/templates`;
+        try {
+          const stat = await Deno.stat(conventionTemplatesDir);
+          if (stat.isDirectory) {
+            const templates = await scanTemplatesDir(conventionTemplatesDir);
+            for (const tmpl of templates) {
+              const tmplPath = `${conventionTemplatesDir}/${tmpl.name}`;
+              await rewriteHtmlAssetRefs(tmplPath, "/static/", manifest);
+            }
+          }
+        } catch {
+          // No templates dir found — that's fine
+        }
+      }
+    }
+  }
+
+  /**
    * Code-splitting produces:
    * - main.js (entry point)
    * - chunk-XXXX.js (shared modules)
@@ -1014,14 +1149,23 @@ export class BundleCommand extends BaseCommand {
    * injected into the bundle that registers all discovered template files into
    * `templateRegistry` at runtime.  The entry point is automatically wrapped
    * so it imports the virtual module before any app code runs.
+   *
+   * After the bundle is written, non-service-worker entry files are
+   * fingerprinted with a content hash and the manifest is updated.
+   *
+   * @returns The final output path (hashed if fingerprinting was applied,
+   *   original path for service workers).
    */
   private async bundleJS(
     entryPoint: string,
     outputPath: string,
     minify: boolean,
     templates: DiscoveredTemplate[] = [],
-  ): Promise<void> {
+    options: { isServiceWorker?: boolean; staticRoot?: string } = {},
+  ): Promise<string> {
     const outputDir = outputPath.substring(0, outputPath.lastIndexOf("/"));
+    const basename = outputPath.substring(outputPath.lastIndexOf("/") + 1);
+    const stem = basename.endsWith(".js") ? basename.slice(0, -3) : basename;
 
     // Clean up old chunks before building
     try {
@@ -1038,11 +1182,23 @@ export class BundleCommand extends BaseCommand {
       // Directory might not exist yet
     }
 
+    // Clean stale hashed entry files for this stem (previous builds)
+    if (!options.isServiceWorker) {
+      await cleanStaleHashedFiles(outputDir, stem);
+    }
+
     await buildSWBundle({ entryPoint, outputPath, minify, templates });
 
-    // Log a note in debug mode (metafile info is available inside buildSWBundle
-    // but we keep the class method thin — chunk counts are visible via esbuild
-    // stdout when running interactively).
+    // Fingerprint non-service-worker entry bundles
+    if (!options.isServiceWorker && options.staticRoot) {
+      const hashedPath = await fingerprintEntryBundle(
+        outputPath,
+        options.staticRoot,
+      );
+      return hashedPath;
+    }
+
+    return outputPath;
   }
 
   /**

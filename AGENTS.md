@@ -2170,6 +2170,67 @@ After scaffolding, wire up the import map in `deno.json`:
 }
 ```
 
+### Static File Fingerprinting
+
+The `bundle` command automatically **content-hash fingerprints** non-Service
+Worker entry bundles. This enables long-lived `Cache-Control: immutable` headers
+without cache-busting issues.
+
+#### How It Works
+
+1. After esbuild writes the output (e.g. `document.js`), the bundle command
+   computes a SHA-256 content hash (first 8 hex chars) and renames the file:
+   `document.js` → `document.a1b2c3d4.js`
+2. A `staticfiles.json` manifest is written/updated in the same output
+   directory:
+   ```json
+   {
+     "version": 1,
+     "files": {
+       "my-app/document.js": "my-app/document.a1b2c3d4.js"
+     }
+   }
+   ```
+3. HTML files referencing the entry bundle (e.g. `static/my-app/index.html` and
+   `templates/my-app/base.html`) are rewritten in-place to use the hashed URL.
+
+#### Service Worker Files
+
+`worker.js` (and files matching the patterns `*-worker.js`, `*_worker.js`,
+`*.worker.js`) are **NOT fingerprinted**. The browser's native SW update
+mechanism (byte-diff on every page load) is sufficient. Instead, SW files are
+served with `Cache-Control: no-cache`.
+
+#### Cache-Control Headers (middleware)
+
+| File Type                  | Cache-Control                         |
+| -------------------------- | ------------------------------------- |
+| Service Worker files       | `no-cache`                            |
+| Hashed entry bundles       | `public, max-age=31536000, immutable` |
+| Chunk files (`chunks/...`) | `public, max-age=31536000, immutable` |
+| Other files                | `public, max-age=86400`               |
+
+#### Manifest API
+
+```typescript
+import {
+  readManifest,
+  resolveStaticUrl,
+  writeManifest,
+} from "@alexi/staticfiles/fingerprint";
+
+// Read manifest (returns empty manifest if not found)
+const manifest = await readManifest("/abs/path/to/static/my-app");
+
+// Resolve a logical URL to its hashed counterpart
+const url = await resolveStaticUrl(
+  "/static/", // STATIC_URL
+  "my-app/document.js", // logical path
+  "/abs/path/to/static/my-app", // manifest directory
+);
+// → "/static/my-app/document.a1b2c3d4.js"
+```
+
 ### Running Commands
 
 ```bash

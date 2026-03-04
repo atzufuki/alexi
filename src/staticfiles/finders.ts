@@ -11,6 +11,8 @@
  * @module alexi_staticfiles/finders
  */
 
+import { readManifest } from "./fingerprint.ts";
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -139,16 +141,36 @@ export class AppDirectoriesFinder implements StaticFileFinder {
       if (!appPath) continue;
 
       const appDir = this.resolvePath(appPath);
-      const staticDir = `${appDir}/static`;
+      const staticDir = appDir + "/static";
 
-      // Try to find the file
-      const filePath = `${staticDir}/${urlPath}`;
+      // Try to find the file directly
+      const filePath = staticDir + "/" + urlPath;
 
       if (await this.fileExists(filePath)) {
         return {
           path: filePath,
           source: appName,
         };
+      }
+
+      // Fallback: consult the staticfiles.json manifest for fingerprinted files.
+      // The manifest lives in the subdirectory of the URL path, e.g. for
+      // "myapp/myapp.js" the manifest is at "<staticDir>/myapp/staticfiles.json".
+      const slashIdx = urlPath.indexOf("/");
+      if (slashIdx !== -1) {
+        const subDir = urlPath.slice(0, slashIdx);
+        const manifestDir = staticDir + "/" + subDir;
+        const manifest = await readManifest(manifestDir);
+        const hashedRelPath = manifest.files[urlPath];
+        if (hashedRelPath && hashedRelPath !== urlPath) {
+          const hashedFilePath = staticDir + "/" + hashedRelPath;
+          if (await this.fileExists(hashedFilePath)) {
+            return {
+              path: hashedFilePath,
+              source: appName,
+            };
+          }
+        }
       }
     }
 
