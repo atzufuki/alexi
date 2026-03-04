@@ -96,14 +96,14 @@ protocol, just as Django's `wsgi.py` is named after WSGI):
 
 ```ts
 // project/http.ts - Entry point for Deno Deploy / deno serve
-import { getApplication } from "@alexi/core";
-import * as settings from "./settings.ts";
+import { getHttpApplication } from "@alexi/core";
 
-export default await getApplication(settings);
+export default await getHttpApplication();
 ```
 
-`getApplication()` reads your settings, initialises databases, resolves URL
-patterns, and builds the middleware chain automatically. Run it with:
+`getHttpApplication()` reads settings from the global `conf` proxy (configured
+via `--settings` CLI flag), initialises databases, resolves URL patterns, and
+builds the middleware chain automatically. Run it with:
 
 ```bash
 deno serve -A --unstable-kv project/http.ts

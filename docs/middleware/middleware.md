@@ -37,7 +37,7 @@ const myMiddleware: Middleware = async (
 ## Using Middleware
 
 Middleware is configured in your settings file via the `createMiddleware`
-factory function, which is then passed to `getApplication()`:
+factory function, which is picked up by `getHttpApplication()`:
 
 ```ts
 // project/settings.ts
@@ -58,10 +58,9 @@ export function createMiddleware({ debug }: { debug: boolean }) {
 
 ```ts
 // project/http.ts
-import { getApplication } from "@alexi/core";
-import * as settings from "./settings.ts";
+import { getHttpApplication } from "@alexi/core";
 
-export default await getApplication(settings);
+export default await getHttpApplication();
 ```
 
 **Middleware execution order matters!** Middleware is executed in the order you

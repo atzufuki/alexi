@@ -15,23 +15,23 @@ export function generateWorkerModTs(name: string): string {
  * Runs in the browser's Service Worker context, never on the Deno server.
  *
  * Analogous to Django's wsgi.py / asgi.py — a thin shell that calls
- * getApplication(settings) and wires it to the SW lifecycle events.
+ * getWorkerApplication(settings) and wires it to the SW lifecycle events.
  *
  * @module ${name}/workers/${name}/worker
  */
 
-import { getApplication } from "@alexi/core";
+import { getWorkerApplication } from "@alexi/core";
 import * as settings from "./settings.ts";
 
 declare const self: ServiceWorkerGlobalScope;
 
-let app: Awaited<ReturnType<typeof getApplication>>;
+let app: Awaited<ReturnType<typeof getWorkerApplication>>;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
       try {
-        app = await getApplication(settings);
+        app = await getWorkerApplication(settings);
       } catch (error) {
         console.error("[SW] install failed:", error);
         throw error;

@@ -20,10 +20,9 @@ deno add jsr:@alexi/staticfiles
 ## Basic Usage
 
 ```typescript
-import { getApplication } from "@alexi/core";
-import * as settings from "./project/web.settings.ts";
+import { getHttpApplication } from "@alexi/core";
 
-export default await getApplication(settings);
+export default await getHttpApplication();
 ```
 
 Middleware (including `staticFilesMiddleware`) is wired up automatically via
