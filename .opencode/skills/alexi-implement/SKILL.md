@@ -216,14 +216,15 @@ When implementing new features, update relevant documentation:
 
 ### Files to Update
 
-| Feature Type   | Documentation to Update                    |
-| -------------- | ------------------------------------------ |
-| New backend    | `AGENTS.md`, `docs/django-comparison.md`   |
-| New field type | `AGENTS.md` field tables                   |
-| New serializer | `AGENTS.md` REST Framework section         |
-| API changes    | `AGENTS.md` relevant section               |
-| New command    | `AGENTS.md` Management Commands table      |
-| Django parity  | `docs/django-comparison.md` feature tables |
+| Feature Type          | Documentation to Update                    |
+| --------------------- | ------------------------------------------ |
+| New backend           | `AGENTS.md`, `docs/django-comparison.md`   |
+| New field type        | `AGENTS.md` field tables                   |
+| New serializer        | `AGENTS.md` REST Framework section         |
+| API changes           | `AGENTS.md` relevant section               |
+| New command           | `AGENTS.md` Management Commands table      |
+| Django parity         | `docs/django-comparison.md` feature tables |
+| Scaffolding templates | `AGENTS.md` Settings Configuration section |
 
 ### AGENTS.md Updates
 
