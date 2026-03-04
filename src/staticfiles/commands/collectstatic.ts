@@ -352,33 +352,29 @@ export class CollectStaticCommand extends BaseCommand {
           continue;
         }
 
-        // Resolve static directory path
+        // Resolve app directory from appPath or convention
         let staticDir: string;
         let appPath: string;
 
-        if (config.staticDir?.startsWith("file://")) {
-          // Package uses import.meta.url-based path (e.g. @alexi/admin).
-          // Convert file:// URL to a filesystem path directly.
-          const url = new URL(config.staticDir);
+        const rawAppPath = config.appPath ?? `./src/${config.name}`;
+
+        if (rawAppPath.startsWith("file://")) {
+          // Published package: absolute file:// URL — static/ is a subdirectory
+          const url = new URL(rawAppPath);
+          let pathname = url.pathname.replace(/\/$/, "");
           // On Windows, url.pathname is /C:/..., strip leading slash
-          let pathname = url.pathname;
           if (/^\/[a-zA-Z]:\//.test(pathname)) {
             pathname = pathname.slice(1);
           }
-          staticDir = pathname;
-          appPath = config.appPath ?? `./src/${config.name}`;
-        } else if (config.staticDir) {
-          // Legacy: explicit relative staticDir on AppConfig
-          const staticDirRel = config.staticDir.replace(/^\.\//, "");
-          appPath = config.appPath ?? `./src/${config.name}`;
-          const appPathNormalized = appPath.replace(/^\.\//, "");
-          const appDir = `${this.projectRoot}/${appPathNormalized}`;
-          staticDir = `${appDir}/${staticDirRel}`;
+          appPath = rawAppPath;
+          staticDir = `${pathname}/static`;
         } else {
-          // Convention: <appPath>/static/
-          appPath = config.appPath ?? `./src/${config.name}`;
+          // Relative or absolute path
+          appPath = rawAppPath;
           const appPathNormalized = appPath.replace(/^\.\//, "");
-          const appDir = `${this.projectRoot}/${appPathNormalized}`;
+          const appDir = appPath.startsWith("/")
+            ? appPath
+            : `${this.projectRoot}/${appPathNormalized}`;
           staticDir = `${appDir}/static`;
         }
 

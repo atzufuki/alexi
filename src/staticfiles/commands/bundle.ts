@@ -2,18 +2,16 @@
  * Bundle Command for Alexi Static Files
  *
  * Django-style command that bundles TypeScript frontends to JavaScript.
- * Reads INSTALLED_APPS and finds apps with bundle configuration, and also
- * reads ASSETFILES_DIRS from project settings for the new settings-level
- * bundle configuration.
+ * Reads ASSETFILES_DIRS from project settings to find build targets.
  *
  * Uses esbuild with code-splitting for lazy-loading templates.
  *
  * Template embedding:
- * When bundling a Service Worker (outputName ends with .js and app has
- * bundle config), all installed apps' `templatesDir` directories are scanned
- * recursively and their `.html` files are embedded into the bundle via a
- * virtual esbuild module. This populates `templateRegistry` at runtime so
- * that `templateView` works without filesystem access inside a Service Worker.
+ * When bundling a Service Worker, all installed apps' `templates/` directories
+ * are scanned recursively (via the TEMPLATES setting with APP_DIRS: true) and
+ * their `.html` files are embedded into the bundle via a virtual esbuild
+ * module. This populates `templateRegistry` at runtime so that `templateView`
+ * works without filesystem access inside a Service Worker.
  *
  * @module @alexi/staticfiles/commands/bundle
  */
@@ -33,8 +31,6 @@ import type {
 import type {
   AppConfig,
   AssetfilesDirConfig,
-  BundleConfig,
-  StaticfileConfig,
   TemplatesConfig,
 } from "@alexi/types";
 import type * as esbuild from "esbuild";
@@ -67,8 +63,7 @@ interface BundleResult {
 }
 
 /**
- * A normalised build target derived from either ASSETFILES_DIRS (new) or
- * AppConfig.bundle / AppConfig.staticfiles (legacy).
+ * A normalised build target derived from ASSETFILES_DIRS project settings.
  */
 interface BuildTarget {
   /** Display name shown in progress output */
@@ -201,47 +196,10 @@ export async function scanTemplatesDir(
 }
 
 /**
- * Scan all installed apps' `templatesDir` directories and return the
- * combined list of discovered templates.
- *
- * @param importFunctions - Array of app import functions from INSTALLED_APPS
- * @param projectRoot     - Absolute path to the project root
- *
- * @internal Exported for testing only.
- */
-export async function collectAllTemplates(
-  importFunctions: AppImportFn[],
-  projectRoot: string,
-): Promise<DiscoveredTemplate[]> {
-  const allTemplates: DiscoveredTemplate[] = [];
-
-  for (const importFn of importFunctions) {
-    try {
-      const module = await importFn();
-      const config = module.default as AppConfig | undefined;
-      if (!config?.templatesDir) continue;
-
-      const dir = resolveTemplatesDir(config.templatesDir, projectRoot);
-      if (!dir) continue;
-
-      const templates = await scanTemplatesDir(dir);
-      allTemplates.push(...templates);
-    } catch {
-      // Skip apps that fail to load
-    }
-  }
-
-  return allTemplates;
-}
-
-/**
  * Collect templates using the Django-style TEMPLATES setting.
  *
  * When `APP_DIRS: true`, auto-discovers `<appPath>/templates/` for each
  * installed app.  `DIRS` entries add explicit extra directories.
- *
- * Falls back to `collectAllTemplates()` (legacy `config.templatesDir`) when
- * no TEMPLATES setting is provided.
  *
  * @param templatesConfig - Array from the `TEMPLATES` project setting
  * @param importFunctions - Array of app import functions from INSTALLED_APPS
@@ -471,10 +429,10 @@ export async function rewriteHtmlReferences(
  * Built-in command for bundling TypeScript frontends
  *
  * This command:
- * 1. Reads INSTALLED_APPS from project settings
- * 2. Finds each app's app.ts configuration
- * 3. Bundles apps that have a bundle configuration
- * 4. Writes output to the app's static directory
+ * 1. Reads ASSETFILES_DIRS from project settings
+ * 2. Bundles each entry point with esbuild
+ * 3. Writes output to the configured output directory
+ * 4. Optionally embeds templates into Service Worker bundles
  *
  * @example Command line usage
  * ```bash
@@ -1016,9 +974,7 @@ export class BundleCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Build the list of targets to bundle, combining:
-   * 1. New-style: ASSETFILES_DIRS entries from project settings
-   * 2. Legacy: AppConfig.staticfiles / AppConfig.bundle from INSTALLED_APPS
+   * Build the list of targets to bundle from ASSETFILES_DIRS project settings.
    */
   private async findAppsToBuild(
     settings: {
@@ -1054,66 +1010,6 @@ export class BundleCommand extends BaseCommand {
           templatesDir: entry.templatesDir,
           entryNames: entry.options?.entryNames,
         });
-      }
-    }
-
-    // --- Legacy: INSTALLED_APPS with AppConfig.bundle / AppConfig.staticfiles ---
-    for (const importFn of settings.importFunctions) {
-      try {
-        const module = await importFn();
-        const config = module.default as AppConfig | undefined;
-
-        if (!config) continue;
-
-        // Skip if targeting a specific app
-        if (targetApp && config.name !== targetApp) continue;
-
-        // Check if app has legacy bundle configuration
-        if (
-          !config.bundle &&
-          (!config.staticfiles || config.staticfiles.length === 0)
-        ) {
-          this.debug(`App ${config.name} has no bundle configuration`, true);
-          continue;
-        }
-
-        const appPath = (config.appPath ?? config.bundle?.appPath ??
-          `./src/${config.name}`).replace(/^\.\//, "");
-
-        if (config.bundle) {
-          const entrypoint = config.bundle.entrypoint.replace(/^\.\//, "");
-          const outputDirRel = config.bundle.outputDir.replace(/^\.\//, "");
-          const entryPoint = `./${appPath}/${entrypoint}`;
-          const outputPath =
-            `./${appPath}/${outputDirRel}/${config.bundle.outputName}`;
-
-          targets.push({
-            name: config.name,
-            entryPoint,
-            outputPath,
-            minify: config.bundle.options?.minify,
-            // Legacy bundle: collect templates from all apps via importFunctions
-          });
-        }
-
-        if (config.staticfiles && config.staticfiles.length > 0) {
-          for (const sf of config.staticfiles) {
-            const entrypoint = sf.entrypoint.replace(/^\.\//, "");
-            const outputFile = sf.outputFile.replace(/^\.\//, "");
-            const entryPoint = `./${appPath}/${entrypoint}`;
-            const outputPath = `./${appPath}/${outputFile}`;
-
-            targets.push({
-              name: `${config.name}/${outputFile.split("/").pop()}`,
-              entryPoint,
-              outputPath,
-              minify: sf.options?.minify,
-              // Legacy staticfiles: collect templates from all apps via importFunctions
-            });
-          }
-        }
-      } catch (error) {
-        this.debug(`Failed to load app: ${error}`, true);
       }
     }
 
@@ -1189,19 +1085,6 @@ export class BundleCommand extends BaseCommand {
       ) {
         templates = await collectTemplatesFromConfig(
           options.templatesConfig,
-          options.importFunctions,
-          this.projectRoot,
-        );
-        if (templates.length > 0) {
-          const outputName = outputPath.split("/").pop() ?? outputPath;
-          this.info(
-            `  Embedding ${templates.length} templates into ${outputName}...`,
-          );
-        }
-      } else if (
-        options.importFunctions && options.importFunctions.length > 0
-      ) {
-        templates = await collectAllTemplates(
           options.importFunctions,
           this.projectRoot,
         );
