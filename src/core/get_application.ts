@@ -12,6 +12,7 @@
 
 import { Application } from "./application.ts";
 import type { ApplicationOptions } from "./application.ts";
+import { configureSettings } from "./conf.ts";
 import { setup } from "./setup.ts";
 import type { DatabasesConfig } from "./setup.ts";
 import type { URLPattern } from "@alexi/urls";
@@ -101,6 +102,9 @@ export interface GetApplicationSettings {
 export async function getApplication(
   settings: GetApplicationSettings,
 ): Promise<Application> {
+  // 0. Store settings in the global registry (django.conf.settings equivalent)
+  configureSettings(settings);
+
   // 1. Initialise databases (if configured)
   if (settings.DATABASES) {
     await setup({ DATABASES: settings.DATABASES });
