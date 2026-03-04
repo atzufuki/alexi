@@ -17,6 +17,30 @@ import { loginTemplate } from "../templates/mpa/base.ts";
 // Types
 // =============================================================================
 
+/**
+ * The shape of a user model class accepted as AUTH_USER_MODEL.
+ *
+ * Can be either:
+ * - An `AbstractUser` subclass (recommended) — no standalone `verifyPassword`
+ *   export required; password verification is an instance method.
+ * - A legacy module path string — dynamically imported, must export
+ *   `UserModel` and `verifyPassword` (deprecated, kept for backwards compat).
+ */
+export type AuthUserModelClass = {
+  new (): {
+    password?: { get(): unknown };
+    [key: string]: unknown;
+    verifyPassword(plain: string): Promise<boolean>;
+  };
+  objects: {
+    using(b: DatabaseBackend): {
+      filter(q: Record<string, unknown>): {
+        first(): Promise<unknown>;
+      };
+    };
+  };
+};
+
 export interface LoginViewContext {
   request: Request;
   params: Record<string, string>;
@@ -117,56 +141,57 @@ async function createAccessToken(
 interface UserRecord {
   id: unknown;
   email: string;
-  passwordHash: string;
+  password: string;
   isAdmin: boolean;
   isActive: boolean;
 }
 
-type UserModelLike = {
-  objects: {
-    using(b: DatabaseBackend): {
-      filter(q: Record<string, unknown>): {
-        first(): Promise<unknown>;
-      };
-    };
-  };
-};
+type UserModelLike = AuthUserModelClass;
 
 /**
- * Dynamically load UserModel and verifyPassword from AUTH_USER_MODEL setting.
+ * Load UserModel from AUTH_USER_MODEL setting.
+ *
+ * Accepts either:
+ * - A model class directly (recommended, no dynamic import needed)
+ * - A legacy file path string (deprecated, dynamically imported)
  */
 async function loadUserModel(
-  authUserModelPath: string,
+  authUserModel: unknown,
 ): Promise<{
   UserModel: UserModelLike | null;
-  verifyPassword: ((plain: string, hash: string) => Promise<boolean>) | null;
 }> {
-  try {
-    // Resolve file path to URL
-    let url = authUserModelPath;
-    if (!url.startsWith("file://") && !url.startsWith("http")) {
-      const normalized = url.replace(/\\/g, "/");
-      if (/^[A-Za-z]:\//.test(normalized)) {
-        url = `file:///${normalized}`;
-      } else if (normalized.startsWith("/")) {
-        url = `file://${normalized}`;
-      } else {
-        const cwd = Deno.cwd().replace(/\\/g, "/");
-        const abs = `${cwd}/${normalized}`;
-        url = /^[A-Za-z]:\//.test(abs) ? `file:///${abs}` : `file://${abs}`;
-      }
-    }
-
-    const mod = await import(url);
-    const UserModel = (mod.UserModel as UserModelLike | undefined) ?? null;
-    const verifyPassword = (mod.verifyPassword as
-      | ((plain: string, hash: string) => Promise<boolean>)
-      | undefined) ?? null;
-
-    return { UserModel, verifyPassword };
-  } catch {
-    return { UserModel: null, verifyPassword: null };
+  // New pattern: model class passed directly
+  if (typeof authUserModel === "function") {
+    return { UserModel: authUserModel as UserModelLike };
   }
+
+  // Legacy pattern: file path string — dynamic import
+  if (typeof authUserModel === "string") {
+    try {
+      let url = authUserModel;
+      if (!url.startsWith("file://") && !url.startsWith("http")) {
+        const normalized = url.replace(/\\/g, "/");
+        if (/^[A-Za-z]:\//.test(normalized)) {
+          url = `file:///${normalized}`;
+        } else if (normalized.startsWith("/")) {
+          url = `file://${normalized}`;
+        } else {
+          const cwd = Deno.cwd().replace(/\\/g, "/");
+          const abs = `${cwd}/${normalized}`;
+          url = /^[A-Za-z]:\//.test(abs) ? `file:///${abs}` : `file://${abs}`;
+        }
+      }
+
+      const mod = await import(url);
+      const UserModel = (mod.UserModel as UserModelLike | undefined) ?? null;
+
+      return { UserModel };
+    } catch {
+      return { UserModel: null };
+    }
+  }
+
+  return { UserModel: null };
 }
 
 /**
@@ -258,17 +283,17 @@ export async function handleLoginPost(
   }
 
   // Load AUTH_USER_MODEL
-  const authUserModelPath = settings?.AUTH_USER_MODEL as string | undefined;
-  if (!authUserModelPath) {
+  const authUserModel = settings?.AUTH_USER_MODEL;
+  if (!authUserModel) {
     return renderLoginPage(adminSite, {
       error: "Authentication is not configured (AUTH_USER_MODEL missing).",
       next,
     });
   }
 
-  const { UserModel, verifyPassword } = await loadUserModel(authUserModelPath);
+  const { UserModel } = await loadUserModel(authUserModel);
 
-  if (!UserModel || !verifyPassword) {
+  if (!UserModel) {
     return renderLoginPage(adminSite, {
       error:
         "Authentication configuration error. Check AUTH_USER_MODEL exports.",
@@ -294,11 +319,45 @@ export async function handleLoginPost(
     });
   }
 
-  // Verify password
-  const storedHash = fieldValue(user, "passwordHash") as string;
+  // Verify password via instance method (AbstractUser) or legacy passwordHash field
   let passwordValid = false;
   try {
-    passwordValid = await verifyPassword(password, storedHash);
+    const userObj = user as Record<string, unknown>;
+    if (
+      typeof (userObj as { verifyPassword?: unknown }).verifyPassword ===
+        "function"
+    ) {
+      // New pattern: AbstractUser instance method
+      passwordValid =
+        await (userObj as { verifyPassword: (p: string) => Promise<boolean> })
+          .verifyPassword(password);
+    } else {
+      // Legacy pattern: standalone verifyPassword from module (passwordHash field)
+      const authUserModelPath = settings?.AUTH_USER_MODEL as string | undefined;
+      if (typeof authUserModelPath === "string") {
+        let url = authUserModelPath;
+        if (!url.startsWith("file://") && !url.startsWith("http")) {
+          const normalized = url.replace(/\\/g, "/");
+          if (/^[A-Za-z]:\//.test(normalized)) {
+            url = `file:///${normalized}`;
+          } else if (normalized.startsWith("/")) {
+            url = `file://${normalized}`;
+          } else {
+            const cwd = Deno.cwd().replace(/\\/g, "/");
+            const abs = `${cwd}/${normalized}`;
+            url = /^[A-Za-z]:\//.test(abs) ? `file:///${abs}` : `file://${abs}`;
+          }
+        }
+        const mod = await import(url);
+        const verifyPassword = mod.verifyPassword as
+          | ((plain: string, hash: string) => Promise<boolean>)
+          | undefined;
+        if (verifyPassword) {
+          const storedHash = fieldValue(user, "passwordHash") as string;
+          passwordValid = await verifyPassword(password, storedHash);
+        }
+      }
+    }
   } catch {
     return renderLoginPage(adminSite, {
       error: "An error occurred during authentication.",

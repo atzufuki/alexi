@@ -183,7 +183,7 @@ import type { AuthenticatedUser } from "@alexi/restframework/authentication";
 
 // Authentication
 import { adminRequired, loginRequired, optionalLogin } from "@alexi/auth";
-import { createTokenPair, verifyToken } from "@alexi/auth";
+import { AbstractUser, createTokenPair, verifyToken } from "@alexi/auth";
 
 // Views
 import { templateView } from "@alexi/views";
@@ -1892,6 +1892,82 @@ const tokens = await createTokenPair(userId, email, isAdmin);
 // Verify token
 const payload = await verifyToken(accessToken);
 // Returns: { userId, email, isAdmin, exp, iat }
+```
+
+### AbstractUser — Custom User Model
+
+`AbstractUser` is the recommended base class for your application's user model.
+It provides all standard fields plus PBKDF2-SHA256 password hashing via the Web
+Crypto API (works in Deno and browser/Service Worker — no native dependencies).
+
+```typescript
+import { AbstractUser } from "@alexi/auth";
+import { Manager } from "@alexi/db";
+
+// Extend AbstractUser to define your user model
+export class UserModel extends AbstractUser {
+  // AbstractUser provides these fields automatically:
+  //   id          AutoField (primary key)
+  //   email       CharField(maxLength: 254)
+  //   password    CharField(maxLength: 255)  — stores PBKDF2 hash
+  //   firstName   CharField(maxLength: 150, blank: true)
+  //   lastName    CharField(maxLength: 150, blank: true)
+  //   isAdmin     BooleanField(default: false)
+  //   isActive    BooleanField(default: true)
+  //   dateJoined  DateTimeField(autoNowAdd: true)
+  //   lastLogin   DateTimeField(null: true)
+
+  static objects = new Manager(UserModel);
+  static meta = {
+    dbTable: "users",
+    ordering: ["-dateJoined"],
+  };
+}
+```
+
+#### Password hashing
+
+```typescript
+// Hash a plaintext password (static method)
+const hash = await UserModel.hashPassword("mypassword");
+// → "pbkdf2_sha256$600000$<salt_b64>$<hash_b64>"
+
+// Verify on an instance (instance method)
+const user = await UserModel.objects.get({ email: "user@example.com" });
+const valid = await user.verifyPassword("mypassword"); // true or false
+```
+
+#### Stored hash format
+
+```
+pbkdf2_sha256$<iterations>$<salt_b64>$<hash_b64>
+```
+
+- Algorithm: PBKDF2-SHA256
+- Iterations: 600,000
+- Salt: 16 random bytes (unique per hash)
+
+#### Using AbstractUser with AUTH_USER_MODEL
+
+Pass the model class directly in your settings (recommended):
+
+```typescript
+// settings.ts
+import { UserModel } from "@myapp/web/models.ts";
+
+export const AUTH_USER_MODEL = UserModel; // Model class directly (recommended)
+// Legacy: export const AUTH_USER_MODEL = "./path/to/user_model.ts"; // (deprecated)
+```
+
+The admin panel's login view and `createsuperuser` command both support this
+pattern. With a model class, no dynamic import is needed — password verification
+calls `user.verifyPassword()` as an instance method.
+
+#### createsuperuser
+
+```bash
+deno run -A --unstable-kv manage.ts createsuperuser --settings web
+# Prompts for email and password, hashes the password, saves to the database
 ```
 
 ---
