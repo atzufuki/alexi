@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.36.1] - 2026-03-04
+
+### Fixed
+
+- `@alexi/restframework`: `DefaultRouter` now registers `detail=False` custom
+  `@action` routes before the `/:id/` pattern, preventing shadowing. Previously
+  `GET /farms/count/` would match `farms/:id/` with `id="count"` and call
+  `retrieve()` instead of the custom action (#214)
+
 ## [0.36.0] - 2026-03-04
 
 ### Added
