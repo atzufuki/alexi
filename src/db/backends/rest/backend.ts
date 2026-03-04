@@ -1542,9 +1542,17 @@ export class RestBackend extends DatabaseBackend {
     const endpoint = this.getEndpointForModel(modelClass);
 
     try {
-      const result = await this.request<{ count: number }>(
-        `/${endpoint}/count/`,
-      );
+      const params = new URLSearchParams();
+      for (const filter of state.filters) {
+        const paramName = filter.lookup === "exact"
+          ? filter.field
+          : `${filter.field}__${filter.lookup}`;
+        params.set(paramName, String(filter.value));
+      }
+      const queryString = params.toString();
+      const url = `/${endpoint}/count/${queryString ? `?${queryString}` : ""}`;
+
+      const result = await this.request<{ count: number }>(url);
       return result.count;
     } catch {
       // Fall back to fetching all and counting
