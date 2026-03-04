@@ -9,11 +9,7 @@
 
 import { setup } from "../setup.ts";
 import type { DatabasesConfig } from "../setup.ts";
-import { Application } from "./application.ts";
 import { toImportUrl } from "./settings_utils.ts";
-import { path } from "@alexi/urls";
-import type { URLPattern } from "@alexi/urls";
-import type { Middleware } from "@alexi/middleware";
 import type { AppConfig } from "@alexi/types";
 
 // =============================================================================
@@ -370,77 +366,6 @@ export async function initializeDatabase(
  */
 export function isDatabaseInitialized(): boolean {
   return _initialized;
-}
-
-// =============================================================================
-// Application Factory
-// =============================================================================
-
-/**
- * Create an Application instance based on settings.
- *
- * This is the Alexi equivalent of Django's get_wsgi_application().
- *
- * @param serverConfig - Server configuration from runserver command
- */
-export async function createApplication(
-  serverConfig: ServerConfig,
-): Promise<Application> {
-  // Ensure settings are loaded
-  if (!isConfigured()) {
-    throw new Error(
-      "Settings not loaded. Call loadSettings() before createApplication().",
-    );
-  }
-
-  const settings = getSettings();
-
-  // Initialize database if not already done
-  if (!isDatabaseInitialized()) {
-    await initializeDatabase(settings);
-  }
-
-  // Load installed apps
-  const loadedApps = await loadInstalledApps(settings);
-
-  // Load URL patterns from ROOT_URLCONF
-  let urlpatterns = await loadUrlPatterns(settings);
-
-  // Add HMR endpoint if provided (development only)
-  if (serverConfig.createHmrResponse) {
-    urlpatterns = [
-      path("hmr", () => serverConfig.createHmrResponse!(), {
-        name: "hmr",
-        methods: ["GET"],
-      }),
-      ...urlpatterns,
-    ];
-  }
-
-  // Create middleware
-  let middleware: unknown[] = [];
-  if (settings.createMiddleware) {
-    middleware = settings.createMiddleware({
-      debug: serverConfig.debug,
-    });
-  }
-
-  // Create application
-  const app = new Application({
-    urls: urlpatterns as URLPattern[],
-    middleware: middleware as Middleware[],
-    debug: serverConfig.debug,
-  });
-
-  // Log configuration
-  console.log("");
-  console.log("App Configuration:");
-  console.log(
-    `  Loaded apps: ${loadedApps.map((a) => a.config.name).join(", ")}`,
-  );
-  console.log("");
-
-  return app;
 }
 
 // =============================================================================

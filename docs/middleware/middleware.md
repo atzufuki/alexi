@@ -36,25 +36,31 @@ const myMiddleware: Middleware = async (
 
 ## Using Middleware
 
-Add middleware to your `Application` configuration:
+Middleware is configured in your settings file via the `createMiddleware`
+factory function, which is picked up by `getHttpApplication()`:
 
 ```ts
-import { Application } from "@alexi/core/management";
+// project/settings.ts
 import {
   corsMiddleware,
   errorHandlerMiddleware,
   loggingMiddleware,
 } from "@alexi/middleware";
-import { urlpatterns } from "./urls.ts";
 
-const app = new Application({
-  urls: urlpatterns,
-  middleware: [
+export function createMiddleware({ debug }: { debug: boolean }) {
+  return [
     loggingMiddleware(),
     corsMiddleware({ origins: ["http://localhost:5173"] }),
-    errorHandlerMiddleware(),
-  ],
-});
+    errorHandlerMiddleware({ includeStack: debug }),
+  ];
+}
+```
+
+```ts
+// project/http.ts
+import { getHttpApplication } from "@alexi/core";
+
+export default await getHttpApplication();
 ```
 
 **Middleware execution order matters!** Middleware is executed in the order you

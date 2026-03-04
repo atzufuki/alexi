@@ -105,9 +105,8 @@ import { path } from "@alexi/urls";
 import { AdminRouter } from "@alexi/admin";
 import { adminSite } from "./admin.ts";
 import { backend } from "./db.ts";
-import * as settings from "./settings.ts";
 
-const adminRouter = new AdminRouter(adminSite, backend, settings);
+const adminRouter = new AdminRouter(adminSite, backend);
 
 export const urlpatterns = [
   path("admin/*", (request) => adminRouter.handle(request)),
@@ -656,9 +655,8 @@ import { path } from "@alexi/urls";
 import { AdminRouter } from "@alexi/admin";
 import { adminSite } from "./admin.ts";
 import { backend } from "./db.ts";
-import * as settings from "./settings.ts";
 
-const adminRouter = new AdminRouter(adminSite, backend, settings);
+const adminRouter = new AdminRouter(adminSite, backend);
 
 export const urlpatterns = [
   path("admin/*", (request) => adminRouter.handle(request)),

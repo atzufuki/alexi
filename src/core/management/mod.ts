@@ -43,7 +43,6 @@ export type {
 
 export {
   configure,
-  createApplication,
   getLoadedApps,
   getSettings,
   getSettingsModuleName,

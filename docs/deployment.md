@@ -91,58 +91,22 @@ export const ROOT_URLCONF = () => import("@myapp/web/urls");
 
 ### Create an Entry Point for Deno Deploy
 
-Create `main.ts` in your project root:
+Create `project/http.ts` alongside your `settings.ts` (named after the HTTP
+protocol, just as Django's `wsgi.py` is named after WSGI):
 
 ```ts
-// main.ts - Entry point for Deno Deploy
-import { Application } from "@alexi/core/management";
-import { setup } from "@alexi/db";
-import { DenoKVBackend } from "@alexi/db/backends/denokv";
-import {
-  corsMiddleware,
-  errorHandlerMiddleware,
-  loggingMiddleware,
-} from "@alexi/middleware";
-import { staticFilesMiddleware } from "@alexi/staticfiles";
-import { urlpatterns } from "./src/myapp-web/urls.ts";
-import * as settings from "./project/web.settings.ts";
+// project/http.ts - Entry point for Deno Deploy / deno serve
+import { getHttpApplication } from "@alexi/core";
 
-// Initialize database
-const backend = new DenoKVBackend({
-  name: settings.DATABASE.name,
-  // Deno Deploy provides KV automatically - no path needed
-});
-await backend.connect();
-await setup({ backend });
+export default await getHttpApplication();
+```
 
-// Create application
-const app = new Application({
-  urls: urlpatterns,
-  middleware: [
-    loggingMiddleware(),
-    corsMiddleware({
-      origins: settings.CORS_ALLOWED_ORIGINS,
-      credentials: true,
-    }),
-    staticFilesMiddleware({
-      installedApps: [],
-      appPaths: {},
-      staticUrl: settings.STATIC_URL,
-      staticRoot: settings.STATIC_ROOT,
-      debug: settings.DEBUG,
-    }),
-    errorHandlerMiddleware({
-      includeStack: settings.DEBUG,
-    }),
-  ],
-});
+`getHttpApplication()` reads settings from the global `conf` proxy (configured
+via `--settings` CLI flag), initialises databases, resolves URL patterns, and
+builds the middleware chain automatically. Run it with:
 
-// Start server
-const port = settings.DEFAULT_PORT;
-
-console.log(`Starting server on port ${port}...`);
-
-Deno.serve({ port }, app.handler);
+```bash
+deno serve -A --unstable-kv project/http.ts
 ```
 
 ### Bundle Static Files
