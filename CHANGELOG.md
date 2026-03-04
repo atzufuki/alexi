@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.37.2] - 2026-03-04
+
+### Removed
+
+- `AppConfig` now only contains identity metadata (`name`, `verboseName`,
+  `appPath`), mirroring Django's `AppConfig`. All deprecated fields
+  (`staticDir`, `templatesDir`, `commandsModule`, `urlsModule`, `modelsModule`,
+  `bundle`, `staticfiles`, `desktop`) have been removed (#222)
+- Removed `BundleConfig`, `StaticfileConfig`, `DesktopConfig`, `DesktopSettings`
+  types from `@alexi/types`
+- Framework internals updated to convention-based discovery:
+  `<appPath>/commands/mod.ts`, `<appPath>/static/`, `<appPath>/templates/`
+
 ## [0.37.1] - 2026-03-04
 
 ### Fixed
