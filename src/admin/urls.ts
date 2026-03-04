@@ -6,6 +6,7 @@
  * @module
  */
 
+import { getBackend, hasBackend } from "@alexi/db";
 import type { DatabaseBackend } from "@alexi/db";
 import type { AdminSite } from "./site.ts";
 import { renderChangeForm } from "./views/changeform_views.ts";
@@ -444,7 +445,13 @@ export class AdminRouter {
     backend?: DatabaseBackend,
     settings?: Record<string, unknown>,
   ) {
-    this.patterns = getAdminUrls(site, backend, settings);
+    // If no backend is explicitly provided, fall back to the globally registered
+    // default backend from @alexi/db. This mirrors Django's behaviour where
+    // django.conf.settings.DATABASES["default"] is always the active database
+    // regardless of which settings file was imported by the caller.
+    const resolvedBackend = backend ??
+      (hasBackend("default") ? getBackend() : undefined);
+    this.patterns = getAdminUrls(site, resolvedBackend, settings);
   }
 
   /**
