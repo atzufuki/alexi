@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.37.4] - 2026-03-04
+
+### Fixed
+
+- `@alexi/admin`: `AdminRouter` now automatically resolves the global settings
+  object from `@alexi/core` when no explicit `settings` argument is given,
+  mirroring how `backend` is already resolved via `getBackend()`. Previously,
+  `AUTH_USER_MODEL` was missing at login time even when `configureSettings()`
+  had been called at startup (#226)
+
 ## [0.37.3] - 2026-03-04
 
 ### Fixed
