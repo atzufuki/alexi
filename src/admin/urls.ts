@@ -437,31 +437,91 @@ function normalizePrefix(prefix: string): string {
 
 /**
  * AdminRouter handles URL routing for the admin interface.
+ *
+ * URL patterns are built lazily on the first request — not in the constructor.
+ * This mirrors Django's URLconf lazy-loading behaviour: `ROOT_URLCONF` is
+ * imported and evaluated before `configureSettings()` has been called (during
+ * `runserver` startup), so resolving the backend / settings at construction
+ * time would always yield `undefined` and fall back to placeholder handlers.
+ *
+ * By deferring pattern creation to the first call to `_getPatterns()`, the
+ * router is guaranteed to see the fully-configured backend and settings
+ * regardless of module evaluation order.
  */
 export class AdminRouter {
-  private patterns: AdminUrlPattern[] = [];
+  /**
+   * Lazily-built URL patterns.
+   *
+   * `null` means "not yet built". Once built, the array is cached for the
+   * lifetime of the router — exactly as Django caches its compiled URL
+   * resolver on first access.
+   */
+  private _patterns: AdminUrlPattern[] | null = null;
+
+  /**
+   * Explicit backend override supplied by the caller.
+   * When `null`, the router falls back to the globally registered default.
+   */
+  private _backendOverride: DatabaseBackend | undefined;
+
+  /**
+   * Explicit settings override supplied by the caller.
+   * When `null`, the router falls back to the global `conf` proxy.
+   */
+  private _settingsOverride: Record<string, unknown> | undefined;
 
   constructor(
     private site: AdminSite,
     backend?: DatabaseBackend,
     settings?: Record<string, unknown>,
   ) {
-    // If no backend is explicitly provided, fall back to the globally registered
-    // default backend from @alexi/db. This mirrors Django's behaviour where
-    // django.conf.settings.DATABASES["default"] is always the active database
-    // regardless of which settings file was imported by the caller.
-    const resolvedBackend = backend ??
+    // Store caller-supplied overrides for later use in _getPatterns().
+    // We intentionally do NOT resolve backend/settings here — that must happen
+    // at request time so that the global registry is fully configured.
+    this._backendOverride = backend;
+    this._settingsOverride = settings;
+  }
+
+  /**
+   * Resolve the active backend.
+   *
+   * Returns the explicit override (if any), otherwise falls back to the
+   * globally registered default backend from `@alexi/db`.
+   */
+  private _resolveBackend(): DatabaseBackend | undefined {
+    return this._backendOverride ??
       (hasBackend("default") ? getBackend() : undefined);
-    // If no settings are explicitly provided, fall back to the global settings
-    // registry from @alexi/core (populated by getApplication() / setup()).
-    // This mirrors how `resolvedBackend` is resolved above, ensuring that
-    // `AUTH_USER_MODEL` and other settings are available at login time even
-    // when AdminRouter is instantiated without an explicit settings argument.
-    const resolvedSettings = settings ??
+  }
+
+  /**
+   * Resolve the active settings.
+   *
+   * Returns the explicit override (if any), otherwise falls back to the
+   * global `conf` proxy from `@alexi/core`.
+   */
+  private _resolveSettings(): Record<string, unknown> | undefined {
+    return this._settingsOverride ??
       (isSettingsConfigured()
         ? (conf as unknown as Record<string, unknown>)
         : undefined);
-    this.patterns = getAdminUrls(site, resolvedBackend, resolvedSettings);
+  }
+
+  /**
+   * Return the URL patterns, building them on first access (lazy init).
+   *
+   * This is the Django-style "setup on first request" pattern: the URL
+   * resolver caches its compiled patterns after the first lookup so that
+   * subsequent requests pay no extra cost.
+   */
+  private _getPatterns(): AdminUrlPattern[] {
+    if (this._patterns === null) {
+      this._patterns = getAdminUrls(
+        this.site,
+        this._resolveBackend(),
+        this._resolveSettings(),
+      );
+    }
+    return this._patterns;
   }
 
   /**
@@ -480,7 +540,7 @@ export class AdminRouter {
     const candidates = url.endsWith("/") ? [url] : [url, `${url}/`];
 
     for (const candidate of candidates) {
-      for (const pattern of this.patterns) {
+      for (const pattern of this._getPatterns()) {
         if (pattern.match(candidate)) {
           const params = pattern.extractParams(candidate);
           if (params !== null) {
@@ -511,7 +571,7 @@ export class AdminRouter {
    * Get all URL patterns.
    */
   getPatterns(): AdminUrlPattern[] {
-    return this.patterns;
+    return this._getPatterns();
   }
 
   /**
