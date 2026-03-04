@@ -121,6 +121,14 @@ export class AppDirectoriesFinder implements StaticFileFinder {
   private readonly appPaths: Record<string, string>;
   private readonly projectRoot: string;
 
+  /**
+   * In-memory cache of parsed `staticfiles.json` manifests.
+   * Key: absolute path to the manifest file.
+   * Value: the `files` map from the manifest (un-hashed → hashed).
+   */
+  private readonly manifestCache: Map<string, Record<string, string>> =
+    new Map();
+
   constructor(options: AppDirectoriesFinderOptions) {
     this.installedApps = options.installedApps;
     this.appPaths = options.appPaths;
@@ -128,7 +136,41 @@ export class AppDirectoriesFinder implements StaticFileFinder {
   }
 
   /**
+   * Read (and cache) the `staticfiles.json` manifest from `staticDir`.
+   *
+   * Returns an empty object when no manifest exists or it cannot be parsed.
+   */
+  private async readManifest(
+    staticDir: string,
+  ): Promise<Record<string, string>> {
+    const manifestPath = `${staticDir}/staticfiles.json`;
+
+    if (this.manifestCache.has(manifestPath)) {
+      return this.manifestCache.get(manifestPath)!;
+    }
+
+    try {
+      const raw = await Deno.readTextFile(manifestPath);
+      const parsed = JSON.parse(raw) as {
+        version?: number;
+        files?: Record<string, string>;
+      };
+      const files = parsed.version === 1 && typeof parsed.files === "object"
+        ? parsed.files
+        : {};
+      this.manifestCache.set(manifestPath, files);
+      return files;
+    } catch {
+      this.manifestCache.set(manifestPath, {});
+      return {};
+    }
+  }
+
+  /**
    * Find a static file by URL path
+   *
+   * Checks the `staticfiles.json` manifest first to resolve content-hashed
+   * filenames, then falls back to a direct filesystem lookup.
    */
   async find(urlPath: string): Promise<FinderResult | null> {
     // URL path is like "myapp-ui/bundle.js"
@@ -141,14 +183,20 @@ export class AppDirectoriesFinder implements StaticFileFinder {
       const appDir = this.resolvePath(appPath);
       const staticDir = `${appDir}/static`;
 
-      // Try to find the file
-      const filePath = `${staticDir}/${urlPath}`;
+      // Check the manifest for a hashed filename mapping
+      const manifest = await this.readManifest(staticDir);
+      if (urlPath in manifest) {
+        const hashedPath = manifest[urlPath];
+        const filePath = `${staticDir}/${hashedPath}`;
+        if (await this.fileExists(filePath)) {
+          return { path: filePath, source: appName };
+        }
+      }
 
+      // Fallback: direct filesystem lookup
+      const filePath = `${staticDir}/${urlPath}`;
       if (await this.fileExists(filePath)) {
-        return {
-          path: filePath,
-          source: appName,
-        };
+        return { path: filePath, source: appName };
       }
     }
 

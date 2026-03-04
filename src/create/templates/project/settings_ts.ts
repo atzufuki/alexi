@@ -163,9 +163,11 @@ export const ASSETFILES_DIRS = [
   },
   {
     // Frontend bundle: assets/${name}/${name}.ts → static/${name}/${name}.js
+    // Content-hash cache busting: output becomes ${name}-<hash>.js
     path: "./src/${name}/assets/${name}",
     outputDir: "./src/${name}/static/${name}",
     entrypoints: ["${name}.ts"],
+    options: { entryNames: "[name]-[hash]" },
   },
 ];
 
@@ -326,6 +328,7 @@ export const ASSETFILES_DIRS = [
     path: "./src/${name}/assets/${name}",
     outputDir: "./src/${name}/static/${name}",
     entrypoints: ["${name}.ts"],
+    options: { entryNames: "[name]-[hash]" },
   },
 ];
 
