@@ -18,7 +18,6 @@ export {
   BaseCommand,
   CommandRegistry,
   configure,
-  createApplication,
   execute,
   failure,
   getSettings as getCoreSettings,

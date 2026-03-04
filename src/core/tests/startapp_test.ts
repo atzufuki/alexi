@@ -346,11 +346,28 @@ Deno.test({
       );
 
       assertMatch(workerModTs, /ServiceWorkerGlobalScope/);
-      assertMatch(workerModTs, /IndexedDBBackend/);
       assertMatch(workerModTs, /Application/);
       assertMatch(workerModTs, /addEventListener\("install"/);
       assertMatch(workerModTs, /addEventListener\("activate"/);
       assertMatch(workerModTs, /addEventListener\("fetch"/);
+    });
+  },
+  sanitizeResources: false,
+  sanitizeOps: false,
+});
+
+Deno.test({
+  name: "startapp: worker settings.ts configures IndexedDBBackend",
+  async fn() {
+    await withTempDir(async (dir) => {
+      await runStartapp(dir, ["my-app"]);
+
+      const settingsTs = await readFile(
+        join(dir, "src/my-app/workers/my-app/settings.ts"),
+      );
+
+      assertMatch(settingsTs, /IndexedDBBackend/);
+      assertMatch(settingsTs, /DATABASES/);
     });
   },
   sanitizeResources: false,
