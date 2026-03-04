@@ -8,6 +8,30 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.34.0] - 2026-03-04
+
+### Added
+
+- `@alexi/auth`: `AbstractUser` base model with standard Django-style fields
+  (`id`, `email`, `password`, `firstName`, `lastName`, `isAdmin`, `isActive`,
+  `dateJoined`, `lastLogin`), `static hashPassword(plain): Promise<string>`, and
+  `verifyPassword(plain): Promise<boolean>` instance method — hashing uses
+  PBKDF2-SHA256 via the Web Crypto API (works in Deno and browser/Service
+  Worker, no native dependencies); stored format:
+  `pbkdf2_sha256$600000$<salt_b64>$<hash_b64>` (#208)
+- `@alexi/auth`: `AUTH_USER_MODEL` now accepts a model class directly (e.g.
+  `export const AUTH_USER_MODEL = UserModel`) in addition to the legacy file
+  path string — passing the class avoids a dynamic import and is the recommended
+  pattern going forward; the legacy string path remains fully supported for
+  backwards compatibility (#208)
+- `@alexi/admin`: admin login now calls `user.verifyPassword(password)` as an
+  instance method when `AUTH_USER_MODEL` is a class, keeping the password
+  hashing logic co-located with the model (#208)
+- `@alexi/core/management`: `createsuperuser` now calls
+  `UserModel.hashPassword(password)` as a static method when `AUTH_USER_MODEL`
+  is a class; field name updated from `passwordHash` to `password` to match
+  Django convention (#208)
+
 ## [0.33.0] - 2026-03-04
 
 ### Added
