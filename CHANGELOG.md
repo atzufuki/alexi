@@ -8,6 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-03-04
+
+### Added
+
+- `@alexi/staticfiles`: Content-hash cache busting via esbuild's native
+  `entryNames` option. Set `options: { entryNames: "[name]-[hash]" }` on a
+  non-worker entry in `ASSETFILES_DIRS` to produce hashed output filenames (e.g.
+  `document-a1b2c3d4.js`), write a `staticfiles.json` manifest, and rewrite HTML
+  references automatically. `AppDirectoriesFinder.find()` resolves logical names
+  to hashed filenames transparently at request time. Service Worker entries
+  (`*worker*.js`, `sw.js`) always use `[name]` regardless of the option, keeping
+  SW registration URLs stable across deploys. Apps scaffolded with
+  `startapp --type browser` get `entryNames: "[name]-[hash]"` on the frontend
+  entry by default (#218)
+
 ## [0.36.2] - 2026-03-04
 
 ### Fixed
