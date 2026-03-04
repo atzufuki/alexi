@@ -119,7 +119,6 @@ import { StaticFileFinders } from "@alexi/staticfiles";
 
 const finders = StaticFileFinders.fromSettings({
   installedApps: settings.INSTALLED_APPS,
-  appPaths: settings.APP_PATHS,
   staticFilesDirs: settings.STATICFILES_DIRS,
   projectRoot: Deno.cwd(),
 });
@@ -187,34 +186,31 @@ const file = await storage.read("myapp/bundle.js");
 Intercepts requests to `STATIC_URL` and serves files:
 
 ```ts
-import { Application } from "@alexi/core/management";
 import { staticFilesMiddleware } from "@alexi/staticfiles";
 
-const app = new Application({
-  urls: urlpatterns,
-  middleware: [
+// In your settings file:
+export function createMiddleware({ debug }: { debug: boolean }) {
+  return [
     staticFilesMiddleware({
       installedApps: settings.INSTALLED_APPS,
-      appPaths: settings.APP_PATHS,
       staticUrl: settings.STATIC_URL,
-      debug: settings.DEBUG,
+      debug,
     }),
-  ],
-});
+  ];
+}
 ```
 
 Options:
 
-| Option             | Type                     | Default                   | Description               |
-| ------------------ | ------------------------ | ------------------------- | ------------------------- |
-| `installedApps`    | `string[]`               | (required)                | List of installed apps    |
-| `appPaths`         | `Record<string, string>` | (required)                | Map of app names to paths |
-| `staticFilesDirs`  | `string[]`               | `[]`                      | Additional directories    |
-| `staticUrl`        | `string`                 | `"/static/"`              | URL prefix                |
-| `staticRoot`       | `string`                 | -                         | Production static root    |
-| `debug`            | `boolean`                | `false`                   | Development mode          |
-| `devCacheControl`  | `string`                 | `"no-cache"`              | Cache header (dev)        |
-| `prodCacheControl` | `string`                 | `"public, max-age=86400"` | Cache header (prod)       |
+| Option             | Type       | Default                   | Description            |
+| ------------------ | ---------- | ------------------------- | ---------------------- |
+| `installedApps`    | `string[]` | (required)                | List of installed apps |
+| `staticFilesDirs`  | `string[]` | `[]`                      | Additional directories |
+| `staticUrl`        | `string`   | `"/static/"`              | URL prefix             |
+| `staticRoot`       | `string`   | -                         | Production static root |
+| `debug`            | `boolean`  | `false`                   | Development mode       |
+| `devCacheControl`  | `string`   | `"no-cache"`              | Cache header (dev)     |
+| `prodCacheControl` | `string`   | `"public, max-age=86400"` | Cache header (prod)    |
 
 ### serveBundleMiddleware
 
@@ -225,7 +221,6 @@ import { serveBundleMiddleware } from "@alexi/staticfiles";
 
 const bundleMiddleware = serveBundleMiddleware({
   installedApps: settings.INSTALLED_APPS,
-  appPaths: settings.APP_PATHS,
   bundleFiles: ["bundle.js", "bundle.css", "chunks/"],
   debug: true,
 });
@@ -243,7 +238,6 @@ import { staticServe } from "@alexi/staticfiles";
 
 const serveStatic = staticServe({
   installedApps: settings.INSTALLED_APPS,
-  appPaths: settings.APP_PATHS,
   debug: settings.DEBUG,
 });
 
