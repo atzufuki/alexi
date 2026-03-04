@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.37.1] - 2026-03-04
+
+### Fixed
+
+- `@alexi/staticfiles`: `esbuild` and `esbuild-deno-loader` are now imported
+  lazily (inside `buildSWBundle()`) instead of at the top level of `bundle.ts`.
+  This prevents these server-only modules from being statically included in
+  browser/worker bundles, resolving build errors such as
+  `Top-level await is not available` and `Could not resolve "pnpapi"` that
+  appeared when bundling projects after v0.37.0 (#220)
+
 ## [0.37.0] - 2026-03-04
 
 ### Added
