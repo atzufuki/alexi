@@ -109,6 +109,23 @@ export interface DenoKVConfig extends DatabaseConfig {
   engine: "denokv";
   /** Path to the KV database file (optional, uses default if not specified) */
   path?: string;
+  /**
+   * Remote Deno KV URL for connecting to a Deno Deploy hosted database.
+   *
+   * Use this to run management commands locally against a production database:
+   *
+   * ```
+   * # .env.production.local
+   * DENO_KV_ACCESS_TOKEN=<token from Deno Deploy dashboard>
+   * DENO_KV_URL=https://api.deno.com/databases/<uuid>/connect
+   * ```
+   *
+   * The `DENO_KV_ACCESS_TOKEN` environment variable is picked up automatically
+   * by the Deno runtime — no additional auth code is needed.
+   *
+   * When both `url` and `path` are set, `url` takes precedence.
+   */
+  url?: string;
 }
 
 // ============================================================================
@@ -285,11 +302,16 @@ export class DenoKVBackend extends DatabaseBackend {
   private _kv: Deno.Kv | null = null;
   private _idCounters: Map<string, number> = new Map();
 
-  constructor(config: DenoKVConfig | { name: string; path?: string }) {
+  constructor(
+    config: DenoKVConfig | { name: string; path?: string; url?: string },
+  ) {
     super({
       engine: "denokv",
       name: config.name,
-      options: { path: (config as DenoKVConfig).path },
+      options: {
+        path: (config as DenoKVConfig).path,
+        url: (config as DenoKVConfig).url,
+      },
     });
   }
 
@@ -312,8 +334,10 @@ export class DenoKVBackend extends DatabaseBackend {
       return;
     }
 
+    const url = this._config.options?.url as string | undefined;
     const path = this._config.options?.path as string | undefined;
-    this._kv = await Deno.openKv(path);
+    // url takes precedence over path (remote Deno Deploy KV over local file)
+    this._kv = await Deno.openKv(url ?? path);
     this._connected = true;
   }
 

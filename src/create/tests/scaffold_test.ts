@@ -181,6 +181,40 @@ Deno.test({
       }
     });
 
+    await t.step("creates production.ts settings file", async () => {
+      const fullPath = `${project.path}/project/production.ts`;
+      try {
+        const stat = await Deno.stat(fullPath);
+        assertEquals(
+          stat.isFile,
+          true,
+          "project/production.ts should be a file",
+        );
+      } catch {
+        throw new Error("Settings file project/production.ts does not exist");
+      }
+    });
+
+    await t.step("production.ts contains required exports", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/project/production.ts`,
+      );
+      const requiredExports = [
+        "DEBUG",
+        "SECRET_KEY",
+        "DATABASES",
+        "DENO_KV_URL",
+      ];
+
+      for (const exp of requiredExports) {
+        assertEquals(
+          content.includes(exp),
+          true,
+          `production.ts should contain ${exp}`,
+        );
+      }
+    });
+
     await t.step("does NOT create old settings files", async () => {
       const oldFiles = [
         "project/web.settings.ts",
