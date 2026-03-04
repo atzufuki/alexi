@@ -30,8 +30,10 @@ import type {
 // =============================================================================
 
 /**
- * Interface for the UserModel class
- * Projects must export a UserModel that conforms to this interface
+ * Interface for the UserModel class.
+ *
+ * Supports both the new `AbstractUser`-based pattern (static `hashPassword`)
+ * and the legacy pattern (standalone `hashPassword` export in the module).
  */
 interface UserModelInterface {
   // deno-lint-ignore no-explicit-any
@@ -39,6 +41,8 @@ interface UserModelInterface {
     filter(criteria: Record<string, unknown>): { first(): Promise<unknown> };
     create(data: Record<string, unknown>): Promise<{ id: { get(): unknown } }>;
   };
+  /** Available when AUTH_USER_MODEL is an AbstractUser subclass. */
+  hashPassword?: (password: string) => Promise<string>;
 }
 
 /**
@@ -47,7 +51,7 @@ interface UserModelInterface {
  */
 interface UserCreateData {
   email: string;
-  passwordHash: string;
+  password: string;
   firstName?: string;
   lastName?: string;
   isAdmin: boolean;
@@ -194,27 +198,25 @@ export class CreateSuperuserCommand extends BaseCommand {
     }
 
     // Check for AUTH_USER_MODEL
-    const authUserModelPath = settings.AUTH_USER_MODEL as string | undefined;
-    if (!authUserModelPath) {
+    const authUserModel = settings.AUTH_USER_MODEL;
+    if (!authUserModel) {
       this.error("AUTH_USER_MODEL is not defined in settings.");
       this.info("");
       this.info("Add the following to your settings file:");
-      this.info(
-        '  export const AUTH_USER_MODEL = "./src/my-app/models/user.ts";',
-      );
+      this.info("  import { UserModel } from '@my-app/models';");
+      this.info("  export const AUTH_USER_MODEL = UserModel;");
       this.info("");
-      this.info("The module must export:");
       this.info(
-        "  - UserModel: A Model class with email, passwordHash, isAdmin, isActive fields",
+        "  UserModel must extend AbstractUser from @alexi/auth or provide",
       );
-      this.info("  - hashPassword: async function to hash passwords");
+      this.info(
+        "  a static hashPassword(password) method and the required fields.",
+      );
       return failure("AUTH_USER_MODEL not configured");
     }
 
     // Load user model and hashPassword function
-    const { UserModel, hashPassword } = await this.loadUserModel(
-      authUserModelPath,
-    );
+    const { UserModel, hashPassword } = await this.loadUserModel(authUserModel);
     if (!UserModel || !hashPassword) {
       return failure("Failed to load user model");
     }
@@ -277,11 +279,11 @@ export class CreateSuperuserCommand extends BaseCommand {
       );
 
       // Create the superuser
-      const passwordHash = await hashPassword(password);
+      const hashedPassword = await hashPassword(password);
 
       const userData: UserCreateData = {
         email,
-        passwordHash,
+        password: hashedPassword,
         firstName: firstName || "",
         lastName: lastName || "",
         isAdmin: true,
@@ -356,16 +358,48 @@ export class CreateSuperuserCommand extends BaseCommand {
   }
 
   /**
-   * Load UserModel and hashPassword from the configured module
+   * Load UserModel and hashPassword from AUTH_USER_MODEL.
+   *
+   * Accepts either:
+   * - A model class directly (new pattern — AbstractUser subclass with static hashPassword)
+   * - A legacy file path string (old pattern — module must export UserModel + hashPassword)
    */
   private async loadUserModel(
-    modulePath: string,
+    authUserModel: unknown,
   ): Promise<
     {
       UserModel: UserModelInterface | null;
       hashPassword: HashPasswordFn | null;
     }
   > {
+    // New pattern: model class passed directly
+    if (typeof authUserModel === "function") {
+      const UserModel = authUserModel as unknown as UserModelInterface;
+      const hashPassword = (authUserModel as { hashPassword?: HashPasswordFn })
+        .hashPassword;
+
+      if (!hashPassword) {
+        this.error(
+          "AUTH_USER_MODEL class does not have a static hashPassword() method.",
+        );
+        this.info(
+          "Make sure your UserModel extends AbstractUser from @alexi/auth.",
+        );
+        return { UserModel: null, hashPassword: null };
+      }
+
+      return { UserModel, hashPassword: hashPassword.bind(authUserModel) };
+    }
+
+    // Legacy pattern: file path string — dynamic import
+    if (typeof authUserModel !== "string") {
+      this.error(
+        "AUTH_USER_MODEL must be a model class or a file path string.",
+      );
+      return { UserModel: null, hashPassword: null };
+    }
+
+    const modulePath = authUserModel;
     const projectDir = Deno.cwd();
 
     // Resolve relative path
