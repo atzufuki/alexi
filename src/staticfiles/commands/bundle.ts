@@ -840,10 +840,20 @@ export class BundleCommand extends BaseCommand {
   ): Promise<BuildTarget[]> {
     const targets: BuildTarget[] = [];
 
-    // Compute the static root (the parent directory of all output dirs).
-    // Used to derive logical manifest keys relative to the static root.
-    // We use <projectRoot>/static as the conventional default.
-    const staticRoot = `${this.projectRoot}/static`;
+    // Helper: derive staticRoot from an absolute output path.
+    // staticRoot is the *grandparent* of the output file, i.e. the parent of
+    // the output directory. This allows logical manifest keys to be relative to
+    // the per-app static root regardless of where in the project tree it lives.
+    //
+    // Example:
+    //   outputPath = "<root>/src/myapp/static/myapp/myapp.js"
+    //   outputDir  = "<root>/src/myapp/static/myapp"
+    //   staticRoot = "<root>/src/myapp/static"          ← parent of outputDir
+    const deriveStaticRoot = (absOutputPath: string): string => {
+      const normalized = absOutputPath.replace(/\\/g, "/");
+      const outputDir = normalized.substring(0, normalized.lastIndexOf("/"));
+      return outputDir.substring(0, outputDir.lastIndexOf("/"));
+    };
 
     // --- New-style: ASSETFILES_DIRS ---
     for (const entry of settings.assetfilesDirs) {
@@ -869,7 +879,7 @@ export class BundleCommand extends BaseCommand {
           minify: entry.options?.minify,
           templatesDir: entry.templatesDir,
           isServiceWorker: isServiceWorkerEntry(epName),
-          staticRoot,
+          staticRoot: deriveStaticRoot(outputPath),
         });
       }
     }
@@ -904,6 +914,9 @@ export class BundleCommand extends BaseCommand {
           const outputPath =
             `./${appPath}/${outputDirRel}/${config.bundle.outputName}`;
           const outputName = config.bundle.outputName;
+          const absOutputPath = outputPath.startsWith("/")
+            ? outputPath
+            : `${this.projectRoot}/${outputPath.replace(/^\.\//, "")}`;
 
           targets.push({
             name: config.name,
@@ -911,7 +924,7 @@ export class BundleCommand extends BaseCommand {
             outputPath,
             minify: config.bundle.options?.minify,
             isServiceWorker: isServiceWorkerEntry(outputName),
-            staticRoot,
+            staticRoot: deriveStaticRoot(absOutputPath),
             // Legacy bundle: collect templates from all apps via importFunctions
           });
         }
@@ -923,6 +936,9 @@ export class BundleCommand extends BaseCommand {
             const entryPoint = `./${appPath}/${entrypoint}`;
             const outputPath = `./${appPath}/${outputFile}`;
             const outputBasename = outputFile.split("/").pop() ?? outputFile;
+            const absOutputPath = outputPath.startsWith("/")
+              ? outputPath
+              : `${this.projectRoot}/${outputPath.replace(/^\.\//, "")}`;
 
             targets.push({
               name: `${config.name}/${outputBasename}`,
@@ -930,7 +946,7 @@ export class BundleCommand extends BaseCommand {
               outputPath,
               minify: sf.options?.minify,
               isServiceWorker: isServiceWorkerEntry(outputBasename),
-              staticRoot,
+              staticRoot: deriveStaticRoot(absOutputPath),
               // Legacy staticfiles: collect templates from all apps via importFunctions
             });
           }
