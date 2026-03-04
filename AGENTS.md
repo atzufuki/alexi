@@ -1984,7 +1984,6 @@ in `localStorage` and injected into every HTMX request by `admin.js`.
 import { AdminRouter, AdminSite, ModelAdmin, register } from "@alexi/admin";
 import { UserModel } from "./models.ts";
 import { backend } from "./db.ts";
-import * as settings from "./settings.ts";
 
 // 1. Create admin site
 const adminSite = new AdminSite({
@@ -2009,7 +2008,7 @@ class ArticleAdmin extends ModelAdmin {
 }
 
 // 3. Handle requests
-const router = new AdminRouter(adminSite, backend, settings);
+const router = new AdminRouter(adminSite, backend);
 const response = await router.handle(request);
 ```
 
@@ -2226,7 +2225,7 @@ It is **isomorphic** — works in both Deno server and Service Worker contexts.
 
 ```typescript
 import { getApplication } from "@alexi/core";
-import * as settings from "./project/settings.ts";
+import * as settings from "./settings.ts";
 
 const app = await getApplication(settings);
 ```
@@ -2237,9 +2236,9 @@ Named after the HTTP protocol (just as Django's `wsgi.py` is named after WSGI),
 `http.ts` is the production server entrypoint for `deno serve` and Deno Deploy:
 
 ```typescript
-// http.ts
+// project/http.ts
 import { getApplication } from "@alexi/core";
-import * as settings from "./project/settings.ts";
+import * as settings from "./settings.ts";
 
 export default await getApplication(settings);
 ```
@@ -2247,7 +2246,7 @@ export default await getApplication(settings);
 Run with:
 
 ```bash
-deno serve -A --unstable-kv http.ts
+deno serve -A --unstable-kv project/http.ts
 # or deploy to Deno Deploy — it picks up the default export.
 ```
 

@@ -115,11 +115,12 @@ const result = await finder.find("vendor/jquery.js");
 Searches multiple finders in order:
 
 ```ts
+import { conf } from "@alexi/core";
 import { StaticFileFinders } from "@alexi/staticfiles";
 
 const finders = StaticFileFinders.fromSettings({
-  installedApps: settings.INSTALLED_APPS,
-  staticFilesDirs: settings.STATICFILES_DIRS,
+  installedApps: conf.INSTALLED_APPS,
+  staticFilesDirs: conf.STATICFILES_DIRS,
   projectRoot: Deno.cwd(),
 });
 
@@ -186,14 +187,15 @@ const file = await storage.read("myapp/bundle.js");
 Intercepts requests to `STATIC_URL` and serves files:
 
 ```ts
+import { conf } from "@alexi/core";
 import { staticFilesMiddleware } from "@alexi/staticfiles";
 
 // In your settings file:
 export function createMiddleware({ debug }: { debug: boolean }) {
   return [
     staticFilesMiddleware({
-      installedApps: settings.INSTALLED_APPS,
-      staticUrl: settings.STATIC_URL,
+      installedApps: conf.INSTALLED_APPS,
+      staticUrl: conf.STATIC_URL,
       debug,
     }),
   ];
@@ -217,10 +219,11 @@ Options:
 Serves bundle files from root URL (for development):
 
 ```ts
+import { conf } from "@alexi/core";
 import { serveBundleMiddleware } from "@alexi/staticfiles";
 
 const bundleMiddleware = serveBundleMiddleware({
-  installedApps: settings.INSTALLED_APPS,
+  installedApps: conf.INSTALLED_APPS,
   bundleFiles: ["bundle.js", "bundle.css", "chunks/"],
   debug: true,
 });
@@ -233,12 +236,13 @@ This allows accessing `/bundle.js` instead of `/static/myapp/bundle.js`.
 Create a view function for URL patterns:
 
 ```ts
+import { conf } from "@alexi/core";
 import { path } from "@alexi/urls";
 import { staticServe } from "@alexi/staticfiles";
 
 const serveStatic = staticServe({
-  installedApps: settings.INSTALLED_APPS,
-  debug: settings.DEBUG,
+  installedApps: conf.INSTALLED_APPS,
+  debug: conf.DEBUG,
 });
 
 export const urlpatterns = [
