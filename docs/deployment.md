@@ -91,13 +91,13 @@ export const ROOT_URLCONF = () => import("@myapp/web/urls");
 
 ### Create an Entry Point for Deno Deploy
 
-Create `http.ts` in your project root (named after the HTTP protocol, just as
-Django's `wsgi.py` is named after WSGI):
+Create `project/http.ts` alongside your `settings.ts` (named after the HTTP
+protocol, just as Django's `wsgi.py` is named after WSGI):
 
 ```ts
-// http.ts - Entry point for Deno Deploy / deno serve
+// project/http.ts - Entry point for Deno Deploy / deno serve
 import { getApplication } from "@alexi/core";
-import * as settings from "./project/web.settings.ts";
+import * as settings from "./settings.ts";
 
 export default await getApplication(settings);
 ```
@@ -106,7 +106,7 @@ export default await getApplication(settings);
 patterns, and builds the middleware chain automatically. Run it with:
 
 ```bash
-deno serve -A --unstable-kv http.ts
+deno serve -A --unstable-kv project/http.ts
 ```
 
 ### Bundle Static Files

@@ -40,7 +40,7 @@ Middleware is configured in your settings file via the `createMiddleware`
 factory function, which is then passed to `getApplication()`:
 
 ```ts
-// project/web.settings.ts
+// project/settings.ts
 import {
   corsMiddleware,
   errorHandlerMiddleware,
@@ -57,9 +57,9 @@ export function createMiddleware({ debug }: { debug: boolean }) {
 ```
 
 ```ts
-// http.ts
+// project/http.ts
 import { getApplication } from "@alexi/core";
-import * as settings from "./project/web.settings.ts";
+import * as settings from "./settings.ts";
 
 export default await getApplication(settings);
 ```
