@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.37.3] - 2026-03-04
+
+### Fixed
+
+- `@alexi/core`: `runserver` and other app commands from JSR-published packages
+  were silently not discovered because `loadCommandsFromImportFn` only handled
+  `file://` URL prefixes for `appPath`. When a package is loaded from JSR,
+  `import.meta.url` is an `https://` URL, so `appPath` starts with `https://`
+  and fell through to the relative-path branch, producing an invalid local path.
+  Now `https://` and `http://` prefixes are handled correctly (#224)
+
 ## [0.37.2] - 2026-03-04
 
 ### Removed
