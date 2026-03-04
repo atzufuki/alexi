@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.37.5] - 2026-03-04
+
+### Fixed
+
+- `@alexi/admin`: `AdminRouter` now builds its URL patterns lazily on the first
+  request instead of eagerly in the constructor. When `ROOT_URLCONF` is imported
+  during `runserver` startup the constructor runs before `configureSettings()` /
+  `setup()` have been called, so the old eager implementation always captured
+  `undefined` for both backend and settings and permanently registered
+  placeholder JSON handlers. The lazy approach (Django-style: build once on
+  first access, then cache) ensures patterns are created only after the global
+  backend registry is fully populated, fixing JSON responses on all admin routes
+  in the standard development workflow (#228)
+
 ## [0.37.4] - 2026-03-04
 
 ### Fixed
