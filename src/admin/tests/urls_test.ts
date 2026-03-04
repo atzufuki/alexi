@@ -410,3 +410,57 @@ Deno.test({
     }
   },
 });
+
+// =============================================================================
+// Lazy init regression test (#228)
+// =============================================================================
+
+Deno.test({
+  name:
+    "AdminRouter: patterns built lazily — constructor before setup() still serves real SSR handlers",
+  async fn() {
+    // Simulate the runserver evaluation order described in issue #228:
+    //
+    //   1. ROOT_URLCONF is imported → AdminRouter is constructed (no backend registered yet)
+    //   2. setup() is called          → backend registered globally
+    //   3. First HTTP request arrives → _getPatterns() runs for the first time
+    //                                   → backend is now available → SSR handlers built
+    //
+    // The old (eager) implementation resolved hasBackend() in the constructor
+    // at step 1, captured `undefined`, and permanently used placeholder handlers.
+    // The lazy implementation defers resolution to step 3, so it always picks up
+    // the registered backend.
+
+    const backend = new DenoKVBackend({
+      name: "lazy_init_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      site.register(TestArticle);
+
+      // Step 1: construct BEFORE setup() — no backend in the global registry yet.
+      const router = new AdminRouter(site);
+
+      // Step 2: register the backend globally (mirrors getHttpApplication/setup).
+      await setup({ DATABASES: { default: backend } });
+
+      // Step 3: first real request — lazy init must now resolve the backend and
+      // build SSR handlers rather than placeholder handlers.
+      const req = new Request("http://localhost/admin/static/css/admin.css");
+      const res = await router.handle(req);
+
+      // SSR static handler returns 200 text/css, NOT a JSON placeholder.
+      assertEquals(res.status, 200);
+      assertEquals(
+        res.headers.get("Content-Type"),
+        "text/css; charset=utf-8",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
