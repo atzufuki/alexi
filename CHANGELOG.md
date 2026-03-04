@@ -8,6 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-03-04
+
+### Added
+
+- `@alexi/db`: `DenoKVConfig` now accepts a `url` field for connecting to a
+  remote Deno Deploy KV database — `Deno.openKv(url)` is called when `url` is
+  set, and `DENO_KV_ACCESS_TOKEN` is picked up automatically by the Deno
+  runtime; `url` takes precedence over `path` when both are provided (#206)
+- `@alexi/create`: `startproject` now scaffolds `project/production.ts`
+  alongside `project/settings.ts` — the file sets `DEBUG = false`, requires
+  `SECRET_KEY` from the environment (no dev fallback), and configures
+  `DATABASES` using `url: Deno.env.get("DENO_KV_URL")`; intended for use with
+  `--env-file .env.production.local` to run management commands (e.g.
+  `createsuperuser`) against a production Deno Deploy KV locally (#206)
+
 ## [0.32.4] - 2026-03-03
 
 ### Fixed
