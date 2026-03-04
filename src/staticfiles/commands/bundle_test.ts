@@ -13,8 +13,11 @@ import {
   collectAllTemplates,
   collectTemplatesFromConfig,
   generateTemplatesModule,
+  isServiceWorkerFilename,
   resolveTemplatesDir,
+  rewriteHtmlReferences,
   scanTemplatesDir,
+  writeManifest,
 } from "./bundle.ts";
 
 // =============================================================================
@@ -560,3 +563,355 @@ Deno.test(
     }
   },
 );
+
+// =============================================================================
+// isServiceWorkerFilename
+// =============================================================================
+
+Deno.test("isServiceWorkerFilename: returns true for sw.js", () => {
+  assertEquals(isServiceWorkerFilename("sw.js"), true);
+});
+
+Deno.test("isServiceWorkerFilename: returns true for worker.js", () => {
+  assertEquals(isServiceWorkerFilename("worker.js"), true);
+});
+
+Deno.test("isServiceWorkerFilename: returns true for service-worker.js", () => {
+  assertEquals(isServiceWorkerFilename("service-worker.js"), true);
+});
+
+Deno.test("isServiceWorkerFilename: returns true for my_worker.js", () => {
+  assertEquals(isServiceWorkerFilename("my_worker.js"), true);
+});
+
+Deno.test("isServiceWorkerFilename: returns true for app.worker.js", () => {
+  assertEquals(isServiceWorkerFilename("app.worker.js"), true);
+});
+
+Deno.test("isServiceWorkerFilename: returns false for document.js", () => {
+  assertEquals(isServiceWorkerFilename("document.js"), false);
+});
+
+Deno.test("isServiceWorkerFilename: returns false for bundle.js", () => {
+  assertEquals(isServiceWorkerFilename("bundle.js"), false);
+});
+
+Deno.test("isServiceWorkerFilename: returns false for app.js", () => {
+  assertEquals(isServiceWorkerFilename("app.js"), false);
+});
+
+Deno.test("isServiceWorkerFilename: SW basename without extension", () => {
+  assertEquals(isServiceWorkerFilename("sw"), true);
+});
+
+// =============================================================================
+// writeManifest
+// =============================================================================
+
+Deno.test("writeManifest: creates new manifest file", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await writeManifest(tmpDir, {
+      "my-app/document.js": "my-app/document-a1b2c3d4.js",
+    });
+
+    const raw = await Deno.readTextFile(`${tmpDir}/staticfiles.json`);
+    const parsed = JSON.parse(raw);
+    assertEquals(parsed.version, 1);
+    assertEquals(
+      parsed.files["my-app/document.js"],
+      "my-app/document-a1b2c3d4.js",
+    );
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("writeManifest: merges with existing manifest", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    // Write an initial manifest
+    await Deno.writeTextFile(
+      `${tmpDir}/staticfiles.json`,
+      JSON.stringify({
+        version: 1,
+        files: { "my-app/old.js": "my-app/old-aabbccdd.js" },
+      }),
+    );
+
+    // Merge a new entry
+    await writeManifest(tmpDir, {
+      "my-app/document.js": "my-app/document-a1b2c3d4.js",
+    });
+
+    const raw = await Deno.readTextFile(`${tmpDir}/staticfiles.json`);
+    const parsed = JSON.parse(raw);
+    assertEquals(parsed.version, 1);
+    // Old entry preserved
+    assertEquals(parsed.files["my-app/old.js"], "my-app/old-aabbccdd.js");
+    // New entry added
+    assertEquals(
+      parsed.files["my-app/document.js"],
+      "my-app/document-a1b2c3d4.js",
+    );
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("writeManifest: overwrites stale entry for same key", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await writeManifest(tmpDir, {
+      "my-app/document.js": "my-app/document-aaaaaaaa.js",
+    });
+    await writeManifest(tmpDir, {
+      "my-app/document.js": "my-app/document-bbbbbbbb.js",
+    });
+
+    const raw = await Deno.readTextFile(`${tmpDir}/staticfiles.json`);
+    const parsed = JSON.parse(raw);
+    assertEquals(
+      parsed.files["my-app/document.js"],
+      "my-app/document-bbbbbbbb.js",
+    );
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+// =============================================================================
+// rewriteHtmlReferences
+// =============================================================================
+
+Deno.test("rewriteHtmlReferences: rewrites matching HTML files", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      `${tmpDir}/index.html`,
+      '<script src="/static/my-app/document.js"></script>',
+    );
+
+    await rewriteHtmlReferences(tmpDir, "document.js", "document-a1b2c3d4.js");
+
+    const updated = await Deno.readTextFile(`${tmpDir}/index.html`);
+    assertStringIncludes(updated, "document-a1b2c3d4.js");
+    assertEquals(updated.includes("document.js"), false);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("rewriteHtmlReferences: leaves HTML unmodified when no match", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    const original = '<script src="/static/other.js"></script>';
+    await Deno.writeTextFile(`${tmpDir}/index.html`, original);
+
+    await rewriteHtmlReferences(tmpDir, "document.js", "document-a1b2c3d4.js");
+
+    const content = await Deno.readTextFile(`${tmpDir}/index.html`);
+    assertEquals(content, original);
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("rewriteHtmlReferences: rewrites all occurrences in a file", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      `${tmpDir}/index.html`,
+      "document.js document.js",
+    );
+
+    await rewriteHtmlReferences(tmpDir, "document.js", "document-a1b2c3d4.js");
+
+    const updated = await Deno.readTextFile(`${tmpDir}/index.html`);
+    assertEquals(updated, "document-a1b2c3d4.js document-a1b2c3d4.js");
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test("rewriteHtmlReferences: skips non-HTML files", async () => {
+  const tmpDir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${tmpDir}/data.json`, '{"src":"document.js"}');
+
+    await rewriteHtmlReferences(tmpDir, "document.js", "document-a1b2c3d4.js");
+
+    const content = await Deno.readTextFile(`${tmpDir}/data.json`);
+    // JSON file must not be touched
+    assertStringIncludes(content, "document.js");
+  } finally {
+    await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+Deno.test(
+  "rewriteHtmlReferences: handles non-existent directory gracefully",
+  async () => {
+    // Should not throw
+    await rewriteHtmlReferences(
+      "/non/existent/dir",
+      "document.js",
+      "document-a1b2c3d4.js",
+    );
+  },
+);
+
+// =============================================================================
+// buildSWBundle — content-hash integration tests
+// =============================================================================
+
+Deno.test({
+  name:
+    "buildSWBundle: writes staticfiles.json manifest when entryNames contains [hash]",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const entryPath = join(tmpDir, "document.ts");
+      await Deno.writeTextFile(
+        entryPath,
+        `export const VERSION = "doc";\n`,
+      );
+
+      const outputDir = join(tmpDir, "dist", "my-app");
+      await Deno.mkdir(outputDir, { recursive: true });
+      const outputPath = join(outputDir, "document.js").replace(/\\/g, "/");
+
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [],
+        cwd: tmpDir,
+        configPath,
+        entryNames: "[name]-[hash]",
+      });
+
+      // The manifest must have been written to the parent of outputDir
+      const manifestPath = join(tmpDir, "dist", "staticfiles.json");
+      const raw = await Deno.readTextFile(manifestPath);
+      const parsed = JSON.parse(raw);
+
+      assertEquals(parsed.version, 1);
+
+      const keys = Object.keys(parsed.files);
+      assertEquals(keys.length, 1);
+      // Key is the un-hashed logical path
+      assertEquals(keys[0], "my-app/document.js");
+      // Value must contain a hash (different from the plain name)
+      const hashedValue: string = parsed.files["my-app/document.js"];
+      assertStringIncludes(hashedValue, "document-");
+      assertStringIncludes(hashedValue, ".js");
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "buildSWBundle: does NOT write staticfiles.json when entryNames has no [hash]",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const entryPath = join(tmpDir, "document.ts");
+      await Deno.writeTextFile(
+        entryPath,
+        `export const VERSION = "doc2";\n`,
+      );
+
+      const outputDir = join(tmpDir, "dist", "my-app");
+      await Deno.mkdir(outputDir, { recursive: true });
+      const outputPath = join(outputDir, "document.js").replace(/\\/g, "/");
+
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [],
+        cwd: tmpDir,
+        configPath,
+        // No [hash] — plain name pattern
+        entryNames: "[name]",
+      });
+
+      let manifestExists = false;
+      try {
+        await Deno.stat(join(tmpDir, "dist", "staticfiles.json"));
+        manifestExists = true;
+      } catch {
+        // expected
+      }
+      assertEquals(manifestExists, false);
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name: "buildSWBundle: SW entry ignores entryNames and uses plain [name]",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      const entryPath = join(tmpDir, "worker.ts");
+      await Deno.writeTextFile(
+        entryPath,
+        `export const SW_VERSION = "sw1";\n`,
+      );
+
+      const outputDir = join(tmpDir, "dist", "my-app");
+      await Deno.mkdir(outputDir, { recursive: true });
+      // Output filename contains "worker" — triggers SW detection
+      const outputPath = join(outputDir, "worker.js").replace(/\\/g, "/");
+
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [],
+        cwd: tmpDir,
+        configPath,
+        // Even though [hash] is requested, SW must ignore it
+        entryNames: "[name]-[hash]",
+      });
+
+      // The output file must exist with the plain name (no hash suffix)
+      const outFile = await Deno.readTextFile(
+        join(outputDir, "worker.js"),
+      );
+      assertStringIncludes(outFile, "SW_VERSION");
+
+      // No manifest must have been written for a SW entry
+      let manifestExists = false;
+      try {
+        await Deno.stat(join(tmpDir, "dist", "staticfiles.json"));
+        manifestExists = true;
+      } catch {
+        // expected
+      }
+      assertEquals(manifestExists, false);
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
