@@ -95,3 +95,21 @@ export type {
   NewTemplateViewOptions,
   TemplateViewOptions,
 } from "./template.ts";
+
+// ============================================================================
+// Class-Based Views
+// ============================================================================
+
+export {
+  ContextMixin,
+  DetailView,
+  ListView,
+  MultipleObjectMixin,
+  RedirectView,
+  SingleObjectMixin,
+  TemplateResponseMixin,
+  TemplateView,
+  View,
+} from "./views/mod.ts";
+
+export type { Page, ViewFunction } from "./views/mod.ts";
