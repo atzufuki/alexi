@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.38.0] - 2026-03-06
+
+### Added
+
+- `@alexi/views`: Class-based views (CBVs) mirroring Django's
+  `django.views.generic` — `View`, `TemplateView`, `RedirectView`, `ListView`,
+  `DetailView`, and the composable mixins `ContextMixin`,
+  `TemplateResponseMixin`, `SingleObjectMixin`, `MultipleObjectMixin`. All
+  classes are exported from `@alexi/views` and return a plain
+  `(request, params) => Promise<Response>` handler via `as_view()`, fully
+  compatible with `path()` (#230)
+
 ## [0.37.5] - 2026-03-04
 
 ### Fixed
