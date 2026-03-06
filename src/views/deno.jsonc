@@ -7,6 +7,7 @@
     "./config": "./app.ts"
   },
   "imports": {
+    "@alexi/db": "jsr:@alexi/db@0.37.5",
     "@alexi/types": "jsr:@alexi/types@0.37.5"
   }
 }
