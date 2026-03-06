@@ -1660,8 +1660,180 @@ class HeaderVersioning extends BaseVersioning {
 
 ## Views & Template Engine
 
-`@alexi/views` provides a full Django-style template engine and the
-`templateView` helper for serving HTML pages.
+`@alexi/views` provides a full Django-style template engine, the `templateView`
+function-based helper, and a complete set of **class-based views (CBVs)**
+mirroring Django's `django.views.generic`.
+
+### Class-Based Views (CBVs)
+
+CBVs provide reusable, composable view logic with a Django-compatible API. All
+CBVs are exported from `@alexi/views`.
+
+#### `View` — Base Class
+
+```typescript
+import { View } from "@alexi/views";
+import { path } from "@alexi/urls";
+
+class MyView extends View {
+  async get(
+    request: Request,
+    params: Record<string, string>,
+  ): Promise<Response> {
+    return new Response("Hello!");
+  }
+  async post(
+    request: Request,
+    params: Record<string, string>,
+  ): Promise<Response> {
+    return new Response("Created", { status: 201 });
+  }
+}
+
+// In urls.ts:
+path("my-view/", MyView.as_view());
+// Pass initkwargs to set class properties before dispatch:
+path("my-view/", MyView.as_view({ extraData: "foo" }));
+```
+
+- `as_view(initkwargs?)` — returns a plain
+  `(request, params) => Promise<Response>` handler compatible with `path()`
+- A **fresh instance** is created per request (no shared state)
+- Unknown methods return `405 Method Not Allowed`
+- `OPTIONS` returns an `Allow` header listing implemented HTTP methods
+
+#### `TemplateView`
+
+Renders a named template with context. Equivalent to Django's `TemplateView`.
+
+```typescript
+import { TemplateView } from "@alexi/views";
+
+class HomeView extends TemplateView {
+  templateName = "myapp/home.html";
+
+  override async getContextData(
+    request: Request,
+    params: Record<string, string>,
+    extra: Record<string, unknown> = {},
+  ): Promise<Record<string, unknown>> {
+    const base = await super.getContextData(request, params, extra);
+    return { ...base, title: "Home" };
+  }
+}
+
+// Inline via initkwargs:
+path("home/", TemplateView.as_view({ templateName: "myapp/home.html" }));
+```
+
+#### `RedirectView`
+
+Issues redirects (permanent or temporary) with optional URL interpolation.
+
+```typescript
+import { RedirectView } from "@alexi/views";
+
+// Permanent redirect
+path("old/", RedirectView.as_view({ url: "/new/", permanent: true }));
+
+// Dynamic redirect with URL params
+class ArticleRedirectView extends RedirectView {
+  override getRedirectUrl(
+    request: Request,
+    params: Record<string, string>,
+  ): string | null {
+    return `/articles/${params.slug}/`;
+  }
+}
+```
+
+| Property          | Default | Description                                   |
+| ----------------- | ------- | --------------------------------------------- |
+| `url`             | `null`  | Target URL (static)                           |
+| `permanent`       | `false` | `true` → 301, `false` → 302                   |
+| `queryStringPass` | `true`  | Forward original query string to redirect URL |
+
+Returns `410 Gone` when `getRedirectUrl()` returns `null`.
+
+#### `ListView`
+
+Fetches a queryset and renders it in a template. Equivalent to Django's
+`ListView`.
+
+```typescript
+import { ListView } from "@alexi/views";
+import { ArticleModel } from "./models.ts";
+
+class ArticleListView extends ListView<typeof ArticleModel.prototype> {
+  model = ArticleModel;
+  templateName = "blog/article_list.html";
+  paginateBy = 20; // optional pagination
+
+  // Optional: customise the queryset
+  override getQueryset() {
+    return ArticleModel.objects.filter({ published: true });
+  }
+}
+
+path("articles/", ArticleListView.as_view());
+```
+
+Template context:
+
+| Variable       | Description                                   |
+| -------------- | --------------------------------------------- |
+| `object_list`  | Array of plain objects (from `toJSON()`)      |
+| `<model>_list` | Same array, keyed by lowercase model name     |
+| `is_paginated` | `true` when more than one page exists         |
+| `page_obj`     | `Page` object (only when `paginateBy` is set) |
+
+`Page` object properties: `objectList`, `number`, `numPages`, `count`,
+`hasNext`, `hasPrevious`, `nextPageNumber`, `previousPageNumber`.
+
+#### `DetailView`
+
+Fetches a single object by PK (or slug) and renders it. Equivalent to Django's
+`DetailView`.
+
+```typescript
+import { DetailView } from "@alexi/views";
+import { ArticleModel } from "./models.ts";
+
+class ArticleDetailView extends DetailView<typeof ArticleModel.prototype> {
+  model = ArticleModel;
+  templateName = "blog/article_detail.html";
+  // pkUrlKwarg = "id";      // default — matches path("articles/:id/", ...)
+  // slugUrlKwarg = "slug";  // set to look up by slug instead
+}
+
+path("articles/:id/", ArticleDetailView.as_view());
+```
+
+Template context:
+
+| Variable          | Description                                |
+| ----------------- | ------------------------------------------ |
+| `object`          | Plain object from `toJSON()`               |
+| `<model>`         | Same object, keyed by lowercase model name |
+| `object_instance` | Raw model instance (for programmatic use)  |
+
+Returns `404 Not Found` automatically when the object does not exist.
+
+#### CBV Imports
+
+```typescript
+import {
+  ContextMixin,
+  DetailView,
+  ListView,
+  MultipleObjectMixin,
+  RedirectView,
+  SingleObjectMixin,
+  TemplateResponseMixin,
+  TemplateView,
+  View,
+} from "@alexi/views";
+```
 
 ### Template Engine Features
 
