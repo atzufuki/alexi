@@ -68,7 +68,7 @@ export class CommandRegistry implements ICommandRegistry {
   register(
     CommandClass: CommandConstructor,
     options: { override?: boolean } = {},
-  ): void {
+  ): ICommand {
     const { override = true } = options;
     const command = new CommandClass();
     const name = command.name;
@@ -81,6 +81,7 @@ export class CommandRegistry implements ICommandRegistry {
     }
 
     this.commands.set(name, command);
+    return command;
   }
 
   /**

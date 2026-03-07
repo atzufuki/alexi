@@ -17,9 +17,11 @@ import { MigrateCommand } from "./commands/migrate.ts";
 import { ShowmigrationsCommand } from "./commands/showmigrations.ts";
 import { SqlmigrateCommand } from "./commands/sqlmigrate.ts";
 import type {
+  CliApplicationConfig,
   CommandConstructor,
   IConsole,
   ManagementConfig,
+  UsageConfig,
 } from "./types.ts";
 import type { AppConfig } from "@alexi/types";
 
@@ -67,16 +69,16 @@ type AppImportFn = () => Promise<
  *
  * @example Basic usage
  * ```ts
- * // manage.ts
- * import { ManagementUtility } from "@alexi/management";
+ * // cli.ts
+ * import { getCliApplication } from "@alexi/core/management";
  *
- * const cli = new ManagementUtility();
+ * const cli = await getCliApplication({ programName: "my-cli" });
  * await cli.execute(Deno.args);
  * ```
  *
  * @example With custom commands
  * ```ts
- * import { ManagementUtility, BaseCommand } from "@alexi/management";
+ * import { getCliApplication, BaseCommand } from "@alexi/core/management";
  *
  * class MyCommand extends BaseCommand {
  *   name = "mycommand";
@@ -84,8 +86,10 @@ type AppImportFn = () => Promise<
  *   async handle() { ... }
  * }
  *
- * const cli = new ManagementUtility();
- * cli.registerCommand(MyCommand);
+ * const cli = await getCliApplication({
+ *   programName: "my-cli",
+ *   commands: [MyCommand],
+ * });
  * await cli.execute(Deno.args);
  * ```
  */
@@ -93,6 +97,10 @@ export class ManagementUtility {
   private readonly registry: CommandRegistry;
   private readonly debug: boolean;
   private readonly projectRoot: string;
+  private readonly programName: string;
+  private readonly title: string;
+  private readonly usage: string[];
+  private readonly version: string;
   private stdout: IConsole = console;
   private stderr: IConsole = console;
 
@@ -111,6 +119,13 @@ export class ManagementUtility {
     this.registry = new CommandRegistry();
     this.debug = config.debug ?? Deno.env.get("DEBUG") === "true";
     this.projectRoot = config.projectRoot ?? Deno.cwd();
+    this.programName = config.programName ?? "cli";
+    this.title = config.title ?? "Available Commands";
+    this.usage = this.normalizeUsage(
+      config.usage,
+      this.programName,
+    );
+    this.version = config.version ?? this.programName;
 
     // Register built-in commands
     this.registerBuiltinCommands();
@@ -138,38 +153,25 @@ export class ManagementUtility {
    */
   private registerBuiltinCommands(): void {
     // Register help command and set registry reference
-    const helpCommand = new HelpCommand();
+    const helpCommand = this.registry.register(HelpCommand) as HelpCommand;
     helpCommand.setRegistry(this.registry);
-    this.registry.register(
-      class extends HelpCommand {
-        constructor() {
-          super();
-          this.setRegistry(helpCommand["registry"]!);
-        }
-      },
-    );
-    // Replace with the configured instance
-    (this.registry as unknown as { commands: Map<string, unknown> }).commands
-      .set("help", helpCommand);
+    helpCommand.setDisplayOptions({
+      title: this.title,
+      usage: this.usage,
+    });
 
-    // Register test command
-    this.registry.register(TestCommand);
+    // Framework commands are opt-in and can be registered explicitly.
+  }
 
-    // Register startapp command
-    this.registry.register(StartAppCommand);
+  private normalizeUsage(
+    usage: UsageConfig | undefined,
+    programName: string,
+  ): string[] {
+    if (usage) {
+      return Array.isArray(usage) ? usage : [usage];
+    }
 
-    // Register flush command (core command, like Django's flush)
-    this.registry.register(FlushCommand);
-
-    // Register migration commands (live in @alexi/core/management to avoid
-    // circular dependency with @alexi/db)
-    this.registry.register(MakemigrationsCommand);
-    this.registry.register(MigrateCommand);
-    this.registry.register(ShowmigrationsCommand);
-    this.registry.register(SqlmigrateCommand);
-
-    // Note: Other commands (createsuperuser, bundle, collectstatic, runserver)
-    // are loaded dynamically from INSTALLED_APPS via loadAppCommands()
+    return [`Usage: ${programName} <command> [arguments]`];
   }
 
   /**
@@ -508,6 +510,7 @@ export class ManagementUtility {
     // Configure command output if it's a BaseCommand
     if (command instanceof BaseCommand) {
       command.setConsole(this.stdout, this.stderr);
+      command.setProgramName(this.programName);
     }
 
     try {
@@ -552,11 +555,11 @@ export class ManagementUtility {
    */
   private showUsage(): void {
     this.stdout.log("");
-    this.stdout.log("Alexi Management Utility");
+    this.stdout.log(this.title);
     this.stdout.log("");
-    this.stdout.log("Usage:");
-    this.stdout.log("  deno task <command> [options]");
-    this.stdout.log("  deno run -A manage.ts <command> [options]");
+    for (const line of this.usage) {
+      this.stdout.log(line);
+    }
     this.stdout.log("");
     this.stdout.log("Available commands:");
 
@@ -573,7 +576,7 @@ export class ManagementUtility {
    * Show version information
    */
   private showVersion(): void {
-    this.stdout.log("Alexi Framework v0.8.0");
+    this.stdout.log(this.version);
   }
 
   // ===========================================================================
@@ -615,6 +618,29 @@ export class ManagementUtility {
  * @returns Exit code
  */
 export async function execute(args: string[] = Deno.args): Promise<number> {
-  const cli = new ManagementUtility();
+  const cli = await getCliApplication();
   return await cli.execute(args);
 }
+
+/**
+ * Create a CLI application with explicit command configuration.
+ */
+export async function getCliApplication(
+  config: CliApplicationConfig = {},
+): Promise<ManagementUtility> {
+  return new ManagementUtility(config);
+}
+
+/**
+ * Alexi framework management commands.
+ */
+export const alexi_management_commands: CommandConstructor[] = [
+  HelpCommand,
+  TestCommand,
+  StartAppCommand,
+  FlushCommand,
+  MakemigrationsCommand,
+  MigrateCommand,
+  ShowmigrationsCommand,
+  SqlmigrateCommand,
+];

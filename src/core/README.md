@@ -31,9 +31,9 @@ await setup({
 ## Management Commands
 
 ```typescript
-import { BaseCommand, ManagementUtility } from "@alexi/core/management";
+import { BaseCommand, getCliApplication } from "@alexi/core/management";
 
-const cli = new ManagementUtility();
+const cli = await getCliApplication({ programName: "my-cli" });
 await cli.execute(Deno.args);
 ```
 

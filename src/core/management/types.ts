@@ -154,13 +154,18 @@ export interface ICommand {
 export type CommandConstructor = new () => ICommand;
 
 /**
+ * Usage text shown in help output.
+ */
+export type UsageConfig = string | string[];
+
+/**
  * Registry of available commands
  */
 export interface ICommandRegistry {
   /**
    * Register a command
    */
-  register(command: CommandConstructor): void;
+  register(command: CommandConstructor): ICommand;
 
   /**
    * Get a command by name
@@ -192,9 +197,26 @@ export interface ManagementConfig {
   /** Project root directory */
   projectRoot?: string;
 
+  /** Optional help title */
+  title?: string;
+
+  /** Program name shown in usage text */
+  programName?: string;
+
+  /** Override help usage text */
+  usage?: UsageConfig;
+
+  /** Version text shown by --version */
+  version?: string;
+
   /** Custom commands to register */
   commands?: CommandConstructor[];
 }
+
+/**
+ * Configuration for high-level CLI application creation.
+ */
+export type CliApplicationConfig = ManagementConfig;
 
 /**
  * Console output interface for testability

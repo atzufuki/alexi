@@ -11,6 +11,7 @@ import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
+  UsageConfig,
 } from "../types.ts";
 import type { CommandRegistry } from "../registry.ts";
 
@@ -39,6 +40,9 @@ export class HelpCommand extends BaseCommand {
   override readonly description = "Shows a list of all available commands, " +
     "or detailed help for a specific command.";
 
+  private title = "Available Commands";
+  private usage: string[] = ["Usage: cli <command> [arguments]"];
+
   override readonly examples = [
     "manage.ts help              - List all commands",
     "manage.ts help runserver    - Show help for runserver command",
@@ -54,6 +58,18 @@ export class HelpCommand extends BaseCommand {
    */
   setRegistry(registry: CommandRegistry): void {
     this.registry = registry;
+  }
+
+  setDisplayOptions(options: { title?: string; usage?: UsageConfig }): void {
+    if (options.title) {
+      this.title = options.title;
+    }
+
+    if (options.usage) {
+      this.usage = Array.isArray(options.usage)
+        ? options.usage
+        : [options.usage];
+    }
   }
 
   // ===========================================================================
@@ -104,6 +120,9 @@ export class HelpCommand extends BaseCommand {
 
     // Use the command's own help printing if it's a BaseCommand
     if ("printHelp" in command && typeof command.printHelp === "function") {
+      if (command instanceof BaseCommand) {
+        command.setProgramName(this.programName);
+      }
       (command as BaseCommand).printHelp();
     } else {
       this.stdout.log(`${command.name}: ${command.help}`);
@@ -118,11 +137,12 @@ export class HelpCommand extends BaseCommand {
   private showGeneralHelp(): CommandResult {
     const lines: string[] = [];
 
-    lines.push("┌─────────────────────────────────────────────┐");
-    lines.push("│         Alexi Management Commands           │");
-    lines.push("└─────────────────────────────────────────────┘");
-    lines.push("");
-    lines.push("Usage: deno run -A manage.ts <command> [arguments]");
+    if (this.title.length > 0) {
+      lines.push(this.title);
+      lines.push("");
+    }
+
+    lines.push(...this.usage);
     lines.push("");
 
     if (this.registry) {
