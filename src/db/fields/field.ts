@@ -25,6 +25,8 @@ export type Validator<T> = (value: T | null) => {
  * Field options interface
  */
 export interface FieldOptions<T> {
+  /** Index signature to satisfy structural type checks (e.g. ModelFieldLike). */
+  [key: string]: unknown;
   /** Allow NULL values in database */
   null?: boolean;
   /** Allow blank/empty values (validation only) */
