@@ -78,6 +78,11 @@ alexi/
 └── README.md
 ```
 
+`ManagementUtility` defaults to a generic CLI runner, so help output stays
+neutral and only explicitly registered commands are shown. For user-facing CLI
+tools, prefer `getCliApplication()`. Alexi's own `manage.ts` should use the same
+API with explicit command registration.
+
 ---
 
 ## Naming Conventions

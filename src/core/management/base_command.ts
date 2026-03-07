@@ -99,11 +99,23 @@ export abstract class BaseCommand implements ICommand {
   protected stderr: IConsole = console;
 
   /**
+   * Program name used in help output.
+   */
+  protected programName = "manage.ts";
+
+  /**
    * Set the console implementations (useful for testing)
    */
   setConsole(stdout: IConsole, stderr?: IConsole): void {
     this.stdout = stdout;
     this.stderr = stderr ?? stdout;
+  }
+
+  /**
+   * Set the displayed program name for help examples.
+   */
+  setProgramName(programName: string): void {
+    this.programName = programName;
   }
 
   // ===========================================================================
@@ -224,7 +236,7 @@ export abstract class BaseCommand implements ICommand {
     const lines: string[] = [];
 
     // Header
-    lines.push(`Usage: manage.ts ${this.name} [options]`);
+    lines.push(`Usage: ${this.programName} ${this.name} [options]`);
     lines.push("");
 
     // Description
