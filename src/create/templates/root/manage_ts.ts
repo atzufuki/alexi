@@ -17,9 +17,22 @@ export function generateManageTs(): string {
  *   deno task test    # Run tests
  */
 
-import { ManagementUtility } from "@alexi/core/management";
+import {
+  alexi_management_commands,
+  getCliApplication,
+} from "@alexi/core/management";
 
-const management = new ManagementUtility();
+const management = await getCliApplication({
+  programName: "manage.ts",
+  title: "Alexi Management Commands",
+  usage: [
+    "Usage:",
+    "  deno task <command> [options]",
+    "  deno run -A manage.ts <command> [options]",
+  ],
+  version: "Alexi Framework v0.8.0",
+  commands: alexi_management_commands,
+});
 await management.execute(Deno.args);
 `;
 }

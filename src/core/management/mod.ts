@@ -9,9 +9,9 @@
  *
  * @example manage.ts
  * ```ts
- * import { ManagementUtility } from "@alexi/core/management";
+ * import { getCliApplication } from "@alexi/core/management";
  *
- * const cli = new ManagementUtility();
+ * const cli = await getCliApplication({ programName: "my-cli" });
  * const exitCode = await cli.execute(Deno.args);
  * Deno.exit(exitCode);
  * ```
@@ -21,7 +21,12 @@
 // CLI
 // =============================================================================
 
-export { execute, ManagementUtility } from "./management.ts";
+export {
+  alexi_management_commands,
+  execute,
+  getCliApplication,
+  ManagementUtility,
+} from "./management.ts";
 
 /** @deprecated Use import functions in INSTALLED_APPS instead. */
 export { pathToFileUrl } from "./management.ts";
@@ -84,6 +89,7 @@ export {
 export type {
   ArgumentConfig,
   ArgumentType,
+  CliApplicationConfig,
   CommandConstructor,
   CommandMeta,
   CommandOptions,
