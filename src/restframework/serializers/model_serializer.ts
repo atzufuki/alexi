@@ -213,7 +213,7 @@ export abstract class ModelSerializer extends Serializer {
    * @param options Serializer-specific overrides.
    */
   protected buildField(
-  modelField: ModelFieldLike,
+    modelField: ModelFieldLike,
     fieldName: string,
     options: Partial<SerializerFieldOptions>,
   ): SerializerField {
@@ -319,7 +319,9 @@ export abstract class ModelSerializer extends Serializer {
 
     // Get the manager from the model class
     const manager = (ModelClass as unknown as {
-      objects: { create: (data: Record<string, unknown>) => Promise<ModelLike> };
+      objects: {
+        create: (data: Record<string, unknown>) => Promise<ModelLike>;
+      };
     }).objects;
 
     if (!manager || typeof manager.create !== "function") {
