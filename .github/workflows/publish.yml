@@ -72,34 +72,55 @@ jobs:
           SUCCESS_COUNT=0
           FAIL_COUNT=0
 
-          # Publish each workspace package
-          while IFS= read -r PKG_DIR; do
-            # Get package name from deno.jsonc
-            PKG_PATH="$PKG_DIR/deno.jsonc"
+          publish_package() {
+            local PKG_DIR="$1"
+            local PKG_PATH="$PKG_DIR/deno.jsonc"
             if [ ! -f "$PKG_PATH" ]; then
               PKG_PATH="$PKG_DIR/deno.json"
             fi
 
+            local PKG_NAME
             PKG_NAME=$(jq -r '.name' "$PKG_PATH")
 
             echo "Publishing $PKG_NAME from $PKG_DIR..."
 
-            # Capture output and exit code
-            set +e
-            OUTPUT=$(cd "$PKG_DIR" && deno publish --allow-dirty --allow-slow-types --no-check 2>&1)
-            EXIT_CODE=$?
-            set -e
+            local MAX_ATTEMPTS=5
+            local ATTEMPT=0
+            local OUTPUT
+            local EXIT_CODE
 
-            echo "$OUTPUT"
+            while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
+              ATTEMPT=$((ATTEMPT + 1))
+              set +e
+              OUTPUT=$(cd "$PKG_DIR" && deno publish --allow-dirty --allow-slow-types --no-check 2>&1)
+              EXIT_CODE=$?
+              set -e
 
-            if [ $EXIT_CODE -eq 0 ]; then
-              echo "- ✅ $PKG_NAME" >> $GITHUB_STEP_SUMMARY
-              SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
-            else
-              echo "- ❌ $PKG_NAME (exit code: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
-              echo "  Error: $OUTPUT" >> $GITHUB_STEP_SUMMARY
-              FAIL_COUNT=$((FAIL_COUNT + 1))
-            fi
+              echo "$OUTPUT"
+
+              if [ $EXIT_CODE -eq 0 ]; then
+                echo "- ✅ $PKG_NAME" >> $GITHUB_STEP_SUMMARY
+                SUCCESS_COUNT=$((SUCCESS_COUNT + 1))
+                return 0
+              fi
+
+              # If the error is a missing dependency, wait and retry
+              if echo "$OUTPUT" | grep -q "unresolvable 'jsr:' dependency"; then
+                echo "  Dependency not yet available, retrying in 15s (attempt $ATTEMPT/$MAX_ATTEMPTS)..."
+                sleep 15
+              else
+                break
+              fi
+            done
+
+            echo "- ❌ $PKG_NAME (exit code: $EXIT_CODE)" >> $GITHUB_STEP_SUMMARY
+            echo "  Error: $OUTPUT" >> $GITHUB_STEP_SUMMARY
+            FAIL_COUNT=$((FAIL_COUNT + 1))
+          }
+
+          # Publish each workspace package in order
+          while IFS= read -r PKG_DIR; do
+            publish_package "$PKG_DIR"
           done < /tmp/packages.txt
 
           echo "" >> $GITHUB_STEP_SUMMARY
