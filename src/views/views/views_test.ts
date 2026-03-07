@@ -14,7 +14,7 @@ import {
 
 import { AutoField, CharField, IntegerField, Manager, Model } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
-import { registerBackend, reset } from "../../db/setup.ts";
+import { registerBackend, reset } from "@alexi/db";
 
 import {
   ContextMixin,

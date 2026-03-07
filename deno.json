@@ -1,6 +1,6 @@
 {
   "name": "@atzufuki/alexi",
-  "version": "0.38.3",
+  "version": "0.38.4",
   "workspace": [
     "./src/types",
     "./src/urls",
