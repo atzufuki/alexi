@@ -1,37 +1,35 @@
 /**
- * Alexi Core - Universal (browser + server safe) exports
+ * Alexi's application bootstrap package.
  *
- * This module exports things that are safe to import in any environment
- * (browser, Service Worker, server).
+ * `@alexi/core` contains the framework entrypoints that wire together settings,
+ * URL patterns, middleware, and database setup into a runnable `Application`.
+ * It is the package most Alexi projects start from when creating a server
+ * entrypoint, a Service Worker entrypoint, or shared framework setup code.
  *
- * For management commands, CLI utilities, and configuration loader,
- * import from "@alexi/core/management" (server-only).
+ * The main starting points are `getHttpApplication()` for server runtimes,
+ * `getWorkerApplication()` for browser Service Workers, `setup()` for explicit
+ * database initialization, and the Django-style `conf` settings registry for
+ * code that needs access to global framework settings.
+ *
+ * This root entrypoint is safe to import from browser, Service Worker, and
+ * server code. Management commands, CLI helpers, and configuration-loading
+ * utilities live under `@alexi/core/management`, which is server-only.
  *
  * @module @alexi/core
  *
- * @example Deno Deploy / deno serve production entrypoint (http.ts)
+ * @example Server entrypoint with framework-managed settings
  * ```ts
  * import { getHttpApplication } from "@alexi/core";
  *
  * export default await getHttpApplication();
  * ```
  *
- * @example Service Worker entrypoint (worker.ts)
+ * @example Service Worker entrypoint with explicit settings
  * ```ts
  * import { getWorkerApplication } from "@alexi/core";
  * import * as settings from "./settings.ts";
  *
- * declare const self: ServiceWorkerGlobalScope;
- * let app: Awaited<ReturnType<typeof getWorkerApplication>>;
- *
- * self.addEventListener("install", (event) => {
- *   event.waitUntil(
- *     (async () => {
- *       app = await getWorkerApplication(settings);
- *       await self.skipWaiting();
- *     })(),
- *   );
- * });
+ * const app = await getWorkerApplication(settings);
  *
  * self.addEventListener("fetch", (event) => {
  *   event.respondWith(app.handler(event.request));

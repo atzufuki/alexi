@@ -1,56 +1,40 @@
 /**
- * Alexi Views - Django-style view helpers
+ * Alexi's template engine and Django-style view layer.
  *
- * Provides view helper functions for common response patterns like
- * template rendering, redirects, and JSON responses.
+ * `@alexi/views` combines two related pieces of functionality: a server-side
+ * HTML template engine with Django-inspired syntax, and a set of helpers and
+ * class-based views for turning requests into rendered responses. Use it for
+ * pages, dashboards, admin-style flows, and any route that benefits from
+ * structured HTML rendering rather than raw JSON.
  *
- * Includes a full Django-style template engine with support for:
- * - `{{ variable }}` — dot-notation variable output
- * - `{% extends "base.html" %}` — template inheritance
- * - `{% block name %}...{% endblock %}` — block definitions
- * - `{% for item in items %}...{% endfor %}` — iteration
- * - `{% if condition %}...{% elif %}...{% else %}...{% endif %}` — conditionals
- * - `{% include "partial.html" %}` — sub-template inclusion
+ * The main entrypoints are `templateView()` for function-style template
+ * rendering, `templateRegistry` and loader classes for template discovery, and
+ * class-based views such as `TemplateView`, `ListView`, `DetailView`, and
+ * `RedirectView`. Filesystem-based template loading is server-oriented, while
+ * the in-memory registry works in Service Worker and other non-filesystem
+ * runtimes.
  *
  * @module @alexi/views
  *
- * @example New API — Django-style template engine
+ * @example Render a template with `templateView()`
  * ```ts
- * import { templateView, templateRegistry } from "@alexi/views";
+ * import { templateView } from "@alexi/views";
  *
- * // Register templates (done by Application on startup)
- * templateRegistry.register("my-app/note_list.html", `
- *   {% extends "my-app/base.html" %}
- *   {% block content %}
- *   <ul>
- *     {% for note in notes %}
- *     <li>{{ note.title }}</li>
- *     {% endfor %}
- *   </ul>
- *   {% endblock %}
- * `);
- *
- * export const noteListView = templateView({
- *   templateName: "my-app/note_list.html",
- *   context: async (request, params) => ({
+ * export const note_list_view = templateView({
+ *   templateName: "notes/list.html",
+ *   context: async () => ({
  *     notes: await getNotes(),
  *   }),
  * });
  * ```
  *
- * @example Legacy API — static file with placeholder substitution
+ * @example Use a class-based view
  * ```ts
- * import { templateView } from "@alexi/views";
- * import { path } from "@alexi/urls";
+ * import { TemplateView } from "@alexi/views";
  *
- * const urlpatterns = [
- *   path("", templateView({
- *     templatePath: "./src/myapp/templates/index.html",
- *     context: {
- *       API_URL: "https://api.example.com",
- *     },
- *   }), { name: "home" }),
- * ];
+ * export const home_view = TemplateView.as_view({
+ *   templateName: "site/home.html",
+ * });
  * ```
  */
 

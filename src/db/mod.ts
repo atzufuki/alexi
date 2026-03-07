@@ -1,17 +1,37 @@
 /**
- * Alexi ORM - Django-inspired TypeScript ORM
+ * Alexi's Django-inspired ORM and query layer.
  *
- * A Django-like ORM for TypeScript/Deno with support for multiple backends.
+ * `@alexi/db` provides the model system, field classes, relation fields,
+ * managers, `QuerySet` API, and backend abstraction used across the framework.
+ * It is the foundation for Alexi apps that want Django-style data modeling in
+ * TypeScript while staying portable across Deno KV, IndexedDB, and custom
+ * backends.
+ *
+ * Start with `Model`, `Manager`, and concrete field types such as `CharField`,
+ * `IntegerField`, and `ForeignKey` when defining models. Use `QuerySet`, `Q`,
+ * and aggregation helpers like `Count` and `Sum` to express queries. Runtime
+ * setup is handled through `setup()`, `setBackend()`, or `registerBackend()`
+ * depending on whether you want a single default backend or named backends.
+ *
+ * The ORM itself is environment-neutral, but individual backend implementations
+ * have runtime constraints: Deno KV is server-side, IndexedDB is browser-only,
+ * and REST backends are intended for HTTP-connected clients.
  *
  * @module @alexi/db
  *
- * @example Using getBackend()
+ * @example Define and query a model
  * ```ts
- * import { getBackend, Model, CharField, Manager } from '@alexi/db';
+ * import { CharField, Manager, Model } from "@alexi/db";
  *
- * // After setup() has been called from @alexi/core:
- * const backend = getBackend();
- * const articles = await Article.objects.using(backend).all().fetch();
+ * class Article extends Model {
+ *   title = new CharField({ maxLength: 200 });
+ *
+ *   static objects = new Manager(Article);
+ * }
+ *
+ * const published = await Article.objects.filter({ status: "published" })
+ *   .orderBy("-createdAt")
+ *   .fetch();
  * ```
  */
 

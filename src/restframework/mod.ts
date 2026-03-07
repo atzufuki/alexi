@@ -1,43 +1,46 @@
 /**
- * Alexi REST Framework - Django REST Framework inspired API toolkit for Deno
+ * Alexi's Django REST Framework-style toolkit for building APIs.
  *
- * A powerful and flexible toolkit for building Web APIs with Deno,
- * inspired by Django REST Framework.
+ * `@alexi/restframework` layers serializers, viewsets, routers, permissions,
+ * authentication, pagination, throttling, versioning, and renderers on top of
+ * Alexi's URL system and ORM. It is the main package for turning models and
+ * request handlers into discoverable REST APIs with minimal boilerplate.
+ *
+ * Most projects start with `ModelSerializer`, `ModelViewSet`, and
+ * `DefaultRouter`. From there, add permission classes, JWT authentication,
+ * pagination, or alternative renderers such as the browsable API as needed.
+ * The package follows Django REST Framework concepts closely, so terms like
+ * serializer, viewset, action, and router map directly to familiar DRF flows.
+ *
+ * This package is request/response oriented and works wherever standard Web API
+ * primitives are available. Individual integrations may still be runtime-
+ * specific, such as JWT secret handling or ORM backend selection.
  *
  * @module @alexi/restframework
  *
- * @example Basic API setup
+ * @example ModelViewSet with router registration
  * ```ts
- * import { Application } from "@alexi/http";
- * import { DefaultRouter, ModelViewSet, ModelSerializer } from "@alexi/restframework";
+ * import {
+ *   DefaultRouter,
+ *   ModelSerializer,
+ *   ModelViewSet,
+ * } from "@alexi/restframework";
  * import { AssetModel } from "./models.ts";
  *
- * // Define a serializer
  * class AssetSerializer extends ModelSerializer {
- *   static Meta = {
+ *   static override Meta = {
  *     model: AssetModel,
- *     fields: ["id", "name", "description", "createdAt"],
- *     readOnlyFields: ["id", "createdAt"],
+ *     fields: ["id", "name", "createdAt"],
  *   };
  * }
  *
- * // Define a viewset
  * class AssetViewSet extends ModelViewSet {
  *   model = AssetModel;
  *   serializer_class = AssetSerializer;
  * }
  *
- * // Create router and register viewsets
  * const router = new DefaultRouter();
  * router.register("assets", AssetViewSet);
- *
- * // Create application
- * const app = new Application({
- *   urls: router.urls,
- * });
- *
- * // Start server
- * Deno.serve({ port: 8000 }, app.handler);
  * ```
  */
 
