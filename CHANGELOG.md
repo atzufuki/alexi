@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.39.1] - 2026-03-08
+
+### Fixed
+
+- Added `[key: string]: unknown` index signature to `FieldOptions<T>` so it is
+  structurally compatible with `ModelFieldLike.options`, fixing a TypeScript
+  error when extending `ModelSerializer` with a custom `Meta.model` (#242)
+
 ## [0.39.0] - 2026-03-07
 
 ### Changed
