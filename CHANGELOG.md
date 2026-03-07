@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.39.0] - 2026-03-07
+
+### Changed
+
+- Expanded package-level `@module` JSDoc across Alexi entrypoints so JSR package
+  overviews now describe package purpose, main concepts, starting exports, and
+  runtime constraints more clearly for both humans and AI tooling (#240)
+
+### Removed
+
+- Removed deprecated target configuration exports from `@alexi/types`
+  (`TargetType`, `TargetConfig`, and related target-specific config interfaces)
+  after the move to Django-style settings modules (#240)
+
 ## [0.38.2] - 2026-03-07
 
 ### Fixed
