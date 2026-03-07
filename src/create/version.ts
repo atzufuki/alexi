@@ -9,4 +9,4 @@
  * @module @alexi/create/version
  */
 
-export const VERSION = "0.38.2";
+export const VERSION = "0.38.3";
