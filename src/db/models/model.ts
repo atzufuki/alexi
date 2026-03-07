@@ -316,6 +316,13 @@ export class ModelRegistry {
  */
 export abstract class Model {
   /**
+   * Index signature so Model instances satisfy structural type checks that
+   * require `{ [key: string]: unknown }` (e.g. `ModelLike` in restframework).
+   * At runtime this is backed by the Proxy returned from the constructor.
+   */
+  [key: string]: unknown;
+
+  /**
    * Model metadata
    */
   static meta: ModelMeta = {};
