@@ -1,45 +1,33 @@
 /**
- * Alexi Admin - Django Admin-inspired administration interface
+ * Alexi's Django Admin-style administration interface.
  *
- * A powerful and flexible admin interface for Alexi ORM models,
- * built with HTML Props web components.
+ * `@alexi/admin` provides the classes and helpers needed to expose Alexi ORM
+ * models through a server-rendered admin UI. It centers on `AdminSite` for site
+ * configuration, `ModelAdmin` for per-model behavior, and `AdminRouter` for
+ * generating the actual admin URL tree and request handlers.
+ *
+ * The typical flow is to create an `AdminSite`, register models with
+ * `ModelAdmin` subclasses, then mount the generated routes in your application.
+ * Supporting exports cover model introspection, list filters, relation helpers,
+ * and bulk actions used by the admin implementation. The admin is intended for
+ * server-side use and depends on Alexi's request handling, templates, and JWT-
+ * backed admin authentication flow.
  *
  * @module @alexi/admin
  *
- * @example Basic Usage
- * ```typescript
- * import { AdminSite, ModelAdmin, register } from "@alexi/admin";
- * import { UserModel } from "./models/user.ts";
+ * @example Register a model with an admin site
+ * ```ts
+ * import { AdminSite, ModelAdmin } from "@alexi/admin";
+ * import { UserModel } from "./models.ts";
  *
- * // Create an admin site
- * const adminSite = new AdminSite({
- *   title: "My App Admin",
- *   urlPrefix: "/admin",
- * });
+ * const admin_site = new AdminSite({ urlPrefix: "/admin" });
  *
- * // Register a model with custom options
  * class UserAdmin extends ModelAdmin {
- *   listDisplay = ["id", "email", "firstName", "isActive"];
- *   searchFields = ["email", "firstName", "lastName"];
- *   listFilter = ["isActive", "subscriptionPlan"];
- *   ordering = ["-createdAt"];
+ *   listDisplay = ["id", "email", "isActive"];
+ *   searchFields = ["email"];
  * }
  *
- * adminSite.register(UserModel, UserAdmin);
- *
- * // Or use the decorator
- * @register(UserModel, adminSite)
- * class DecoratedUserAdmin extends ModelAdmin {
- *   listDisplay = ["email", "isActive"];
- * }
- *
- * export { adminSite };
- * ```
- *
- * @example Using UI Components (browser only)
- * ```typescript
- * // Import components separately for browser environments
- * import { AdminDataTable, AdminButton } from "@alexi/admin/components";
+ * admin_site.register(UserModel, UserAdmin);
  * ```
  */
 
