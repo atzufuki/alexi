@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.38.1] - 2026-03-07
+
+### Fixed
+
+- `@alexi/core/management`: custom CLI tools built on the management package no
+  longer inherit Alexi-branded help output or framework commands by default.
+  `ManagementUtility` now behaves as a neutral CLI runner, framework commands
+  are opt-in via explicit registration, and the new `getCliApplication()` API
+  provides a clear high-level entry point for both user CLIs and Alexi's own
+  `manage.ts` scaffold (#232, #233)
+
 ## [0.38.0] - 2026-03-06
 
 ### Added
