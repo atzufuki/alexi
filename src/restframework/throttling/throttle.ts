@@ -9,6 +9,8 @@
 
 import type { ViewSetContext } from "../viewsets/viewset.ts";
 
+export type { ViewSetContext } from "../viewsets/viewset.ts";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -17,6 +19,7 @@ import type { ViewSetContext } from "../viewsets/viewset.ts";
  * Throttle class constructor type
  */
 export interface ThrottleClass {
+  /** Construct a new throttle instance. */
   new (): BaseThrottle;
 }
 
@@ -98,7 +101,7 @@ export function parseRate(rate: string | null | undefined): ParsedRate | null {
 /**
  * In-memory throttle cache entry
  */
-interface CacheEntry {
+export interface CacheEntry {
   /** Timestamps of recent requests (Unix time in seconds) */
   history: number[];
 }
@@ -295,6 +298,7 @@ export class AnonRateThrottle extends BaseThrottle {
    */
   protected _rate: string | null = null;
 
+  /** Return the configured anonymous-user rate. */
   getRate(): string | null {
     return this._rate;
   }
@@ -324,6 +328,7 @@ export class AnonRateThrottle extends BaseThrottle {
     return "unknown";
   }
 
+  /** Build a cache key for anonymous requests using client IP. */
   getCacheKey(context: ViewSetContext): string | null {
     // Only throttle anonymous (unauthenticated) requests
     if (context.user != null) {
@@ -356,6 +361,7 @@ export class UserRateThrottle extends BaseThrottle {
    */
   protected _rate: string | null = null;
 
+  /** Return the configured authenticated-user rate. */
   getRate(): string | null {
     return this._rate;
   }
@@ -368,6 +374,7 @@ export class UserRateThrottle extends BaseThrottle {
     this.parsedRate = undefined; // Reset cached parsed rate
   }
 
+  /** Build a cache key for authenticated requests using user id. */
   getCacheKey(context: ViewSetContext): string | null {
     // Only throttle authenticated requests
     if (context.user == null) {
@@ -413,6 +420,7 @@ export class ScopedRateThrottle extends BaseThrottle {
    */
   protected _rate: string | null = null;
 
+  /** Return the configured scoped rate. */
   getRate(): string | null {
     return this._rate;
   }
@@ -425,6 +433,7 @@ export class ScopedRateThrottle extends BaseThrottle {
     this.parsedRate = undefined; // Reset cached parsed rate
   }
 
+  /** Build a scoped cache key using the throttle scope and user identity. */
   getCacheKey(context: ViewSetContext): string | null {
     const userId = context.user?.id ?? "anon";
     return `throttle_${this.scope}_${userId}`;

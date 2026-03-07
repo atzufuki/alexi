@@ -14,6 +14,8 @@ import {
   ViewSet,
 } from "../viewsets/viewset.ts";
 
+export type { URLPattern } from "@alexi/urls";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -29,9 +31,12 @@ export interface RegisterOptions {
 /**
  * Registered ViewSet entry
  */
-interface RegisteredViewSet {
+export interface RegisteredViewSet {
+  /** URL prefix registered for this viewset. */
   prefix: string;
+  /** ViewSet class constructor. */
   viewset: typeof ViewSet;
+  /** Base name used for route naming. */
   basename: string;
 }
 
@@ -117,7 +122,7 @@ export class DefaultRouter {
   /**
    * Get all generated URL patterns
    */
-  get urls(): URLPattern[] {
+  get urls(): ReadonlyArray<URLPattern> {
     const patterns: URLPattern[] = [];
 
     for (const { prefix, viewset, basename } of this._registry) {
@@ -272,7 +277,7 @@ export class DefaultRouter {
   /**
    * Get the registered ViewSets
    */
-  get registry(): readonly RegisteredViewSet[] {
+  get registry(): ReadonlyArray<RegisteredViewSet> {
     return this._registry;
   }
 }

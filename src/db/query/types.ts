@@ -5,6 +5,8 @@
 
 import type { Model } from "../models/model.ts";
 
+export type { Model } from "../models/model.ts";
+
 // ============================================================================
 // Lookup Types
 // ============================================================================
@@ -128,7 +130,7 @@ export type AggregateFunction = "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
  */
 export interface Aggregation {
   /** The aggregation function */
-  func: AggregateFunction;
+  func: "COUNT" | "SUM" | "AVG" | "MIN" | "MAX";
   /** The field to aggregate (use '*' for COUNT) */
   field: string;
   /** Optional alias for the result */
@@ -144,18 +146,38 @@ export function Count(field: string = "*", distinct = false): Aggregation {
   return { func: "COUNT", field, distinct };
 }
 
+/**
+ * Create a `SUM` aggregation descriptor.
+ *
+ * @param field Field name to sum.
+ */
 export function Sum(field: string): Aggregation {
   return { func: "SUM", field };
 }
 
+/**
+ * Create an `AVG` aggregation descriptor.
+ *
+ * @param field Field name to average.
+ */
 export function Avg(field: string): Aggregation {
   return { func: "AVG", field };
 }
 
+/**
+ * Create a `MIN` aggregation descriptor.
+ *
+ * @param field Field name to minimize.
+ */
 export function Min(field: string): Aggregation {
   return { func: "MIN", field };
 }
 
+/**
+ * Create a `MAX` aggregation descriptor.
+ *
+ * @param field Field name to maximize.
+ */
 export function Max(field: string): Aggregation {
   return { func: "MAX", field };
 }
@@ -187,7 +209,7 @@ export interface QueryState<T extends Model> {
   /** Filter conditions */
   filters: ParsedFilter[];
   /** Ordering specifications */
-  ordering: ParsedOrdering[];
+  ordering: Array<{ field: string; descending: boolean }>;
   /** Fields to select (empty = all) */
   selectFields: string[];
   /** Fields to defer loading */
@@ -197,7 +219,7 @@ export interface QueryState<T extends Model> {
   /** Relations to prefetch (separate queries) */
   prefetchRelated: string[];
   /** Annotations to add */
-  annotations: Annotations;
+  annotations: Record<string, Aggregation>;
   /** DISTINCT clause fields (empty = no distinct) */
   distinctFields: string[];
   /** LIMIT value */
@@ -263,7 +285,17 @@ export interface CompiledQuery {
   /** SQL query string (for SQL backends) */
   sql?: string;
   /** Operation descriptor (for NoSQL backends) */
-  operation?: QueryOperation;
+  operation?: {
+    type: "select" | "insert" | "update" | "delete" | "count";
+    table: string;
+    filters: ParsedFilter[];
+    ordering: Array<{ field: string; descending: boolean }>;
+    fields: string[];
+    limit: number | null;
+    offset: number | null;
+    data?: Record<string, unknown>;
+    bulk?: boolean;
+  };
   /** Query parameters */
   params: unknown[];
 }

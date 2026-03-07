@@ -89,10 +89,15 @@ export interface FieldDefinition {
  * ```
  */
 export class Serializer {
+  /** Raw input data passed to the serializer for validation. */
   protected readonly initialData?: Record<string, unknown>;
+  /** Existing instance being serialized or updated. */
   protected readonly instance?: unknown;
+  /** Whether validation should allow omitted fields. */
   protected readonly partial: boolean;
+  /** Additional serializer context such as request/view information. */
   protected readonly context: Record<string, unknown>;
+  /** Whether the serializer represents a collection rather than one object. */
   protected readonly many: boolean;
 
   private _validatedData?: Record<string, unknown>;
@@ -100,6 +105,11 @@ export class Serializer {
   private _isValidated = false;
   private _fields?: Record<string, SerializerField>;
 
+  /**
+   * Create a serializer instance.
+   *
+   * @param options Input data, existing instance, and serializer context.
+   */
   constructor(options: SerializerOptions = {}) {
     this.initialData = options.data;
     this.instance = options.instance;
@@ -609,6 +619,11 @@ export class Serializer {
  * Error thrown when field validation fails
  */
 export class FieldValidationError extends Error {
+  /**
+   * Create a field-validation error.
+   *
+   * @param message Human-readable validation message.
+   */
   constructor(message: string) {
     super(message);
     this.name = "FieldValidationError";
@@ -619,8 +634,15 @@ export class FieldValidationError extends Error {
  * Error thrown when object-level validation fails
  */
 export class ValidationError extends Error {
+  /** Optional field-level validation errors. */
   readonly fieldErrors?: ValidationErrors;
 
+  /**
+   * Create an object-level validation error.
+   *
+   * @param message Human-readable validation message.
+   * @param fieldErrors Optional field-specific validation details.
+   */
   constructor(message: string, fieldErrors?: ValidationErrors) {
     super(message);
     this.name = "ValidationError";
@@ -639,8 +661,14 @@ export class ValidationError extends Error {
  * Error thrown when serializer validation fails
  */
 export class SerializerValidationError extends Error {
+  /** Structured validation errors returned by the serializer. */
   readonly errors: ValidationErrors;
 
+  /**
+   * Create a serializer validation error.
+   *
+   * @param errors Structured serializer validation errors.
+   */
   constructor(errors: ValidationErrors) {
     super(JSON.stringify(errors));
     this.name = "SerializerValidationError";

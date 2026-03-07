@@ -15,6 +15,7 @@ export {
 } from "./renderers.ts";
 
 export type {
+  AcceptEntry,
   ContentNegotiationOptions,
   NegotiationResult,
   RenderContext,

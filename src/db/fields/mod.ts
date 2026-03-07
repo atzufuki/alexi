@@ -50,4 +50,5 @@ export type {
   LazyModelRef,
   ManyToManyFieldOptions,
   ModelClass,
+  RelatedQuerySetLike,
 } from "./relations.ts";

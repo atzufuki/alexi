@@ -20,11 +20,12 @@ testing.
 
 1. Create feature branch from `main`
 2. Implement changes following Alexi conventions
-3. Write tests for new functionality
-4. **Update documentation** (AGENTS.md, docs/, etc.)
-5. Run checks (fmt, lint, check, test)
-6. Commit with conventional commits
-7. Create PR linked to issue
+3. Write JSDoc documentation for all exported symbols
+4. Update prose documentation (AGENTS.md, docs/, etc.)
+5. Write tests for new functionality
+6. Run checks (fmt, lint, check, test, deno doc --lint)
+7. Commit with conventional commits
+8. Create PR linked to issue
 
 ## Step 1: Create Feature Branch
 
@@ -210,7 +211,194 @@ export class MyCommand extends BaseCommand {
 }
 ```
 
-## Step 4: Update Documentation
+## Step 4: Write JSDoc Documentation
+
+All exported symbols **must** have JSDoc documentation. JSR generates the
+package docs page directly from JSDoc comments — no separate documentation site
+is needed.
+
+Run `deno doc --lint src/<package>/mod.ts` to find missing documentation.
+
+### Module Documentation
+
+Every `mod.ts` must have a `@module` comment at the top. This becomes the
+"Overview" tab on the JSR package page and takes precedence over README.
+
+```typescript
+/**
+ * REST framework for Alexi — ViewSets, Serializers, Routers,
+ * Permissions, Throttling, and Pagination.
+ *
+ * Mirrors Django REST Framework's API for the Deno ecosystem.
+ *
+ * @example
+ * ```ts
+ * import { ModelViewSet, DefaultRouter } from "@alexi/restframework";
+ *
+ * class TaskViewSet extends ModelViewSet {
+ *   model = TaskModel;
+ * }
+ *
+ * const router = new DefaultRouter();
+ * router.register("tasks", TaskViewSet);
+ * export const urlpatterns = router.urls;
+ * ```
+ *
+ * @module
+ */
+```
+
+### Function Documentation
+
+Document every parameter, return value, and thrown error:
+
+```typescript
+/**
+ * Resolves a URL pattern to the matching view function.
+ *
+ * @param urlpatterns The list of URL patterns to search.
+ * @param path The URL path to resolve (without query string).
+ * @returns The matched view and extracted params, or `null` if no match.
+ * @throws {NotFoundError} When no pattern matches the given path.
+ *
+ * @example
+ * ```ts
+ * const result = resolve(urlpatterns, "/users/42/");
+ * // result.params === { id: "42" }
+ * ```
+ */
+export function resolve(
+  urlpatterns: URLPattern[],
+  path: string,
+): ResolvedView | null { ... }
+```
+
+### Class Documentation
+
+Document the class itself, every public property, and every public method:
+
+```typescript
+/**
+ * Full CRUD ViewSet backed by an ORM model.
+ *
+ * Provides `list`, `retrieve`, `create`, `update`, `partialUpdate`,
+ * and `destroy` actions automatically. Override {@link getQueryset}
+ * to customise which objects are returned.
+ *
+ * @example
+ * ```ts
+ * class ArticleViewSet extends ModelViewSet {
+ *   model = ArticleModel;
+ *   serializer_class = ArticleSerializer;
+ *   permission_classes = [IsAuthenticated];
+ * }
+ * ```
+ */
+export class ModelViewSet extends ViewSet {
+  /** The ORM model class this ViewSet operates on. */
+  model!: typeof Model;
+
+  /** Serializer class used to serialize/deserialize model instances. */
+  serializer_class?: typeof Serializer;
+
+  /**
+   * Returns the base queryset for list/detail actions.
+   *
+   * Override to apply default filters, annotations, or ordering.
+   * The returned queryset is further filtered by URL params for detail actions.
+   *
+   * @param context The current request context.
+   */
+  getQueryset(context: ViewSetContext): QuerySet<Model> { ... }
+}
+```
+
+### Interface Documentation
+
+Document every property:
+
+```typescript
+/**
+ * Configuration options for {@link RestBackend}.
+ */
+export interface RestBackendConfig {
+  /** Base URL for the API, e.g. `"https://api.example.com/api"`. */
+  apiUrl: string;
+
+  /** Enable verbose console logging for all requests. Defaults to `false`. */
+  debug?: boolean;
+
+  /**
+   * Declarative endpoint class definitions. See {@link ModelEndpoint}.
+   * Enables type-safe {@link RestBackend.action} calls.
+   */
+  endpoints?: Array<typeof ModelEndpoint>;
+}
+```
+
+### Supported JSDoc Tags
+
+| Tag | When to Use |
+|-----|-------------|
+| `@module` | Top of every `mod.ts` — module overview |
+| `@param name` | Every function/method parameter |
+| `@returns` | Non-void return values |
+| `@throws {ErrorType}` | Errors the function can throw |
+| `@example` | Code examples (use triple-backtick blocks) |
+| `@deprecated` | Removed in a future version |
+| `@experimental` | API may change |
+| `@since` | Version when symbol was added |
+| `@see` | Related symbols or external links |
+| `@category` | Group symbols in JSR sidebar |
+| `{@link Symbol}` | Inline links to other symbols |
+| `@internal` | Exclude from JSR listing (but keep in source) |
+| `@typeParam T` | Generic type parameters |
+| `@default` | Default value for optional params/properties |
+
+### @category for Grouping
+
+Use `@category` to group related symbols together in the JSR docs sidebar:
+
+```typescript
+/**
+ * Limits the rate of incoming requests.
+ * @category Throttling
+ */
+export class AnonRateThrottle extends BaseThrottle { ... }
+
+/**
+ * Controls access to ViewSet endpoints.
+ * @category Permissions
+ */
+export class IsAuthenticated extends BasePermission { ... }
+```
+
+Suggested categories per package:
+
+- `@alexi/restframework`: `"ViewSets"`, `"Serializers"`, `"Permissions"`,
+  `"Authentication"`, `"Throttling"`, `"Pagination"`, `"Versioning"`,
+  `"Renderers"`, `"Routing"`
+- `@alexi/db`: `"Models"`, `"Fields"`, `"QuerySet"`, `"Backends"`,
+  `"Aggregations"`
+- `@alexi/core`: `"Application"`, `"Management"`, `"Configuration"`
+
+### deno doc --lint
+
+Before committing, run the linter to catch missing docs:
+
+```bash
+deno doc --lint src/restframework/mod.ts
+deno doc --lint src/db/mod.ts
+```
+
+Lint catches three issues:
+
+1. Exported symbol references a non-exported type → export the type or add
+   `@internal`
+2. Missing return type or property type on public symbol
+3. Missing JSDoc comment on public symbol → add comment or `@ignore`
+
+## Step 5: Update Prose Documentation
 
 When implementing new features, update relevant documentation:
 
@@ -243,7 +431,7 @@ When implementing new features, update relevant documentation:
 - Adding Alexi-specific features
 - Changing backend support
 
-## Step 5: Write Tests
+## Step 6: Write Tests
 
 ### Test Location
 
@@ -341,7 +529,7 @@ deno test -A --unstable-kv src/db/backends/postgres/backend_test.ts
 deno test -A --unstable-kv --filter "PostgresBackend"
 ```
 
-## Step 6: Run All Checks
+## Step 7: Run All Checks
 
 Before committing:
 
@@ -350,6 +538,7 @@ deno task fmt      # Format ENTIRE codebase (required)
 deno task lint     # Lint code  
 deno task check    # Type check
 deno task test     # Run tests
+deno doc --lint src/<package>/mod.ts  # Check JSDoc coverage
 ```
 
 **IMPORTANT:** Always run `deno task fmt` from the project root. This formats
@@ -360,7 +549,7 @@ run on the entire project.
 
 All checks must pass.
 
-## Step 7: Commit Changes
+## Step 8: Commit Changes
 
 Use conventional commits:
 
@@ -383,7 +572,7 @@ Types:
 Scopes: `db`, `restframework`, `auth`, `core`, `urls`, `middleware`, `admin`,
 etc.
 
-## Step 8: Create Pull Request
+## Step 9: Create Pull Request
 
 ```bash
 git push -u origin feature/postgres-backend
@@ -419,8 +608,9 @@ Closes #<issue-number>
 - **Follow existing patterns** - Look at similar code (e.g., DenoKVBackend for
   new backends)
 - **snake_case files** - All `.ts` files must be lowercase snake_case
+- **JSDoc required** - All exported symbols need JSDoc; run `deno doc --lint`
 - **Tests required** - All new functionality needs tests
 - **Documentation required** - Update AGENTS.md and docs/ when adding features
-- **All checks must pass** - fmt, lint, check, test
+- **All checks must pass** - fmt, lint, check, test, deno doc --lint
 - **One feature per PR** - Keep PRs focused
 - **Link to issue** - Use `Closes #N` in PR body
