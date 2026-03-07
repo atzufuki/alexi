@@ -8,6 +8,8 @@
 
 import type { Model, QuerySet } from "@alexi/db";
 
+export type { Model, QuerySet } from "@alexi/db";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -16,6 +18,7 @@ import type { Model, QuerySet } from "@alexi/db";
  * Pagination class constructor type
  */
 export interface PaginationClass {
+  /** Construct a new pagination instance. */
   new (): BasePagination;
 }
 
@@ -202,6 +205,7 @@ export class PageNumberPagination extends BasePagination {
    */
   protected _numPages = 1;
 
+  /** Paginate a queryset using page-number semantics. */
   override async paginateQueryset<T extends Model>(
     queryset: QuerySet<T>,
     context: PaginationContext,
@@ -221,6 +225,7 @@ export class PageNumberPagination extends BasePagination {
     return queryset.offset(offset).limit(pageSize);
   }
 
+  /** Build the standard paginated response payload. */
   override async getResponseData<T>(
     data: T[],
     context: PaginationContext,
@@ -325,6 +330,7 @@ export class LimitOffsetPagination extends BasePagination {
    */
   protected _limit = 10;
 
+  /** Paginate a queryset using limit/offset semantics. */
   override async paginateQueryset<T extends Model>(
     queryset: QuerySet<T>,
     context: PaginationContext,
@@ -340,6 +346,7 @@ export class LimitOffsetPagination extends BasePagination {
     return queryset.offset(this._offset).limit(this._limit);
   }
 
+  /** Build the standard paginated response payload. */
   override async getResponseData<T>(
     data: T[],
     context: PaginationContext,
@@ -470,6 +477,7 @@ export class CursorPagination extends BasePagination {
    */
   protected _previousCursor: string | null = null;
 
+  /** Paginate a queryset using cursor semantics. */
   override async paginateQueryset<T extends Model>(
     queryset: QuerySet<T>,
     context: PaginationContext,
@@ -524,6 +532,7 @@ export class CursorPagination extends BasePagination {
     return paginatedQs.limit(pageSize);
   }
 
+  /** Build the cursor-pagination response payload. */
   override async getResponseData<T>(
     data: T[],
     context: PaginationContext,

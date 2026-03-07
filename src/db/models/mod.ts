@@ -16,6 +16,8 @@ export type {
   PartialModelData,
   ReverseRelationDef,
 } from "./model.ts";
+export { RelatedManager } from "../fields/relations.ts";
+export { Field } from "../fields/field.ts";
 
 // Manager class and exceptions
 export { DoesNotExist, Manager, MultipleObjectsReturned } from "./manager.ts";

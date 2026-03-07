@@ -9,6 +9,8 @@
 
 import type { ViewSetContext } from "../viewsets/viewset.ts";
 
+export type { ViewSetContext } from "../viewsets/viewset.ts";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -16,12 +18,18 @@ import type { ViewSetContext } from "../viewsets/viewset.ts";
 /**
  * The authenticated user shape populated by authentication classes
  */
-export type AuthenticatedUser = NonNullable<ViewSetContext["user"]>;
+export type AuthenticatedUser = {
+  id: number | string;
+  email?: string;
+  isAdmin?: boolean;
+  [key: string]: unknown;
+};
 
 /**
  * Authentication class constructor type
  */
 export interface AuthenticationClass {
+  /** Construct a new authentication instance. */
   new (): BaseAuthentication;
 }
 
@@ -112,6 +120,7 @@ export class JWTAuthentication extends BaseAuthentication {
    */
   secretKey: string = Deno.env.get("SECRET_KEY") ?? "";
 
+  /** Attempt JWT bearer authentication for the current request. */
   async authenticate(
     context: ViewSetContext,
   ): Promise<AuthenticatedUser | null> {

@@ -8,6 +8,8 @@
 
 import type { ViewSetContext } from "../viewsets/viewset.ts";
 
+export type { ViewSetContext } from "../viewsets/viewset.ts";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -16,6 +18,7 @@ import type { ViewSetContext } from "../viewsets/viewset.ts";
  * Permission class constructor type
  */
 export interface PermissionClass {
+  /** Construct a new permission instance. */
   new (): BasePermission;
 }
 
@@ -95,12 +98,15 @@ export abstract class BasePermission {
  * ```
  */
 export class AllowAny extends BasePermission {
+  /** Message shown when this permission reports access state. */
   override message = "Access allowed.";
 
+  /** Always allow the request. */
   hasPermission(_context: ViewSetContext): boolean {
     return true;
   }
 
+  /** Always allow object-level access. */
   override hasObjectPermission(
     _context: ViewSetContext,
     _obj: unknown,
@@ -123,12 +129,15 @@ export class AllowAny extends BasePermission {
  * ```
  */
 export class DenyAll extends BasePermission {
+  /** Message shown when access is denied. */
   override message = "Access denied.";
 
+  /** Always deny the request. */
   hasPermission(_context: ViewSetContext): boolean {
     return false;
   }
 
+  /** Always deny object-level access. */
   override hasObjectPermission(
     _context: ViewSetContext,
     _obj: unknown,
@@ -150,8 +159,10 @@ export class DenyAll extends BasePermission {
  * ```
  */
 export class IsAuthenticated extends BasePermission {
+  /** Message shown when authentication is required. */
   override message = "Authentication required.";
 
+  /** Require an authenticated user on the request context. */
   hasPermission(context: ViewSetContext): boolean {
     return context.user != null && context.user.id != null;
   }
@@ -170,8 +181,10 @@ export class IsAuthenticated extends BasePermission {
  * ```
  */
 export class IsAdminUser extends BasePermission {
+  /** Message shown when admin privileges are required. */
   override message = "Admin access required.";
 
+  /** Require an authenticated admin user. */
   hasPermission(context: ViewSetContext): boolean {
     return context.user != null && context.user.isAdmin === true;
   }
@@ -193,6 +206,7 @@ export class IsAdminUser extends BasePermission {
  * ```
  */
 export class IsAuthenticatedOrReadOnly extends BasePermission {
+  /** Message shown when write access requires authentication. */
   override message = "Authentication required for this action.";
 
   /**
@@ -200,6 +214,7 @@ export class IsAuthenticatedOrReadOnly extends BasePermission {
    */
   static readonly SAFE_METHODS = ["GET", "HEAD", "OPTIONS"];
 
+  /** Allow safe methods for everyone, require auth for unsafe methods. */
   hasPermission(context: ViewSetContext): boolean {
     const method = context.request.method.toUpperCase();
 
@@ -233,6 +248,11 @@ export class IsAuthenticatedOrReadOnly extends BasePermission {
 export class And extends BasePermission {
   private permissions: BasePermission[];
 
+  /**
+   * Create a logical AND permission.
+   *
+   * @param permissions Permission instances that must all pass.
+   */
   constructor(...permissions: BasePermission[]) {
     super();
     this.permissions = permissions;
@@ -245,6 +265,7 @@ export class And extends BasePermission {
     return new And(...classes.map((cls) => new cls()));
   }
 
+  /** Require every composed permission to allow the request. */
   async hasPermission(context: ViewSetContext): Promise<boolean> {
     for (const permission of this.permissions) {
       const result = await permission.hasPermission(context);
@@ -256,6 +277,7 @@ export class And extends BasePermission {
     return true;
   }
 
+  /** Require every composed permission to allow object-level access. */
   override async hasObjectPermission(
     context: ViewSetContext,
     obj: unknown,
@@ -287,6 +309,11 @@ export class And extends BasePermission {
 export class Or extends BasePermission {
   private permissions: BasePermission[];
 
+  /**
+   * Create a logical OR permission.
+   *
+   * @param permissions Permission instances where any passing permission allows access.
+   */
   constructor(...permissions: BasePermission[]) {
     super();
     this.permissions = permissions;
@@ -300,6 +327,7 @@ export class Or extends BasePermission {
     return new Or(...classes.map((cls) => new cls()));
   }
 
+  /** Allow the request when any composed permission passes. */
   async hasPermission(context: ViewSetContext): Promise<boolean> {
     for (const permission of this.permissions) {
       const result = await permission.hasPermission(context);
@@ -310,6 +338,7 @@ export class Or extends BasePermission {
     return false;
   }
 
+  /** Allow object access when any composed permission passes. */
   override async hasObjectPermission(
     context: ViewSetContext,
     obj: unknown,
@@ -340,6 +369,11 @@ export class Or extends BasePermission {
 export class Not extends BasePermission {
   private permission: BasePermission;
 
+  /**
+   * Create a logical NOT permission.
+   *
+   * @param permission Permission instance to invert.
+   */
   constructor(permission: BasePermission) {
     super();
     this.permission = permission;
@@ -353,11 +387,13 @@ export class Not extends BasePermission {
     return new Not(new cls());
   }
 
+  /** Invert the wrapped permission's request-level result. */
   async hasPermission(context: ViewSetContext): Promise<boolean> {
     const result = await this.permission.hasPermission(context);
     return !result;
   }
 
+  /** Invert the wrapped permission's object-level result. */
   override async hasObjectPermission(
     context: ViewSetContext,
     obj: unknown,

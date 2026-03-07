@@ -40,3 +40,4 @@ export type {
   AuthenticatedUser,
   AuthenticationClass,
 } from "./authentication.ts";
+export type { ViewSetContext } from "../viewsets/mod.ts";

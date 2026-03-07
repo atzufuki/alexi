@@ -6,8 +6,6 @@
  * @module @alexi/restframework/serializers/model_serializer
  */
 
-import type { Model } from "@alexi/db";
-import type { Field } from "@alexi/db";
 import type { SerializerField } from "./fields.ts";
 import {
   BooleanField,
@@ -27,6 +25,36 @@ import {
   type ValidationErrors,
 } from "./serializer.ts";
 
+/**
+ * Minimal ORM field contract required by `ModelSerializer`.
+ */
+export interface ModelFieldLike {
+  /** Runtime field configuration. */
+  options: {
+    blank?: boolean;
+    null?: boolean;
+    [key: string]: unknown;
+  };
+  /** Runtime constructor name used for field mapping. */
+  constructor: { name: string };
+  /** Whether the field defines a default value. */
+  hasDefault(): boolean;
+  /** Return the configured default value. */
+  getDefault(): unknown;
+}
+
+/**
+ * Minimal ORM model contract required by `ModelSerializer`.
+ */
+export interface ModelLike {
+  /** Return the model's field definitions. */
+  getFields(): Record<string, ModelFieldLike>;
+  /** Mark one field as dirty after assignment. */
+  markDirty(fieldName: string): void;
+  /** Model instances are dynamic records keyed by field name. */
+  [key: string]: unknown;
+}
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -34,7 +62,7 @@ import {
 /**
  * Model class type (constructor)
  */
-export type ModelClass<T extends Model = Model> = new () => T;
+export type ModelClass<T extends ModelLike = ModelLike> = new () => T;
 
 /**
  * Meta options for ModelSerializer
@@ -59,15 +87,24 @@ export interface ModelSerializerMeta {
 /**
  * Options for field generation
  */
-interface SerializerFieldOptions {
+export interface SerializerFieldOptions {
+  /** Whether the field must be present in input data. */
   required?: boolean;
+  /** Whether the field is read-only. */
   readOnly?: boolean;
+  /** Whether the field is write-only. */
   writeOnly?: boolean;
+  /** Whether explicit `null` is accepted. */
   allowNull?: boolean;
+  /** Default value used when the field is omitted. */
   default?: unknown;
+  /** Maximum string length. */
   maxLength?: number;
+  /** Minimum string length. */
   minLength?: number;
+  /** Minimum numeric value. */
   minValue?: number;
+  /** Maximum numeric value. */
   maxValue?: number;
 }
 
@@ -170,9 +207,13 @@ export abstract class ModelSerializer extends Serializer {
 
   /**
    * Build a serializer field from a model field
+   *
+   * @param modelField Source ORM field definition.
+   * @param fieldName Name of the field on the serializer/model.
+   * @param options Serializer-specific overrides.
    */
   protected buildField(
-    modelField: Field<unknown>,
+    modelField: ModelFieldLike,
     fieldName: string,
     options: Partial<SerializerFieldOptions>,
   ): SerializerField {
@@ -266,16 +307,21 @@ export abstract class ModelSerializer extends Serializer {
 
   /**
    * Create a new model instance from validated data
+   *
+   * @param validatedData Validated serializer payload.
+   * @returns Newly created model instance.
    */
   override async create(
     validatedData: Record<string, unknown>,
-  ): Promise<Model> {
+  ): Promise<ModelLike> {
     const meta = this.getMeta();
     const ModelClass = meta.model;
 
     // Get the manager from the model class
     const manager = (ModelClass as unknown as {
-      objects: { create: (data: Record<string, unknown>) => Promise<Model> };
+      objects: {
+        create: (data: Record<string, unknown>) => Promise<ModelLike>;
+      };
     }).objects;
 
     if (!manager || typeof manager.create !== "function") {
@@ -291,12 +337,16 @@ export abstract class ModelSerializer extends Serializer {
 
   /**
    * Update an existing model instance
+   *
+   * @param instance Existing model instance.
+   * @param validatedData Validated serializer payload.
+   * @returns Updated model instance.
    */
   override async update(
     instance: unknown,
     validatedData: Record<string, unknown>,
-  ): Promise<Model> {
-    const modelInstance = instance as Model;
+  ): Promise<ModelLike> {
+    const modelInstance = instance as ModelLike;
 
     // Update fields on the instance
     for (const [key, value] of Object.entries(validatedData)) {
@@ -315,8 +365,8 @@ export abstract class ModelSerializer extends Serializer {
   /**
    * Get the model instance from serializer
    */
-  getModelInstance(): Model | undefined {
-    return this.instance as Model | undefined;
+  getModelInstance(): ModelLike | undefined {
+    return this.instance as ModelLike | undefined;
   }
 }
 

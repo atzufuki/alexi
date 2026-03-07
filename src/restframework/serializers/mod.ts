@@ -99,4 +99,8 @@ export type { SerializerOptions, ValidationErrors } from "./serializer.ts";
 
 export { createModelSerializer, ModelSerializer } from "./model_serializer.ts";
 
-export type { ModelClass, ModelSerializerMeta } from "./model_serializer.ts";
+export type {
+  ModelClass,
+  ModelSerializerMeta,
+  SerializerFieldOptions,
+} from "./model_serializer.ts";

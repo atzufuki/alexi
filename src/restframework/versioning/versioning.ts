@@ -9,6 +9,8 @@
 
 import type { ViewSetContext } from "../viewsets/viewset.ts";
 
+export type { ViewSetContext } from "../viewsets/viewset.ts";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -17,6 +19,7 @@ import type { ViewSetContext } from "../viewsets/viewset.ts";
  * Versioning class constructor type
  */
 export interface VersioningClass {
+  /** Construct a new versioning instance. */
   new (): BaseVersioning;
 }
 
@@ -164,6 +167,7 @@ export class URLPathVersioning extends BaseVersioning {
    */
   versionParam = "version";
 
+  /** Resolve the API version from URL params. */
   determineVersion(
     _request: Request,
     params: Record<string, string>,
@@ -196,6 +200,7 @@ export class QueryParameterVersioning extends BaseVersioning {
    */
   versionParam = "version";
 
+  /** Resolve the API version from the query string. */
   determineVersion(
     request: Request,
     _params: Record<string, string>,
@@ -226,6 +231,7 @@ export class QueryParameterVersioning extends BaseVersioning {
  * ```
  */
 export class AcceptHeaderVersioning extends BaseVersioning {
+  /** Resolve the API version from the `Accept` header parameters. */
   determineVersion(
     request: Request,
     _params: Record<string, string>,
@@ -260,6 +266,12 @@ export class VersionNotAllowedError extends Error {
   /** The list of allowed versions */
   readonly allowedVersions: string[];
 
+  /**
+   * Create a version-not-allowed error.
+   *
+   * @param message Human-readable validation error.
+   * @param allowedVersions Versions accepted by the endpoint.
+   */
   constructor(message: string, allowedVersions: string[]) {
     super(message);
     this.name = "VersionNotAllowedError";

@@ -23,6 +23,10 @@ import type { URLPattern } from "@alexi/urls";
 import type { Middleware } from "@alexi/middleware";
 import type { TemplatesConfig } from "@alexi/types";
 
+export type { Middleware } from "@alexi/middleware";
+export type { URLPattern } from "@alexi/urls";
+export type { TemplatesConfig } from "@alexi/types";
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -152,6 +156,8 @@ export async function getWorkerApplication(
 /**
  * @deprecated Use `getHttpApplication()` for server-side code or
  * `getWorkerApplication(settings)` for Service Workers.
+ *
+ * @param settings Settings object used to build the application.
  */
 export async function getApplication(
   settings: GetApplicationSettings,

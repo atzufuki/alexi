@@ -5,12 +5,17 @@
 
 import { Field, FieldOptions, ValidationResult } from "./field.ts";
 
+export { Field } from "./field.ts";
+export type { FieldOptions, ValidationResult } from "./field.ts";
+
 // ============================================================================
 // String Fields
 // ============================================================================
 
 /**
  * CharField options
+ *
+ * Extends base field options with a required maximum string length.
  */
 export interface CharFieldOptions extends FieldOptions<string> {
   /** Maximum length of the string */
@@ -19,15 +24,24 @@ export interface CharFieldOptions extends FieldOptions<string> {
 
 /**
  * CharField - Fixed-length string field
+ *
+ * Use for bounded text values such as names, titles, and short slugs.
  */
 export class CharField extends Field<string> {
+  /** Maximum allowed string length. */
   readonly maxLength: number;
 
+  /**
+   * Create a bounded string field.
+   *
+   * @param options Base field options plus the required `maxLength`.
+   */
   constructor(options: CharFieldOptions) {
     super(options);
     this.maxLength = options.maxLength;
   }
 
+  /** Validate null/blank rules and enforce `maxLength`. */
   override validate(value: string | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
@@ -41,19 +55,23 @@ export class CharField extends Field<string> {
     return { valid: errors.length === 0, errors };
   }
 
+  /** Store the string value as-is. */
   toDB(value: string | null): string | null {
     return value;
   }
 
+  /** Normalize database values to strings. */
   fromDB(value: unknown): string | null {
     if (value === null || value === undefined) return null;
     return String(value);
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return `VARCHAR(${this.maxLength})`;
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<CharFieldOptions>): CharField {
     return new CharField({
       ...this.options,
@@ -62,6 +80,7 @@ export class CharField extends Field<string> {
     } as CharFieldOptions);
   }
 
+  /** Serialize field metadata for schema/introspection output. */
   override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
@@ -72,25 +91,33 @@ export class CharField extends Field<string> {
 
 /**
  * TextField - Unlimited length text field
+ *
+ * Use for long-form text content that should not be constrained by
+ * `maxLength`.
  */
 export class TextField extends Field<string> {
+  /** Create an unconstrained text field. */
   constructor(options?: Partial<FieldOptions<string>>) {
     super(options);
   }
 
+  /** Store the text value as-is. */
   toDB(value: string | null): string | null {
     return value;
   }
 
+  /** Normalize database values to strings. */
   fromDB(value: unknown): string | null {
     if (value === null || value === undefined) return null;
     return String(value);
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "TEXT";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<string>>): TextField {
     return new TextField({ ...this.options, ...options });
   }
@@ -102,12 +129,16 @@ export class TextField extends Field<string> {
 
 /**
  * IntegerField - Integer number field
+ *
+ * Accepts whole numbers and rejects fractional input during validation.
  */
 export class IntegerField extends Field<number> {
+  /** Create an integer field. */
   constructor(options?: Partial<FieldOptions<number>>) {
     super(options);
   }
 
+  /** Validate null/blank rules and ensure the value is an integer. */
   override validate(value: number | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
@@ -119,20 +150,24 @@ export class IntegerField extends Field<number> {
     return { valid: errors.length === 0, errors };
   }
 
+  /** Store the numeric value as-is. */
   toDB(value: number | null): number | null {
     return value;
   }
 
+  /** Normalize database values to integers. */
   fromDB(value: unknown): number | null {
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isNaN(num) ? null : Math.floor(num);
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "INTEGER";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<number>>): IntegerField {
     return new IntegerField({ ...this.options, ...options });
   }
@@ -140,26 +175,33 @@ export class IntegerField extends Field<number> {
 
 /**
  * FloatField - Floating-point number field
+ *
+ * Accepts any finite numeric value and preserves decimal fractions.
  */
 export class FloatField extends Field<number> {
+  /** Create a floating-point field. */
   constructor(options?: Partial<FieldOptions<number>>) {
     super(options);
   }
 
+  /** Store the numeric value as-is. */
   toDB(value: number | null): number | null {
     return value;
   }
 
+  /** Normalize database values to numbers. */
   fromDB(value: unknown): number | null {
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isNaN(num) ? null : num;
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "REAL";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<number>>): FloatField {
     return new FloatField({ ...this.options, ...options });
   }
@@ -167,6 +209,8 @@ export class FloatField extends Field<number> {
 
 /**
  * DecimalField options
+ *
+ * Stores decimal values as strings so precision is preserved across backends.
  */
 export interface DecimalFieldOptions extends FieldOptions<string> {
   /** Total number of digits */
@@ -179,15 +223,23 @@ export interface DecimalFieldOptions extends FieldOptions<string> {
  * DecimalField - Fixed-precision decimal field (stored as string for precision)
  */
 export class DecimalField extends Field<string> {
+  /** Total number of digits allowed. */
   readonly maxDigits: number;
+  /** Maximum number of digits after the decimal separator. */
   readonly decimalPlaces: number;
 
+  /**
+   * Create a fixed-precision decimal field.
+   *
+   * @param options Precision limits and base field options.
+   */
   constructor(options: DecimalFieldOptions) {
     super(options);
     this.maxDigits = options.maxDigits;
     this.decimalPlaces = options.decimalPlaces;
   }
 
+  /** Validate decimal syntax and configured precision limits. */
   override validate(value: string | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
@@ -217,19 +269,23 @@ export class DecimalField extends Field<string> {
     return { valid: errors.length === 0, errors };
   }
 
+  /** Store the decimal string as-is. */
   toDB(value: string | null): string | null {
     return value;
   }
 
+  /** Normalize database values to strings. */
   fromDB(value: unknown): string | null {
     if (value === null || value === undefined) return null;
     return String(value);
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return `DECIMAL(${this.maxDigits}, ${this.decimalPlaces})`;
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<DecimalFieldOptions>): DecimalField {
     return new DecimalField({
       ...this.options,
@@ -239,6 +295,7 @@ export class DecimalField extends Field<string> {
     } as DecimalFieldOptions);
   }
 
+  /** Serialize field metadata for schema/introspection output. */
   override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
@@ -256,14 +313,17 @@ export class DecimalField extends Field<string> {
  * BooleanField - Boolean true/false field
  */
 export class BooleanField extends Field<boolean> {
+  /** Create a boolean field. */
   constructor(options?: Partial<FieldOptions<boolean>>) {
     super(options);
   }
 
+  /** Store the boolean value as-is. */
   toDB(value: boolean | null): boolean | null {
     return value;
   }
 
+  /** Normalize common boolean-like database values. */
   fromDB(value: unknown): boolean | null {
     if (value === null || value === undefined) return null;
     if (typeof value === "boolean") return value;
@@ -274,10 +334,12 @@ export class BooleanField extends Field<boolean> {
     return Boolean(value);
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "BOOLEAN";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<boolean>>): BooleanField {
     return new BooleanField({ ...this.options, ...options });
   }
@@ -289,6 +351,8 @@ export class BooleanField extends Field<boolean> {
 
 /**
  * DateField options
+ *
+ * Controls auto-managed date behavior for `DateField` and `DateTimeField`.
  */
 export interface DateFieldOptions extends FieldOptions<Date> {
   /** Automatically set to current date on every save */
@@ -301,21 +365,26 @@ export interface DateFieldOptions extends FieldOptions<Date> {
  * DateField - Date field (without time)
  */
 export class DateField extends Field<Date> {
+  /** Whether the field updates itself on every save. */
   readonly autoNow: boolean;
+  /** Whether the field populates itself only on first save. */
   readonly autoNowAdd: boolean;
 
+  /** Create a date-only field. */
   constructor(options?: Partial<DateFieldOptions>) {
     super(options);
     this.autoNow = options?.autoNow ?? false;
     this.autoNowAdd = options?.autoNowAdd ?? false;
   }
 
+  /** Serialize dates as `YYYY-MM-DD`. */
   toDB(value: Date | null): string | null {
     if (value === null) return null;
     // Store as ISO date string (YYYY-MM-DD)
     return value.toISOString().split("T")[0];
   }
 
+  /** Parse database values into `Date` instances. */
   fromDB(value: unknown): Date | null {
     if (value === null || value === undefined) return null;
     if (value instanceof Date) return value;
@@ -326,10 +395,12 @@ export class DateField extends Field<Date> {
     return null;
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "DATE";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<DateFieldOptions>): DateField {
     return new DateField({
       ...this.options,
@@ -339,6 +410,7 @@ export class DateField extends Field<Date> {
     });
   }
 
+  /** Serialize field metadata for schema/introspection output. */
   override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
@@ -352,21 +424,26 @@ export class DateField extends Field<Date> {
  * DateTimeField - Date and time field
  */
 export class DateTimeField extends Field<Date> {
+  /** Whether the field updates itself on every save. */
   readonly autoNow: boolean;
+  /** Whether the field populates itself only on first save. */
   readonly autoNowAdd: boolean;
 
+  /** Create a date-time field. */
   constructor(options?: Partial<DateFieldOptions>) {
     super(options);
     this.autoNow = options?.autoNow ?? false;
     this.autoNowAdd = options?.autoNowAdd ?? false;
   }
 
+  /** Serialize dates as ISO 8601 strings. */
   toDB(value: Date | null): string | null {
     if (value === null) return null;
     // Store as ISO datetime string
     return value.toISOString();
   }
 
+  /** Parse database values into `Date` instances. */
   fromDB(value: unknown): Date | null {
     if (value === null || value === undefined) return null;
     if (value instanceof Date) return value;
@@ -377,10 +454,12 @@ export class DateTimeField extends Field<Date> {
     return null;
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "DATETIME";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<DateFieldOptions>): DateTimeField {
     return new DateTimeField({
       ...this.options,
@@ -390,6 +469,7 @@ export class DateTimeField extends Field<Date> {
     });
   }
 
+  /** Serialize field metadata for schema/introspection output. */
   override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
@@ -407,6 +487,7 @@ export class DateTimeField extends Field<Date> {
  * AutoField - Auto-incrementing integer primary key
  */
 export class AutoField extends Field<number> {
+  /** Create an auto-incrementing primary key field. */
   constructor(options?: Partial<FieldOptions<number>>) {
     super({
       ...options,
@@ -415,20 +496,24 @@ export class AutoField extends Field<number> {
     });
   }
 
+  /** Store the numeric value as-is. */
   toDB(value: number | null): number | null {
     return value;
   }
 
+  /** Normalize database values to numbers. */
   fromDB(value: unknown): number | null {
     if (value === null || value === undefined) return null;
     const num = Number(value);
     return Number.isNaN(num) ? null : num;
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "INTEGER PRIMARY KEY AUTOINCREMENT";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<number>>): AutoField {
     return new AutoField({ ...this.options, ...options });
   }
@@ -438,10 +523,12 @@ export class AutoField extends Field<number> {
  * UUIDField - UUID string field
  */
 export class UUIDField extends Field<string> {
+  /** Create a UUID field. */
   constructor(options?: Partial<FieldOptions<string>>) {
     super(options);
   }
 
+  /** Validate UUID syntax in addition to base string rules. */
   override validate(value: string | null): ValidationResult {
     const baseResult = super.validate(value);
     const errors = [...baseResult.errors];
@@ -457,19 +544,23 @@ export class UUIDField extends Field<string> {
     return { valid: errors.length === 0, errors };
   }
 
+  /** Store the UUID string as-is. */
   toDB(value: string | null): string | null {
     return value;
   }
 
+  /** Normalize database values to strings. */
   fromDB(value: unknown): string | null {
     if (value === null || value === undefined) return null;
     return String(value);
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "UUID";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<string>>): UUIDField {
     return new UUIDField({ ...this.options, ...options });
   }
@@ -490,15 +581,18 @@ export class UUIDField extends Field<string> {
  * JSONField - JSON object field
  */
 export class JSONField<T = unknown> extends Field<T> {
+  /** Create a JSON field. */
   constructor(options?: Partial<FieldOptions<T>>) {
     super(options);
   }
 
+  /** Serialize the value to JSON when needed by the backend. */
   toDB(value: T | null): string | null {
     if (value === null) return null;
     return JSON.stringify(value);
   }
 
+  /** Parse JSON strings or pass through native object values. */
   fromDB(value: unknown): T | null {
     if (value === null || value === undefined) return null;
     if (typeof value === "string") {
@@ -512,10 +606,12 @@ export class JSONField<T = unknown> extends Field<T> {
     return value as T;
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "JSON";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<T>>): JSONField<T> {
     return new JSONField<T>({ ...this.options, ...options });
   }
@@ -529,14 +625,17 @@ export class JSONField<T = unknown> extends Field<T> {
  * BinaryField - Binary data field
  */
 export class BinaryField extends Field<Uint8Array> {
+  /** Create a binary/blob field. */
   constructor(options?: Partial<FieldOptions<Uint8Array>>) {
     super(options);
   }
 
+  /** Store binary data as-is. */
   toDB(value: Uint8Array | null): Uint8Array | null {
     return value;
   }
 
+  /** Normalize database values to `Uint8Array`. */
   fromDB(value: unknown): Uint8Array | null {
     if (value === null || value === undefined) return null;
     if (value instanceof Uint8Array) return value;
@@ -544,10 +643,12 @@ export class BinaryField extends Field<Uint8Array> {
     return null;
   }
 
+  /** Return the SQL-ish column type for this field. */
   getDBType(): string {
     return "BLOB";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FieldOptions<Uint8Array>>): BinaryField {
     return new BinaryField({ ...this.options, ...options });
   }
@@ -621,11 +722,21 @@ export interface FileFieldOptions extends FieldOptions<string> {
  * ```
  */
 export class FileField extends Field<string> {
+  /** Base upload directory or callback used to build the final file path. */
   readonly uploadTo: string | ((instance: unknown, filename: string) => string);
+  /** Maximum accepted file size in bytes. */
   readonly maxSize?: number;
+  /** Allowed file extensions, including the leading dot. */
   readonly allowedExtensions?: string[];
+  /** Allowed MIME types such as `image/png` or `application/pdf`. */
   readonly allowedMimeTypes?: string[];
 
+  /**
+   * Create a file field.
+   *
+   * File fields default to `blank: true` because the stored value is typically
+   * populated after upload.
+   */
   constructor(options?: Partial<FileFieldOptions>) {
     super({ blank: true, ...options });
     this.uploadTo = options?.uploadTo ?? "";
@@ -713,19 +824,23 @@ export class FileField extends Field<string> {
     return filename.slice(lastDot).toLowerCase();
   }
 
+  /** Store the file path/name as-is. */
   toDB(value: string | null): string | null {
     return value;
   }
 
+  /** Normalize database values to file-path strings. */
   fromDB(value: unknown): string | null {
     if (value === null || value === undefined) return null;
     return String(value);
   }
 
+  /** Return the SQL-ish column type for persisted file paths. */
   getDBType(): string {
     return "VARCHAR(500)";
   }
 
+  /** Clone the field definition with optional overrides. */
   clone(options?: Partial<FileFieldOptions>): FileField {
     return new FileField({
       ...this.options,
@@ -737,6 +852,7 @@ export class FileField extends Field<string> {
     });
   }
 
+  /** Serialize field metadata for schema/introspection output. */
   override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
@@ -767,6 +883,9 @@ export class FileField extends Field<string> {
  * ```
  */
 export class ImageField extends FileField {
+  /**
+   * Create an image field with common image extensions and MIME types.
+   */
   constructor(options?: Partial<FileFieldOptions>) {
     // Default to common image extensions and MIME types
     const defaultExtensions = [
@@ -792,6 +911,7 @@ export class ImageField extends FileField {
     });
   }
 
+  /** Clone the field definition with optional overrides. */
   override clone(options?: Partial<FileFieldOptions>): ImageField {
     return new ImageField({
       ...this.options,

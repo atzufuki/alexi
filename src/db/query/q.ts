@@ -9,6 +9,9 @@
 import type { Model } from "../models/model.ts";
 import type { FilterConditions, LookupType, ParsedFilter } from "./types.ts";
 
+export type { Model } from "../models/model.ts";
+export type { FilterConditions, LookupType, ParsedFilter } from "./types.ts";
+
 // ============================================================================
 // Q Object
 // ============================================================================
@@ -47,6 +50,11 @@ export class Q<T extends Model = Model> {
   private _negated: boolean;
   private _children: Q<T>[];
 
+  /**
+   * Create a `Q` object from filter conditions.
+   *
+   * @param conditions Field lookups combined inside this node.
+   */
   constructor(conditions: FilterConditions<T> = {}) {
     this._conditions = conditions;
     this._connector = "AND";

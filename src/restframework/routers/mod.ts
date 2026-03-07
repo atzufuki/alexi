@@ -35,4 +35,8 @@
 
 export { DefaultRouter, SimpleRouter } from "./default_router.ts";
 
-export type { RegisterOptions } from "./default_router.ts";
+export type {
+  RegisteredViewSet,
+  RegisterOptions,
+  URLPattern,
+} from "./default_router.ts";
