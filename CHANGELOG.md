@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.39.2] - 2026-03-08
+
+### Fixed
+
+- Added `[key: string]: unknown` index signature to `Model` base class so
+  concrete model subclasses satisfy `ModelLike`'s structural type check, fixing
+  the TypeScript error when using a custom model as `Meta.model` in
+  `ModelSerializer` (#242)
+
 ## [0.39.1] - 2026-03-08
 
 ### Fixed

@@ -1,6 +1,6 @@
 {
   "name": "@alexi/capacitor",
-  "version": "0.39.1",
+  "version": "0.39.2",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -8,8 +8,8 @@
     "./commands": "./commands/mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.39.1",
-    "@alexi/core/management": "jsr:@alexi/core@0.39.1/management",
-    "@alexi/types": "jsr:@alexi/types@0.39.1"
+    "@alexi/core": "jsr:@alexi/core@0.39.2",
+    "@alexi/core/management": "jsr:@alexi/core@0.39.2/management",
+    "@alexi/types": "jsr:@alexi/types@0.39.2"
   }
 }
