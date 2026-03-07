@@ -1,14 +1,36 @@
 /**
- * @alexi/create - Project scaffolding CLI for Alexi
+ * Alexi's project and app scaffolding toolkit.
  *
- * Creates new Alexi projects with a unified app structure.
+ * `@alexi/create` powers the Alexi project generator and exposes the template
+ * and helper functions used to scaffold new projects, settings files, and app
+ * modules. It is primarily intended for CLI and generator workflows rather than
+ * normal runtime application code.
  *
- * @example
+ * The main starting points are `parseArgs()` for CLI argument handling and
+ * `createProject()` for generating a project on disk. The remaining exports are
+ * lower-level template builders used by the scaffolder to produce root files,
+ * unified app modules, worker entrypoints, and starter HTML templates.
+ *
+ * Because this package writes files and creates project structure, it is a
+ * server-side/tooling package rather than something to import into browser or
+ * request-handling code.
+ *
+ * @module @alexi/create
+ *
+ * @example Scaffold a new project from the CLI
  * ```bash
  * deno run -A jsr:@alexi/create myproject
  * ```
  *
- * @module @alexi/create
+ * @example Use the project generator programmatically
+ * ```ts
+ * import { createProject } from "@alexi/create";
+ *
+ * await createProject({
+ *   name: "myproject",
+ *   directory: "./myproject",
+ * });
+ * ```
  */
 
 // CLI
