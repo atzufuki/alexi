@@ -1,49 +1,30 @@
 /**
- * Alexi Capacitor
+ * Alexi's placeholder package for Capacitor-based mobile support.
  *
- * Mobile application support using Capacitor.
- * Provides native iOS and Android containers for web applications.
+ * `@alexi/capacitor` is intended to host the framework integration for running
+ * Alexi-powered web apps inside native iOS and Android shells via Capacitor. It
+ * currently exposes app metadata only and serves mainly as a discovery point for
+ * Alexi's planned mobile story.
  *
- * Capacitor is a cross-platform native runtime that makes it easy
- * to build web apps that run natively on iOS, Android, and the web.
+ * Today this package does not provide a complete implementation of sync, run,
+ * or build flows. The primary export is the app config used to register the
+ * package with Alexi, while the long-term direction is to add project tooling,
+ * native project generation, and plugin wrappers aligned with Capacitor's
+ * platform model.
  *
- * @module alexi_capacitor
+ * This is a tooling-oriented package with future dependencies on native mobile
+ * build chains and the Capacitor CLI. It is not currently a complete runtime
+ * integration layer.
  *
- * @example Usage in settings
+ * @module @alexi/capacitor
+ *
+ * @example Register the package in a mobile settings module
  * ```ts
- * // mobile.settings.ts
  * export const INSTALLED_APPS = [
- *   "alexi_capacitor",
- *   "myapp-ui",
+ *   () => import("@alexi/capacitor"),
+ *   () => import("@myapp/mobile"),
  * ];
- *
- * export const UI_APP = "myapp-ui";
- * export const API_URL = "https://api.myapp.io";
- *
- * export const CAPACITOR = {
- *   appId: "io.myapp.app",
- *   appName: "My App",
- * };
  * ```
- *
- * @example Commands
- * ```bash
- * # Sync web bundle to native projects
- * deno run -A manage.ts sync --settings mobile
- *
- * # Development - run on simulator/emulator
- * deno run -A manage.ts runserver --settings mobile --target ios
- * deno run -A manage.ts runserver --settings mobile --target android
- *
- * # Production - build for app stores
- * deno run -A manage.ts build --settings mobile --target ios
- * deno run -A manage.ts build --settings mobile --target android
- * ```
- *
- * @note This module is a placeholder. Full implementation will require:
- * - Node.js/npm integration for Capacitor CLI
- * - Native project generation (ios/, android/ directories)
- * - Plugin API wrappers for Deno
  */
 
 // =============================================================================
@@ -57,11 +38,8 @@ export { default as appConfig } from "./app.ts";
 // =============================================================================
 
 /**
- * Capacitor is not yet fully implemented.
+ * Capacitor support is not yet fully implemented.
  *
- * Planned features:
- * - sync: Copy web bundle to native projects
- * - run: Launch iOS simulator or Android emulator
- * - build: Create production builds (.ipa, .apk, .aab)
- * - Plugin wrappers for common Capacitor plugins
+ * Planned features include bundle sync, simulator and emulator launch flows,
+ * production mobile builds, and wrappers for common Capacitor plugins.
  */

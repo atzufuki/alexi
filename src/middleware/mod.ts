@@ -1,27 +1,34 @@
 /**
- * Alexi Middleware - Django-style middleware framework
+ * Alexi's middleware primitives and built-in HTTP middleware.
  *
- * Provides ready-to-use middleware for common use cases like CORS,
- * logging, and error handling.
+ * `@alexi/middleware` provides the `Middleware` and `NextFunction` contracts
+ * used by `Application`, plus production-ready middleware for CORS, request
+ * logging, and HTTP error handling. It covers the most common cross-cutting
+ * concerns in Alexi apps without forcing a framework-specific request object.
+ *
+ * Start with `loggingMiddleware()`, `corsMiddleware()`, and
+ * `errorHandlerMiddleware()` when assembling an application. The exported
+ * `HttpError` subclasses help plain views, viewsets, and custom middleware
+ * communicate consistent HTTP failures.
+ *
+ * The package is runtime-neutral and works anywhere the standard Web Request
+ * and Response APIs are available.
  *
  * @module @alexi/middleware
  *
- * @example
+ * @example Apply common middleware to an application
  * ```ts
  * import {
  *   corsMiddleware,
- *   loggingMiddleware,
  *   errorHandlerMiddleware,
+ *   loggingMiddleware,
  * } from "@alexi/middleware";
  *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [
- *     loggingMiddleware(),
- *     corsMiddleware({ origins: ["http://localhost:5173"] }),
- *     errorHandlerMiddleware(),
- *   ],
- * });
+ * const middleware = [
+ *   loggingMiddleware(),
+ *   corsMiddleware({ origins: ["http://localhost:5173"] }),
+ *   errorHandlerMiddleware(),
+ * ];
  * ```
  */
 
