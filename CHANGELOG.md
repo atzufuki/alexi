@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.38.2] - 2026-03-07
+
+### Fixed
+
+- Release tooling now regenerates a complete `deno.lock` during version sync by
+  caching the additional publish/test entrypoints that bring in release-time
+  dependencies like `playwright`, `esbuild`, and `esbuild-deno-loader`. This
+  fixes incomplete lockfiles in tagged releases and unblocks JSR publishing for
+  packages that depend on those modules during CI release validation.
+
 ## [0.38.1] - 2026-03-07
 
 ### Fixed

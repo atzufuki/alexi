@@ -175,13 +175,17 @@ async function main() {
       // Lock file might not exist
     }
 
-    // Regenerate lock by caching dependencies
+    // Regenerate lock by caching the same entry points our publish workflow
+    // exercises, so the committed lockfile is complete for CI and release jobs.
     const cacheCmd = new Deno.Command("deno", {
       args: [
         "cache",
         "--reload",
         "src/mod.ts",
         "src/db/tests/indexeddb_test.ts",
+        "src/create/tests/posts_e2e_test.ts",
+        "src/admin/tests/admin_e2e_test.ts",
+        "src/staticfiles/commands/bundle.ts",
       ],
       stdout: "inherit",
       stderr: "inherit",
