@@ -10,6 +10,9 @@
 import type { Model, QuerySet } from "@alexi/db";
 import type { ViewSetContext } from "../viewsets/viewset.ts";
 
+export type { Model, QuerySet } from "@alexi/db";
+export type { ViewSetContext } from "../viewsets/viewset.ts";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -113,6 +116,9 @@ export class QueryParamFilterBackend implements FilterBackend {
     "range",
   ]);
 
+  /**
+   * Filter a queryset using configured query parameters.
+   */
   filterQueryset<T extends Model>(
     queryset: QuerySet<T>,
     context: ViewSetContext,
@@ -263,6 +269,9 @@ export class QueryParamFilterBackend implements FilterBackend {
  * ```
  */
 export class SearchFilter implements FilterBackend {
+  /**
+   * Apply basic text search using the `search` query parameter.
+   */
   filterQueryset<T extends Model>(
     queryset: QuerySet<T>,
     context: ViewSetContext,
@@ -312,6 +321,9 @@ export class SearchFilter implements FilterBackend {
  * ```
  */
 export class OrderingFilter implements FilterBackend {
+  /**
+   * Apply ordering from the `ordering` query parameter or view defaults.
+   */
   filterQueryset<T extends Model>(
     queryset: QuerySet<T>,
     context: ViewSetContext,

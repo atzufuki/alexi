@@ -17,3 +17,4 @@ export {
 } from "./permission.ts";
 
 export type { PermissionClass } from "./permission.ts";
+export type { ViewSetContext } from "../viewsets/mod.ts";

@@ -87,6 +87,7 @@ export type {
   ModelClass,
   ModelSerializerMeta,
   PrimaryKeyRelatedFieldOptions,
+  SerializerFieldOptions,
   SerializerMethodFieldOptions,
   SerializerOptions,
   ValidationErrors,
@@ -118,9 +119,14 @@ export type {
   ActionMetadata,
   ActionOptions,
   ActionType,
+  CreateMixin,
+  DestroyMixin,
   HttpMethod,
+  ListMixin,
   ModelWithManager,
+  RetrieveMixin,
   SerializerClass,
+  UpdateMixin,
   ViewSetContext,
 } from "./viewsets/mod.ts";
 
@@ -194,6 +200,7 @@ export {
 } from "./renderers/mod.ts";
 
 export type {
+  AcceptEntry,
   BrowsableAPIRendererOptions,
   ContentNegotiationOptions,
   NegotiationResult,

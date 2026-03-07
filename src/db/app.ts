@@ -8,9 +8,12 @@
 
 import type { AppConfig } from "@alexi/types";
 
-const config: AppConfig = {
+/**
+ * Django-style app configuration for the Alexi ORM package.
+ */
+const config = {
   name: "alexi_db",
   verboseName: "Alexi Database",
-};
+} satisfies AppConfig;
 
 export default config;

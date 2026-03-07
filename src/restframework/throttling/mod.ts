@@ -14,4 +14,5 @@ export {
   UserRateThrottle,
 } from "./throttle.ts";
 
-export type { ParsedRate, ThrottleClass } from "./throttle.ts";
+export type { CacheEntry, ParsedRate, ThrottleClass } from "./throttle.ts";
+export type { ViewSetContext } from "../viewsets/mod.ts";

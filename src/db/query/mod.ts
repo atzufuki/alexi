@@ -6,6 +6,19 @@
  * @module
  */
 
+export { Model } from "../models/model.ts";
+export { Field } from "../fields/field.ts";
+export { RelatedManager } from "../fields/relations.ts";
+export { DatabaseBackend } from "../backends/backend.ts";
+export type { ModelOperationOptions } from "../models/model.ts";
+export type { FieldOptions } from "../fields/field.ts";
+export type { ModelClass } from "../fields/relations.ts";
+export type {
+  DatabaseConfig,
+  SchemaEditor,
+  Transaction,
+} from "../backends/backend.ts";
+
 // Query types and interfaces
 export {
   Avg,
@@ -18,6 +31,7 @@ export {
 } from "./types.ts";
 
 export type {
+  AggregateFunction,
   Aggregation,
   Aggregations,
   Annotations,

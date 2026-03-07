@@ -15,6 +15,11 @@ import {
 import type { DatabaseBackend } from "../backends/backend.ts";
 import { getBackend, getBackendByName, isInitialized } from "../setup.ts";
 
+export type { Field } from "../fields/field.ts";
+export { RelatedManager } from "../fields/relations.ts";
+export type { FieldOptions } from "../fields/field.ts";
+export type { DatabaseBackend } from "../backends/backend.ts";
+
 // ============================================================================
 // Save/Delete Options
 // ============================================================================
@@ -119,6 +124,14 @@ export interface ReverseRelationDef {
   fieldName: string;
 }
 
+/**
+ * Global registry of model classes known to the ORM.
+ *
+ * The registry is responsible for:
+ * - making string-based relation references resolvable
+ * - recording reverse relations declared via `relatedName`
+ * - exposing model lookups needed by hydration and proxy-based access
+ */
 export class ModelRegistry {
   private static _instance: ModelRegistry;
   // deno-lint-ignore no-explicit-any
@@ -176,6 +189,8 @@ export class ModelRegistry {
 
   /**
    * Get all registered models
+   *
+   * Returns a shallow copy so callers cannot mutate registry internals.
    */
   // deno-lint-ignore no-explicit-any
   getAll(): Map<string, any> {
@@ -331,6 +346,13 @@ export abstract class Model {
    */
   private _fieldsInitialized = false;
 
+  /**
+   * Create a new model instance.
+   *
+   * The constructor returns a proxy so reverse relations declared by
+   * `relatedName` can be accessed dynamically even when the related model is
+   * registered after this instance is created.
+   */
   constructor() {
     // Fields are initialized lazily via _ensureFieldsInitialized()
     // This is needed because class fields are set after super() is called
@@ -469,6 +491,9 @@ export abstract class Model {
 
   /**
    * Get all field instances on this model
+   *
+   * Includes relation fields and non-column fields such as many-to-many
+   * relations.
    */
   getFields(): Record<string, Field<unknown>> {
     this._ensureFieldsInitialized();
@@ -553,6 +578,10 @@ export abstract class Model {
 
   /**
    * Convert model instance to a plain object for database storage
+   *
+   * Only fields that contribute database columns are included. Relation fields
+   * such as many-to-many declarations are excluded because they are persisted
+   * separately.
    */
   toDB(): Record<string, unknown> {
     this._ensureFieldsInitialized();
@@ -587,6 +616,9 @@ export abstract class Model {
 
   /**
    * Populate model instance from database data
+   *
+   * Accepts either database column names or serializer-style field names so the
+   * same model can be hydrated from both low-level backends and REST payloads.
    */
   fromDB(data: Record<string, unknown>): void {
     this._ensureFieldsInitialized();
@@ -724,6 +756,9 @@ export abstract class Model {
 
   /**
    * Convert to a plain object
+   *
+   * This is intended for JSON-friendly representations and excludes internal
+   * state plus non-column relation metadata.
    */
   toObject(): Record<string, unknown> {
     this._ensureFieldsInitialized();

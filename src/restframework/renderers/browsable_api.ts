@@ -76,8 +76,11 @@ export interface BrowsableAPIContext {
  * ```
  */
 export class BrowsableAPIRenderer extends BaseRenderer {
+  /** MIME type emitted by this renderer. */
   readonly mediaType = "text/html";
+  /** `?format=` value for this renderer. */
   readonly format = "api";
+  /** Character set used by generated HTML responses. */
   override charset = "utf-8";
 
   /** API title shown in the page header */
@@ -95,6 +98,11 @@ export class BrowsableAPIRenderer extends BaseRenderer {
   /** Current user "me" URL */
   meUrl = "/api/auth/me/";
 
+  /**
+   * Create a browsable API renderer.
+   *
+   * @param options Optional title and auth-endpoint overrides.
+   */
   constructor(options?: BrowsableAPIRendererOptions) {
     super();
     if (options?.title) this.title = options.title;
@@ -106,6 +114,7 @@ export class BrowsableAPIRenderer extends BaseRenderer {
     if (options?.meUrl) this.meUrl = options.meUrl;
   }
 
+  /** Render an interactive HTML representation of the API response. */
   override render(data: unknown, context?: RenderContext): string {
     const method = context?.method ?? "GET";
     const url = context?.request?.url ?? "";

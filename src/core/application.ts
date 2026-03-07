@@ -15,6 +15,9 @@ import type { URLPattern } from "@alexi/urls";
 import type { Middleware, NextFunction } from "@alexi/middleware";
 import { HttpError } from "@alexi/middleware";
 
+export type { Middleware, NextFunction } from "@alexi/middleware";
+export type { URLPattern } from "@alexi/urls";
+
 // ============================================================================
 // Types (defined locally to avoid circular imports)
 // ============================================================================

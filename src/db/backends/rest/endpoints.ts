@@ -45,6 +45,9 @@
 import type { Model } from "../../models/model.ts";
 import type { SpecialQueryHandler } from "./backend.ts";
 
+export type { Model } from "../../models/model.ts";
+export type { SpecialQueryHandler } from "./backend.ts";
+
 // =============================================================================
 // Utility
 // =============================================================================
@@ -176,10 +179,18 @@ export interface SingletonQueryOptions {
  * ```
  */
 export class DetailAction<TResponse = Record<string, unknown>> {
+  /** Descriptor discriminator used during endpoint introspection. */
   readonly _type = "detail" as const;
+  /** HTTP method used when calling the action. */
   readonly method: "POST" | "PUT" | "PATCH" | "DELETE";
+  /** Optional URL-segment override for this action. */
   readonly urlSegment?: string;
 
+  /**
+   * Create a detail-action descriptor.
+   *
+   * @param options HTTP method and URL-segment overrides.
+   */
   constructor(options: DetailActionOptions = {}) {
     this.method = options.method ?? "POST";
     this.urlSegment = options.urlSegment;
@@ -208,11 +219,20 @@ export class DetailAction<TResponse = Record<string, unknown>> {
  * ```
  */
 export class ListAction<TResponse = Record<string, unknown>> {
+  /** Descriptor discriminator used during endpoint introspection. */
   readonly _type = "list" as const;
+  /** HTTP method used when calling the action. */
   readonly method: "POST" | "GET";
+  /** Whether the endpoint returns a single object rather than an array. */
   readonly single: boolean;
+  /** Optional URL-segment override for this action. */
   readonly urlSegment?: string;
 
+  /**
+   * Create a list-action descriptor.
+   *
+   * @param options HTTP method, single-result, and URL-segment overrides.
+   */
   constructor(options: ListActionOptions = {}) {
     this.method = options.method ?? "POST";
     this.single = options.single ?? false;
@@ -248,10 +268,18 @@ export class ListAction<TResponse = Record<string, unknown>> {
  * ```
  */
 export class SingletonQuery {
+  /** Descriptor discriminator used during endpoint introspection. */
   readonly _type = "singleton" as const;
+  /** Optional URL-segment override for this singleton endpoint. */
   readonly urlSegment?: string;
+  /** Filter value that triggers this singleton mapping. */
   readonly matchValue: unknown;
 
+  /**
+   * Create a singleton-query descriptor.
+   *
+   * @param options URL-segment and match-value overrides.
+   */
   constructor(options: SingletonQueryOptions = {}) {
     this.urlSegment = options.urlSegment;
     this.matchValue = options.matchValue ?? true;
@@ -312,8 +340,10 @@ export abstract class ModelEndpoint {
 // Descriptor Type Guards
 // =============================================================================
 
-/** Type guard for field-like endpoint descriptors */
-type EndpointDescriptor = DetailAction | ListAction | SingletonQuery;
+/**
+ * Union of all declarative endpoint descriptor types.
+ */
+export type EndpointDescriptor = DetailAction | ListAction | SingletonQuery;
 
 /** Check if a value is a DetailAction descriptor */
 export function isDetailAction(value: unknown): value is DetailAction {
@@ -347,6 +377,7 @@ export function isEndpointDescriptor(
  * Created by RestBackend during endpoint introspection.
  */
 export interface RegisteredDetailAction {
+  /** Action kind used by the backend dispatcher. */
   type: "detail";
   /** Endpoint base path (e.g., "projects") */
   endpoint: string;
@@ -363,6 +394,7 @@ export interface RegisteredDetailAction {
  * Created by RestBackend during endpoint introspection.
  */
 export interface RegisteredListAction {
+  /** Action kind used by the backend dispatcher. */
   type: "list";
   /** Endpoint base path (e.g., "projects") */
   endpoint: string;
@@ -388,7 +420,7 @@ export type RegisteredAction = RegisteredDetailAction | RegisteredListAction;
  * Contains all the information RestBackend needs to configure itself.
  */
 export interface EndpointIntrospection {
-  /** Model constructor */
+  /** Model constructor declared on the endpoint class. */
   modelClass: typeof Model;
   /** Model constructor name (e.g., "ProjectModel") */
   modelName: string;

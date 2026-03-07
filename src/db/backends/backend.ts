@@ -17,6 +17,15 @@ import type {
   QueryState,
 } from "../query/types.ts";
 
+export { Model } from "../models/model.ts";
+export type {
+  Aggregations,
+  CompiledQuery,
+  LookupType,
+  ParsedFilter,
+  QueryState,
+} from "../query/types.ts";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -95,9 +104,16 @@ export interface SchemaEditor {
  * ```
  */
 export abstract class DatabaseBackend {
+  /** Backend configuration used to establish connections and tune behavior. */
   protected _config: DatabaseConfig;
+  /** Whether `connect()` has completed successfully. */
   protected _connected = false;
 
+  /**
+   * Create a backend instance.
+   *
+   * @param config Backend-specific configuration values.
+   */
   constructor(config: DatabaseConfig) {
     this._config = config;
   }

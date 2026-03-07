@@ -14,7 +14,9 @@
  * Validation error with field-specific messages
  */
 export interface ValidationError {
+  /** Serializer field name that failed validation. */
   field: string;
+  /** Human-readable validation message. */
   message: string;
 }
 
@@ -22,8 +24,11 @@ export interface ValidationError {
  * Result of field validation
  */
 export interface FieldValidationResult {
+  /** Whether validation succeeded. */
   valid: boolean;
+  /** Normalized value to pass to serializer logic when validation succeeds. */
   value?: unknown;
+  /** Validation errors collected for the field. */
   errors: string[];
 }
 
@@ -67,16 +72,30 @@ export interface BaseFieldOptions {
  * Base class for all serializer fields
  */
 export abstract class SerializerField<T = unknown> {
+  /** Whether input is required when deserializing. */
   readonly required: boolean;
+  /** Whether the field is excluded from writes. */
   readonly readOnly: boolean;
+  /** Whether the field is excluded from output. */
   readonly writeOnly: boolean;
+  /** Default value used when the field is omitted. */
   readonly defaultValue?: T;
+  /** Whether explicit `null` values are accepted. */
   readonly allowNull: boolean;
+  /** Override error messages by key, such as `required` or `invalid`. */
   readonly errorMessages: Record<string, string>;
+  /** Optional descriptive text surfaced by higher-level tooling. */
   readonly helpText?: string;
+  /** Human-friendly label for forms or documentation. */
   readonly label?: string;
+  /** Source attribute name used when the serializer field is aliased. */
   readonly source?: string;
 
+  /**
+   * Create a serializer field.
+   *
+   * @param options Validation, representation, and metadata options.
+   */
   constructor(options: BaseFieldOptions = {}) {
     this.required = options.required ?? true;
     this.readOnly = options.readOnly ?? false;
@@ -167,6 +186,9 @@ export abstract class SerializerField<T = unknown> {
 // String Fields
 // ============================================================================
 
+/**
+ * Options for {@link CharField} and subclasses.
+ */
 export interface CharFieldOptions extends BaseFieldOptions {
   /** Maximum length */
   maxLength?: number;
@@ -185,11 +207,20 @@ export interface CharFieldOptions extends BaseFieldOptions {
  * String field with optional length constraints
  */
 export class CharField extends SerializerField<string> {
+  /** Maximum allowed string length. */
   readonly maxLength?: number;
+  /** Minimum required string length. */
   readonly minLength?: number;
+  /** Whether empty strings are accepted. */
   readonly allowBlank: boolean;
+  /** Whether incoming values are trimmed before validation. */
   readonly trim: boolean;
 
+  /**
+   * Create a string field.
+   *
+   * @param options Length, blank, and trimming options.
+   */
   constructor(options: CharFieldOptions = {}) {
     super(options);
     this.maxLength = options.maxLength;
@@ -198,6 +229,7 @@ export class CharField extends SerializerField<string> {
     this.trim = options.trim ?? true;
   }
 
+  /** Validate and normalize a string input value. */
   protected validateType(value: unknown): FieldValidationResult {
     const errors: string[] = [];
 
@@ -249,6 +281,12 @@ export class CharField extends SerializerField<string> {
  * Text field for longer strings (no max length by default)
  */
 export class TextField extends CharField {
+  /**
+   * Create a text field.
+   *
+   * Text fields default to `allowBlank: true` because they commonly model
+   * optional free-form content.
+   */
   constructor(options: CharFieldOptions = {}) {
     super({ allowBlank: true, ...options });
   }
@@ -261,6 +299,7 @@ export class EmailField extends CharField {
   private static readonly EMAIL_REGEX =
     /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
+  /** Validate that the value is a syntactically valid email address. */
   protected override validateType(value: unknown): FieldValidationResult {
     const result = super.validateType(value);
     if (!result.valid) return result;
@@ -283,6 +322,7 @@ export class EmailField extends CharField {
  * URL field with URL validation
  */
 export class URLField extends CharField {
+  /** Validate that the value is a syntactically valid absolute URL. */
   protected override validateType(value: unknown): FieldValidationResult {
     const result = super.validateType(value);
     if (!result.valid) return result;
@@ -310,6 +350,7 @@ export class UUIDField extends CharField {
   private static readonly UUID_REGEX =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+  /** Validate that the value is a UUID string. */
   protected override validateType(value: unknown): FieldValidationResult {
     const result = super.validateType(value);
     if (!result.valid) return result;
@@ -330,6 +371,9 @@ export class UUIDField extends CharField {
 // Numeric Fields
 // ============================================================================
 
+/**
+ * Options for {@link IntegerField}.
+ */
 export interface IntegerFieldOptions extends BaseFieldOptions {
   /** Minimum value */
   minValue?: number;
@@ -342,15 +386,23 @@ export interface IntegerFieldOptions extends BaseFieldOptions {
  * Integer field
  */
 export class IntegerField extends SerializerField<number> {
+  /** Minimum allowed numeric value. */
   readonly minValue?: number;
+  /** Maximum allowed numeric value. */
   readonly maxValue?: number;
 
+  /**
+   * Create an integer field.
+   *
+   * @param options Minimum and maximum numeric constraints.
+   */
   constructor(options: IntegerFieldOptions = {}) {
     super(options);
     this.minValue = options.minValue;
     this.maxValue = options.maxValue;
   }
 
+  /** Validate that the input is an integer within configured bounds. */
   protected validateType(value: unknown): FieldValidationResult {
     const errors: string[] = [];
 
@@ -401,6 +453,9 @@ export class IntegerField extends SerializerField<number> {
   }
 }
 
+/**
+ * Options for {@link FloatField}.
+ */
 export interface FloatFieldOptions extends BaseFieldOptions {
   /** Minimum value */
   minValue?: number;
@@ -413,15 +468,23 @@ export interface FloatFieldOptions extends BaseFieldOptions {
  * Float/decimal field
  */
 export class FloatField extends SerializerField<number> {
+  /** Minimum allowed numeric value. */
   readonly minValue?: number;
+  /** Maximum allowed numeric value. */
   readonly maxValue?: number;
 
+  /**
+   * Create a floating-point field.
+   *
+   * @param options Minimum and maximum numeric constraints.
+   */
   constructor(options: FloatFieldOptions = {}) {
     super(options);
     this.minValue = options.minValue;
     this.maxValue = options.maxValue;
   }
 
+  /** Validate that the input is numeric within configured bounds. */
   protected validateType(value: unknown): FieldValidationResult {
     const errors: string[] = [];
 
@@ -499,6 +562,7 @@ export class BooleanField extends SerializerField<boolean> {
     "OFF",
   ]);
 
+  /** Validate common boolean string and numeric representations. */
   protected validateType(value: unknown): FieldValidationResult {
     // Already boolean
     if (typeof value === "boolean") {
@@ -529,6 +593,7 @@ export class BooleanField extends SerializerField<boolean> {
  * DateTime field
  */
 export class DateTimeField extends SerializerField<Date> {
+  /** Validate and parse an ISO-like datetime input. */
   protected validateType(value: unknown): FieldValidationResult {
     // Already a Date
     if (value instanceof Date) {
@@ -558,6 +623,7 @@ export class DateTimeField extends SerializerField<Date> {
     return { valid: true, value: date, errors: [] };
   }
 
+  /** Serialize the date-time to ISO 8601. */
   override toRepresentation(value: Date): string {
     return value.toISOString();
   }
@@ -569,6 +635,7 @@ export class DateTimeField extends SerializerField<Date> {
 export class DateField extends SerializerField<Date> {
   private static readonly DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
+  /** Validate and parse a `YYYY-MM-DD` date string. */
   protected validateType(value: unknown): FieldValidationResult {
     // Already a Date
     if (value instanceof Date) {
@@ -606,6 +673,7 @@ export class DateField extends SerializerField<Date> {
     return { valid: true, value: date, errors: [] };
   }
 
+  /** Serialize the date as `YYYY-MM-DD`. */
   override toRepresentation(value: Date): string {
     return value.toISOString().split("T")[0];
   }
@@ -615,6 +683,9 @@ export class DateField extends SerializerField<Date> {
 // Choice Field
 // ============================================================================
 
+/**
+ * Options for {@link ChoiceField}.
+ */
 export interface ChoiceFieldOptions extends BaseFieldOptions {
   /** Allowed choices */
   choices: readonly (string | number)[];
@@ -624,13 +695,20 @@ export interface ChoiceFieldOptions extends BaseFieldOptions {
  * Choice field with predefined options
  */
 export class ChoiceField extends SerializerField<string | number> {
+  /** Allowed literal values for this field. */
   readonly choices: readonly (string | number)[];
 
+  /**
+   * Create a choice field.
+   *
+   * @param options Allowed values and base field options.
+   */
   constructor(options: ChoiceFieldOptions) {
     super(options);
     this.choices = options.choices;
   }
 
+  /** Validate that the input matches one of the configured choices. */
   protected validateType(value: unknown): FieldValidationResult {
     const val = typeof value === "number" ? value : String(value);
 
@@ -656,6 +734,9 @@ export class ChoiceField extends SerializerField<string | number> {
 // Composite Fields
 // ============================================================================
 
+/**
+ * Options for {@link ListField}.
+ */
 export interface ListFieldOptions extends BaseFieldOptions {
   /** Child field for list items */
   child: SerializerField;
@@ -674,11 +755,20 @@ export interface ListFieldOptions extends BaseFieldOptions {
  * List field for arrays
  */
 export class ListField extends SerializerField<unknown[]> {
+  /** Child field used to validate each list item. */
   readonly child: SerializerField;
+  /** Minimum number of items allowed. */
   readonly minLength?: number;
+  /** Maximum number of items allowed. */
   readonly maxLength?: number;
+  /** Whether an empty array is accepted. */
   readonly allowEmpty: boolean;
 
+  /**
+   * Create a list field.
+   *
+   * @param options Child field and array length constraints.
+   */
   constructor(options: ListFieldOptions) {
     super(options);
     this.child = options.child;
@@ -687,6 +777,7 @@ export class ListField extends SerializerField<unknown[]> {
     this.allowEmpty = options.allowEmpty ?? true;
   }
 
+  /** Validate that the input is an array and each item passes child validation. */
   protected validateType(value: unknown): FieldValidationResult {
     const errors: string[] = [];
 
@@ -752,6 +843,7 @@ export class ListField extends SerializerField<unknown[]> {
  * JSON field for arbitrary JSON data
  */
 export class JSONField extends SerializerField<unknown> {
+  /** Accept any JSON-serializable input value. */
   protected validateType(value: unknown): FieldValidationResult {
     // Accept any JSON-serializable value
     try {
@@ -797,13 +889,20 @@ export interface SerializerMethodFieldOptions extends BaseFieldOptions {
  * ```
  */
 export class SerializerMethodField extends SerializerField<unknown> {
+  /** Explicit serializer method name, if not using the default convention. */
   readonly methodName?: string;
 
+  /**
+   * Create a computed read-only field.
+   *
+   * @param options Optional custom method name and metadata.
+   */
   constructor(options: SerializerMethodFieldOptions = {}) {
     super({ ...options, readOnly: true, required: false });
     this.methodName = options.methodName;
   }
 
+  /** Ignore input validation because method fields are always read-only. */
   protected validateType(_value: unknown): FieldValidationResult {
     // SerializerMethodField is always read-only, no validation needed
     return { valid: true, value: undefined, errors: [] };
@@ -843,15 +942,23 @@ export interface PrimaryKeyRelatedFieldOptions extends BaseFieldOptions {
 export class PrimaryKeyRelatedField extends SerializerField<
   number | string | null
 > {
+  /** Whether the field accepts an array of primary keys. */
   readonly many: boolean;
+  /** Field name treated as the primary key when resolving relations. */
   readonly pkField: string;
 
+  /**
+   * Create a primary-key relationship field.
+   *
+   * @param options Relation cardinality and key-field configuration.
+   */
   constructor(options: PrimaryKeyRelatedFieldOptions = {}) {
     super(options);
     this.many = options.many ?? false;
     this.pkField = options.pkField ?? "id";
   }
 
+  /** Validate a primary key or array of primary keys. */
   protected validateType(value: unknown): FieldValidationResult {
     if (this.many) {
       if (!Array.isArray(value)) {
@@ -898,6 +1005,7 @@ export class PrimaryKeyRelatedField extends SerializerField<
     return { valid: true, value, errors: [] };
   }
 
+  /** Return the primary key unchanged in serialized output. */
   override toRepresentation(value: number | string | null): unknown {
     return value;
   }

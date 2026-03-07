@@ -87,6 +87,7 @@ export type {
   AuthResponse,
   AuthTokens,
   AuthUser,
+  DatabaseConfig,
   LoginCredentials,
   RegisterData,
   RestApiErrorData,
@@ -111,6 +112,7 @@ export {
 
 export type {
   DetailActionOptions,
+  EndpointDescriptor,
   EndpointIntrospection,
   ListActionOptions,
   RegisteredAction,
@@ -118,3 +120,42 @@ export type {
   RegisteredListAction,
   SingletonQueryOptions,
 } from "./endpoints.ts";
+
+// Public dependency types referenced by this submodule's API surface.
+export { DatabaseBackend } from "../backend.ts";
+export type { SchemaEditor, Transaction } from "../backend.ts";
+
+export { Model } from "../../models/model.ts";
+export type { ModelOperationOptions } from "../../models/model.ts";
+
+export type {
+  AggregateFunction,
+  Aggregation,
+  Aggregations,
+  Annotations,
+  CompiledQuery,
+  FilterConditions,
+  LookupType,
+  OrderByField,
+  ParsedFilter,
+  ParsedOrdering,
+  QueryOperation,
+  QueryState,
+} from "../../query/types.ts";
+
+export type { Field } from "../../fields/field.ts";
+export type {
+  FieldOptions,
+  ValidationResult,
+  Validator,
+} from "../../fields/field.ts";
+export { RelatedManager } from "../../fields/relations.ts";
+export type { ModelClass } from "../../fields/relations.ts";
+export { Q } from "../../query/q.ts";
+export type { QConnector, ResolvedQ } from "../../query/q.ts";
+export {
+  QuerySet,
+  ValuesListQuerySet,
+  ValuesQuerySet,
+} from "../../query/queryset.ts";
+export type { SaveResult } from "../../query/queryset.ts";
