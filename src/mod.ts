@@ -1,11 +1,36 @@
 /**
- * Alexi - A Django-inspired full-stack framework for Deno
+ * The umbrella entrypoint for the Alexi framework.
  *
- * This module provides a unified entry point for all Alexi functionality.
- * For more granular imports, use the specific module paths like @alexi/core,
- * @alexi/db, @alexi/restframework, etc.
+ * `jsr:@alexi` re-exports the main public surfaces from the framework's core
+ * packages so applications and exploratory tooling can discover Alexi from a
+ * single import. It brings together application setup, the ORM, URL routing,
+ * middleware, views, REST framework primitives, admin helpers, staticfiles,
+ * desktop integrations, and shared configuration types.
  *
- * @module
+ * This entrypoint is best suited for discovery, prototyping, and broad imports.
+ * For production application code, package-specific imports such as
+ * `@alexi/core`, `@alexi/db`, `@alexi/restframework`, and `@alexi/views`
+ * usually provide clearer intent and smaller dependency surfaces.
+ *
+ * The export surface includes both current APIs and a few compatibility
+ * re-exports where Alexi has moved functionality into more focused packages.
+ * Runtime constraints still follow the underlying packages: some exports are
+ * browser-safe, some are server-only, and others target desktop or mobile
+ * tooling.
+ *
+ * @module @alexi
+ *
+ * @example Start with package-specific imports
+ * ```ts
+ * import { getHttpApplication } from "@alexi/core";
+ * import { CharField, Manager, Model } from "@alexi/db";
+ * import { DefaultRouter, ModelViewSet } from "@alexi/restframework";
+ * ```
+ *
+ * @example Use the umbrella entrypoint for discovery
+ * ```ts
+ * import { path, templateView, Model, Manager, CharField } from "@alexi";
+ * ```
  */
 
 // =============================================================================
