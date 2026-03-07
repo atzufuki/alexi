@@ -224,7 +224,7 @@ Run `deno doc --lint src/<package>/mod.ts` to find missing documentation.
 Every `mod.ts` must have a `@module` comment at the top. This becomes the
 "Overview" tab on the JSR package page and takes precedence over README.
 
-```typescript
+````typescript
 /**
  * REST framework for Alexi — ViewSets, Serializers, Routers,
  * Permissions, Throttling, and Pagination.
@@ -246,13 +246,13 @@ Every `mod.ts` must have a `@module` comment at the top. This becomes the
  *
  * @module
  */
-```
+````
 
 ### Function Documentation
 
 Document every parameter, return value, and thrown error:
 
-```typescript
+````typescript
 /**
  * Resolves a URL pattern to the matching view function.
  *
@@ -271,13 +271,13 @@ export function resolve(
   urlpatterns: URLPattern[],
   path: string,
 ): ResolvedView | null { ... }
-```
+````
 
 ### Class Documentation
 
 Document the class itself, every public property, and every public method:
 
-```typescript
+````typescript
 /**
  * Full CRUD ViewSet backed by an ORM model.
  *
@@ -311,7 +311,7 @@ export class ModelViewSet extends ViewSet {
    */
   getQueryset(context: ViewSetContext): QuerySet<Model> { ... }
 }
-```
+````
 
 ### Interface Documentation
 
@@ -338,22 +338,22 @@ export interface RestBackendConfig {
 
 ### Supported JSDoc Tags
 
-| Tag | When to Use |
-|-----|-------------|
-| `@module` | Top of every `mod.ts` — module overview |
-| `@param name` | Every function/method parameter |
-| `@returns` | Non-void return values |
-| `@throws {ErrorType}` | Errors the function can throw |
-| `@example` | Code examples (use triple-backtick blocks) |
-| `@deprecated` | Removed in a future version |
-| `@experimental` | API may change |
-| `@since` | Version when symbol was added |
-| `@see` | Related symbols or external links |
-| `@category` | Group symbols in JSR sidebar |
-| `{@link Symbol}` | Inline links to other symbols |
-| `@internal` | Exclude from JSR listing (but keep in source) |
-| `@typeParam T` | Generic type parameters |
-| `@default` | Default value for optional params/properties |
+| Tag                   | When to Use                                   |
+| --------------------- | --------------------------------------------- |
+| `@module`             | Top of every `mod.ts` — module overview       |
+| `@param name`         | Every function/method parameter               |
+| `@returns`            | Non-void return values                        |
+| `@throws {ErrorType}` | Errors the function can throw                 |
+| `@example`            | Code examples (use triple-backtick blocks)    |
+| `@deprecated`         | Removed in a future version                   |
+| `@experimental`       | API may change                                |
+| `@since`              | Version when symbol was added                 |
+| `@see`                | Related symbols or external links             |
+| `@category`           | Group symbols in JSR sidebar                  |
+| `{@link Symbol}`      | Inline links to other symbols                 |
+| `@internal`           | Exclude from JSR listing (but keep in source) |
+| `@typeParam T`        | Generic type parameters                       |
+| `@default`            | Default value for optional params/properties  |
 
 ### @category for Grouping
 
