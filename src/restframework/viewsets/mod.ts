@@ -62,4 +62,12 @@ export {
   UpdateModelMixin,
 } from "./model_viewset.ts";
 
-export type { ModelWithManager, SerializerClass } from "./model_viewset.ts";
+export type {
+  CreateMixin,
+  DestroyMixin,
+  ListMixin,
+  ModelWithManager,
+  RetrieveMixin,
+  SerializerClass,
+  UpdateMixin,
+} from "./model_viewset.ts";

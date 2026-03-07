@@ -32,6 +32,7 @@ export type {
   ModelMeta,
   ModelOperationOptions,
   PartialModelData,
+  ReverseRelationDef,
 } from "./models/mod.ts";
 
 export {
@@ -88,6 +89,7 @@ export type {
   LazyModelRef,
   ManyToManyFieldOptions,
   ModelClass,
+  RelatedQuerySetLike,
 } from "./fields/mod.ts";
 
 // ============================================================================
@@ -104,6 +106,7 @@ export type { QConnector, ResolvedQ } from "./query/mod.ts";
 export { Avg, Count, Max, Min, Sum } from "./query/mod.ts";
 
 export type {
+  AggregateFunction,
   Aggregation,
   Aggregations,
   Annotations,

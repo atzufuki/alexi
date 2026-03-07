@@ -7,14 +7,19 @@
  * Validation result from field validation
  */
 export interface ValidationResult {
+  /** Whether validation succeeded. */
   valid: boolean;
+  /** Validation error messages collected for the value. */
   errors: string[];
 }
 
 /**
  * Validator function type
  */
-export type Validator<T> = (value: T | null) => ValidationResult;
+export type Validator<T> = (value: T | null) => {
+  valid: boolean;
+  errors: string[];
+};
 
 /**
  * Field options interface
@@ -37,7 +42,7 @@ export interface FieldOptions<T> {
   /** Allowed choices as [value, displayName] pairs */
   choices?: [T, string][];
   /** Custom validators */
-  validators?: Validator<T>[];
+  validators?: Array<(value: T | null) => { valid: boolean; errors: string[] }>;
   /** Human-readable field name */
   verboseName?: string;
   /** Help text for the field */
@@ -62,10 +67,18 @@ const DEFAULT_FIELD_OPTIONS: FieldOptions<unknown> = {
  * Abstract base class for all field types
  */
 export abstract class Field<T> {
+  /** Current in-memory field value. */
   protected _value: T | null = null;
+  /** Model property name assigned during model initialization. */
   protected _name: string = "";
+  /** Immutable field configuration. */
   readonly options: FieldOptions<T>;
 
+  /**
+   * Create a field instance.
+   *
+   * @param options Field configuration overrides.
+   */
   constructor(options?: Partial<FieldOptions<T>>) {
     this.options = { ...DEFAULT_FIELD_OPTIONS, ...options } as FieldOptions<T>;
   }
@@ -128,7 +141,7 @@ export abstract class Field<T> {
   /**
    * Validate the field value
    */
-  validate(value: T | null): ValidationResult {
+  validate(value: T | null): { valid: boolean; errors: string[] } {
     const errors: string[] = [];
 
     // Check null constraint

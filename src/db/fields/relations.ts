@@ -4,10 +4,11 @@
  */
 
 import { Field, FieldOptions } from "./field.ts";
-import type { QuerySet } from "../query/queryset.ts";
 import type { Model } from "../models/model.ts";
-import type { DatabaseBackend } from "../backends/backend.ts";
 import { getBackend, isInitialized } from "../setup.ts";
+
+export { Field } from "./field.ts";
+export type { FieldOptions } from "./field.ts";
 
 // ============================================================================
 // Relation Types
@@ -37,8 +38,37 @@ export type ModelClass<T = any> = new (...args: any[]) => T;
 
 /**
  * Type representing a lazy model reference (string name or class)
+ *
+ * String references are resolved lazily through the model registry, which makes
+ * it possible to declare circular relations before all models are registered.
  */
 export type LazyModelRef<T> = ModelClass<T> | string;
+
+/**
+ * Minimal queryset-like contract exposed by {@link RelatedManager}.
+ *
+ * This keeps the fields module's public API focused on relation usage without
+ * requiring consumers to import the entire query-layer type graph just to use
+ * reverse relations.
+ */
+export interface RelatedQuerySetLike<T> extends AsyncIterable<T> {
+  /** Fetch all matching related objects into memory. */
+  fetch(): Promise<{ array(): T[] }>;
+  /** Use a named backend or backend-like object for subsequent operations. */
+  using(backend: string | object): RelatedQuerySetLike<T>;
+  /** Apply additional filter conditions to the related queryset. */
+  filter(filters: Record<string, unknown>): RelatedQuerySetLike<T>;
+  /** Exclude objects matching the provided conditions. */
+  exclude(filters: Record<string, unknown>): RelatedQuerySetLike<T>;
+  /** Return the first related object, if any. */
+  first(): Promise<T | null>;
+  /** Return the last related object, if any. */
+  last(): Promise<T | null>;
+  /** Count matching related objects. */
+  count(): Promise<number>;
+  /** Check whether any related objects exist. */
+  exists(): Promise<boolean>;
+}
 
 // ============================================================================
 // Model Resolver
@@ -55,6 +85,8 @@ let _modelResolver: ((name: string) => any | undefined) | undefined;
  * Set the model resolver function. Called by ModelRegistry during initialization
  * so that ForeignKey and ManyToManyField can lazily resolve string-based model
  * references without a circular import dependency.
+ *
+ * @param resolver Function that maps a model name to its constructor.
  */
 // deno-lint-ignore no-explicit-any
 export function setModelResolver(
@@ -69,6 +101,9 @@ export function setModelResolver(
 
 /**
  * ForeignKey field options
+ *
+ * Extends base {@link FieldOptions} with relation-specific behavior such as
+ * delete cascades and reverse-relation naming.
  */
 export interface ForeignKeyOptions<T> extends FieldOptions<T> {
   /** Behavior when referenced object is deleted */
@@ -129,9 +164,13 @@ export interface ForeignKeyOptions<T> extends FieldOptions<T> {
  * ```
  */
 export class ForeignKey<T> extends Field<T> {
+  /** Related model reference, either as a class or lazy string name. */
   readonly relatedModel: LazyModelRef<T>;
+  /** How deletes on the target model affect this relation. */
   readonly onDelete: OnDelete;
+  /** Optional reverse relation name exposed on the target model. */
   readonly relatedName?: string;
+  /** Target field name on the related model, defaults to `id`. */
   readonly toField: string;
 
   private _resolvedModel?: ModelClass<T>;
@@ -143,6 +182,12 @@ export class ForeignKey<T> extends Field<T> {
   // deno-lint-ignore no-explicit-any
   private _backend?: any;
 
+  /**
+   * Create a foreign-key field.
+   *
+   * @param model Related model class or lazy model name.
+   * @param options Delete behavior and reverse-relation options.
+   */
   constructor(model: LazyModelRef<T>, options: ForeignKeyOptions<T>) {
     super(options);
     this.relatedModel = model;
@@ -382,6 +427,11 @@ export class ForeignKey<T> extends Field<T> {
     return this.options.dbColumn ?? `${this.name}_id`;
   }
 
+  /**
+   * Serialize the relation to its foreign-key identifier for database storage.
+   *
+   * If a related instance is loaded, its referenced field value is used.
+   */
   toDB(_value: T | null): unknown {
     // If we have a cached instance, use its ID
     if (this._isLoaded && this._relatedInstance !== null) {
@@ -403,6 +453,11 @@ export class ForeignKey<T> extends Field<T> {
     return this._foreignKeyId;
   }
 
+  /**
+   * Hydrate the relation from a raw foreign-key identifier.
+   *
+   * This does not fetch the related instance; it only stores the ID.
+   */
   fromDB(value: unknown): T | null {
     // ForeignKey fromDB stores the raw ID value
     // The actual model instance is loaded lazily or via selectRelated
@@ -412,12 +467,22 @@ export class ForeignKey<T> extends Field<T> {
     return value as T | null;
   }
 
+  /**
+   * Return the database column type used for foreign-key storage.
+   *
+   * Currently assumes integer primary keys.
+   */
   getDBType(): string {
     // FK type depends on the primary key type of the related model
     // For now, assume integer
     return "INTEGER";
   }
 
+  /**
+   * Clone the field definition and preserve runtime relation state.
+   *
+   * @param options Field option overrides for the clone.
+   */
   clone(options?: Partial<ForeignKeyOptions<T>>): ForeignKey<T> {
     const cloned = new ForeignKey<T>(this.relatedModel, {
       ...this.options,
@@ -437,6 +502,9 @@ export class ForeignKey<T> extends Field<T> {
     return cloned;
   }
 
+  /**
+   * Serialize field metadata for schema and introspection output.
+   */
   override serialize(): Record<string, unknown> {
     return {
       ...super.serialize(),
@@ -458,6 +526,11 @@ export class ForeignKey<T> extends Field<T> {
  * OneToOneField - Unique reference to another model (one-to-one relationship)
  */
 export class OneToOneField<T> extends ForeignKey<T> {
+  /**
+   * Create a one-to-one field.
+   *
+   * This behaves like {@link ForeignKey} with `unique: true` enforced.
+   */
   constructor(model: LazyModelRef<T>, options: ForeignKeyOptions<T>) {
     super(model, {
       ...options,
@@ -465,6 +538,11 @@ export class OneToOneField<T> extends ForeignKey<T> {
     });
   }
 
+  /**
+   * Clone the one-to-one field definition and preserve runtime relation state.
+   *
+   * @param options Field option overrides for the clone.
+   */
   override clone(options?: Partial<ForeignKeyOptions<T>>): OneToOneField<T> {
     const cloned = new OneToOneField<T>(this.relatedModel, {
       ...this.options,
@@ -496,6 +574,9 @@ export class OneToOneField<T> extends ForeignKey<T> {
 
 /**
  * ManyToManyField options
+ *
+ * Extends base {@link FieldOptions} with through-model and reverse-relation
+ * configuration.
  */
 export interface ManyToManyFieldOptions<T> extends FieldOptions<T[]> {
   /** Custom through/junction table model */
@@ -508,16 +589,30 @@ export interface ManyToManyFieldOptions<T> extends FieldOptions<T[]> {
 
 /**
  * ManyToManyField - Many-to-many relationship to another model
+ *
+ * Many-to-many fields do not store data in the source model's table. Instead,
+ * the relationship is represented through a junction model or auto-created
+ * through table managed by the backend.
  */
 export class ManyToManyField<T> extends Field<T[]> {
+  /** Related model reference, either as a class or lazy string name. */
   readonly relatedModel: LazyModelRef<T>;
+  /** Optional explicit through model. */
   readonly through?: LazyModelRef<unknown>;
+  /** Reverse relation name exposed on the related model. */
   readonly relatedName?: string;
+  /** Whether the backend should auto-create a junction model. */
   readonly autoCreated: boolean;
 
   private _resolvedModel?: ModelClass<T>;
   private _resolvedThrough?: ModelClass<unknown>;
 
+  /**
+   * Create a many-to-many field.
+   *
+   * @param model Related model class or lazy model name.
+   * @param options Through-model and reverse-relation options.
+   */
   constructor(
     model: LazyModelRef<T>,
     options?: Partial<ManyToManyFieldOptions<T>>,
@@ -600,21 +695,40 @@ export class ManyToManyField<T> extends Field<T[]> {
     return false;
   }
 
+  /**
+   * Serialize many-to-many fields for storage in the owning model row.
+   *
+   * Many-to-many relations are stored in a separate junction table, so this
+   * always returns `null`.
+   */
   toDB(_value: T[] | null): null {
     // M2M relationships are stored in junction tables, not as columns
     return null;
   }
 
+  /**
+   * Hydrate many-to-many values from a database row.
+   *
+   * Relationship values are loaded separately, so this always returns `null`.
+   */
   fromDB(_value: unknown): T[] | null {
     // M2M values are loaded separately via prefetch_related
     return null;
   }
 
+  /**
+   * Return a placeholder database type label for many-to-many relations.
+   */
   getDBType(): string {
     // M2M doesn't have a direct DB type
     return "M2M";
   }
 
+  /**
+   * Clone the many-to-many field definition.
+   *
+   * @param options Field option overrides for the clone.
+   */
   clone(options?: Partial<ManyToManyFieldOptions<T>>): ManyToManyField<T> {
     return new ManyToManyField<T>(this.relatedModel, {
       ...this.options,
@@ -625,6 +739,9 @@ export class ManyToManyField<T> extends Field<T[]> {
     });
   }
 
+  /**
+   * Serialize field metadata for schema and introspection output.
+   */
   override serialize(): Record<string, unknown> {
     const throughName = this.through
       ? typeof this.through === "string" ? this.through : this.through.name
@@ -655,6 +772,12 @@ export class ManyToManyManager<T> {
   private _field: ManyToManyField<T>;
   private _cachedItems: T[] | null = null;
 
+  /**
+   * Create a manager bound to one source instance and one many-to-many field.
+   *
+   * @param sourceModel Model instance owning the relation.
+   * @param field Relation definition used for backend operations.
+   */
   constructor(sourceModel: unknown, field: ManyToManyField<T>) {
     this._sourceModel = sourceModel;
     this._field = field;
@@ -767,8 +890,10 @@ export class ManyToManyManager<T> {
  * const filtered = await role.roleCompetences.filter({ competence: 5 }).fetch();
  * await role.roleCompetences.create({ competence: 10 });
  * ```
+ *
+ * @category Relations
  */
-export class RelatedManager<T extends Model> {
+export class RelatedManager<T extends Model = Model> {
   private _sourceInstance: unknown;
   private _relatedModel: ModelClass<T>;
   private _fieldName: string;
@@ -819,12 +944,12 @@ export class RelatedManager<T extends Model> {
    * const competences = await role.roleCompetences.all().fetch();
    * ```
    */
-  all(): QuerySet<T> {
+  all(): RelatedQuerySetLike<T> {
     // deno-lint-ignore no-explicit-any
     const sourcePk = (this._sourceInstance as any).pk;
     const filter = { [this._fieldName]: sourcePk };
     // deno-lint-ignore no-explicit-any
-    let qs: QuerySet<T> = (this._relatedModel as any).objects.filter(filter);
+    let qs = (this._relatedModel as any).objects.filter(filter);
     const backend = this._getBackend();
     if (backend) {
       qs = qs.using(backend);
@@ -853,13 +978,13 @@ export class RelatedManager<T extends Model> {
    * const data = await role.roleCompetences.using(myBackend).fetch();
    * ```
    */
-  using(backend: DatabaseBackend | string): QuerySet<T> {
+  using(backend: string | object): RelatedQuerySetLike<T> {
     // deno-lint-ignore no-explicit-any
     const sourcePk = (this._sourceInstance as any).pk;
     const filter = { [this._fieldName]: sourcePk };
     // deno-lint-ignore no-explicit-any
-    const qs: QuerySet<T> = (this._relatedModel as any).objects.filter(filter);
-    return qs.using(backend);
+    const qs = (this._relatedModel as any).objects.filter(filter);
+    return qs.using(backend) as RelatedQuerySetLike<T>;
   }
 
   /**
@@ -873,7 +998,7 @@ export class RelatedManager<T extends Model> {
    * const filtered = await role.roleCompetences.filter({ level: 3 }).fetch();
    * ```
    */
-  filter(filters: Record<string, unknown>): QuerySet<T> {
+  filter(filters: Record<string, unknown>): RelatedQuerySetLike<T> {
     return this.all().filter(filters);
   }
 
@@ -883,7 +1008,7 @@ export class RelatedManager<T extends Model> {
    * @param filters - Exclusion conditions
    * @returns Filtered QuerySet
    */
-  exclude(filters: Record<string, unknown>): QuerySet<T> {
+  exclude(filters: Record<string, unknown>): RelatedQuerySetLike<T> {
     return this.all().exclude(filters);
   }
 
@@ -1045,7 +1170,7 @@ export class RelatedManager<T extends Model> {
   /**
    * Get the related model class
    */
-  get relatedModel(): ModelClass<T> {
+  get relatedModel(): new (...args: unknown[]) => T {
     return this._relatedModel;
   }
 

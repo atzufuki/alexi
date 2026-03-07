@@ -32,6 +32,24 @@ import {
 } from "./types.ts";
 import { ForeignKey } from "../fields/relations.ts";
 
+export type { Model } from "../models/model.ts";
+export type { DatabaseBackend } from "../backends/backend.ts";
+export { Q } from "./q.ts";
+export type { ResolvedQ } from "./q.ts";
+export type {
+  Aggregation,
+  Aggregations,
+  Annotations,
+  CompiledQuery,
+  FilterConditions,
+  LookupType,
+  OrderByField,
+  ParsedFilter,
+  ParsedOrdering,
+  QueryOperation,
+  QueryState,
+} from "./types.ts";
+
 // ============================================================================
 // QuerySet Class
 // ============================================================================
@@ -64,6 +82,12 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   private _isFetched = false;
   private _isEmpty = false; // True for none() QuerySets - avoids all database queries
 
+  /**
+   * Create a queryset for a model class.
+   *
+   * @param model Model constructor queried by this queryset.
+   * @param backend Optional backend override for query execution.
+   */
   constructor(model: new () => T, backend?: DatabaseBackend) {
     this._state = createQueryState(model);
     this._backend = backend;
@@ -1305,7 +1329,9 @@ export interface SaveResult {
   total: number;
   /** Details of any errors that occurred */
   errors: Array<{
+    /** Model instance that failed to persist. */
     instance: Model;
+    /** Error raised while saving the instance. */
     error: Error;
   }>;
 }
@@ -1322,6 +1348,13 @@ export class ValuesQuerySet<T> implements AsyncIterable<T> {
   private _backend?: DatabaseBackend;
   private _fields: string[];
 
+  /**
+   * Create a values queryset.
+   *
+   * @param state Source query state.
+   * @param backend Backend used for execution.
+   * @param fields Selected field names.
+   */
   constructor(
     state: QueryState<Model>,
     backend: DatabaseBackend | undefined,
@@ -1356,6 +1389,7 @@ export class ValuesQuerySet<T> implements AsyncIterable<T> {
     });
   }
 
+  /** Iterate over fetched plain-object rows. */
   async *[Symbol.asyncIterator](): AsyncIterator<T> {
     const results = await this.fetch();
     for (const item of results) {
@@ -1376,6 +1410,13 @@ export class ValuesListQuerySet<T> implements AsyncIterable<T[]> {
   private _backend?: DatabaseBackend;
   private _fields: string[];
 
+  /**
+   * Create a values-list queryset.
+   *
+   * @param state Source query state.
+   * @param backend Backend used for execution.
+   * @param fields Selected field names.
+   */
   constructor(
     state: QueryState<Model>,
     backend: DatabaseBackend | undefined,
@@ -1418,6 +1459,7 @@ export class ValuesListQuerySet<T> implements AsyncIterable<T[]> {
     return results.map((row) => row[0]);
   }
 
+  /** Iterate over fetched row arrays. */
   async *[Symbol.asyncIterator](): AsyncIterator<T[]> {
     const results = await this.fetch();
     for (const item of results) {

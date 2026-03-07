@@ -24,20 +24,37 @@ import {
 } from "../serializers/serializer.ts";
 import { type HttpMethod, ViewSet, type ViewSetContext } from "./viewset.ts";
 
+export type { DatabaseBackend, Model, QuerySet } from "@alexi/db";
+
 // ============================================================================
 // Types
 // ============================================================================
 
 /**
- * Model class with static objects manager
+ * Minimal model constructor contract required by {@link ModelViewSet}.
+ *
+ * Any Alexi model class with a static `objects` manager satisfies this
+ * interface and can be assigned to `model` on a viewset.
+ *
+ * @category ViewSets
  */
 export interface ModelWithManager<T extends Model = Model> {
+  /** Create a new model instance. */
   new (): T;
+  /**
+   * Manager facade used by `ModelViewSet` to create and query records.
+   * Implemented by Alexi models via their static `objects` manager.
+   */
   objects: {
+    /** Return a queryset using the model's default backend. */
     all(): QuerySet<T>;
+    /** Bind the manager to a specific backend for subsequent operations. */
     using(backend: DatabaseBackend): {
+      /** Return a queryset using the provided backend. */
       all(): QuerySet<T>;
+      /** Create a new record using the provided backend. */
       create(data: Record<string, unknown>): Promise<T>;
+      /** Retrieve a single record using the provided backend. */
       get(conditions: Record<string, unknown>): Promise<T>;
     };
   };
@@ -49,6 +66,8 @@ export interface ModelWithManager<T extends Model = Model> {
  * Accepts both ModelSerializer and base Serializer classes.
  * This allows ViewSets to use simpler Serializers that don't
  * need full ModelSerializer features (like SerializerMethodField-based serializers).
+ *
+ * @category ViewSets
  */
 export type SerializerClass = new (options?: {
   data?: Record<string, unknown>;
@@ -63,7 +82,13 @@ export type SerializerClass = new (options?: {
 // ============================================================================
 
 /**
- * ModelViewSet provides default CRUD operations for a Model
+ * Full CRUD viewset backed by an Alexi ORM model.
+ *
+ * `ModelViewSet` provides default implementations for `list`, `create`,
+ * `retrieve`, `update`, `partial_update`, and `destroy`. Subclasses typically
+ * only need to set `model` and `serializer_class`, then optionally override
+ * hooks such as {@link getQueryset}, {@link performCreate},
+ * {@link performUpdate}, or {@link performDestroy}.
  *
  * @example
  * ```ts
@@ -85,31 +110,37 @@ export type SerializerClass = new (options?: {
  *   }
  * }
  * ```
+ *
+ * @category ViewSets
  */
 export abstract class ModelViewSet extends ViewSet
   implements FilterableViewSet {
   /**
-   * The model class for this ViewSet
+   * ORM model class served by this viewset.
    */
   abstract model: ModelWithManager;
 
   /**
-   * The serializer class for this ViewSet
+   * Serializer used for request validation and response serialization.
    */
   abstract serializer_class: SerializerClass;
 
   /**
-   * Database backend (optional, uses model's default if not set)
+   * Explicit backend override for all ORM operations in this viewset.
+   *
+   * When omitted, the model manager's default backend is used.
    */
   backend?: DatabaseBackend;
 
   /**
-   * The field used as the lookup in URL (default: "id")
+   * Model field used for detail lookups.
+   *
+   * Defaults to `"id"`, matching the common primary-key route pattern.
    */
   lookupField = "id";
 
   /**
-   * The URL parameter name for the lookup (default: "id")
+   * URL parameter name used to read the lookup value from route params.
    */
   lookupUrlKwarg = "id";
 
@@ -163,7 +194,7 @@ export abstract class ModelViewSet extends ViewSet
   orderingFields?: string[];
 
   /**
-   * Default ordering to apply when no ordering is specified
+   * Default ordering applied when the request does not specify one.
    */
   ordering?: string[];
 
@@ -194,7 +225,7 @@ export abstract class ModelViewSet extends ViewSet
   pagination_class?: PaginationClass | null;
 
   /**
-   * Cached paginator instance for the current request
+   * Cached paginator instance for the current request lifecycle.
    */
   protected _paginator?: BasePagination | null;
 
@@ -220,6 +251,9 @@ export abstract class ModelViewSet extends ViewSet
    *   return ProjectModel.objects.filter({ organisation_id: orgId });
    * }
    * ```
+   *
+   * @param _context Current request context.
+   * @returns Base queryset before filter backends and pagination are applied.
    */
   async getQueryset(_context: ViewSetContext): Promise<QuerySet<Model>> {
     if (this.backend) {
@@ -258,6 +292,11 @@ export abstract class ModelViewSet extends ViewSet
    * Get a single object by lookup field
    *
    * This method also checks object-level permissions after fetching.
+   *
+   * @param context Current request context.
+   * @returns Loaded model instance matching the configured lookup field.
+   * @throws {Error} If the route does not contain the lookup parameter.
+   * @throws {NotFoundError} If the object does not exist.
    */
   async getObject(context: ViewSetContext): Promise<Model> {
     const lookupValue = context.params[this.lookupUrlKwarg];
@@ -288,7 +327,13 @@ export abstract class ModelViewSet extends ViewSet
   }
 
   /**
-   * Parse the lookup value (e.g., convert string to number for ID)
+   * Parse a lookup value extracted from route params.
+   *
+   * The default implementation converts `id` lookups to numbers when possible
+   * and leaves all other lookup fields as strings.
+   *
+   * @param value Raw route parameter value.
+   * @returns Parsed lookup value used in ORM conditions.
    */
   protected parseLookupValue(value: string): unknown {
     // Try to parse as integer for ID fields
@@ -309,6 +354,8 @@ export abstract class ModelViewSet extends ViewSet
    * Get the serializer class for the current action
    *
    * Override this to use different serializers for different actions.
+   *
+   * @returns Serializer constructor for the current action.
    */
   getSerializerClass(): SerializerClass {
     return this.serializer_class;
@@ -316,6 +363,12 @@ export abstract class ModelViewSet extends ViewSet
 
   /**
    * Create a serializer instance
+   *
+   * The serializer receives view context automatically so custom fields and
+   * serializer methods can inspect the current request, action, and viewset.
+   *
+   * @param options Serializer construction options.
+   * @returns Instantiated serializer bound to the current request context.
    */
   getSerializer(options: {
     data?: Record<string, unknown>;
@@ -342,6 +395,8 @@ export abstract class ModelViewSet extends ViewSet
    * Get the paginator instance for the current request
    *
    * Returns null if pagination is disabled.
+   *
+   * @returns Cached paginator instance, a newly created paginator, or `null`.
    */
   getPaginator(): BasePagination | null {
     if (this._paginator !== undefined) {
@@ -432,6 +487,9 @@ export abstract class ModelViewSet extends ViewSet
    * // GET /api/todos/?completed=true -> returns completed todos
    * // GET /api/todos/?page=2 -> returns page 2 with pagination
    * ```
+   *
+   * @param context Current request context.
+   * @returns JSON response containing either a plain list or paginated payload.
    */
   override async list(context: ViewSetContext): Promise<Response> {
     // Reset paginator for each request
@@ -469,7 +527,11 @@ export abstract class ModelViewSet extends ViewSet
   }
 
   /**
-   * Create a new object (POST /)
+   * Create a new object (POST /).
+   *
+   * @param context Current request context.
+   * @returns `201 Created` response with the serialized object, or `400` when
+   * request validation fails.
    */
   override async create(context: ViewSetContext): Promise<Response> {
     let data: Record<string, unknown>;
@@ -511,6 +573,9 @@ export abstract class ModelViewSet extends ViewSet
    * Perform the create operation
    *
    * Override this to customize creation logic.
+   *
+   * @param serializer Serializer with validated request data.
+   * @returns Newly created model instance.
    */
   protected async performCreate(
     serializer: Serializer | ModelSerializer,
@@ -526,7 +591,11 @@ export abstract class ModelViewSet extends ViewSet
   }
 
   /**
-   * Retrieve a single object (GET /:id/)
+   * Retrieve a single object (GET /:id/).
+   *
+   * @param context Current request context.
+   * @returns JSON response containing the serialized object, or `404` when the
+   * object does not exist.
    */
   override async retrieve(context: ViewSetContext): Promise<Response> {
     try {
@@ -544,21 +613,25 @@ export abstract class ModelViewSet extends ViewSet
   }
 
   /**
-   * Update an object completely (PUT /:id/)
+   * Replace an object completely (PUT /:id/).
    */
   override async update(context: ViewSetContext): Promise<Response> {
     return this.performUpdateAction(context, false);
   }
 
   /**
-   * Partially update an object (PATCH /:id/)
+   * Partially update an object (PATCH /:id/).
    */
   override async partial_update(context: ViewSetContext): Promise<Response> {
     return this.performUpdateAction(context, true);
   }
 
   /**
-   * Common update logic for PUT and PATCH
+   * Shared implementation for `PUT` and `PATCH` requests.
+   *
+   * @param context Current request context.
+   * @param partial Whether omitted fields should be preserved (`PATCH`) or
+   * replaced (`PUT`).
    */
   private async performUpdateAction(
     context: ViewSetContext,
@@ -618,6 +691,10 @@ export abstract class ModelViewSet extends ViewSet
    * Perform the update operation
    *
    * Override this to customize update logic.
+   *
+   * @param serializer Serializer with validated request data.
+   * @param instance Existing model instance being updated.
+   * @returns Updated model instance.
    */
   protected async performUpdate(
     serializer: Serializer | ModelSerializer,
@@ -639,7 +716,11 @@ export abstract class ModelViewSet extends ViewSet
   }
 
   /**
-   * Delete an object (DELETE /:id/)
+   * Delete an object (DELETE /:id/).
+   *
+   * @param context Current request context.
+   * @returns Empty `204 No Content` response, or `404` when the object does not
+   * exist.
    */
   override async destroy(context: ViewSetContext): Promise<Response> {
     let instance: Model;
@@ -661,6 +742,9 @@ export abstract class ModelViewSet extends ViewSet
    * Perform the delete operation
    *
    * Override this to customize deletion logic.
+   *
+   * @param instance Existing model instance to delete.
+   * @throws {Error} If no backend is available for deletion.
    */
   protected async performDestroy(instance: Model): Promise<void> {
     // Use explicit backend or fall back to global backend
@@ -678,9 +762,16 @@ export abstract class ModelViewSet extends ViewSet
 // ============================================================================
 
 /**
- * Error thrown when an object is not found
+ * Error thrown when a detail lookup does not match any object.
+ *
+ * @category ViewSets
  */
 export class NotFoundError extends Error {
+  /**
+   * Create a new not-found error.
+   *
+   * @param message Error message returned to the caller.
+   */
   constructor(message = "Not found") {
     super(message);
     this.name = "NotFoundError";
@@ -692,14 +783,21 @@ export class NotFoundError extends Error {
 // ============================================================================
 
 /**
- * Mixin type for list functionality
+ * Structural type for objects that implement the list action.
+ *
+ * @category ViewSets
  */
 export interface ListMixin {
+  /** Handle a list request and return a collection response. */
   list(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
 }
 
 /**
- * Mixin that provides list functionality
+ * Reusable mixin object that forwards `list()` to {@link ModelViewSet}.
+ *
+ * Useful when composing custom viewset classes from behavior objects.
+ *
+ * @category ViewSets
  */
 export const ListModelMixin: ListMixin = {
   async list(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
@@ -708,14 +806,19 @@ export const ListModelMixin: ListMixin = {
 };
 
 /**
- * Mixin type for create functionality
+ * Structural type for objects that implement the create action.
+ *
+ * @category ViewSets
  */
 export interface CreateMixin {
+  /** Handle a create request and return the created resource response. */
   create(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
 }
 
 /**
- * Mixin that provides create functionality
+ * Reusable mixin object that forwards `create()` to {@link ModelViewSet}.
+ *
+ * @category ViewSets
  */
 export const CreateModelMixin: CreateMixin = {
   async create(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
@@ -724,14 +827,19 @@ export const CreateModelMixin: CreateMixin = {
 };
 
 /**
- * Mixin type for retrieve functionality
+ * Structural type for objects that implement the retrieve action.
+ *
+ * @category ViewSets
  */
 export interface RetrieveMixin {
+  /** Handle a detail request and return one serialized resource. */
   retrieve(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
 }
 
 /**
- * Mixin that provides retrieve functionality
+ * Reusable mixin object that forwards `retrieve()` to {@link ModelViewSet}.
+ *
+ * @category ViewSets
  */
 export const RetrieveModelMixin: RetrieveMixin = {
   async retrieve(
@@ -743,10 +851,14 @@ export const RetrieveModelMixin: RetrieveMixin = {
 };
 
 /**
- * Mixin type for update functionality
+ * Structural type for objects that implement update actions.
+ *
+ * @category ViewSets
  */
 export interface UpdateMixin {
+  /** Replace an existing resource with the request body. */
   update(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
+  /** Partially update an existing resource with the request body. */
   partial_update(
     this: ModelViewSet,
     context: ViewSetContext,
@@ -754,7 +866,9 @@ export interface UpdateMixin {
 }
 
 /**
- * Mixin that provides update functionality
+ * Reusable mixin object that forwards update actions to {@link ModelViewSet}.
+ *
+ * @category ViewSets
  */
 export const UpdateModelMixin: UpdateMixin = {
   async update(this: ModelViewSet, context: ViewSetContext): Promise<Response> {
@@ -769,14 +883,19 @@ export const UpdateModelMixin: UpdateMixin = {
 };
 
 /**
- * Mixin type for destroy functionality
+ * Structural type for objects that implement the destroy action.
+ *
+ * @category ViewSets
  */
 export interface DestroyMixin {
+  /** Delete a single resource and return an empty response. */
   destroy(this: ModelViewSet, context: ViewSetContext): Promise<Response>;
 }
 
 /**
- * Mixin that provides destroy functionality
+ * Reusable mixin object that forwards `destroy()` to {@link ModelViewSet}.
+ *
+ * @category ViewSets
  */
 export const DestroyModelMixin: DestroyMixin = {
   async destroy(
@@ -788,14 +907,28 @@ export const DestroyModelMixin: DestroyMixin = {
 };
 
 /**
- * Read-only ViewSet (list + retrieve)
+ * Read-only model viewset exposing only `list` and `retrieve`.
+ *
+ * This is the Alexi equivalent of DRF's `ReadOnlyModelViewSet`.
+ *
+ * @category ViewSets
  */
 export abstract class ReadOnlyModelViewSet extends ModelViewSet {
   // Only list and retrieve are enabled
+  /**
+   * Return a collection response.
+   *
+   * This override intentionally exposes only the read-only list action.
+   */
   override async list(context: ViewSetContext): Promise<Response> {
     return super.list(context);
   }
 
+  /**
+   * Return a single resource response.
+   *
+   * This override intentionally exposes only the read-only retrieve action.
+   */
   override async retrieve(context: ViewSetContext): Promise<Response> {
     return super.retrieve(context);
   }

@@ -31,6 +31,8 @@
 import type { DatabaseBackend } from "@alexi/db";
 import { isInitialized, registerBackend } from "@alexi/db";
 
+export type { DatabaseBackend } from "@alexi/db";
+
 // =============================================================================
 // Types
 // =============================================================================

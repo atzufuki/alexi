@@ -14,3 +14,4 @@ export {
 } from "./versioning.ts";
 
 export type { VersioningClass, VersioningConfig } from "./versioning.ts";
+export type { ViewSetContext } from "../viewsets/mod.ts";

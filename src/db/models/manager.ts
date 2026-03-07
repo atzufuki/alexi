@@ -13,6 +13,11 @@ import type { DatabaseBackend } from "../backends/backend.ts";
 import type { FilterConditions, OrderByField } from "../query/types.ts";
 import { getBackend, getBackendByName, isInitialized } from "../setup.ts";
 
+export { Model } from "./model.ts";
+export { QuerySet } from "../query/queryset.ts";
+export type { DatabaseBackend } from "../backends/backend.ts";
+export type { FilterConditions, OrderByField } from "../query/types.ts";
+
 // ============================================================================
 // Exceptions
 // ============================================================================
@@ -21,6 +26,11 @@ import { getBackend, getBackendByName, isInitialized } from "../setup.ts";
  * Exception raised when a query returns no results but one was expected
  */
 export class DoesNotExist extends Error {
+  /**
+   * Create a not-found error.
+   *
+   * @param message Human-readable error message.
+   */
   constructor(message: string) {
     super(message);
     this.name = "DoesNotExist";
@@ -31,6 +41,11 @@ export class DoesNotExist extends Error {
  * Exception raised when a query returns multiple results but one was expected
  */
 export class MultipleObjectsReturned extends Error {
+  /**
+   * Create a multiple-results error.
+   *
+   * @param message Human-readable error message.
+   */
   constructor(message: string) {
     super(message);
     this.name = "MultipleObjectsReturned";
@@ -60,6 +75,11 @@ export class Manager<T extends Model> {
   private _modelClass: new () => T;
   private _backend?: DatabaseBackend;
 
+  /**
+   * Create a manager bound to one model class.
+   *
+   * @param modelClass Model constructor this manager should query.
+   */
   constructor(modelClass: new () => T) {
     this._modelClass = modelClass;
 

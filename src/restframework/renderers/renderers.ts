@@ -34,6 +34,7 @@ export interface RenderContext {
  * Renderer class constructor type
  */
 export interface RendererClass {
+  /** Construct a new renderer instance. */
   new (): BaseRenderer;
 }
 
@@ -118,9 +119,12 @@ export abstract class BaseRenderer {
  * ```
  */
 export class JSONRenderer extends BaseRenderer {
+  /** MIME type emitted by this renderer. */
   readonly mediaType = "application/json";
+  /** `?format=` value for this renderer. */
   readonly format = "json";
 
+  /** Serialize data as JSON. */
   render(data: unknown, _context?: RenderContext): string {
     return JSON.stringify(data);
   }
@@ -144,9 +148,12 @@ export class JSONRenderer extends BaseRenderer {
  * ```
  */
 export class XMLRenderer extends BaseRenderer {
+  /** MIME type emitted by this renderer. */
   readonly mediaType = "application/xml";
+  /** `?format=` value for this renderer. */
   readonly format = "xml";
 
+  /** Serialize data as XML. */
   render(data: unknown, _context?: RenderContext): string {
     return `<?xml version="1.0" encoding="UTF-8"?>\n${
       this.toXml(data, "root")
@@ -208,9 +215,12 @@ export class XMLRenderer extends BaseRenderer {
  * ```
  */
 export class CSVRenderer extends BaseRenderer {
+  /** MIME type emitted by this renderer. */
   readonly mediaType = "text/csv";
+  /** `?format=` value for this renderer. */
   readonly format = "csv";
 
+  /** Serialize array-like data as CSV. */
   render(data: unknown, _context?: RenderContext): string {
     // Handle paginated responses (DRF-style: { count, results })
     const rows = this.extractRows(data);
@@ -360,8 +370,10 @@ export function selectRenderer(
 /**
  * Parsed Accept header entry
  */
-interface AcceptEntry {
+export interface AcceptEntry {
+  /** Requested media type. */
   mediaType: string;
+  /** Quality factor from the Accept header. */
   quality: number;
 }
 

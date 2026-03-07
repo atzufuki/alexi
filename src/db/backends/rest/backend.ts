@@ -55,7 +55,7 @@
 
 import { DatabaseBackend } from "../backend.ts";
 import type { SchemaEditor, Transaction } from "../backend.ts";
-import type { Model } from "../../models/model.ts";
+import { Model } from "../../models/model.ts";
 import type {
   Aggregations,
   CompiledQuery,
@@ -69,6 +69,30 @@ import type {
   RegisteredAction,
 } from "./endpoints.ts";
 
+export { DatabaseBackend } from "../backend.ts";
+export type { DatabaseConfig, SchemaEditor, Transaction } from "../backend.ts";
+export type { Model } from "../../models/model.ts";
+export type {
+  Aggregation,
+  Aggregations,
+  Annotations,
+  CompiledQuery,
+  LookupType,
+  ParsedFilter,
+  ParsedOrdering,
+  QueryOperation,
+  QueryState,
+} from "../../query/types.ts";
+export type {
+  EndpointIntrospection,
+  ModelEndpoint,
+  RegisteredAction,
+  RegisteredDetailAction,
+  RegisteredListAction,
+} from "./endpoints.ts";
+export type { Field } from "../../fields/field.ts";
+export { RelatedManager } from "../../fields/relations.ts";
+
 // =============================================================================
 // Auth Types
 // =============================================================================
@@ -77,7 +101,9 @@ import type {
  * Login credentials
  */
 export interface LoginCredentials {
+  /** Login identifier used by the API. */
   email: string;
+  /** Plain-text password submitted to the login endpoint. */
   password: string;
 }
 
@@ -85,10 +111,15 @@ export interface LoginCredentials {
  * Registration data
  */
 export interface RegisterData {
+  /** Email address for the new account. */
   email: string;
+  /** Plain-text password for the new account. */
   password: string;
+  /** Optional given name. */
   firstName?: string;
+  /** Optional family name. */
   lastName?: string;
+  /** Additional registration fields forwarded to the API unchanged. */
   [key: string]: unknown;
 }
 
@@ -97,22 +128,39 @@ export interface RegisterData {
  * Supports both camelCase and snake_case field names.
  */
 export interface AuthUser {
+  /** Primary key as returned by the API. */
   id: number | string;
+  /** Normalized email address. */
   email: string;
+  /** CamelCase given name field used by some APIs. */
   firstName?: string;
+  /** CamelCase family name field used by some APIs. */
   lastName?: string;
+  /** snake_case given name field used by some APIs. */
   first_name?: string;
+  /** snake_case family name field used by some APIs. */
   last_name?: string;
+  /** CamelCase active-flag field used by some APIs. */
   isActive?: boolean;
+  /** snake_case active-flag field used by some APIs. */
   is_active?: boolean;
+  /** CamelCase admin-flag field used by some APIs. */
   isAdmin?: boolean;
+  /** snake_case admin-flag field used by some APIs. */
   is_admin?: boolean;
+  /** CamelCase creation timestamp used by some APIs. */
   createdAt?: string;
+  /** snake_case creation timestamp used by some APIs. */
   created_at?: string;
+  /** CamelCase update timestamp used by some APIs. */
   updatedAt?: string;
+  /** snake_case update timestamp used by some APIs. */
   updated_at?: string;
+  /** CamelCase last-login timestamp used by some APIs. */
   lastLoginAt?: string | null;
+  /** snake_case last-login timestamp used by some APIs. */
   last_login_at?: string | null;
+  /** Additional user fields forwarded from the API response. */
   [key: string]: unknown;
 }
 
@@ -120,7 +168,9 @@ export interface AuthUser {
  * Login/Register response from the API
  */
 export interface AuthResponse {
+  /** Authenticated user payload returned by the server. */
   user: AuthUser;
+  /** Access and refresh tokens returned by the auth endpoint. */
   tokens: {
     accessToken: string;
     refreshToken: string;
@@ -135,8 +185,11 @@ export interface AuthResponse {
  * Authentication tokens stored by the backend
  */
 export interface AuthTokens {
+  /** Short-lived bearer token sent on authenticated requests. */
   accessToken: string;
+  /** Long-lived token used to refresh the access token. */
   refreshToken: string;
+  /** Absolute expiration time for the access token. */
   expiresAt: Date;
 }
 
@@ -296,8 +349,11 @@ export interface SpecialQueryHandler {
  * Data for constructing a RestApiError
  */
 export interface RestApiErrorData {
+  /** HTTP status code returned by the API. */
   status: number;
+  /** Human-readable error message. */
   message: string;
+  /** Raw response body captured for debugging. */
   body?: string;
 }
 
@@ -324,6 +380,11 @@ export class RestApiError extends Error {
   /** Raw response body (may be JSON string) */
   readonly body?: string;
 
+  /**
+   * Create a REST API error.
+   *
+   * @param data HTTP status, message, and optional raw response body.
+   */
   constructor(data: RestApiErrorData) {
     super(data.message);
     this.name = "RestApiError";
@@ -429,6 +490,11 @@ export class RestBackend extends DatabaseBackend {
   private _endpointIntrospections: EndpointIntrospection[] = [];
   private _endpointSpecialHandlers: Record<string, SpecialQueryHandler[]> = {};
 
+  /**
+   * Create a REST backend.
+   *
+   * @param config API base URL, auth settings, and declarative endpoint config.
+   */
   constructor(config: RestBackendConfig) {
     super({
       engine: "rest",
@@ -493,6 +559,12 @@ export class RestBackend extends DatabaseBackend {
   // Token Management
   // ===========================================================================
 
+  /**
+   * Load persisted auth tokens from `localStorage` into memory.
+   *
+   * Invalid or unparsable stored values are ignored and clear the in-memory
+   * token state.
+   */
   private _loadTokens(): void {
     if (typeof localStorage === "undefined") return;
 
@@ -512,6 +584,11 @@ export class RestBackend extends DatabaseBackend {
     }
   }
 
+  /**
+   * Persist auth tokens to memory and `localStorage`.
+   *
+   * @param tokens Tokens returned by a login or refresh response.
+   */
   private _saveTokens(tokens: AuthTokens): void {
     this._tokens = tokens;
     if (typeof localStorage === "undefined") return;
@@ -523,6 +600,9 @@ export class RestBackend extends DatabaseBackend {
     }
   }
 
+  /**
+   * Clear auth tokens from memory and `localStorage`.
+   */
   private _clearTokens(): void {
     this._tokens = null;
     if (typeof localStorage === "undefined") return;
@@ -534,12 +614,22 @@ export class RestBackend extends DatabaseBackend {
     }
   }
 
+  /**
+   * Check whether the current access token is expired or close to expiring.
+   *
+   * A short buffer is applied so requests can refresh proactively.
+   */
   private _isTokenExpired(): boolean {
     if (!this._tokens) return true;
     const bufferMs = 60 * 1000; // 60 seconds buffer
     return this._tokens.expiresAt.getTime() - Date.now() < bufferMs;
   }
 
+  /**
+   * Refresh the access token while coalescing concurrent refresh attempts.
+   *
+   * @returns Fresh tokens, or `null` when refresh is unavailable or fails.
+   */
   private async _refreshAccessToken(): Promise<AuthTokens | null> {
     if (!this._tokens?.refreshToken) return null;
 
@@ -557,6 +647,11 @@ export class RestBackend extends DatabaseBackend {
     }
   }
 
+  /**
+   * Execute the actual refresh-token HTTP request.
+   *
+   * @returns Fresh tokens, or `null` when the refresh request fails.
+   */
   private async _doRefreshToken(): Promise<AuthTokens | null> {
     try {
       const response = await fetch(
@@ -1306,11 +1401,22 @@ export class RestBackend extends DatabaseBackend {
   // Connection Management
   // ===========================================================================
 
+  /**
+   * Mark the backend as connected.
+   *
+   * The REST backend does not open a socket or session, so connection is a
+   * lightweight readiness flag used by the shared backend interface.
+   */
   async connect(): Promise<void> {
     this._connected = true;
     this._log("Connected");
   }
 
+  /**
+   * Mark the backend as disconnected.
+   *
+   * No remote teardown is required; this only updates backend state.
+   */
   async disconnect(): Promise<void> {
     this._connected = false;
     this._log("Disconnected");
@@ -1406,6 +1512,14 @@ export class RestBackend extends DatabaseBackend {
     return results;
   }
 
+  /**
+   * Execute a raw backend-specific query.
+   *
+   * Raw query execution is intentionally unsupported because the REST backend
+   * exposes HTTP resources rather than a query language.
+   *
+   * @throws {Error} Always.
+   */
   async executeRaw<R = unknown>(
     _query: string,
     _params?: unknown[],
@@ -1417,6 +1531,12 @@ export class RestBackend extends DatabaseBackend {
   // CRUD Operations
   // ===========================================================================
 
+  /**
+   * Create a remote record with `POST /{endpoint}/`.
+   *
+   * @param instance Model instance to serialize and send.
+   * @returns The created record payload returned by the API.
+   */
   async insert<T extends Model>(
     instance: T,
   ): Promise<Record<string, unknown>> {
@@ -1434,6 +1554,11 @@ export class RestBackend extends DatabaseBackend {
     );
   }
 
+  /**
+   * Replace a remote record with `PUT /{endpoint}/{id}/`.
+   *
+   * @param instance Persisted model instance containing the new state.
+   */
   async update<T extends Model>(instance: T): Promise<void> {
     const endpoint = this.getEndpointForModel(instance);
     const id = this._getRecordId(instance);
@@ -1447,6 +1572,11 @@ export class RestBackend extends DatabaseBackend {
     });
   }
 
+  /**
+   * Delete a remote record with `DELETE /{endpoint}/{id}/`.
+   *
+   * @param instance Persisted model instance to delete.
+   */
   async delete<T extends Model>(instance: T): Promise<void> {
     const endpoint = this.getEndpointForModel(instance);
     const id = this._getRecordId(instance);
@@ -1458,6 +1588,12 @@ export class RestBackend extends DatabaseBackend {
     });
   }
 
+  /**
+   * Delete a remote record by endpoint name and primary key.
+   *
+   * @param tableName Registered model name or endpoint segment.
+   * @param id Primary key value.
+   */
   async deleteById(tableName: string, id: unknown): Promise<void> {
     const endpoint = this._endpointMap[tableName] || tableName;
 
@@ -1468,6 +1604,13 @@ export class RestBackend extends DatabaseBackend {
     });
   }
 
+  /**
+   * Fetch a single record with `GET /{endpoint}/{id}/`.
+   *
+   * @param model Model constructor used to resolve the endpoint.
+   * @param id Primary key value.
+   * @returns The record payload, or `null` when the API returns 404.
+   */
   async getById<T extends Model>(
     model: new () => T,
     id: unknown,
@@ -1489,6 +1632,11 @@ export class RestBackend extends DatabaseBackend {
     }
   }
 
+  /**
+   * Check whether a record exists by attempting a detail fetch.
+   *
+   * @returns `true` when the API returns a record, otherwise `false`.
+   */
   async existsById<T extends Model>(
     model: new () => T,
     id: unknown,
@@ -1501,6 +1649,12 @@ export class RestBackend extends DatabaseBackend {
   // Bulk Operations
   // ===========================================================================
 
+  /**
+   * Insert multiple records sequentially.
+   *
+   * The REST backend does not assume a bulk-create endpoint, so this is
+   * implemented as repeated `insert()` calls.
+   */
   async bulkInsert<T extends Model>(
     instances: T[],
   ): Promise<Record<string, unknown>[]> {
@@ -1512,6 +1666,14 @@ export class RestBackend extends DatabaseBackend {
     return results;
   }
 
+  /**
+   * Update multiple records sequentially.
+   *
+   * The REST backend does not assume a bulk-update endpoint, so this is
+   * implemented as repeated `update()` calls.
+   *
+   * @returns Number of updated instances.
+   */
   async bulkUpdate<T extends Model>(
     instances: T[],
     _fields: string[],
@@ -1522,6 +1684,11 @@ export class RestBackend extends DatabaseBackend {
     return instances.length;
   }
 
+  /**
+   * Update multiple records selected by a queryset.
+   *
+   * @throws {Error} Always, unless a subclass adds dedicated support.
+   */
   async updateMany<T extends Model>(
     _state: QueryState<T>,
     _values: Record<string, unknown>,
@@ -1529,6 +1696,11 @@ export class RestBackend extends DatabaseBackend {
     throw new Error("updateMany is not supported by RestBackend");
   }
 
+  /**
+   * Delete multiple records selected by a queryset.
+   *
+   * @throws {Error} Always, unless a subclass adds dedicated support.
+   */
   async deleteMany<T extends Model>(_state: QueryState<T>): Promise<number> {
     throw new Error("deleteMany is not supported by RestBackend");
   }
@@ -1537,6 +1709,12 @@ export class RestBackend extends DatabaseBackend {
   // Aggregation
   // ===========================================================================
 
+  /**
+   * Count records matching the queryset.
+   *
+   * Tries `/{endpoint}/count/` first, then falls back to fetching results and
+   * counting them locally when the API does not expose a count endpoint.
+   */
   async count<T extends Model>(state: QueryState<T>): Promise<number> {
     const modelClass = state.model as unknown as typeof Model;
     const endpoint = this.getEndpointForModel(modelClass);
@@ -1561,6 +1739,11 @@ export class RestBackend extends DatabaseBackend {
     }
   }
 
+  /**
+   * Run aggregate functions for a queryset.
+   *
+   * @throws {Error} Always, unless a subclass adds dedicated support.
+   */
   async aggregate<T extends Model>(
     _state: QueryState<T>,
     _aggregations: Aggregations,
@@ -1572,6 +1755,13 @@ export class RestBackend extends DatabaseBackend {
   // Transactions (not supported)
   // ===========================================================================
 
+  /**
+   * Begin a transaction.
+   *
+   * Transactions are not meaningful for stateless HTTP requests.
+   *
+   * @throws {Error} Always.
+   */
   async beginTransaction(): Promise<Transaction> {
     throw new Error("Transactions are not supported by RestBackend");
   }
@@ -1580,10 +1770,22 @@ export class RestBackend extends DatabaseBackend {
   // Schema Operations (not applicable)
   // ===========================================================================
 
+  /**
+   * Return a schema editor implementation.
+   *
+   * Schema migration operations are not supported by the REST backend.
+   *
+   * @throws {Error} Always.
+   */
   getSchemaEditor(): SchemaEditor {
     throw new Error("Schema operations are not supported by RestBackend");
   }
 
+  /**
+   * Report whether a logical table exists.
+   *
+   * Always returns `true` because REST resources are not introspected as tables.
+   */
   async tableExists(_tableName: string): Promise<boolean> {
     return true; // REST backend doesn't have tables
   }
@@ -1592,6 +1794,12 @@ export class RestBackend extends DatabaseBackend {
   // Query Compilation
   // ===========================================================================
 
+  /**
+   * Compile a queryset into a transport-neutral query description.
+   *
+   * This is primarily useful for debugging, logging, or adapters that want a
+   * normalized representation of the pending ORM operation.
+   */
   compile<T extends Model>(state: QueryState<T>): CompiledQuery {
     const modelClass = state.model as unknown as typeof Model;
     const endpoint = this.getEndpointForModel(modelClass);
