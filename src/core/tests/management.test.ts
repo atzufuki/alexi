@@ -5,7 +5,11 @@
  */
 
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { ManagementUtility } from "../management/management.ts";
+import {
+  alexi_management_commands,
+  getCliApplication,
+  ManagementUtility,
+} from "../management/management.ts";
 import { BaseCommand, success } from "../management/base_command.ts";
 import type {
   CommandOptions,
@@ -56,7 +60,7 @@ class GreetCommand extends BaseCommand {
   readonly name = "greet";
   readonly help = "Greet someone";
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("--name", {
       type: "string",
       default: "World",
@@ -75,7 +79,7 @@ class EchoCommand extends BaseCommand {
   readonly name = "echo";
   readonly help = "Echo a message";
 
-  addArguments(parser: IArgumentParser): void {
+  override addArguments(parser: IArgumentParser): void {
     parser.addArgument("message", {
       required: true,
       help: "Message to echo",
@@ -140,7 +144,7 @@ Deno.test("ManagementUtility - shows version with --version", async () => {
 
   assertEquals(exitCode, 0);
   assertEquals(
-    mockConsole.logs.some((log) => log.includes("Alexi Management")),
+    mockConsole.logs.some((log) => log.includes("cli")),
     true,
   );
 });
@@ -171,15 +175,38 @@ Deno.test("ManagementUtility - has built-in help command", async () => {
   // The important thing is that exitCode is 0 (success)
 });
 
-Deno.test("ManagementUtility - has built-in help and test commands", () => {
+Deno.test("ManagementUtility - has only minimal built-in commands by default", () => {
   const cli = new ManagementUtility();
 
   const registry = cli.getRegistry();
 
-  // Only help and test are built-in core commands
-  // runserver comes from INSTALLED_APPS (alexi_web, alexi_staticfiles, alexi_webui)
+  assertEquals(registry.has("help"), true);
+  assertEquals(registry.has("test"), false);
+  assertEquals(registry.has("flush"), false);
+  assertEquals(registry.has("startapp"), false);
+});
+
+Deno.test("ManagementUtility - framework commands are opt-in", () => {
+  const cli = new ManagementUtility({ commands: alexi_management_commands });
+
+  const registry = cli.getRegistry();
+
   assertEquals(registry.has("help"), true);
   assertEquals(registry.has("test"), true);
+  assertEquals(registry.has("flush"), true);
+  assertEquals(registry.has("startapp"), true);
+});
+
+Deno.test("getCliApplication - creates configured CLI application", async () => {
+  const cli = await getCliApplication({
+    programName: "asr",
+    title: "ASR Commands",
+    commands: [GreetCommand],
+  });
+
+  assertEquals(cli.getRegistry().has("help"), true);
+  assertEquals(cli.getRegistry().has("greet"), true);
+  assertEquals(cli.getRegistry().has("test"), false);
 });
 
 // =============================================================================
@@ -245,6 +272,44 @@ Deno.test("ManagementUtility - accepts commands via config", async () => {
   assertEquals(exitCode, 0);
   assertEquals(cli.getRegistry().has("greet"), true);
   assertEquals(cli.getRegistry().has("echo"), true);
+});
+
+Deno.test("ManagementUtility - uses custom title and usage in help output", async () => {
+  const mockConsole = new MockConsole();
+  const cli = new ManagementUtility({
+    title: "ASR Commands",
+    programName: "asr",
+  });
+  cli.setConsole(mockConsole);
+
+  const exitCode = await cli.execute(["help"]);
+
+  assertEquals(exitCode, 0);
+  assertEquals(
+    mockConsole.logs.some((log) => log.includes("ASR Commands")),
+    true,
+  );
+  assertEquals(
+    mockConsole.logs.some((log) =>
+      log.includes("Usage: asr <command> [arguments]")
+    ),
+    true,
+  );
+});
+
+Deno.test("ManagementUtility - uses program name for command help", async () => {
+  const mockConsole = new MockConsole();
+  const cli = new ManagementUtility({ programName: "asr" });
+  cli.setConsole(mockConsole);
+  cli.registerCommand(GreetCommand);
+
+  const exitCode = await cli.execute(["greet", "--help"]);
+
+  assertEquals(exitCode, 0);
+  assertEquals(
+    mockConsole.logs.some((log) => log.includes("Usage: asr greet [options]")),
+    true,
+  );
 });
 
 // =============================================================================

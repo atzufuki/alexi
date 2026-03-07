@@ -351,11 +351,12 @@ You can also register commands manually in `manage.ts`:
 
 ```ts
 // manage.ts
-import { ManagementUtility } from "@alexi/core/management";
+import { getCliApplication } from "@alexi/core/management";
 import { MyCommand } from "./src/myapp/commands/mycommand.ts";
 
-const cli = new ManagementUtility({
+const cli = await getCliApplication({
   commands: [MyCommand],
+  programName: "myapp",
 });
 
 await cli.execute(Deno.args);
@@ -363,34 +364,55 @@ await cli.execute(Deno.args);
 
 ---
 
-## ManagementUtility
+## `getCliApplication()`
 
-The `ManagementUtility` class is the main entry point for the CLI:
+`getCliApplication()` is the recommended entry point for building a CLI:
 
 ```ts
-import { ManagementUtility } from "@alexi/core/management";
+import {
+  alexi_management_commands,
+  getCliApplication,
+} from "@alexi/core/management";
 
-// Basic usage
-const cli = new ManagementUtility();
+// Basic usage for a custom CLI
+const cli = await getCliApplication({ programName: "myapp" });
 await cli.execute(Deno.args);
 
+// Alexi/Django-style manage.ts behavior via explicit commands
+const manage = await getCliApplication({
+  programName: "manage.ts",
+  title: "Alexi Management Commands",
+  commands: alexi_management_commands,
+});
+await manage.execute(Deno.args);
+
 // With options
-const cli = new ManagementUtility({
+const configured = await getCliApplication({
   debug: true,
   projectRoot: "./myproject",
   commands: [MyCommand, AnotherCommand],
+  programName: "myapp",
 });
 
-await cli.execute(Deno.args);
+await configured.execute(Deno.args);
 ```
 
 ### Configuration
 
-| Option        | Type                   | Description            |
-| ------------- | ---------------------- | ---------------------- |
-| `debug`       | `boolean`              | Enable debug mode      |
-| `projectRoot` | `string`               | Project root directory |
-| `commands`    | `CommandConstructor[]` | Commands to register   |
+| Option        | Type                   | Description                       |
+| ------------- | ---------------------- | --------------------------------- |
+| `debug`       | `boolean`              | Enable debug mode                 |
+| `projectRoot` | `string`               | Project root directory            |
+| `commands`    | `CommandConstructor[]` | Commands to register              |
+| `programName` | `string`               | Program name shown in usage/help  |
+| `title`       | `string`               | Help title shown in general help  |
+| `usage`       | `string \| string[]`   | Override help usage text          |
+| `version`     | `string`               | Version text shown by `--version` |
+
+## `ManagementUtility`
+
+`ManagementUtility` remains available as the lower-level CLI runner used by
+`getCliApplication()`.
 
 ### Methods
 
