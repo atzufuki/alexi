@@ -1,41 +1,39 @@
 /**
- * Alexi WebUI
+ * Alexi's desktop application integration for WebUI.
  *
- * Desktop application support using WebUI.
- * Provides native desktop windows for web applications.
+ * `@alexi/webui` provides the pieces needed to package an Alexi application as
+ * a desktop app using WebUI. The key exports are `WebUILauncher` for opening and
+ * managing native windows backed by the user's installed browser engine,
+ * `createDefaultBindings()` for wiring common desktop bindings, and the app
+ * config used to register WebUI support with Alexi.
  *
- * WebUI uses the user's installed browser as the GUI engine,
- * making desktop apps lightweight and portable.
+ * This package is the desktop counterpart to Alexi's web stack: projects still
+ * use the usual framework building blocks for URLs, views, templates, and data,
+ * then use WebUI to host that experience in a local desktop shell. It is aimed
+ * at desktop runtimes and local binaries rather than browser deployment.
  *
- * @module alexi_webui
+ * WebUI integration is platform-specific and requires Deno environments that can
+ * use FFI and launch native desktop windows.
  *
- * @example Usage in settings
+ * @module @alexi/webui
+ *
+ * @example Register WebUI support in desktop settings
  * ```ts
- * // desktop.settings.ts
  * export const INSTALLED_APPS = [
- *   "alexi_webui",
- *   "comachine-ui",
+ *   () => import("@alexi/webui"),
+ *   () => import("@myapp/desktop"),
  * ];
+ * ```
  *
- * export const UI_APP = "comachine-ui";
- * export const API_URL = "http://localhost:8000/api";
+ * @example Create a launcher
+ * ```ts
+ * import { WebUILauncher } from "@alexi/webui";
  *
- * export const WEBUI = {
+ * const launcher = new WebUILauncher({
  *   title: "My App",
  *   width: 1400,
  *   height: 900,
- * };
- * ```
- *
- * @example Commands
- * ```bash
- * # Development - open desktop window
- * deno run -A manage.ts runserver --settings desktop
- *
- * # Production - build desktop app
- * deno run -A manage.ts build --settings desktop --target windows
- * deno run -A manage.ts build --settings desktop --target macos
- * deno run -A manage.ts build --settings desktop --target linux
+ * });
  * ```
  */
 

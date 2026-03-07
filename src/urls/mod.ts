@@ -1,56 +1,40 @@
 /**
- * Alexi URLs - Django-inspired URL routing for Deno
+ * Alexi's Django-style URL dispatcher.
  *
- * A Django-like URL routing system for TypeScript/Deno.
+ * `@alexi/urls` defines the routing primitives used across the framework:
+ * `path()` for declaring routes, `include()` for composing URL trees,
+ * `resolve()` for matching requests to views, and `reverse()` for generating
+ * URLs from named routes. It is the common foundation shared by plain Alexi
+ * apps, class-based views, admin routes, and the REST framework router.
+ *
+ * Route handlers use native `Request` and `Response` objects plus a simple
+ * params record, making the package easy to use both inside and outside the
+ * rest of Alexi. The API mirrors Django terminology while keeping the actual
+ * runtime model close to the Web Platform.
  *
  * @module @alexi/urls
  *
- * @example Basic usage
+ * @example Declare and reverse named routes
  * ```ts
- * import { path, include, resolve, reverse } from '@alexi/urls';
+ * import { path, reverse } from "@alexi/urls";
  *
- * // Define views (using native Request/Response)
- * const list_assets = async (request: Request, params: Record<string, string>) => {
- *   return Response.json({ assets: [] });
- * };
- *
- * const get_asset = async (request: Request, params: Record<string, string>) => {
- *   const { id } = params;
- *   return Response.json({ id });
- * };
- *
- * // Define URL patterns
  * const urlpatterns = [
- *   path("assets/", list_assets, { name: "asset-list" }),
- *   path("assets/:id/", get_asset, { name: "asset-detail" }),
+ *   path("articles/:id/", async (_request, params) => {
+ *     return Response.json({ id: params.id });
+ *   }, { name: "article-detail" }),
  * ];
  *
- * // Resolve a URL to a view
- * const result = resolve("/assets/123/", urlpatterns);
- * if (result) {
- *   const response = await result.view(request, result.params);
- * }
- *
- * // Generate a URL from a named route
- * const url = reverse("asset-detail", { id: "123" }, urlpatterns);
- * // => "/assets/123/"
+ * const url = reverse("article-detail", { id: "123" }, urlpatterns);
+ * // "/articles/123/"
  * ```
  *
- * @example Modular URL patterns with include()
+ * @example Compose modular URL trees
  * ```ts
- * // assets/urls.ts
- * export const urlpatterns = [
- *   path("", list_assets, { name: "asset-list" }),
- *   path(":id/", get_asset, { name: "asset-detail" }),
- * ];
- *
- * // urls.ts
- * import { urlpatterns as assetUrls } from "./assets/urls.ts";
- * import { urlpatterns as taskUrls } from "./tasks/urls.ts";
+ * import { include, path } from "@alexi/urls";
+ * import { urlpatterns as api_urls } from "./api/urls.ts";
  *
  * export const urlpatterns = [
- *   path("api/assets/", include(assetUrls)),
- *   path("api/tasks/", include(taskUrls)),
+ *   path("api/", include(api_urls)),
  * ];
  * ```
  */

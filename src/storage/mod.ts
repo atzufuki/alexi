@@ -1,28 +1,30 @@
 /**
- * @alexi/storage
+ * Alexi's Django-style file storage abstraction.
  *
- * Django-style storage API for file handling in Alexi.
- * Provides a unified interface for file uploads, storage, and retrieval
- * across different storage backends.
+ * `@alexi/storage` defines the `Storage` base class plus the global setup
+ * helpers used by file-oriented features such as upload handling, file fields,
+ * and generated download URLs. It gives applications a single storage API even
+ * when the concrete backend changes between local testing and production.
  *
- * @module alexi_storage
+ * The root entrypoint is centered on `Storage`, `setStorage()`, and
+ * `getStorage()`. Concrete implementations are exposed from backend subpaths,
+ * including `@alexi/storage/backends/memory` for tests and
+ * `@alexi/storage/backends/firebase` for Firebase Cloud Storage integrations.
  *
- * @example
+ * The abstraction itself is runtime-neutral, but individual backends may depend
+ * on browser APIs, remote services, or server-side credentials.
+ *
+ * @module @alexi/storage
+ *
+ * @example Configure and use a storage backend
  * ```ts
- * import { getStorage, setStorage, Storage } from "@alexi/storage";
- * import { FirebaseStorage } from "@alexi/storage/backends/firebase";
+ * import { getStorage, setStorage } from "@alexi/storage";
  * import { MemoryStorage } from "@alexi/storage/backends/memory";
  *
- * // Configure storage
- * const storage = new FirebaseStorage({
- *   bucket: "my-project.appspot.com",
- * });
- * setStorage(storage);
+ * setStorage(new MemoryStorage());
  *
- * // Use storage
- * const file = new File(["Hello"], "hello.txt", { type: "text/plain" });
- * const name = await getStorage().save("documents/hello.txt", file);
- * const url = await getStorage().url(name);
+ * const name = await getStorage().save("documents/hello.txt", "Hello");
+ * const exists = await getStorage().exists(name);
  * ```
  */
 
