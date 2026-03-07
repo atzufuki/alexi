@@ -4,20 +4,13 @@
  * @module @alexi/http/tests/application_test
  */
 
-import {
-  assertEquals,
-  assertNotEquals,
-} from "https://deno.land/std@0.208.0/assert/mod.ts";
-import { describe, it } from "https://deno.land/std@0.208.0/testing/bdd.ts";
+import { assertEquals, assertNotEquals } from "jsr:@std/assert@1";
+import { describe, it } from "jsr:@std/testing@1/bdd";
 
-import { path } from "../../urls/mod.ts";
-import { Application } from "../../core/management/application.ts";
-import type { Middleware } from "../../middleware/types.ts";
-import {
-  BadRequestError,
-  HttpError,
-  NotFoundError,
-} from "../../middleware/error.ts";
+import { path } from "@alexi/urls";
+import { Application } from "@alexi/core";
+import type { Middleware } from "@alexi/middleware";
+import { BadRequestError, HttpError, NotFoundError } from "@alexi/middleware";
 
 // ============================================================================
 // Test Views
