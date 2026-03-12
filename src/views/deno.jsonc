@@ -1,13 +1,13 @@
 {
   "name": "@alexi/views",
-  "version": "0.39.2",
+  "version": "0.40.0",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./config": "./app.ts"
   },
   "imports": {
-    "@alexi/db": "jsr:@alexi/db@0.39.2",
-    "@alexi/types": "jsr:@alexi/types@0.39.2"
+    "@alexi/db": "jsr:@alexi/db@0.40.0",
+    "@alexi/types": "jsr:@alexi/types@0.40.0"
   }
 }
