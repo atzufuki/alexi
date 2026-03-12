@@ -1573,6 +1573,39 @@ export class RestBackend extends DatabaseBackend {
   }
 
   /**
+   * Partially update a remote record with `PATCH /{endpoint}/{id}/`.
+   *
+   * Only the fields listed in `fields` are included in the request body.
+   * All other fields on the server-side record are left unchanged.
+   *
+   * @param instance Persisted model instance containing the updated values.
+   * @param fields Names of the model fields to include in the PATCH body.
+   */
+  async partialUpdate<T extends Model>(
+    instance: T,
+    fields: string[],
+  ): Promise<void> {
+    const endpoint = this.getEndpointForModel(instance);
+    const id = this._getRecordId(instance);
+    const allData = this.extractData(instance);
+
+    // Keep only the requested fields
+    const data: Record<string, unknown> = {};
+    for (const field of fields) {
+      if (Object.prototype.hasOwnProperty.call(allData, field)) {
+        data[field] = allData[field];
+      }
+    }
+
+    this._log(`PATCH /${endpoint}/${id}/`, data);
+
+    await this.request(`/${endpoint}/${id}/`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
    * Delete a remote record with `DELETE /{endpoint}/{id}/`.
    *
    * @param instance Persisted model instance to delete.
