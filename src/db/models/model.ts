@@ -48,6 +48,26 @@ export interface ModelOperationOptions {
    * ```
    */
   using?: DatabaseBackend | string;
+
+  /**
+   * Limit the save to only these fields (partial update / PATCH).
+   *
+   * When provided, only the listed field names are written to the backend.
+   * In the REST backend this maps to a `PATCH` request instead of `PUT`,
+   * sending only the listed fields in the request body.
+   * In the DenoKV and IndexedDB backends the full record is merged with only
+   * the listed fields overwritten — the other fields retain their stored values.
+   *
+   * When omitted the full record is written (default `PUT` / full update).
+   *
+   * @example
+   * ```ts
+   * task.title.set("New title");
+   * await task.save({ updateFields: ["title"] });
+   * // REST: PATCH /tasks/1/  { "title": "New title" }
+   * ```
+   */
+  updateFields?: string[];
 }
 
 // ============================================================================
@@ -804,7 +824,7 @@ export abstract class Model {
    * Creates a new record if the instance has no primary key,
    * otherwise updates the existing record.
    *
-   * @param options - Options including which backend to use
+   * @param options - Options including which backend to use and optional field list
    *
    * @example
    * ```ts
@@ -815,6 +835,10 @@ export abstract class Model {
    * // Save to a specific backend
    * await article.save({ using: "rest" });
    * await article.save({ using: myRestBackend });
+   *
+   * // Partial update — only write the listed fields (PATCH via RestBackend)
+   * article.title.set("Updated");
+   * await article.save({ updateFields: ["title"] });
    * ```
    */
   async save(options?: ModelOperationOptions): Promise<this> {
@@ -827,8 +851,11 @@ export abstract class Model {
       // Create new record
       const savedData = await backend.insert(this);
       this.fromDB(savedData);
+    } else if (options?.updateFields && options.updateFields.length > 0) {
+      // Partial update — only write the listed fields
+      await backend.partialUpdate(this, options.updateFields);
     } else {
-      // Update existing record
+      // Full update
       await backend.update(this);
     }
 

@@ -311,6 +311,11 @@ const newTask = await TaskModel.objects.create({
 task.title.set("Updated Title");
 await task.save();
 
+// Partial update — only write specific fields
+// In RestBackend this issues a PATCH request instead of PUT
+task.title.set("Updated Title");
+await task.save({ updateFields: ["title"] });
+
 // Delete instance
 await task.delete();
 

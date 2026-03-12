@@ -499,6 +499,41 @@ export class DenoKVBackend extends DatabaseBackend {
     await this._kv!.set(key, data);
   }
 
+  async partialUpdate<T extends Model>(
+    instance: T,
+    fields: string[],
+  ): Promise<void> {
+    this.ensureConnected();
+
+    const tableName = instance.getTableName();
+    const id = instance.pk;
+
+    if (id === null || id === undefined) {
+      throw new Error("Cannot partially update a record without an ID");
+    }
+
+    const key: Deno.KvKey = [tableName, id as Deno.KvKeyPart];
+
+    // Fetch the current stored record so we can merge only the changed fields
+    const entry = await this._kv!.get<Record<string, unknown>>(key);
+    const existing = entry.value ?? {};
+
+    // Build the new data snapshot with only the listed fields overwritten
+    const newData = instance.toDB();
+    const merged: Record<string, unknown> = { ...existing };
+
+    for (const fieldName of fields) {
+      if (Object.prototype.hasOwnProperty.call(newData, fieldName)) {
+        merged[fieldName] = newData[fieldName];
+      }
+    }
+
+    // Re-validate unique constraints for the merged state
+    await this._validateUniqueFields(instance, merged, id);
+
+    await this._kv!.set(key, merged);
+  }
+
   async delete<T extends Model>(instance: T): Promise<void> {
     this.ensureConnected();
 

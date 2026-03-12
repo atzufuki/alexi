@@ -194,6 +194,22 @@ export abstract class DatabaseBackend {
   abstract update<T extends Model>(instance: T): Promise<void>;
 
   /**
+   * Partially update an existing record, writing only the specified fields.
+   *
+   * When `fields` is provided only those field values are persisted; all other
+   * fields on the stored record are left unchanged.  In REST backends this maps
+   * to a `PATCH` request; in key-value backends the stored object is fetched,
+   * merged, and written back atomically.
+   *
+   * @param instance - The model instance containing the new field values.
+   * @param fields - Names of the fields to write (model property names, not column names).
+   */
+  abstract partialUpdate<T extends Model>(
+    instance: T,
+    fields: string[],
+  ): Promise<void>;
+
+  /**
    * Delete a record
    */
   abstract delete<T extends Model>(instance: T): Promise<void>;
