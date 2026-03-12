@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.40.0] - 2026-03-12
+
+### Added
+
+- `updateFields` option for `Model.save()` enables partial updates: passing
+  `updateFields: ["field1", "field2"]` calls `backend.partialUpdate()` instead
+  of a full update, issuing a `PATCH` request on `RestBackend` and a targeted
+  field merge on `DenoKVBackend` and `IndexedDBBackend` (#246)
+
 ## [0.39.2] - 2026-03-08
 
 ### Fixed
