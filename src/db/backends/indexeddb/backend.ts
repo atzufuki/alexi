@@ -729,6 +729,65 @@ export class IndexedDBBackend extends DatabaseBackend {
     });
   }
 
+  async partialUpdate<T extends Model>(
+    instance: T,
+    fields: string[],
+  ): Promise<void> {
+    this.ensureConnected();
+
+    const tableName = instance.getTableName();
+    await this.ensureStore(tableName);
+
+    const id = instance.pk;
+
+    if (id === null || id === undefined) {
+      throw new Error("Cannot partially update a record without an ID");
+    }
+
+    // Fetch the current stored record so we can merge only the changed fields
+    const existing = await new Promise<Record<string, unknown> | undefined>(
+      (resolve, reject) => {
+        const tx = this._db!.transaction(tableName, "readonly");
+        const store = tx.objectStore(tableName);
+        const request = store.get(id as IDBValidKey);
+
+        request.onsuccess = () => {
+          resolve(request.result as Record<string, unknown> | undefined);
+        };
+
+        request.onerror = () => {
+          reject(request.error);
+        };
+      },
+    );
+
+    const newData = instance.toDB();
+    const merged: Record<string, unknown> = { ...(existing ?? {}), id };
+
+    for (const fieldName of fields) {
+      if (Object.prototype.hasOwnProperty.call(newData, fieldName)) {
+        merged[fieldName] = newData[fieldName];
+      }
+    }
+
+    // Re-validate unique constraints for the merged state
+    await this._validateUniqueFields(instance, merged, id);
+
+    return new Promise((resolve, reject) => {
+      const tx = this._db!.transaction(tableName, "readwrite");
+      const store = tx.objectStore(tableName);
+      const request = store.put(merged);
+
+      request.onsuccess = () => {
+        resolve();
+      };
+
+      request.onerror = () => {
+        reject(request.error);
+      };
+    });
+  }
+
   /**
    * Validate unique field constraints before insert/update
    */
