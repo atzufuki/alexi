@@ -89,7 +89,6 @@ export class RunServerCommand extends BaseCommand {
       type: "string",
       alias: "-s",
       help: "Settings module name",
-      required: true,
     });
 
     parser.addArgument("--browser", {
@@ -136,7 +135,8 @@ export class RunServerCommand extends BaseCommand {
   // ==========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
-    const settingsName = options.args.settings as string;
+    const settingsName = (options.args.settings as string | undefined) ??
+      Deno.env.get("ALEXI_SETTINGS_MODULE");
     const browserArg = options.args.browser as string | undefined;
     const kioskMode = options.args.kiosk as boolean;
     const devToolsMode = options.args.devtools as boolean;
@@ -147,6 +147,10 @@ export class RunServerCommand extends BaseCommand {
 
     try {
       // Load settings
+      if (!settingsName) {
+        this.error("--settings is required (e.g., --settings desktop)");
+        return failure("Settings not specified");
+      }
       const settingsPath = `${Deno.cwd()}/project/${settingsName}.settings.ts`;
       let settings: Record<string, unknown>;
 
