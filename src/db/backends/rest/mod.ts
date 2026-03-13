@@ -2,8 +2,10 @@
  * REST API Backend for Alexi ORM
  *
  * A generic, extensible REST backend that maps ORM operations to HTTP requests.
- * Supports JWT authentication, special query handlers, model actions, and
- * declarative endpoint configuration (DRF-style).
+ * Supports special query handlers, model actions, and declarative endpoint
+ * configuration (DRF-style). Authentication is delegated to
+ * {@link ModelEndpoint.getAuthHeaders} — override it on a shared base endpoint
+ * class to inject `Authorization` headers for all requests.
  *
  * @module
  *
@@ -19,7 +21,7 @@
  * const tasks = await TaskModel.objects.using(backend).all().fetch();
  * ```
  *
- * @example Declarative endpoints (DRF-style)
+ * @example Declarative endpoints with auth (DRF-style)
  * ```ts
  * import {
  *   DetailAction,
@@ -28,14 +30,27 @@
  *   SingletonQuery,
  * } from "@alexi/db/backends/rest";
  *
- * class ProjectEndpoint extends ModelEndpoint {
+ * // Shared base that injects auth headers for all endpoints
+ * abstract class AuthEndpoint extends ModelEndpoint {
+ *   abstract model: typeof Model;
+ *   abstract path: string;
+ *
+ *   override async getAuthHeaders() {
+ *     const token = localStorage.getItem("access_token");
+ *     return token ? { Authorization: `Bearer ${token}` } : {};
+ *   }
+ * }
+ *
+ * class ProjectEndpoint extends AuthEndpoint {
  *   model = ProjectModel;
+ *   path = "/projects/";
  *   publish = new DetailAction();       // POST /projects/:id/publish/
  *   unpublish = new DetailAction();     // POST /projects/:id/unpublish/
  * }
  *
- * class OrganisationEndpoint extends ModelEndpoint {
+ * class OrganisationEndpoint extends AuthEndpoint {
  *   model = OrganisationModel;
+ *   path = "/organisations/";
  *   current = new SingletonQuery();     // filter({current: true}) → GET /organisations/current/
  * }
  *
@@ -53,43 +68,12 @@
  *   .filter({ current: true })
  *   .first();
  * ```
- *
- * @example Subclassing for app-specific behavior (legacy)
- * ```ts
- * import { RestBackend } from "@alexi/db/backends/rest";
- * import type { SpecialQueryHandler } from "@alexi/db/backends/rest";
- *
- * class MyRestBackend extends RestBackend {
- *   constructor(apiUrl: string) {
- *     super({
- *       apiUrl,
- *       tokenStorageKey: "myapp_tokens",
- *     });
- *   }
- *
- *   protected override getSpecialQueryHandlers() {
- *     return {
- *       organisations: [{
- *         matches: (f) => f.length === 1 && f[0].field === "current",
- *         getEndpoint: () => "/organisations/current/",
- *         returnsSingle: true,
- *       }],
- *     };
- *   }
- * }
- * ```
  */
 
-export { clearAuthTokens, RestApiError, RestBackend } from "./backend.ts";
+export { RestApiError, RestBackend } from "./backend.ts";
 
 export type {
-  AuthEndpoints,
-  AuthResponse,
-  AuthTokens,
-  AuthUser,
   DatabaseConfig,
-  LoginCredentials,
-  RegisterData,
   RestApiErrorData,
   RestBackendConfig,
   SpecialQueryHandler,

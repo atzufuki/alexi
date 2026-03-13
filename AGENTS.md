@@ -594,16 +594,17 @@ await backend.disconnect();
 
 ### REST Backend (Browser)
 
-The REST backend maps ORM operations to HTTP requests against a REST API. It
-includes built-in JWT authentication, token refresh, and is fully extensible via
-subclassing.
+The REST backend maps ORM operations to HTTP requests against a REST API. It is
+a pure HTTP transport layer — authentication is handled entirely by
+`ModelEndpoint.getAuthHeaders()`.
 
 ```typescript
-import { RestBackend } from "@alexi/db/backends/rest";
+import { ModelEndpoint, RestBackend } from "@alexi/db/backends/rest";
 
-// Basic usage — works out of the box
+// Basic usage
 const backend = new RestBackend({
   apiUrl: "https://api.example.com/api",
+  endpoints: [ProjectEndpoint, OrganisationEndpoint],
 });
 await backend.connect();
 
@@ -611,70 +612,83 @@ await backend.connect();
 const tasks = await TaskModel.objects.using(backend).all().fetch();
 const task = await TaskModel.objects.using(backend).create({ title: "New" });
 
-// Authentication
-const { user } = await backend.login({
-  email: "user@example.com",
-  password: "secret",
-});
-const me = await backend.getMe();
-await backend.logout();
-
 // Model actions (e.g., POST /projects/42/publish/)
 await backend.callModelAction("projects", 42, "publish");
 ```
 
+#### Authentication via ModelEndpoint.getAuthHeaders
+
+Authentication is handled per-endpoint by overriding `getAuthHeaders()` on a
+shared base `ModelEndpoint` class. This gives full control over auth —
+supporting JWT tokens from `localStorage`, Service Worker caches, IndexedDB, or
+any custom scheme.
+
+```typescript
+import {
+  DetailAction,
+  ModelEndpoint,
+  RestBackend,
+  SingletonQuery,
+} from "@alexi/db/backends/rest";
+
+// Shared base that injects auth headers for all endpoints
+abstract class AuthEndpoint extends ModelEndpoint {
+  abstract model: typeof Model;
+  abstract path: string;
+
+  override async getAuthHeaders(): Promise<Record<string, string>> {
+    const token = localStorage.getItem("access_token");
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+}
+
+class ProjectEndpoint extends AuthEndpoint {
+  model = ProjectModel;
+  path = "/projects/";
+  publish = new DetailAction();
+}
+
+class OrganisationEndpoint extends AuthEndpoint {
+  model = OrganisationModel;
+  path = "/organisations/";
+  current = new SingletonQuery();
+}
+
+const backend = new RestBackend({
+  apiUrl: "https://api.example.com/api",
+  endpoints: [ProjectEndpoint, OrganisationEndpoint],
+});
+```
+
 #### Subclassing RestBackend
 
-Subclass `RestBackend` to add app-specific behavior. Key extension points:
+Subclass `RestBackend` to add app-specific methods. Key extension points:
 
 - `getEndpointForModel()` — custom model → URL mapping
 - `getSpecialQueryHandlers()` — map ORM filters to custom endpoints
 - `extractData()` — customize how model data is serialized for the API
 - `formatDateForApi()` — change date serialization format
-- `request()` (protected) — make authenticated HTTP requests from subclass
-  methods
+- `request()` (protected) — make unauthenticated HTTP requests from subclass
+  methods (auth headers from model context are passed automatically for ORM ops)
 
 ```typescript
 import { RestBackend } from "@alexi/db/backends/rest";
-import type { SpecialQueryHandler } from "@alexi/db/backends/rest";
 
 class MyAppRestBackend extends RestBackend {
-  constructor(apiUrl: string) {
-    super({
-      apiUrl,
-      tokenStorageKey: "myapp_auth_tokens",
-      authEndpoints: {
-        login: "/auth/login/",
-        register: "/auth/register/",
-      },
-      endpoints: [
-        OrganisationEndpoint,
-        TicketMessageEndpoint,
-      ],
-    });
-  }
-
   // App-specific methods using the protected request() helper
-  async publishProject(id: number) {
-    return this.request(`/projects/${id}/publish/`, { method: "POST" });
+  async getStats() {
+    return this.request<Stats>("/stats/");
   }
 }
 ```
 
 #### RestBackend Configuration Reference
 
-| Option                         | Default                    | Description                       |
-| ------------------------------ | -------------------------- | --------------------------------- |
-| `apiUrl`                       | (required)                 | API base URL                      |
-| `debug`                        | `false`                    | Enable console logging            |
-| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens   |
-| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                    |
-| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint             |
-| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint            |
-| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                   |
-| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint     |
-| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
-| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes |
+| Option      | Default    | Description                       |
+| ----------- | ---------- | --------------------------------- |
+| `apiUrl`    | (required) | API base URL                      |
+| `debug`     | `false`    | Enable console logging            |
+| `endpoints` | `[]`       | Declarative ModelEndpoint classes |
 
 #### Endpoint Path (Required)
 
@@ -763,7 +777,6 @@ Pass endpoint classes to RestBackend via the `endpoints` config option:
 ```typescript
 const backend = new RestBackend({
   apiUrl: "https://api.example.com/api",
-  tokenStorageKey: "myapp_auth_tokens",
   endpoints: [
     ProjectEndpoint,
     OrganisationEndpoint,
@@ -775,14 +788,14 @@ const backend = new RestBackend({
 ##### Using Endpoints
 
 ```typescript
-// ORM with auto-generated singleton query handler (unchanged)
+// ORM with auto-generated singleton query handler
 const org = await OrganisationModel.objects
   .using(backend)
   .filter({ current: true })
   .first();
 // → GET /organisations/current/
 
-// Type-safe action calls (new)
+// Type-safe action calls
 await backend.action(ProjectEndpoint, "publish", 42);
 // → POST /projects/42/publish/
 
@@ -793,7 +806,7 @@ await backend.action(ConnectionEndpoint, "accept", 5, { note: "OK" });
 const published = await backend.action(ProjectEndpoint, "published");
 // → GET /projects/published/
 
-// Old callModelAction still works (backwards compatible)
+// callModelAction (less type-safe, but works without registering endpoints)
 await backend.callModelAction("projects", 42, "publish");
 ```
 
@@ -833,21 +846,6 @@ new SingletonQuery(); // filter({field: true})
 new SingletonQuery({ urlSegment: "me" }); // custom URL: /path/me/
 new SingletonQuery({ matchValue: "active" }); // filter({field: "active"})
 ```
-
-##### Updated Configuration Reference
-
-| Option                         | Default                    | Description                       |
-| ------------------------------ | -------------------------- | --------------------------------- |
-| `apiUrl`                       | (required)                 | API base URL                      |
-| `debug`                        | `false`                    | Enable console logging            |
-| `tokenStorageKey`              | `"alexi_auth_tokens"`      | localStorage key for JWT tokens   |
-| `endpoints`                    | `[]`                       | Declarative ModelEndpoint classes |
-| `authEndpoints.login`          | `"/auth/login/"`           | Login endpoint                    |
-| `authEndpoints.register`       | `"/auth/register/"`        | Registration endpoint             |
-| `authEndpoints.refresh`        | `"/auth/refresh/"`         | Token refresh endpoint            |
-| `authEndpoints.logout`         | `"/auth/logout/"`          | Logout endpoint                   |
-| `authEndpoints.me`             | `"/auth/me/"`              | Current user profile endpoint     |
-| `authEndpoints.changePassword` | `"/auth/change-password/"` | Password change endpoint          |
 
 ---
 
