@@ -149,7 +149,14 @@ export class HelpCommand extends BaseCommand {
       lines.push("Available commands:");
       lines.push(this.registry.getCommandList());
     } else {
-      lines.push("No registered commands.");
+      // This should not happen in normal operation: ManagementUtility calls
+      // setRegistry() on the HelpCommand instance during construction.
+      // If registry is null here, the instance was likely created outside of
+      // ManagementUtility (e.g. in tests) or setRegistry() was never called.
+      lines.push(
+        "No commands registered. " +
+          "(Hint: use ManagementUtility / getCliApplication to run commands.)",
+      );
     }
 
     lines.push("");

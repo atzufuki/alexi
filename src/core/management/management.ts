@@ -110,6 +110,12 @@ export class ManagementUtility {
   private appCommandsLoaded = false;
 
   /**
+   * Whether app commands were loaded without finding any settings file.
+   * Used to produce a more helpful error message when a command is not found.
+   */
+  private appCommandsLoadedWithNoSettings = false;
+
+  /**
    * Create a new ManagementUtility
    *
    * @param config - Configuration options
@@ -219,6 +225,7 @@ export class ManagementUtility {
 
       if (settingsArg) {
         // Load from specified settings file
+        let settingsLoaded = false;
         try {
           const settingsPath = this.resolveSettingsPath(
             settingsArg,
@@ -232,6 +239,7 @@ export class ManagementUtility {
 
           const settings = await import(settingsUrl);
           const installedApps = settings.INSTALLED_APPS ?? [];
+          settingsLoaded = true;
 
           for (const app of installedApps) {
             if (typeof app === "function") {
@@ -243,8 +251,12 @@ export class ManagementUtility {
             console.warn(`Could not load settings '${settingsArg}': ${error}`);
           }
         }
+        if (!settingsLoaded) {
+          this.appCommandsLoadedWithNoSettings = true;
+        }
       } else {
-        // No --settings specified, load from all settings files
+        // No --settings specified, scan all *.settings.ts files under project/
+        let foundAnySettings = false;
         try {
           for await (const entry of Deno.readDir(projectDir)) {
             if (entry.isFile && entry.name.endsWith(".settings.ts")) {
@@ -253,6 +265,7 @@ export class ManagementUtility {
                 const settingsUrl = toImportUrl(settingsPath);
                 const settings = await import(settingsUrl);
                 const installedApps = settings.INSTALLED_APPS ?? [];
+                foundAnySettings = true;
 
                 for (const app of installedApps) {
                   if (typeof app === "function") {
@@ -269,6 +282,9 @@ export class ManagementUtility {
           }
         } catch {
           // project directory doesn't exist or can't be read
+        }
+        if (!foundAnySettings) {
+          this.appCommandsLoadedWithNoSettings = true;
         }
       }
 
@@ -378,7 +394,11 @@ export class ManagementUtility {
   }
 
   /**
-   * Register command classes from a loaded module
+   * Register command classes from a loaded module.
+   *
+   * Built-in commands (registered before app loading) are never overwritten.
+   * This prevents app modules from accidentally replacing framework commands
+   * such as `HelpCommand`, which carry state set up during construction.
    */
   private registerCommandsFromModule(
     module: Record<string, unknown>,
@@ -399,15 +419,30 @@ export class ManagementUtility {
         exportName.endsWith("Command")
       ) {
         try {
+          // Determine the command name from the prototype or class property
+          const cmdName: string = proto.name ?? exportName;
+
+          // Never overwrite built-in commands that were registered before app
+          // loading. Built-ins like HelpCommand carry state (e.g. registry
+          // reference) set up during ManagementUtility construction — replacing
+          // them with a fresh instance would lose that state.
+          if (this.registry.has(cmdName)) {
+            if (this.debug) {
+              console.log(
+                `    Skipping ${cmdName} from ${sourceName} (built-in already registered)`,
+              );
+            }
+            continue;
+          }
+
           this.registry.register(exportValue as CommandConstructor);
           if (this.debug) {
-            const cmdName = proto.name ?? exportName;
             console.log(
               `    Registered command: ${cmdName} from ${sourceName}`,
             );
           }
         } catch {
-          // Command might already be registered or invalid
+          // Command might be invalid — skip silently
         }
       }
     }
@@ -503,6 +538,17 @@ export class ManagementUtility {
     const command = this.registry.get(commandName);
     if (!command) {
       this.stderr.error(`Unknown command: ${commandName}`);
+      // Give a more helpful hint when no app commands were loaded.
+      // App commands (e.g. createsuperuser) are discovered from INSTALLED_APPS
+      // which requires a settings file to be found — either via --settings or
+      // by auto-scanning project/*.settings.ts.
+      if (this.appCommandsLoadedWithNoSettings) {
+        this.stderr.error(
+          "No settings file was found. App commands (e.g. createsuperuser) " +
+            "require a settings file.\n" +
+            "Specify one with: --settings=./project/settings.ts",
+        );
+      }
       this.stderr.error("Run 'help' to see available commands.");
       return 1;
     }
