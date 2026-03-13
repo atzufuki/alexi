@@ -334,6 +334,40 @@ export abstract class ModelEndpoint {
    * This is **required** — no auto-derivation from model name or dbTable.
    */
   abstract path: string;
+
+  /**
+   * Return HTTP headers to include in every request made for this endpoint.
+   *
+   * Override this in a base class shared by all your endpoints to inject
+   * authentication headers (e.g. `Authorization: Bearer <token>`).
+   * The default implementation returns an empty object (no auth).
+   *
+   * @example
+   * ```ts
+   * class AuthenticatedEndpoint extends ModelEndpoint {
+   *   abstract model: typeof Model;
+   *   abstract path: string;
+   *
+   *   override async getAuthHeaders(): Promise<Record<string, string>> {
+   *     const token = localStorage.getItem("access_token");
+   *     if (!token) return {};
+   *     return { Authorization: `Bearer ${token}` };
+   *   }
+   * }
+   *
+   * class ProjectEndpoint extends AuthenticatedEndpoint {
+   *   model = ProjectModel;
+   *   path = "/projects/";
+   *
+   *   publish = new DetailAction();
+   * }
+   * ```
+   *
+   * @returns A plain object of header name → header value pairs.
+   */
+  async getAuthHeaders(): Promise<Record<string, string>> {
+    return {};
+  }
 }
 
 // =============================================================================
