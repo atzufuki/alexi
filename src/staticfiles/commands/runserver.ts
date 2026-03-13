@@ -63,7 +63,6 @@ export class RunServerCommand extends BaseCommand {
       type: "string",
       alias: "-s",
       help: "Settings module name",
-      required: true,
     });
 
     parser.addArgument("--port", {
@@ -102,8 +101,9 @@ export class RunServerCommand extends BaseCommand {
     const noReload = options.args["no-reload"] as boolean;
     const debug = options.debug;
 
-    // Get settings name from --settings argument
-    const settingsName = options.args.settings as string | undefined;
+    // Get settings name from --settings argument or ALEXI_SETTINGS_MODULE env var
+    const settingsName = (options.args.settings as string | undefined) ??
+      Deno.env.get("ALEXI_SETTINGS_MODULE");
     if (!settingsName) {
       this.error("--settings is required (e.g., --settings ui)");
       return failure("Settings not specified");

@@ -177,7 +177,8 @@ export class CreateSuperuserCommand extends BaseCommand {
 
   async handle(options: CommandOptions): Promise<CommandResult> {
     const noInput = options.args["no-input"] as boolean;
-    const settingsName = options.args.settings as string | undefined;
+    const settingsName = (options.args.settings as string | undefined) ??
+      Deno.env.get("ALEXI_SETTINGS_MODULE");
 
     this.stdout.log("");
     this.stdout.log("┌─────────────────────────────────────────────┐");

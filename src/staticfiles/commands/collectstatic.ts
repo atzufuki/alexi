@@ -101,7 +101,6 @@ export class CollectStaticCommand extends BaseCommand {
       alias: "-s",
       help:
         "Settings module to use (e.g., 'web', 'desktop'). Loads project/<name>.settings.ts",
-      default: "web",
     });
 
     parser.addArgument("--no-input", {
@@ -137,7 +136,8 @@ export class CollectStaticCommand extends BaseCommand {
   // ===========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
-    const settingsArg = options.args.settings as string;
+    const settingsArg = (options.args.settings as string | undefined) ??
+      Deno.env.get("ALEXI_SETTINGS_MODULE");
     const noInput = options.args["no-input"] as boolean;
     const clear = options.args.clear as boolean;
     const dryRun = options.args["dry-run"] as boolean;
@@ -146,6 +146,10 @@ export class CollectStaticCommand extends BaseCommand {
 
     try {
       // Load settings from specified module
+      if (!settingsArg) {
+        this.error("--settings is required (e.g., --settings web)");
+        return failure("Settings not specified");
+      }
       this.info(`Loading settings: ${settingsArg}`);
       const settings = await this.loadSettings(settingsArg);
       if (!settings) {

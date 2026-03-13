@@ -802,7 +802,8 @@ export class BundleCommand extends BaseCommand {
     const minify = options.args.minify as boolean;
     const noCss = options.args["no-css"] as boolean;
     const debug = options.debug;
-    const settingsArg = options.args.settings as string | undefined;
+    const settingsArg = (options.args.settings as string | undefined) ??
+      Deno.env.get("ALEXI_SETTINGS_MODULE");
 
     // Skip bundling if SKIP_BUNDLE is set (e.g., in CI)
     if (Deno.env.get("SKIP_BUNDLE") === "1") {
@@ -810,7 +811,7 @@ export class BundleCommand extends BaseCommand {
       return success();
     }
 
-    // Resolve settings path when --settings is provided
+    // Resolve settings path when --settings or ALEXI_SETTINGS_MODULE is provided
     let settingsPath: string | undefined;
     if (settingsArg) {
       settingsPath = this.resolveSettingsPath(settingsArg);
