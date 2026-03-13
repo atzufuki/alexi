@@ -217,8 +217,9 @@ export class ManagementUtility {
     try {
       const projectDir = `${this.projectRoot}/project`;
 
-      // Check if --settings was specified
-      const settingsArg = this.parseSettingsArg(args);
+      // Check if --settings was specified, or fall back to ALEXI_SETTINGS_MODULE env var
+      const settingsArg = this.parseSettingsArg(args) ??
+        Deno.env.get("ALEXI_SETTINGS_MODULE");
 
       // Collect import functions from settings
       const importFunctions: AppImportFn[] = [];
