@@ -453,22 +453,37 @@ export class ManagementUtility {
   // ===========================================================================
 
   /**
-   * Register a custom command
+   * Register a custom command.
+   *
+   * If a command with the same name is already registered (e.g. a built-in
+   * such as `HelpCommand` that was wired up during construction), the new
+   * class is silently skipped. This prevents callers who pass
+   * `alexi_management_commands` (which includes `HelpCommand`) via
+   * `config.commands` from accidentally replacing the already-configured
+   * built-in instance and losing its registry/display-options state.
    *
    * @param CommandClass - The command class to register
    */
   registerCommand(CommandClass: CommandConstructor): void {
+    // Instantiate temporarily to resolve the runtime command name, which is
+    // defined as an instance property (e.g. `readonly name = "help"`), not on
+    // the prototype. We need the actual name to check registry membership.
+    const tempInstance = new CommandClass();
+    const cmdName: string = tempInstance.name;
+    if (this.registry.has(cmdName)) return;
     this.registry.register(CommandClass);
   }
 
   /**
-   * Register multiple commands at once
+   * Register multiple commands at once.
+   *
+   * Already-registered commands are skipped (see {@link registerCommand}).
    *
    * @param commands - Array of command classes to register
    */
   registerCommands(commands: CommandConstructor[]): void {
     for (const CommandClass of commands) {
-      this.registry.register(CommandClass);
+      this.registerCommand(CommandClass);
     }
   }
 
