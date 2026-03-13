@@ -95,7 +95,6 @@ export class RunServerCommand extends BaseCommand {
       type: "string",
       alias: "-s",
       help: "Settings module (e.g., 'web')",
-      required: true,
     });
 
     parser.addArgument("--port", {
@@ -128,7 +127,8 @@ export class RunServerCommand extends BaseCommand {
   // ==========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
-    const settingsArg = options.args.settings as string;
+    const settingsArg = (options.args.settings as string | undefined) ??
+      Deno.env.get("ALEXI_SETTINGS_MODULE");
     const portArg = options.args.port as number | undefined;
     const hostArg = options.args.host as string | undefined;
     const noReload = options.args["no-reload"] as boolean;
@@ -136,6 +136,10 @@ export class RunServerCommand extends BaseCommand {
 
     try {
       // Load settings
+      if (!settingsArg) {
+        this.error("--settings is required (e.g., --settings web)");
+        return failure("Settings not specified");
+      }
       const settingsPath = this.resolveSettingsPath(settingsArg);
       this.info(`Loading settings: ${settingsArg}`);
 

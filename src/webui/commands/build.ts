@@ -95,7 +95,6 @@ export class BuildCommand extends BaseCommand {
       type: "string",
       alias: "-s",
       help: "Settings module name",
-      required: true,
     });
 
     parser.addArgument("--target", {
@@ -131,7 +130,8 @@ export class BuildCommand extends BaseCommand {
   // ==========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
-    const settingsName = options.args.settings as string;
+    const settingsName = (options.args.settings as string | undefined) ??
+      Deno.env.get("ALEXI_SETTINGS_MODULE");
     const targetArg = options.args.target as BuildTarget | undefined;
     const outputDir = (options.args.output as string) ?? "./dist";
     const appName = options.args.name as string | undefined;
@@ -143,6 +143,10 @@ export class BuildCommand extends BaseCommand {
       const target = targetArg ?? this.getCurrentTarget();
 
       // Load settings
+      if (!settingsName) {
+        this.error("--settings is required (e.g., --settings desktop)");
+        return failure("Settings not specified");
+      }
       const settingsPath = `${Deno.cwd()}/project/${settingsName}.settings.ts`;
       let settings: Record<string, unknown>;
 
