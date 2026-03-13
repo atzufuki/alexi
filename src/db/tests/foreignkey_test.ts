@@ -1511,3 +1511,285 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// Issue #251 / #252: fetch() cache fast-path skips selectRelated;
+// _clone() must not propagate _isFetched/_cache
+// ============================================================================
+
+Deno.test({
+  name:
+    "selectRelated() + fetch() — direct fetch() respects selectRelated (Issue #251)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr251-fetch-direct",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Direct Fetch Org",
+        country: "Finland",
+      });
+      await Project.objects.create({
+        name: "Direct Fetch Project",
+        organisation: org,
+      });
+
+      // Plain fetch() with selectRelated — must load related objects
+      const projects = await Project.objects
+        .selectRelated("organisation")
+        .fetch();
+
+      assertEquals(projects.array().length, 1);
+      const project = projects.array()[0];
+      assertEquals(
+        project.organisation.isLoaded(),
+        true,
+        "organisation should be loaded by selectRelated + fetch()",
+      );
+      assertEquals(project.organisation.get().name.get(), "Direct Fetch Org");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() + fetch() — cache fast-path still loads related (Issue #251)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    // Scenario: fetch() is called on a QuerySet that already has _isFetched=true.
+    // The old code returned immediately without calling _loadRelatedObjects.
+    const backend = new DenoKVBackend({
+      name: "sr251-fetch-cache",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Cache Fast-path Org",
+        country: "Sweden",
+      });
+      await Project.objects.create({
+        name: "Cache Fast-path Project",
+        organisation: org,
+      });
+
+      // Pre-fetch without selectRelated
+      const baseQs = await Project.objects.all().fetch();
+
+      // Now chain selectRelated + fetch() on the already-fetched QuerySet.
+      // With the old _clone() bug this created a clone with _isFetched=true,
+      // causing fetch() to return before _loadRelatedObjects ran.
+      const projects = await baseQs.selectRelated("organisation").fetch();
+
+      assertEquals(projects.array().length, 1);
+      const project = projects.array()[0];
+      assertEquals(
+        project.organisation.isLoaded(),
+        true,
+        "organisation should be loaded even when chained from an already-fetched QS",
+      );
+      assertEquals(
+        project.organisation.get().name.get(),
+        "Cache Fast-path Org",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() + first() — chained from already-fetched QS (Issue #251)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    // Scenario from issue #251:
+    //   Ticket.objects.filter({ id }).selectRelated("unit").first()
+    // first() calls this.limit(1) which clones the QS.
+    // Old _clone() propagated _isFetched=true, so the clone's fetch() returned
+    // immediately, silently skipping _loadRelatedObjects.
+    const backend = new DenoKVBackend({
+      name: "sr251-first-chained",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Chained First Org",
+        country: "Norway",
+      });
+      await Project.objects.create({
+        name: "Chained First Project",
+        organisation: org,
+      });
+
+      // This is the exact pattern from the issue report
+      const project = await Project.objects
+        .filter({ name: "Chained First Project" })
+        .selectRelated("organisation")
+        .first();
+
+      assertExists(project);
+      assertEquals(
+        project.organisation.isLoaded(),
+        true,
+        "organisation should be loaded — this was the bug reported in #251",
+      );
+      assertEquals(
+        project.organisation.get().name.get(),
+        "Chained First Org",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() + last() — chained from already-fetched QS (Issue #251)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr251-last-chained",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Chained Last Org",
+        country: "Denmark",
+      });
+      await Project.objects.create({
+        name: "Chained Last Project",
+        organisation: org,
+      });
+
+      const project = await Project.objects
+        .filter({ name: "Chained Last Project" })
+        .selectRelated("organisation")
+        .last();
+
+      assertExists(project);
+      assertEquals(project.organisation.isLoaded(), true);
+      assertEquals(
+        project.organisation.get().name.get(),
+        "Chained Last Org",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() + get() — chained from already-fetched QS (Issue #251)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr251-get-chained",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Chained Get Org",
+        country: "Iceland",
+      });
+      const created = await Project.objects.create({
+        name: "Chained Get Project",
+        organisation: org,
+      });
+
+      const project = await Project.objects
+        .filter({ id: created.id.get() })
+        .selectRelated("organisation")
+        .get();
+
+      assertEquals(project.organisation.isLoaded(), true);
+      assertEquals(
+        project.organisation.get().name.get(),
+        "Chained Get Org",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() nested + fetch() — chained from already-fetched QS (Issue #251)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr251-nested-fetch-chained",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Nested Fetch Org",
+        country: "Finland",
+      });
+      const project = await Project.objects.create({
+        name: "Nested Fetch Project",
+        organisation: org,
+      });
+      const role = await ProjectRole.objects.create({
+        name: "Nested Fetch Role",
+        project: project,
+      });
+      await ProjectRoleCompetence.objects.create({
+        level: 2,
+        projectRole: role,
+      });
+
+      // Chain nested selectRelated + fetch() on a fresh QuerySet
+      const comps = await ProjectRoleCompetence.objects
+        .selectRelated("projectRole__project")
+        .fetch();
+
+      assertEquals(comps.array().length, 1);
+      const comp = comps.array()[0];
+      assertEquals(comp.projectRole.isLoaded(), true);
+      assertEquals(comp.projectRole.get().project.isLoaded(), true);
+      assertEquals(
+        comp.projectRole.get().project.get().name.get(),
+        "Nested Fetch Project",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});

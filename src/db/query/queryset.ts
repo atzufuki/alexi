@@ -119,18 +119,30 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
 
   /**
    * Clone this QuerySet with a modified state
+   *
+   * Clones intentionally do NOT inherit `_isFetched` or `_cache` from the
+   * parent. Propagating those flags caused a subtle bug: clones created by
+   * chaining methods (e.g. `limit()`, `selectRelated()`) would appear already
+   * fetched, so a subsequent `fetch()` call would hit the early-return path
+   * and never call `_loadRelatedObjects`, silently dropping `selectRelated`.
+   *
+   * The only place that deliberately preserves cache state is `filter()` when
+   * applied to an already-fetched QuerySet — that path uses `_fromState`
+   * directly with explicit cache/isFetched arguments.
    */
   private _clone(modifier?: (state: QueryState<T>) => void): QuerySet<T> {
     const newState = cloneQueryState(this._state);
     if (modifier) {
       modifier(newState);
     }
-    // Clone preserves fetched state, cache, and isEmpty flag
+    // Do NOT propagate _isFetched / _cache — clones always start unfetched.
+    // isEmpty is preserved because none() QuerySets must stay empty through
+    // all chaining (no database query should ever run on them).
     return QuerySet._fromState(
       newState,
       this._backend,
-      this._cache,
-      this._isFetched,
+      undefined,
+      undefined,
       this._isEmpty,
     );
   }
@@ -760,7 +772,20 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
    * ```
    */
   async fetch(): Promise<this> {
+    // none() QuerySets must always return empty — never hit the database.
+    if (this._isEmpty) {
+      this._cache = [];
+      this._isFetched = true;
+      return this;
+    }
+
     if (this._isFetched && this._cache !== null) {
+      // Even in the cache fast-path, selectRelated fields must be loaded.
+      // A QuerySet can be re-fetched with new selectRelated entries added after
+      // the original fetch(), so we always ensure related objects are resolved.
+      if (this._state.selectRelated.length > 0) {
+        await this._loadRelatedObjects(this._cache);
+      }
       return this;
     }
 
@@ -1263,7 +1288,17 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
    * ```
    */
   using(backend: DatabaseBackend | string): QuerySet<T> {
+    // _clone() deliberately does not propagate _isFetched/_cache (to prevent
+    // the selectRelated bug), but using() is the one place where we DO want
+    // to carry the cache across — the primary use-case is cross-backend sync:
+    //   const qs = await Model.objects.fetch();
+    //   await qs.using(otherBackend).save();
+    // Without cache propagation, save() would throw "QuerySet not fetched".
     const qs = this._clone();
+    // deno-lint-ignore no-explicit-any
+    (qs as any)._cache = this._cache;
+    // deno-lint-ignore no-explicit-any
+    (qs as any)._isFetched = this._isFetched;
 
     if (typeof backend === "string") {
       const namedBackend = getBackendByName(backend);
