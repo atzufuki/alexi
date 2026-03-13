@@ -1,6 +1,6 @@
 {
   "name": "@alexi/auth",
-  "version": "0.40.2",
+  "version": "0.40.3",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -9,9 +9,9 @@
     "./models": "./models/mod.ts"
   },
   "imports": {
-    "@alexi/core": "jsr:@alexi/core@0.40.2",
-    "@alexi/core/management": "jsr:@alexi/core@0.40.2/management",
-    "@alexi/db": "jsr:@alexi/db@0.40.2",
-    "@alexi/types": "jsr:@alexi/types@0.40.2"
+    "@alexi/core": "jsr:@alexi/core@0.40.3",
+    "@alexi/core/management": "jsr:@alexi/core@0.40.3/management",
+    "@alexi/db": "jsr:@alexi/db@0.40.3",
+    "@alexi/types": "jsr:@alexi/types@0.40.3"
   }
 }

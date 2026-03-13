@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.40.3] - 2026-03-13
+
+### Fixed
+
+- Fixed `ManagementUtility` `help` subcommand showing "No registered commands"
+  when app modules re-export a `HelpCommand` class, overwriting the correctly
+  initialised built-in instance (#254)
+- Fixed missing `--settings` hint when running a command (e.g.
+  `createsuperuser`) without a settings file — the error message now explains
+  that a settings file is required and how to provide one (#254)
+- Fixed `HelpCommand.showGeneralHelp()` null-registry fallback to show an
+  informative message pointing to `getCliApplication()` instead of a bare "No
+  registered commands" (#254)
+
 ## [0.40.2] - 2026-03-13
 
 ### Fixed
