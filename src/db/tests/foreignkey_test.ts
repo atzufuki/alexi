@@ -1217,3 +1217,297 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// Issue #248: selectRelated() cache-path bug in first() / last() / get()
+// ============================================================================
+
+Deno.test({
+  name: "selectRelated() + first() — fresh QuerySet (no cache) (Issue #248)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr248-first-fresh",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "First Fresh Org",
+        country: "Finland",
+      });
+      await Project.objects.create({
+        name: "Fresh Project",
+        organisation: org,
+      });
+
+      // Normal path: QuerySet not yet fetched → hits database
+      const project = await Project.objects
+        .selectRelated("organisation")
+        .first();
+
+      assertExists(project);
+      assertEquals(
+        project.organisation.isLoaded(),
+        true,
+        "organisation should be loaded via selectRelated",
+      );
+      assertEquals(project.organisation.get().name.get(), "First Fresh Org");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() + first() — already-fetched QuerySet (cache path) (Issue #248)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr248-first-cache",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Cache Org",
+        country: "Sweden",
+      });
+      await Project.objects.create({
+        name: "Cache Project",
+        organisation: org,
+      });
+
+      // Pre-fetch the QuerySet so _isFetched = true
+      const fetched = await Project.objects.all().fetch();
+
+      // Now call selectRelated().first() on the already-fetched QuerySet.
+      // This exercises the _isFetched cache path in first().
+      const project = await fetched.selectRelated("organisation").first();
+
+      assertExists(project);
+      assertEquals(
+        project.organisation.isLoaded(),
+        true,
+        "organisation should be loaded even when QuerySet was already fetched",
+      );
+      assertEquals(project.organisation.get().name.get(), "Cache Org");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name: "selectRelated() + last() — fresh QuerySet (no cache) (Issue #248)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr248-last-fresh",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Last Fresh Org",
+        country: "Norway",
+      });
+      await Project.objects.create({
+        name: "Last Fresh Project",
+        organisation: org,
+      });
+
+      const project = await Project.objects
+        .selectRelated("organisation")
+        .last();
+
+      assertExists(project);
+      assertEquals(project.organisation.isLoaded(), true);
+      assertEquals(project.organisation.get().name.get(), "Last Fresh Org");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() + last() — already-fetched QuerySet (cache path) (Issue #248)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr248-last-cache",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Last Cache Org",
+        country: "Denmark",
+      });
+      await Project.objects.create({
+        name: "Last Cache Project",
+        organisation: org,
+      });
+
+      const fetched = await Project.objects.all().fetch();
+      const project = await fetched.selectRelated("organisation").last();
+
+      assertExists(project);
+      assertEquals(
+        project.organisation.isLoaded(),
+        true,
+        "organisation should be loaded even when QuerySet was already fetched",
+      );
+      assertEquals(project.organisation.get().name.get(), "Last Cache Org");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name: "selectRelated() + get() — fresh QuerySet (no cache) (Issue #248)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr248-get-fresh",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Get Fresh Org",
+        country: "Iceland",
+      });
+      const created = await Project.objects.create({
+        name: "Get Fresh Project",
+        organisation: org,
+      });
+
+      const project = await Project.objects
+        .selectRelated("organisation")
+        .get({ id: created.id.get() });
+
+      assertEquals(project.organisation.isLoaded(), true);
+      assertEquals(project.organisation.get().name.get(), "Get Fresh Org");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() + get() — already-fetched QuerySet (cache path) (Issue #248)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr248-get-cache",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Get Cache Org",
+        country: "Finland",
+      });
+      const created = await Project.objects.create({
+        name: "Get Cache Project",
+        organisation: org,
+      });
+
+      const fetched = await Project.objects.all().fetch();
+
+      // get() on already-fetched QuerySet exercises the cache path
+      const project = await fetched
+        .selectRelated("organisation")
+        .get({ id: created.id.get() });
+
+      assertEquals(
+        project.organisation.isLoaded(),
+        true,
+        "organisation should be loaded even when QuerySet was already fetched",
+      );
+      assertEquals(project.organisation.get().name.get(), "Get Cache Org");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "selectRelated() nested + first() — already-fetched QuerySet (Issue #248)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "sr248-nested-first",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org = await Organisation.objects.create({
+        name: "Nested First Org",
+        country: "Sweden",
+      });
+      const project = await Project.objects.create({
+        name: "Nested First Project",
+        organisation: org,
+      });
+      const role = await ProjectRole.objects.create({
+        name: "Nested First Role",
+        project: project,
+      });
+      await ProjectRoleCompetence.objects.create({
+        level: 3,
+        projectRole: role,
+      });
+
+      // Pre-fetch, then apply nested selectRelated and first()
+      const fetched = await ProjectRoleCompetence.objects.all().fetch();
+      const comp = await fetched
+        .selectRelated("projectRole__project")
+        .first();
+
+      assertExists(comp);
+      assertEquals(comp.projectRole.isLoaded(), true);
+      assertEquals(comp.projectRole.get().project.isLoaded(), true);
+      assertEquals(
+        comp.projectRole.get().project.get().name.get(),
+        "Nested First Project",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
