@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.40.6] - 2026-03-13
+
+### Fixed
+
+- Fixed `ALEXI_SETTINGS_MODULE` environment variable being ignored at command
+  execution time — all commands (`createsuperuser`, `runserver`, `bundle`,
+  `collectstatic`, `build`, etc.) now fall back to the env var when no
+  `--settings` flag is provided, consistent with the resolution order
+  established in v0.40.5 (#260)
+
 ## [0.40.5] - 2026-03-13
 
 ### Fixed
