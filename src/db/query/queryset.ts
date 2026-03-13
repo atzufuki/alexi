@@ -945,7 +945,11 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
           `get() returned more than one ${this._state.model.name}.`,
         );
       }
-      return results[0];
+      const instance = results[0];
+      if (this._state.selectRelated.length > 0) {
+        await this._loadRelatedObjects([instance]);
+      }
+      return instance;
     }
 
     const limitedQs = await qs.limit(2).fetch();
@@ -972,7 +976,11 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   async first(): Promise<T | null> {
     // If already fetched, use in-memory data
     if (this._isFetched && this._cache !== null) {
-      return this._cache[0] ?? null;
+      const instance = this._cache[0] ?? null;
+      if (instance !== null && this._state.selectRelated.length > 0) {
+        await this._loadRelatedObjects([instance]);
+      }
+      return instance;
     }
 
     const qs = this.limit(1);
@@ -986,7 +994,11 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   async last(): Promise<T | null> {
     // If already fetched, use in-memory data
     if (this._isFetched && this._cache !== null) {
-      return this._cache[this._cache.length - 1] ?? null;
+      const instance = this._cache[this._cache.length - 1] ?? null;
+      if (instance !== null && this._state.selectRelated.length > 0) {
+        await this._loadRelatedObjects([instance]);
+      }
+      return instance;
     }
 
     const qs = this.reverse().limit(1);
