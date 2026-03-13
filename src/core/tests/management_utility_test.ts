@@ -185,6 +185,62 @@ Deno.test(
 );
 
 // =============================================================================
+// Bug #256: HelpCommand overwritten when alexi_management_commands passed
+//           via config.commands
+// =============================================================================
+
+Deno.test(
+  "ManagementUtility: 'help' with alexi_management_commands in config.commands lists all commands",
+  async () => {
+    const { alexi_management_commands } = await import(
+      "../management/management.ts"
+    );
+    const { stdout, exitCode } = await runManagement(
+      ["help"],
+      alexi_management_commands,
+    );
+    assertEquals(exitCode, 0, `Expected exit code 0, got ${exitCode}`);
+    // Must NOT fall through to the "No commands registered" fallback
+    assertEquals(
+      stdout.includes("No commands registered"),
+      false,
+      `Expected stdout NOT to contain "No commands registered", got:\n${stdout}`,
+    );
+    // Should list at least the help and test commands that come from alexi_management_commands
+    assertStringIncludes(stdout, "help");
+    assertStringIncludes(stdout, "test");
+  },
+);
+
+Deno.test(
+  "ManagementUtility: 'help' and no-args are consistent when alexi_management_commands used",
+  async () => {
+    const { alexi_management_commands } = await import(
+      "../management/management.ts"
+    );
+
+    const resultNoArgs = await runManagement([], alexi_management_commands);
+    const resultHelp = await runManagement(
+      ["help"],
+      alexi_management_commands,
+    );
+
+    assertEquals(resultNoArgs.exitCode, 0);
+    assertEquals(resultHelp.exitCode, 0);
+
+    // Both outputs must include the same set of built-in commands
+    assertStringIncludes(resultNoArgs.stdout, "help");
+    assertStringIncludes(resultHelp.stdout, "help");
+    assertStringIncludes(resultNoArgs.stdout, "test");
+    assertStringIncludes(resultHelp.stdout, "test");
+
+    // Neither should show the broken fallback message
+    assertEquals(resultNoArgs.stdout.includes("No commands registered"), false);
+    assertEquals(resultHelp.stdout.includes("No commands registered"), false);
+  },
+);
+
+// =============================================================================
 // Bug 3: HelpCommand fallback message is informative when used standalone
 // =============================================================================
 
