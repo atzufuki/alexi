@@ -8,6 +8,30 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.41.0] - 2026-03-13
+
+### Breaking Changes
+
+- Removed all auth/token management from `RestBackend`: `login()`, `logout()`,
+  `getMe()`, `register()`, `changePassword()`, `updateMe()` methods and
+  `AuthTokens`, `AuthEndpoints`, `LoginCredentials`, `RegisterData`, `AuthUser`,
+  `AuthResponse` types are no longer exported from `@alexi/db/backends/rest`.
+  Auth is now handled per-endpoint via `ModelEndpoint.getAuthHeaders()` (#263)
+
+### Added
+
+- `ModelEndpoint.getAuthHeaders()` — override on a shared base `ModelEndpoint`
+  subclass to inject auth headers (Bearer token, API key, etc.) into every ORM
+  and action request for that endpoint (#263)
+
+### Changed
+
+- `RestBackend` is now a pure HTTP transport layer with zero knowledge of tokens
+  or auth schemes (#263)
+- All ORM operations (`execute`, `insert`, `update`, `partialUpdate`, `delete`,
+  `deleteById`, `getById`, `count`, `action`, `callModelAction`) now resolve
+  auth headers from the matching `ModelEndpoint` instance (#263)
+
 ## [0.40.6] - 2026-03-13
 
 ### Fixed
