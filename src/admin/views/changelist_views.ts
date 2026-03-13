@@ -61,8 +61,10 @@ function formatValue(value: unknown): string {
  * Safely extract a display value from a model field instance.
  *
  * - For regular fields: calls `.get()` to retrieve the value.
- * - For ForeignKey fields that are loaded: calls `.get()` on the related
- *   instance (which itself has field accessors).
+ * - For ForeignKey fields that are loaded: returns the related object's
+ *   primary key (a primitive) rather than the live model instance, to avoid
+ *   cascading serialization errors when the related model itself has unloaded
+ *   ForeignKey fields.
  * - For ForeignKey fields that are NOT loaded (e.g. not in listDisplay /
  *   selectRelated was not called for this field): falls back to the raw FK ID
  *   via `.id` instead of throwing.
@@ -78,7 +80,15 @@ function safeGetFieldValue(v: unknown): unknown {
       get(): unknown;
       id: unknown;
     };
-    return fk.isLoaded() ? fk.get() : fk.id;
+    if (!fk.isLoaded()) return fk.id;
+    // Return the related object's primary key (a primitive) rather than the
+    // live model instance. Passing the full instance to formatValue would cause
+    // JSON.stringify to traverse its own FK fields, which may not be loaded,
+    // resulting in a "Related object not fetched" error.
+    const related = fk.get() as Record<string, unknown> | null;
+    if (related === null || related === undefined) return fk.id;
+    if (typeof related["pk"] !== "undefined") return related["pk"];
+    return fk.id;
   }
   // Regular field: call .get()
   if (typeof obj["get"] === "function") {
