@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.41.1] - 2026-03-14
+
+### Fixed
+
+- Fixed admin changelist crashing with 500 when `listDisplay` includes a
+  `ForeignKey` field whose related model has its own unloaded `ForeignKey`
+  fields. `safeGetFieldValue` now returns the related object's `pk` (a
+  primitive) instead of the live model instance, preventing cascading
+  serialization failures through nested unloaded relations (#265)
+
 ## [0.41.0] - 2026-03-13
 
 ### Breaking Changes
