@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.40.1] - 2026-03-13
+
+### Fixed
+
+- Fixed `selectRelated()` being silently ignored when chaining QuerySet methods
+  (`limit()`, `orderBy()`, etc.) due to `_clone()` propagating the fetch cache
+  to clones, causing subsequent `fetch()` calls to return immediately without
+  loading related objects (#251, #252)
+- Fixed `selectRelated()` skipped in `fetch()` cache fast-path even when related
+  fields were requested (#251)
+
 ## [0.40.0] - 2026-03-12
 
 ### Added
