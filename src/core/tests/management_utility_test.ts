@@ -5,6 +5,9 @@
  *   1. HelpCommand instance overwritten by registerCommandsFromModule
  *   2. Silent failure when settings file is missing → better error message
  *   3. HelpCommand.showGeneralHelp showing "No registered commands"
+ *
+ * Also covers issue #258:
+ *   4. ALEXI_SETTINGS_MODULE env var not respected by loadAppCommands()
  */
 
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
@@ -270,5 +273,190 @@ Deno.test(
     );
     // New message should mention how to properly use the CLI
     assertStringIncludes(output, "getCliApplication");
+  },
+);
+
+// =============================================================================
+// Bug #258: ALEXI_SETTINGS_MODULE env var not respected by loadAppCommands()
+// =============================================================================
+
+Deno.test(
+  "ManagementUtility: ALEXI_SETTINGS_MODULE is used when --settings flag is absent",
+  async () => {
+    const tempDir = await Deno.makeTempDir();
+    try {
+      // Write a minimal settings file with one custom command registered
+      const settingsPath = `${tempDir}/project/test.settings.ts`;
+      await Deno.mkdir(`${tempDir}/project`, { recursive: true });
+
+      // Write a tiny app module with one custom command.
+      // Export as `commands` so loadCommandsFromImportFn picks it up via the
+      // module.commands fallback path.
+      const appModPath = `${tempDir}/app_mod.ts`;
+      await Deno.writeTextFile(
+        appModPath,
+        `
+import { BaseCommand, success } from "${
+          new URL("../management/base_command.ts", import.meta.url).href
+        }";
+import type { CommandOptions, CommandResult } from "${
+          new URL("../management/types.ts", import.meta.url).href
+        }";
+
+export class EnvVarCommand extends BaseCommand {
+  readonly name = "envvarcommand";
+  readonly help = "Discovered via ALEXI_SETTINGS_MODULE";
+  async handle(_options: CommandOptions): Promise<CommandResult> {
+    return success();
+  }
+}
+
+export const commands = { EnvVarCommand };
+export default { name: "test-app", verboseName: "Test App" };
+`,
+      );
+
+      const appModUrl =
+        new URL(`file://${appModPath.replace(/\\/g, "/")}`).href;
+      await Deno.writeTextFile(
+        settingsPath,
+        `export const INSTALLED_APPS = [() => import("${appModUrl}")];\n`,
+      );
+
+      // Set the env var to point at our temp settings file (use forward slashes for Windows compat)
+      const envValue = settingsPath.replace(/\\/g, "/");
+
+      const stdoutLines: string[] = [];
+      const stderrLines: string[] = [];
+
+      const utility = new ManagementUtility({
+        programName: "test-manage.ts",
+        title: "Test Commands",
+        commands: [],
+        projectRoot: tempDir,
+      });
+      utility.setConsole(
+        makeConsole(stdoutLines),
+        makeConsole(stderrLines),
+      );
+
+      // Set env var before execution
+      Deno.env.set("ALEXI_SETTINGS_MODULE", envValue);
+      try {
+        const exitCode = await utility.execute(["help"]);
+        const stdout = stdoutLines.join("\n");
+        assertEquals(exitCode, 0, `Expected exit 0, got ${exitCode}`);
+        assertStringIncludes(
+          stdout,
+          "envvarcommand",
+          `Expected 'envvarcommand' in help output when ALEXI_SETTINGS_MODULE is set.\nGot:\n${stdout}`,
+        );
+      } finally {
+        Deno.env.delete("ALEXI_SETTINGS_MODULE");
+      }
+    } finally {
+      await Deno.remove(tempDir, { recursive: true });
+    }
+  },
+);
+
+Deno.test(
+  "ManagementUtility: --settings flag takes precedence over ALEXI_SETTINGS_MODULE",
+  async () => {
+    const tempDir = await Deno.makeTempDir();
+    try {
+      await Deno.mkdir(`${tempDir}/project`, { recursive: true });
+
+      // Settings file A — has commandA
+      const commandAModPath = `${tempDir}/app_a.ts`;
+      await Deno.writeTextFile(
+        commandAModPath,
+        `
+import { BaseCommand, success } from "${
+          new URL("../management/base_command.ts", import.meta.url).href
+        }";
+import type { CommandOptions, CommandResult } from "${
+          new URL("../management/types.ts", import.meta.url).href
+        }";
+export class CommandA extends BaseCommand {
+  readonly name = "commanda";
+  readonly help = "From settings A";
+  async handle(_o: CommandOptions): Promise<CommandResult> { return success(); }
+}
+export const commands = { CommandA };
+export default { name: "app-a", verboseName: "App A" };
+`,
+      );
+      const urlA = new URL(
+        `file://${commandAModPath.replace(/\\/g, "/")}`,
+      ).href;
+      const settingsAPath = `${tempDir}/project/a.settings.ts`;
+      await Deno.writeTextFile(
+        settingsAPath,
+        `export const INSTALLED_APPS = [() => import("${urlA}")];\n`,
+      );
+
+      // Settings file B — has commandB
+      const commandBModPath = `${tempDir}/app_b.ts`;
+      await Deno.writeTextFile(
+        commandBModPath,
+        `
+import { BaseCommand, success } from "${
+          new URL("../management/base_command.ts", import.meta.url).href
+        }";
+import type { CommandOptions, CommandResult } from "${
+          new URL("../management/types.ts", import.meta.url).href
+        }";
+export class CommandB extends BaseCommand {
+  readonly name = "commandb";
+  readonly help = "From settings B";
+  async handle(_o: CommandOptions): Promise<CommandResult> { return success(); }
+}
+export const commands = { CommandB };
+export default { name: "app-b", verboseName: "App B" };
+`,
+      );
+      const urlB = new URL(
+        `file://${commandBModPath.replace(/\\/g, "/")}`,
+      ).href;
+      const settingsBPath = `${tempDir}/project/b.settings.ts`;
+      await Deno.writeTextFile(
+        settingsBPath,
+        `export const INSTALLED_APPS = [() => import("${urlB}")];\n`,
+      );
+
+      const stdoutLines: string[] = [];
+      const utility = new ManagementUtility({
+        programName: "test-manage.ts",
+        title: "Test Commands",
+        commands: [],
+        projectRoot: tempDir,
+      });
+      utility.setConsole(makeConsole(stdoutLines), makeConsole([]));
+
+      // Set env var to settings A, but pass --settings for B on the CLI
+      const absPathA = settingsAPath.replace(/\\/g, "/");
+      Deno.env.set("ALEXI_SETTINGS_MODULE", absPathA);
+      try {
+        const absPathB = settingsBPath.replace(/\\/g, "/");
+        const exitCode = await utility.execute([
+          "help",
+          `--settings=${absPathB}`,
+        ]);
+        const stdout = stdoutLines.join("\n");
+        assertEquals(exitCode, 0);
+        // Should contain commandB (from --settings), not commandA (from env var)
+        assertStringIncludes(stdout, "commandb");
+        assertEquals(
+          stdout.includes("commanda"),
+          false,
+          `--settings flag should override ALEXI_SETTINGS_MODULE, but 'commanda' appeared in:\n${stdout}`,
+        );
+      } finally {
+        Deno.env.delete("ALEXI_SETTINGS_MODULE");
+      }
+    } finally {
+      await Deno.remove(tempDir, { recursive: true });
+    }
   },
 );
