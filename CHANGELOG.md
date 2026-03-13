@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.40.4] - 2026-03-13
+
+### Fixed
+
+- Fixed `help` command showing "No commands registered" when
+  `alexi_management_commands` (or any array containing `HelpCommand`) is passed
+  via `config.commands` to `getCliApplication()` — `registerCommand()` and
+  `registerCommands()` now skip commands that are already registered, preserving
+  the wired-up built-in `HelpCommand` instance (#256)
+
 ## [0.40.3] - 2026-03-13
 
 ### Fixed
