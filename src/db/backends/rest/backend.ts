@@ -6,7 +6,7 @@
  *
  * Features:
  * - Automatic ORM-to-REST mapping (QueryState → HTTP requests)
- * - JWT token management with auto-refresh
+ * - Auth header injection via {@link ModelEndpoint.getAuthHeaders} (per-endpoint)
  * - Special query handlers for custom endpoints
  * - Model actions (e.g., /projects/:id/publish/)
  * - Fully extensible via subclassing
@@ -26,26 +26,35 @@
  * const tasks = await TaskModel.objects.using(backend).all().fetch();
  * ```
  *
- * @example Subclassing for app-specific behavior
+ * @example Auth via ModelEndpoint.getAuthHeaders
+ * ```ts
+ * import { ModelEndpoint, DetailAction, RestBackend } from "@alexi/db/backends/rest";
+ *
+ * abstract class AuthEndpoint extends ModelEndpoint {
+ *   abstract model: typeof Model;
+ *   abstract path: string;
+ *
+ *   override async getAuthHeaders() {
+ *     const token = localStorage.getItem("access_token");
+ *     return token ? { Authorization: `Bearer ${token}` } : {};
+ *   }
+ * }
+ *
+ * class ProjectEndpoint extends AuthEndpoint {
+ *   model = ProjectModel;
+ *   path = "/projects/";
+ *   publish = new DetailAction();
+ * }
+ *
+ * const backend = new RestBackend({
+ *   apiUrl: "https://api.example.com",
+ *   endpoints: [ProjectEndpoint],
+ * });
+ * ```
+ *
+ * @example Subclassing for app-specific methods
  * ```ts
  * class MyRestBackend extends RestBackend {
- *   constructor(apiUrl: string) {
- *     super({
- *       apiUrl,
- *       tokenStorageKey: "myapp_tokens",
- *     });
- *   }
- *
- *   protected override getSpecialQueryHandlers() {
- *     return {
- *       organisations: [{
- *         matches: (f) => f.length === 1 && f[0].field === "current",
- *         getEndpoint: () => "/organisations/current/",
- *         returnsSingle: true,
- *       }],
- *     };
- *   }
- *
  *   async updateProfile(data: Record<string, unknown>) {
  *     return this.request("/auth/me/", { method: "PATCH", body: JSON.stringify(data) });
  *   }
@@ -94,126 +103,8 @@ export type { Field } from "../../fields/field.ts";
 export { RelatedManager } from "../../fields/relations.ts";
 
 // =============================================================================
-// Auth Types
-// =============================================================================
-
-/**
- * Login credentials
- */
-export interface LoginCredentials {
-  /** Login identifier used by the API. */
-  email: string;
-  /** Plain-text password submitted to the login endpoint. */
-  password: string;
-}
-
-/**
- * Registration data
- */
-export interface RegisterData {
-  /** Email address for the new account. */
-  email: string;
-  /** Plain-text password for the new account. */
-  password: string;
-  /** Optional given name. */
-  firstName?: string;
-  /** Optional family name. */
-  lastName?: string;
-  /** Additional registration fields forwarded to the API unchanged. */
-  [key: string]: unknown;
-}
-
-/**
- * User data returned from auth endpoints.
- * Supports both camelCase and snake_case field names.
- */
-export interface AuthUser {
-  /** Primary key as returned by the API. */
-  id: number | string;
-  /** Normalized email address. */
-  email: string;
-  /** CamelCase given name field used by some APIs. */
-  firstName?: string;
-  /** CamelCase family name field used by some APIs. */
-  lastName?: string;
-  /** snake_case given name field used by some APIs. */
-  first_name?: string;
-  /** snake_case family name field used by some APIs. */
-  last_name?: string;
-  /** CamelCase active-flag field used by some APIs. */
-  isActive?: boolean;
-  /** snake_case active-flag field used by some APIs. */
-  is_active?: boolean;
-  /** CamelCase admin-flag field used by some APIs. */
-  isAdmin?: boolean;
-  /** snake_case admin-flag field used by some APIs. */
-  is_admin?: boolean;
-  /** CamelCase creation timestamp used by some APIs. */
-  createdAt?: string;
-  /** snake_case creation timestamp used by some APIs. */
-  created_at?: string;
-  /** CamelCase update timestamp used by some APIs. */
-  updatedAt?: string;
-  /** snake_case update timestamp used by some APIs. */
-  updated_at?: string;
-  /** CamelCase last-login timestamp used by some APIs. */
-  lastLoginAt?: string | null;
-  /** snake_case last-login timestamp used by some APIs. */
-  last_login_at?: string | null;
-  /** Additional user fields forwarded from the API response. */
-  [key: string]: unknown;
-}
-
-/**
- * Login/Register response from the API
- */
-export interface AuthResponse {
-  /** Authenticated user payload returned by the server. */
-  user: AuthUser;
-  /** Access and refresh tokens returned by the auth endpoint. */
-  tokens: {
-    accessToken: string;
-    refreshToken: string;
-    /** Token lifetime in seconds */
-    expiresIn?: number;
-    /** Absolute expiration timestamp (ISO 8601) */
-    expiresAt?: string;
-  };
-}
-
-/**
- * Authentication tokens stored by the backend
- */
-export interface AuthTokens {
-  /** Short-lived bearer token sent on authenticated requests. */
-  accessToken: string;
-  /** Long-lived token used to refresh the access token. */
-  refreshToken: string;
-  /** Absolute expiration time for the access token. */
-  expiresAt: Date;
-}
-
-// =============================================================================
 // Configuration
 // =============================================================================
-
-/**
- * Auth endpoint paths. All relative to `apiUrl`.
- */
-export interface AuthEndpoints {
-  /** Login endpoint. Default: `/auth/login/` */
-  login?: string;
-  /** Registration endpoint. Default: `/auth/register/` */
-  register?: string;
-  /** Token refresh endpoint. Default: `/auth/refresh/` */
-  refresh?: string;
-  /** Logout endpoint. Default: `/auth/logout/` */
-  logout?: string;
-  /** Current user profile endpoint. Default: `/auth/me/` */
-  me?: string;
-  /** Password change endpoint. Default: `/auth/change-password/` */
-  changePassword?: string;
-}
 
 /**
  * REST Backend configuration
@@ -227,12 +118,7 @@ export interface AuthEndpoints {
  * ```ts
  * {
  *   apiUrl: "https://api.example.com",
- *   tokenStorageKey: "myapp_auth_tokens",
  *   debug: true,
- *   authEndpoints: {
- *     login: "/auth/login/",
- *     register: "/auth/register/",
- *   },
  *   endpoints: [ProjectEndpoint, OrganisationEndpoint],
  * }
  * ```
@@ -245,36 +131,41 @@ export interface RestBackendConfig {
   debug?: boolean;
 
   /**
-   * localStorage key for token storage.
-   * Default: `"alexi_auth_tokens"`
-   */
-  tokenStorageKey?: string;
-
-  /**
-   * Auth endpoint paths, relative to `apiUrl`.
-   * Each endpoint has a sensible default — override only what you need.
-   */
-  authEndpoints?: AuthEndpoints;
-
-  /**
    * Declarative endpoint configurations (DRF-style).
    *
    * Register {@link ModelEndpoint} subclasses to declaratively define
    * actions, singleton queries, and endpoint mappings using field-like
    * descriptors.
    *
+   * Override {@link ModelEndpoint.getAuthHeaders} on a shared base class
+   * to inject authentication headers (e.g., `Authorization: Bearer <token>`)
+   * for all requests made through these endpoints.
+   *
    * @example
    * ```ts
    * import { ModelEndpoint, DetailAction, SingletonQuery } from "@alexi/db/backends/rest";
    *
-   * class ProjectEndpoint extends ModelEndpoint {
+   * // Shared base that provides auth headers for all endpoints
+   * abstract class AuthEndpoint extends ModelEndpoint {
+   *   abstract model: typeof Model;
+   *   abstract path: string;
+   *
+   *   override async getAuthHeaders() {
+   *     const token = localStorage.getItem("access_token");
+   *     return token ? { Authorization: `Bearer ${token}` } : {};
+   *   }
+   * }
+   *
+   * class ProjectEndpoint extends AuthEndpoint {
    *   model = ProjectModel;
+   *   path = "/projects/";
    *   publish = new DetailAction();       // POST /projects/:id/publish/
    *   unpublish = new DetailAction();     // POST /projects/:id/unpublish/
    * }
    *
-   * class OrganisationEndpoint extends ModelEndpoint {
+   * class OrganisationEndpoint extends AuthEndpoint {
    *   model = OrganisationModel;
+   *   path = "/organisations/";
    *   current = new SingletonQuery();     // filter({current: true}) → GET /organisations/current/
    * }
    *
@@ -427,21 +318,6 @@ export class RestApiError extends Error {
 }
 
 // =============================================================================
-// Defaults
-// =============================================================================
-
-const DEFAULT_TOKEN_STORAGE_KEY = "alexi_auth_tokens";
-
-const DEFAULT_AUTH_ENDPOINTS: Required<AuthEndpoints> = {
-  login: "/auth/login/",
-  register: "/auth/register/",
-  refresh: "/auth/refresh/",
-  logout: "/auth/logout/",
-  me: "/auth/me/",
-  changePassword: "/auth/change-password/",
-};
-
-// =============================================================================
 // RestBackend Class
 // =============================================================================
 
@@ -459,12 +335,28 @@ const DEFAULT_AUTH_ENDPOINTS: Required<AuthEndpoints> = {
  * | `instance.delete()` | DELETE | `/{endpoint}/{id}/` |
  * | `objects.get({id: 1})` | GET | `/{endpoint}/1/` |
  *
+ * ### Authentication
+ *
+ * Authentication is handled by {@link ModelEndpoint.getAuthHeaders}.
+ * Override `getAuthHeaders()` in a shared base endpoint class to inject
+ * `Authorization` headers (or any other auth scheme) for all requests:
+ *
+ * ```ts
+ * abstract class AuthEndpoint extends ModelEndpoint {
+ *   abstract model: typeof Model;
+ *   abstract path: string;
+ *
+ *   override async getAuthHeaders() {
+ *     const token = localStorage.getItem("access_token");
+ *     return token ? { Authorization: `Bearer ${token}` } : {};
+ *   }
+ * }
+ * ```
+ *
  * ### Endpoint Resolution
  *
- * The endpoint for a model is resolved in this order:
- * 1. ModelEndpoint with explicit `endpoint` field
- * 2. `Model.meta.dbTable` (recommended)
- * 3. Auto-derived: strip "Model" suffix, lowercase, pluralize
+ * The endpoint for a model is resolved from the registered {@link ModelEndpoint}
+ * classes. Registration via the `endpoints` config option is required.
  *
  * ### Extending
  *
@@ -474,26 +366,24 @@ const DEFAULT_AUTH_ENDPOINTS: Required<AuthEndpoints> = {
  * - Override `getEndpointForModel()` for custom endpoint resolution
  * - Override `extractData()` to customize how model data is serialized
  * - Override `formatDateForApi()` to change date serialization
- * - Add app-specific methods (e.g., `updateProfile()`, `publishProject()`)
+ * - Add app-specific methods (e.g., `publishProject()`)
  * - Use the protected `request()` method for custom API calls
  */
 export class RestBackend extends DatabaseBackend {
   private _apiUrl: string;
   private _debug: boolean;
-  private _tokens: AuthTokens | null = null;
-  private _refreshPromise: Promise<AuthTokens | null> | null = null;
-  private _tokenStorageKey: string;
-  private _authEndpoints: Required<AuthEndpoints>;
   private _endpointMap: Record<string, string>;
   private _pathMap: Record<string, string>;
   private _registeredActions: Map<string, RegisteredAction[]> = new Map();
   private _endpointIntrospections: EndpointIntrospection[] = [];
   private _endpointSpecialHandlers: Record<string, SpecialQueryHandler[]> = {};
+  /** Retained endpoint instances keyed by model class name, for auth header resolution. */
+  private _endpointInstances: Map<string, ModelEndpoint> = new Map();
 
   /**
    * Create a REST backend.
    *
-   * @param config API base URL, auth settings, and declarative endpoint config.
+   * @param config API base URL, debug flag, and declarative endpoint config.
    */
   constructor(config: RestBackendConfig) {
     super({
@@ -504,11 +394,6 @@ export class RestBackend extends DatabaseBackend {
 
     this._apiUrl = config.apiUrl.replace(/\/$/, "");
     this._debug = config.debug ?? false;
-    this._tokenStorageKey = config.tokenStorageKey ?? DEFAULT_TOKEN_STORAGE_KEY;
-    this._authEndpoints = {
-      ...DEFAULT_AUTH_ENDPOINTS,
-      ...(config.authEndpoints ?? {}),
-    };
     this._endpointMap = {};
     this._pathMap = {};
 
@@ -516,8 +401,6 @@ export class RestBackend extends DatabaseBackend {
     if (config.endpoints && config.endpoints.length > 0) {
       this._registerEndpoints(config.endpoints);
     }
-
-    this._loadTokens();
   }
 
   // ===========================================================================
@@ -529,195 +412,16 @@ export class RestBackend extends DatabaseBackend {
     return this._apiUrl;
   }
 
-  /** The token storage key used for localStorage */
-  get tokenStorageKey(): string {
-    return this._tokenStorageKey;
-  }
-
-  /**
-   * Check if the user is authenticated (has non-expired tokens).
-   *
-   * Reloads tokens from storage if not in memory, so this is safe
-   * to call after another tab/component has logged in.
-   */
-  isAuthenticated(): boolean {
-    if (this._tokens === null) {
-      this._loadTokens();
-    }
-    return this._tokens !== null;
-  }
-
-  /**
-   * Force-reload tokens from localStorage.
-   * Useful after login in another tab or component.
-   */
-  reloadTokens(): void {
-    this._loadTokens();
-  }
-
-  // ===========================================================================
-  // Token Management
-  // ===========================================================================
-
-  /**
-   * Load persisted auth tokens from `localStorage` into memory.
-   *
-   * Invalid or unparsable stored values are ignored and clear the in-memory
-   * token state.
-   */
-  private _loadTokens(): void {
-    if (typeof localStorage === "undefined") return;
-
-    try {
-      const stored = localStorage.getItem(this._tokenStorageKey);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        this._tokens = {
-          ...parsed,
-          expiresAt: new Date(parsed.expiresAt),
-        };
-        this._log(`Tokens loaded, expires: ${this._tokens?.expiresAt}`);
-      }
-    } catch (error) {
-      this._log("Failed to load tokens from storage:", error);
-      this._tokens = null;
-    }
-  }
-
-  /**
-   * Persist auth tokens to memory and `localStorage`.
-   *
-   * @param tokens Tokens returned by a login or refresh response.
-   */
-  private _saveTokens(tokens: AuthTokens): void {
-    this._tokens = tokens;
-    if (typeof localStorage === "undefined") return;
-
-    try {
-      localStorage.setItem(this._tokenStorageKey, JSON.stringify(tokens));
-    } catch (error) {
-      this._log("Failed to save tokens to storage:", error);
-    }
-  }
-
-  /**
-   * Clear auth tokens from memory and `localStorage`.
-   */
-  private _clearTokens(): void {
-    this._tokens = null;
-    if (typeof localStorage === "undefined") return;
-
-    try {
-      localStorage.removeItem(this._tokenStorageKey);
-    } catch (error) {
-      this._log("Failed to clear tokens from storage:", error);
-    }
-  }
-
-  /**
-   * Check whether the current access token is expired or close to expiring.
-   *
-   * A short buffer is applied so requests can refresh proactively.
-   */
-  private _isTokenExpired(): boolean {
-    if (!this._tokens) return true;
-    const bufferMs = 60 * 1000; // 60 seconds buffer
-    return this._tokens.expiresAt.getTime() - Date.now() < bufferMs;
-  }
-
-  /**
-   * Refresh the access token while coalescing concurrent refresh attempts.
-   *
-   * @returns Fresh tokens, or `null` when refresh is unavailable or fails.
-   */
-  private async _refreshAccessToken(): Promise<AuthTokens | null> {
-    if (!this._tokens?.refreshToken) return null;
-
-    // Prevent concurrent refresh requests
-    if (this._refreshPromise) {
-      return this._refreshPromise;
-    }
-
-    this._refreshPromise = this._doRefreshToken();
-
-    try {
-      return await this._refreshPromise;
-    } finally {
-      this._refreshPromise = null;
-    }
-  }
-
-  /**
-   * Execute the actual refresh-token HTTP request.
-   *
-   * @returns Fresh tokens, or `null` when the refresh request fails.
-   */
-  private async _doRefreshToken(): Promise<AuthTokens | null> {
-    try {
-      const response = await fetch(
-        `${this._apiUrl}${this._authEndpoints.refresh}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            refreshToken: this._tokens!.refreshToken,
-          }),
-        },
-      );
-
-      if (!response.ok) {
-        this._log("Token refresh failed:", response.status);
-        this._clearTokens();
-        return null;
-      }
-
-      const data = await response.json();
-      const expiresAt = this._resolveExpiresAt(data.tokens ?? data);
-
-      const newTokens: AuthTokens = {
-        accessToken: data.tokens?.accessToken ?? data.accessToken,
-        refreshToken: data.tokens?.refreshToken ?? data.refreshToken ??
-          this._tokens!.refreshToken,
-        expiresAt,
-      };
-
-      this._saveTokens(newTokens);
-      return newTokens;
-    } catch (error) {
-      this._log("Token refresh error:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get authorization headers for an authenticated request.
-   * Automatically refreshes the token if expired.
-   */
-  private async _getAuthHeaders(): Promise<Record<string, string>> {
-    if (!this._tokens) {
-      this._loadTokens();
-    }
-
-    if (!this._tokens) return {};
-
-    if (this._isTokenExpired()) {
-      const refreshed = await this._refreshAccessToken();
-      if (!refreshed) return {};
-    }
-
-    return {
-      Authorization: `Bearer ${this._tokens!.accessToken}`,
-    };
-  }
-
   // ===========================================================================
   // HTTP Helpers (protected — available to subclasses)
   // ===========================================================================
 
   /**
-   * Make an authenticated HTTP request to the API.
+   * Make an HTTP request to the API.
    *
    * This is the core HTTP method used by all ORM operations.
+   * Auth headers are resolved from the endpoint instance's `getAuthHeaders()`
+   * and passed in via the `authHeaders` parameter.
    * Subclasses can also use it for app-specific endpoints:
    *
    * ```ts
@@ -733,16 +437,16 @@ export class RestBackend extends DatabaseBackend {
    * ```
    *
    * @param endpoint - URL path relative to `apiUrl` (e.g., `/users/`)
-   * @param options - Standard `fetch` options. Auth headers are added automatically.
+   * @param options - Standard `fetch` options.
+   * @param authHeaders - Auth headers from the endpoint's `getAuthHeaders()`. Defaults to `{}`.
    * @returns Parsed JSON response
    * @throws {RestApiError} on non-2xx responses
    */
   protected async request<T = unknown>(
     endpoint: string,
     options: RequestInit = {},
+    authHeaders: Record<string, string> = {},
   ): Promise<T> {
-    const authHeaders = await this._getAuthHeaders();
-
     const response = await fetch(`${this._apiUrl}${endpoint}`, {
       ...options,
       headers: {
@@ -771,190 +475,15 @@ export class RestBackend extends DatabaseBackend {
   }
 
   // ===========================================================================
-  // Authentication Methods
-  // ===========================================================================
-
-  /**
-   * Login with email and password.
-   *
-   * Stores the returned JWT tokens and returns the full auth response.
-   *
-   * @example
-   * ```ts
-   * const { user, tokens } = await backend.login({
-   *   email: "user@example.com",
-   *   password: "secret",
-   * });
-   * console.log("Logged in as", user.email);
-   * ```
-   */
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    this._log("Logging in:", credentials.email);
-
-    const response = await fetch(
-      `${this._apiUrl}${this._authEndpoints.login}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(credentials),
-      },
-    );
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      this._log("Login failed:", errorBody);
-      throw new RestApiError({
-        status: response.status,
-        message: "Login failed",
-        body: errorBody,
-      });
-    }
-
-    const data: AuthResponse = await response.json();
-    const expiresAt = this._resolveExpiresAt(data.tokens);
-
-    this._saveTokens({
-      accessToken: data.tokens.accessToken,
-      refreshToken: data.tokens.refreshToken,
-      expiresAt,
-    });
-
-    this._log("Login successful");
-    return data;
-  }
-
-  /**
-   * Register a new user account.
-   *
-   * Stores the returned JWT tokens and returns the full auth response.
-   *
-   * @example
-   * ```ts
-   * const { user } = await backend.register({
-   *   email: "new@example.com",
-   *   password: "secret",
-   *   firstName: "Jane",
-   *   lastName: "Doe",
-   * });
-   * ```
-   */
-  async register(data: RegisterData): Promise<AuthResponse> {
-    this._log("Registering:", data.email);
-
-    const response = await fetch(
-      `${this._apiUrl}${this._authEndpoints.register}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      },
-    );
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      this._log("Registration failed:", errorBody);
-      throw new RestApiError({
-        status: response.status,
-        message: "Registration failed",
-        body: errorBody,
-      });
-    }
-
-    const responseData: AuthResponse = await response.json();
-    const expiresAt = this._resolveExpiresAt(responseData.tokens);
-
-    this._saveTokens({
-      accessToken: responseData.tokens.accessToken,
-      refreshToken: responseData.tokens.refreshToken,
-      expiresAt,
-    });
-
-    this._log("Registration successful");
-    return responseData;
-  }
-
-  /**
-   * Logout the current user.
-   *
-   * Sends a logout request to the server (best-effort) and clears local tokens.
-   */
-  async logout(): Promise<void> {
-    this._log("Logging out");
-
-    if (this._tokens) {
-      try {
-        await fetch(`${this._apiUrl}${this._authEndpoints.logout}`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${this._tokens.accessToken}`,
-          },
-        });
-      } catch (error) {
-        this._log("Logout request failed (ignored):", error);
-      }
-    }
-
-    this._clearTokens();
-    this._log("Logged out");
-  }
-
-  /**
-   * Get the current user's profile.
-   *
-   * @example
-   * ```ts
-   * const user = await backend.getMe();
-   * console.log(user.email, user.firstName);
-   * ```
-   */
-  async getMe(): Promise<AuthUser> {
-    return this.request<AuthUser>(this._authEndpoints.me);
-  }
-
-  /**
-   * Update the current user's profile.
-   *
-   * @example
-   * ```ts
-   * const updated = await backend.updateMe({ firstName: "Jane" });
-   * ```
-   */
-  async updateMe(data: Partial<AuthUser>): Promise<AuthUser> {
-    return this.request<AuthUser>(this._authEndpoints.me, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-  }
-
-  /**
-   * Change the current user's password.
-   *
-   * @example
-   * ```ts
-   * await backend.changePassword("oldPassword", "newPassword");
-   * ```
-   */
-  async changePassword(
-    currentPassword: string,
-    newPassword: string,
-  ): Promise<void> {
-    await this.request(this._authEndpoints.changePassword, {
-      method: "POST",
-      body: JSON.stringify({ currentPassword, newPassword }),
-    });
-  }
-
-  // ===========================================================================
   // Generic HTTP Methods (for ad-hoc API calls)
   // ===========================================================================
 
-  /** `GET {apiUrl}{path}` with authentication */
+  /** `GET {apiUrl}{path}` */
   async get<T = unknown>(path: string): Promise<T> {
     return this.request<T>(path, { method: "GET" });
   }
 
-  /** `POST {apiUrl}{path}` with authentication */
+  /** `POST {apiUrl}{path}` */
   async post<T = unknown>(path: string, data?: unknown): Promise<T> {
     return this.request<T>(path, {
       method: "POST",
@@ -962,7 +491,7 @@ export class RestBackend extends DatabaseBackend {
     });
   }
 
-  /** `PUT {apiUrl}{path}` with authentication */
+  /** `PUT {apiUrl}{path}` */
   async put<T = unknown>(path: string, data: unknown): Promise<T> {
     return this.request<T>(path, {
       method: "PUT",
@@ -970,7 +499,7 @@ export class RestBackend extends DatabaseBackend {
     });
   }
 
-  /** `PATCH {apiUrl}{path}` with authentication */
+  /** `PATCH {apiUrl}{path}` */
   async patch<T = unknown>(path: string, data: unknown): Promise<T> {
     return this.request<T>(path, {
       method: "PATCH",
@@ -978,7 +507,7 @@ export class RestBackend extends DatabaseBackend {
     });
   }
 
-  /** `DELETE {apiUrl}{path}` with authentication */
+  /** `DELETE {apiUrl}{path}` */
   async deleteRequest<T = unknown>(path: string): Promise<T> {
     return this.request<T>(path, { method: "DELETE" });
   }
@@ -1017,10 +546,12 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`POST ${url}`, data);
 
+    const authHeaders = await this._getAuthHeadersForKey(modelNameOrTable);
+
     return this.request<T>(url, {
       method: "POST",
       body: JSON.stringify(data ?? {}),
-    });
+    }, authHeaders);
   }
 
   // ===========================================================================
@@ -1101,10 +632,12 @@ export class RestBackend extends DatabaseBackend {
       const url = `/${registered.endpoint}/${id}/${registered.urlSegment}/`;
       this._log(`${registered.method} ${url}`, data);
 
+      const authHeaders = await this._getAuthHeadersForKey(endpointClassName);
+
       return this.request<T>(url, {
         method: registered.method,
         body: JSON.stringify(data ?? {}),
-      });
+      }, authHeaders);
     } else {
       // List action: idOrData is the body (optional)
       const body = typeof idOrData === "object" ? idOrData : data;
@@ -1116,7 +649,9 @@ export class RestBackend extends DatabaseBackend {
         options.body = JSON.stringify(body);
       }
 
-      return this.request<T>(url, options);
+      const authHeaders = await this._getAuthHeadersForKey(endpointClassName);
+
+      return this.request<T>(url, options, authHeaders);
     }
   }
 
@@ -1264,13 +799,23 @@ export class RestBackend extends DatabaseBackend {
    * - Endpoint mappings (model → URL path)
    * - Detail and list actions
    * - Singleton queries (→ SpecialQueryHandlers)
+   *
+   * Endpoint instances are retained in `_endpointInstances` so that
+   * `getAuthHeaders()` can be called at request time.
    */
   private _registerEndpoints(
     endpointClasses: (new () => ModelEndpoint)[],
   ): void {
     this._endpointIntrospections = introspectEndpoints(endpointClasses);
 
-    for (const info of this._endpointIntrospections) {
+    for (let i = 0; i < this._endpointIntrospections.length; i++) {
+      const info = this._endpointIntrospections[i];
+      const EndpointClass = endpointClasses[i];
+
+      // Retain instance for auth header resolution at request time
+      const instance = new EndpointClass();
+      this._endpointInstances.set(info.modelName, instance);
+
       // 1. Register endpoint mapping (model name → endpoint segment)
       this._endpointMap[info.modelName] = info.endpoint;
 
@@ -1285,10 +830,9 @@ export class RestBackend extends DatabaseBackend {
       if (actions.length > 0) {
         // Key by endpoint class name (not model name) to support
         // looking up by EndpointClass in action()
-        const endpointClassName =
-          endpointClasses[this._endpointIntrospections.indexOf(info)]
-            .name;
-        this._registeredActions.set(endpointClassName, actions);
+        this._registeredActions.set(EndpointClass.name, actions);
+        // Also retain instance keyed by endpoint class name for action() auth
+        this._endpointInstances.set(EndpointClass.name, instance);
       }
 
       // 3. Register singleton queries as SpecialQueryHandlers
@@ -1447,6 +991,8 @@ export class RestBackend extends DatabaseBackend {
       JSON.stringify(state.filters),
     );
 
+    const authHeaders = await this._getAuthHeadersForKey(modelClass.name);
+
     // Check for special query handlers
     const handler = this._findSpecialQueryHandler(endpoint, state.filters);
     if (handler) {
@@ -1454,10 +1000,18 @@ export class RestBackend extends DatabaseBackend {
       const customUrl = handler.getEndpoint(state.filters);
 
       if (handler.returnsSingle) {
-        const result = await this.request<Record<string, unknown>>(customUrl);
+        const result = await this.request<Record<string, unknown>>(
+          customUrl,
+          {},
+          authHeaders,
+        );
         return result ? [result] : [];
       } else {
-        return await this.request<Record<string, unknown>[]>(customUrl);
+        return await this.request<Record<string, unknown>[]>(
+          customUrl,
+          {},
+          authHeaders,
+        );
       }
     }
 
@@ -1469,6 +1023,8 @@ export class RestBackend extends DatabaseBackend {
       try {
         const result = await this.request<Record<string, unknown>>(
           `/${endpoint}/${pkFilter}/`,
+          {},
+          authHeaders,
         );
         return result ? [result] : [];
       } catch (error) {
@@ -1508,7 +1064,11 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`[execute] GET ${url}`);
 
-    const results = await this.request<Record<string, unknown>[]>(url);
+    const results = await this.request<Record<string, unknown>[]>(
+      url,
+      {},
+      authHeaders,
+    );
     return results;
   }
 
@@ -1545,12 +1105,16 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`POST /${endpoint}/`, data);
 
+    const modelClass = instance.constructor as typeof Model;
+    const authHeaders = await this._getAuthHeadersForKey(modelClass.name);
+
     return await this.request<Record<string, unknown>>(
       `/${endpoint}/`,
       {
         method: "POST",
         body: JSON.stringify(data),
       },
+      authHeaders,
     );
   }
 
@@ -1566,10 +1130,13 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`PUT /${endpoint}/${id}/`, data);
 
+    const modelClass = instance.constructor as typeof Model;
+    const authHeaders = await this._getAuthHeadersForKey(modelClass.name);
+
     await this.request(`/${endpoint}/${id}/`, {
       method: "PUT",
       body: JSON.stringify(data),
-    });
+    }, authHeaders);
   }
 
   /**
@@ -1599,10 +1166,13 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`PATCH /${endpoint}/${id}/`, data);
 
+    const modelClass = instance.constructor as typeof Model;
+    const authHeaders = await this._getAuthHeadersForKey(modelClass.name);
+
     await this.request(`/${endpoint}/${id}/`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    });
+    }, authHeaders);
   }
 
   /**
@@ -1616,9 +1186,12 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`DELETE /${endpoint}/${id}/`);
 
+    const modelClass = instance.constructor as typeof Model;
+    const authHeaders = await this._getAuthHeadersForKey(modelClass.name);
+
     await this.request(`/${endpoint}/${id}/`, {
       method: "DELETE",
-    });
+    }, authHeaders);
   }
 
   /**
@@ -1632,9 +1205,11 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`DELETE /${endpoint}/${id}/`);
 
+    const authHeaders = await this._getAuthHeadersForKey(tableName);
+
     await this.request(`/${endpoint}/${id}/`, {
       method: "DELETE",
-    });
+    }, authHeaders);
   }
 
   /**
@@ -1653,9 +1228,13 @@ export class RestBackend extends DatabaseBackend {
 
     this._log(`GET /${endpoint}/${id}/`);
 
+    const authHeaders = await this._getAuthHeadersForKey(modelClass.name);
+
     try {
       return await this.request<Record<string, unknown>>(
         `/${endpoint}/${id}/`,
+        {},
+        authHeaders,
       );
     } catch (error) {
       if (error instanceof RestApiError && error.isNotFound()) {
@@ -1752,6 +1331,8 @@ export class RestBackend extends DatabaseBackend {
     const modelClass = state.model as unknown as typeof Model;
     const endpoint = this.getEndpointForModel(modelClass);
 
+    const authHeaders = await this._getAuthHeadersForKey(modelClass.name);
+
     try {
       const params = new URLSearchParams();
       for (const filter of state.filters) {
@@ -1763,7 +1344,11 @@ export class RestBackend extends DatabaseBackend {
       const queryString = params.toString();
       const url = `/${endpoint}/count/${queryString ? `?${queryString}` : ""}`;
 
-      const result = await this.request<{ count: number }>(url);
+      const result = await this.request<{ count: number }>(
+        url,
+        {},
+        authHeaders,
+      );
       return result.count;
     } catch {
       // Fall back to fetching all and counting
@@ -1929,20 +1514,18 @@ export class RestBackend extends DatabaseBackend {
   }
 
   /**
-   * Resolve an `expiresAt` Date from a token response that may
-   * contain `expiresAt` (ISO string), `expiresIn` (seconds), or neither.
+   * Resolve auth headers for a given model class name or endpoint class name.
+   *
+   * Looks up the retained endpoint instance from `_endpointInstances` and
+   * calls `getAuthHeaders()` on it. Falls back to `{}` when no instance is
+   * found (e.g., for generic helpers with no model context).
    */
-  private _resolveExpiresAt(
-    tokens: Record<string, unknown>,
-  ): Date {
-    if (tokens.expiresAt) {
-      return new Date(tokens.expiresAt as string);
-    }
-    if (tokens.expiresIn) {
-      return new Date(Date.now() + (tokens.expiresIn as number) * 1000);
-    }
-    // Default: 1 hour
-    return new Date(Date.now() + 3600 * 1000);
+  private async _getAuthHeadersForKey(key: string): Promise<
+    Record<string, string>
+  > {
+    const instance = this._endpointInstances.get(key);
+    if (!instance) return {};
+    return await instance.getAuthHeaders();
   }
 
   /** Log a debug message if debug mode is enabled */
@@ -1971,37 +1554,5 @@ export class RestBackend extends DatabaseBackend {
     throw new Error(
       "REST backend does not use executeSimpleFilter - nested lookups are handled by the server",
     );
-  }
-}
-
-// =============================================================================
-// Utility Function
-// =============================================================================
-
-/**
- * Clear auth tokens from localStorage without needing a RestBackend instance.
- *
- * Useful for forced logout from error handlers:
- *
- * ```ts
- * import { clearAuthTokens } from "@alexi/db/backends/rest";
- *
- * if (error.status === 401) {
- *   clearAuthTokens("myapp_auth_tokens");
- *   navigate("/login");
- * }
- * ```
- *
- * @param storageKey - The localStorage key. Default: `"alexi_auth_tokens"`
- */
-export function clearAuthTokens(
-  storageKey: string = DEFAULT_TOKEN_STORAGE_KEY,
-): void {
-  if (typeof localStorage === "undefined") return;
-
-  try {
-    localStorage.removeItem(storageKey);
-  } catch (error) {
-    console.warn("[RestBackend] Failed to clear tokens from storage:", error);
   }
 }
