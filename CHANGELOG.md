@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.40.5] - 2026-03-13
+
+### Fixed
+
+- Fixed `ALEXI_SETTINGS_MODULE` environment variable being ignored during app
+  command discovery — `loadAppCommands()` now falls back to the env var when no
+  `--settings` flag is provided, making `help` (and all other commands) show the
+  full command list when using the env var instead of the flag (#258)
+
 ## [0.40.4] - 2026-03-13
 
 ### Fixed
