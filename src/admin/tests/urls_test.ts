@@ -13,10 +13,11 @@ import { reset } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { setup } from "@alexi/core";
 import { AutoField, CharField, Manager, Model } from "@alexi/db";
+import type { URLPattern } from "@alexi/urls";
 
-// Import admin classes (to be implemented)
+// Import admin classes
 import { AdminSite, ModelAdmin } from "../mod.ts";
-import { AdminRouter, AdminUrlPattern, getAdminUrls } from "../urls.ts";
+import { AdminRouter, getAdminUrls } from "../urls.ts";
 
 // =============================================================================
 // Test Models
@@ -38,6 +39,9 @@ class TestCategory extends Model {
   static override meta = { dbTable: "test_categories" };
 }
 
+// suppress unused import warning
+const _unused = ModelAdmin;
+
 // =============================================================================
 // URL Pattern Generation Tests
 // =============================================================================
@@ -51,10 +55,7 @@ Deno.test("getAdminUrls: returns URL patterns for registered models", () => {
 
   assertExists(urls);
   assertEquals(Array.isArray(urls), true);
-  // Should have dashboard + model list + model add + model detail + model delete per model
-  // Dashboard: 1
-  // Per model: 4 (list, add, detail, delete)
-  // Total: 1 + (2 * 4) = 9
+  // Dashboard: 1, Per model: 4 (list, add, detail, delete), Total: 1 + (2*4) = 9
   assertEquals(urls.length >= 5, true);
 });
 
@@ -63,12 +64,11 @@ Deno.test("getAdminUrls: includes dashboard URL", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const dashboardUrl = urls.find((u: AdminUrlPattern) =>
-    u.name === "admin:index"
-  );
+  const dashboardUrl = urls.find((u: URLPattern) => u.name === "admin:index");
 
   assertExists(dashboardUrl);
-  assertEquals(dashboardUrl.pattern, "/admin/");
+  // Patterns are relative (no leading slash) — e.g. "admin/"
+  assertEquals(dashboardUrl.pattern, "admin/");
 });
 
 Deno.test("getAdminUrls: includes model list URL", () => {
@@ -77,11 +77,11 @@ Deno.test("getAdminUrls: includes model list URL", () => {
 
   const urls = getAdminUrls(site);
   const listUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_changelist",
+    (u: URLPattern) => u.name === "admin:testarticle_changelist",
   );
 
   assertExists(listUrl);
-  assertEquals(listUrl.pattern, "/admin/testarticle/");
+  assertEquals(listUrl.pattern, "admin/testarticle/");
 });
 
 Deno.test("getAdminUrls: includes model add URL", () => {
@@ -89,12 +89,12 @@ Deno.test("getAdminUrls: includes model add URL", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const addUrl = urls.find((u: AdminUrlPattern) =>
-    u.name === "admin:testarticle_add"
+  const addUrl = urls.find(
+    (u: URLPattern) => u.name === "admin:testarticle_add",
   );
 
   assertExists(addUrl);
-  assertEquals(addUrl.pattern, "/admin/testarticle/add/");
+  assertEquals(addUrl.pattern, "admin/testarticle/add/");
 });
 
 Deno.test("getAdminUrls: includes model detail URL", () => {
@@ -103,11 +103,11 @@ Deno.test("getAdminUrls: includes model detail URL", () => {
 
   const urls = getAdminUrls(site);
   const detailUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_change",
+    (u: URLPattern) => u.name === "admin:testarticle_change",
   );
 
   assertExists(detailUrl);
-  assertEquals(detailUrl.pattern, "/admin/testarticle/:id/");
+  assertEquals(detailUrl.pattern, "admin/testarticle/:id/");
 });
 
 Deno.test("getAdminUrls: includes model delete URL", () => {
@@ -116,61 +116,11 @@ Deno.test("getAdminUrls: includes model delete URL", () => {
 
   const urls = getAdminUrls(site);
   const deleteUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_delete",
+    (u: URLPattern) => u.name === "admin:testarticle_delete",
   );
 
   assertExists(deleteUrl);
-  assertEquals(deleteUrl.pattern, "/admin/testarticle/:id/delete/");
-});
-
-// =============================================================================
-// URL Pattern Matching Tests
-// =============================================================================
-
-Deno.test("AdminUrlPattern: matches list URL", () => {
-  const site = new AdminSite({ urlPrefix: "/admin" });
-  site.register(TestArticle);
-
-  const urls = getAdminUrls(site);
-  const listUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_changelist",
-  );
-
-  assertExists(listUrl);
-  assertEquals(listUrl.match("/admin/testarticle/"), true);
-  assertEquals(listUrl.match("/admin/testarticle"), false); // Missing trailing slash
-  assertEquals(listUrl.match("/admin/other/"), false);
-});
-
-Deno.test("AdminUrlPattern: matches detail URL with ID", () => {
-  const site = new AdminSite({ urlPrefix: "/admin" });
-  site.register(TestArticle);
-
-  const urls = getAdminUrls(site);
-  const detailUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_change",
-  );
-
-  assertExists(detailUrl);
-  assertEquals(detailUrl.match("/admin/testarticle/123/"), true);
-  assertEquals(detailUrl.match("/admin/testarticle/abc-def/"), true);
-  assertEquals(detailUrl.match("/admin/testarticle/"), false);
-});
-
-Deno.test("AdminUrlPattern: extracts params from URL", () => {
-  const site = new AdminSite({ urlPrefix: "/admin" });
-  site.register(TestArticle);
-
-  const urls = getAdminUrls(site);
-  const detailUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_change",
-  );
-
-  assertExists(detailUrl);
-  const params = detailUrl.extractParams("/admin/testarticle/456/");
-
-  assertExists(params);
-  assertEquals(params.id, "456");
+  assertEquals(deleteUrl.pattern, "admin/testarticle/:id/delete/");
 });
 
 // =============================================================================
@@ -183,11 +133,11 @@ Deno.test("getAdminUrls: respects custom URL prefix", () => {
 
   const urls = getAdminUrls(site);
   const listUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_changelist",
+    (u: URLPattern) => u.name === "admin:testarticle_changelist",
   );
 
   assertExists(listUrl);
-  assertEquals(listUrl.pattern, "/custom-admin/testarticle/");
+  assertEquals(listUrl.pattern, "custom-admin/testarticle/");
 });
 
 Deno.test("getAdminUrls: handles URL prefix without leading slash", () => {
@@ -195,12 +145,11 @@ Deno.test("getAdminUrls: handles URL prefix without leading slash", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const dashboardUrl = urls.find((u: AdminUrlPattern) =>
-    u.name === "admin:index"
-  );
+  const dashboardUrl = urls.find((u: URLPattern) => u.name === "admin:index");
 
   assertExists(dashboardUrl);
-  assertEquals(dashboardUrl.pattern.startsWith("/"), true);
+  // Pattern is relative — no leading slash
+  assertEquals(dashboardUrl.pattern.startsWith("/"), false);
 });
 
 Deno.test("getAdminUrls: handles URL prefix with trailing slash", () => {
@@ -208,13 +157,30 @@ Deno.test("getAdminUrls: handles URL prefix with trailing slash", () => {
   site.register(TestArticle);
 
   const urls = getAdminUrls(site);
-  const dashboardUrl = urls.find((u: AdminUrlPattern) =>
-    u.name === "admin:index"
-  );
+  const dashboardUrl = urls.find((u: URLPattern) => u.name === "admin:index");
 
   assertExists(dashboardUrl);
   // Should normalize to avoid double slashes
   assertEquals(dashboardUrl.pattern.includes("//"), false);
+});
+
+// =============================================================================
+// URL Pattern view function Tests
+// =============================================================================
+
+Deno.test("getAdminUrls (placeholder): patterns have view functions", () => {
+  const site = new AdminSite({ urlPrefix: "/admin" });
+  site.register(TestArticle);
+
+  // No backend supplied → placeholder handlers
+  const urls = getAdminUrls(site);
+  const listUrl = urls.find(
+    (u: URLPattern) => u.name === "admin:testarticle_changelist",
+  );
+
+  assertExists(listUrl);
+  assertExists(listUrl.view);
+  assertEquals(typeof listUrl.view, "function");
 });
 
 // =============================================================================
@@ -273,60 +239,116 @@ Deno.test("getAdminUrls: generates URLs for multiple models", () => {
 
   // Article URLs
   const articleListUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_changelist",
+    (u: URLPattern) => u.name === "admin:testarticle_changelist",
   );
   assertExists(articleListUrl);
 
   // Category URLs
   const categoryListUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testcategory_changelist",
+    (u: URLPattern) => u.name === "admin:testcategory_changelist",
   );
   assertExists(categoryListUrl);
 });
 
 // =============================================================================
-// URL Handler Association Tests
+// AdminRouter.match() Tests
 // =============================================================================
 
-Deno.test("AdminUrlPattern: has associated handler", () => {
-  const site = new AdminSite({ urlPrefix: "/admin" });
-  site.register(TestArticle);
+Deno.test({
+  name: "AdminRouter.match: matches dashboard path",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "router_match_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ DATABASES: { default: backend } });
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      const router = new AdminRouter(site, backend);
 
-  const urls = getAdminUrls(site);
-  const listUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_changelist",
-  );
-
-  assertExists(listUrl);
-  assertExists(listUrl.handler);
-  assertEquals(typeof listUrl.handler, "function");
+      const matched = router.match("/admin/");
+      assertExists(matched);
+      assertExists(matched.pattern.view);
+      assertEquals(typeof matched.pattern.view, "function");
+      assertEquals(matched.params, {});
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
 });
 
-Deno.test("AdminUrlPattern: handler has correct view type", () => {
-  const site = new AdminSite({ urlPrefix: "/admin" });
-  site.register(TestArticle);
+Deno.test({
+  name: "AdminRouter.match: matches model changelist path",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "router_match_list_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ DATABASES: { default: backend } });
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      site.register(TestArticle);
+      const router = new AdminRouter(site, backend);
 
-  const urls = getAdminUrls(site);
+      const matched = router.match("/admin/testarticle/");
+      assertExists(matched);
+      assertExists(matched.pattern.view);
+      assertEquals(matched.params, {});
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
 
-  const listUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_changelist",
-  );
-  assertEquals(listUrl?.viewType, "list");
+Deno.test({
+  name: "AdminRouter.match: matches model change path and extracts id",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "router_match_detail_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ DATABASES: { default: backend } });
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      site.register(TestArticle);
+      const router = new AdminRouter(site, backend);
 
-  const addUrl = urls.find((u: AdminUrlPattern) =>
-    u.name === "admin:testarticle_add"
-  );
-  assertEquals(addUrl?.viewType, "add");
+      const matched = router.match("/admin/testarticle/456/");
+      assertExists(matched);
+      assertExists(matched.pattern.view);
+      assertEquals(matched.params.id, "456");
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
 
-  const detailUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_change",
-  );
-  assertEquals(detailUrl?.viewType, "change");
+Deno.test({
+  name: "AdminRouter.match: returns null for unknown path",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "router_match_null_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+    await setup({ DATABASES: { default: backend } });
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      const router = new AdminRouter(site, backend);
 
-  const deleteUrl = urls.find(
-    (u: AdminUrlPattern) => u.name === "admin:testarticle_delete",
-  );
-  assertEquals(deleteUrl?.viewType, "delete");
+      const matched = router.match("/totally/unknown/path/");
+      assertEquals(matched, null);
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
 });
 
 // =============================================================================

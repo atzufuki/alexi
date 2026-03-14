@@ -67,6 +67,13 @@ export { setup } from "./setup.ts";
 export type { DatabasesConfig } from "./setup.ts";
 
 // =============================================================================
+// Request Context (Django-style request.user side-channel)
+// =============================================================================
+
+export { getRequestContext, setRequestContext } from "./context.ts";
+export type { RequestContext } from "./context.ts";
+
+// =============================================================================
 // Global Settings Registry (Django-style django.conf.settings)
 // =============================================================================
 

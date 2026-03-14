@@ -56,11 +56,44 @@ export interface GetApplicationSettings {
   /** Middleware factory or middleware array */
   MIDDLEWARE?: Middleware[];
 
-  /** Middleware factory function (alternative to MIDDLEWARE array) */
+  /**
+   * Middleware factory function (alternative to MIDDLEWARE array).
+   *
+   * @deprecated Use the `MIDDLEWARE` array instead.
+   * `createMiddleware` will be removed in a future release.
+   */
   createMiddleware?: (options: { debug: boolean }) => Middleware[];
 
   /** Debug mode */
   DEBUG?: boolean;
+
+  /**
+   * Secret key for cryptographic signing (JWT tokens, admin session tokens).
+   *
+   * Mirrors Django's `SECRET_KEY` setting.
+   * If not set, falls back to the `SECRET_KEY` environment variable.
+   *
+   * @example
+   * ```ts
+   * export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
+   * ```
+   */
+  SECRET_KEY?: string;
+
+  /**
+   * The user model class (or import path) used for authentication.
+   *
+   * Mirrors Django's `AUTH_USER_MODEL` setting.
+   * Pass the model class directly (recommended) or a path string (deprecated).
+   *
+   * @example
+   * ```ts
+   * import { UserModel } from "@myapp/web/models.ts";
+   * export const AUTH_USER_MODEL = UserModel;
+   * ```
+   */
+  // deno-lint-ignore no-explicit-any
+  AUTH_USER_MODEL?: (new () => any) | string;
 
   /**
    * Django-style TEMPLATES setting.
