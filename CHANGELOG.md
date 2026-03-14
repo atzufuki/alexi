@@ -8,6 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.42.1] - 2026-03-14
+
+### Fixed
+
+- Declared missing `@alexi/urls` dependency in `@alexi/middleware` (introduced
+  in v0.42.0, causing JSR publish failures for downstream packages) (#273)
+- Declared missing `@alexi/middleware` dependency in `@alexi/staticfiles`
+  (introduced in v0.42.0, causing JSR publish failures) (#273)
+- Removed phantom `@alexi/restframework` dependency from `@alexi/core` (was
+  listed in `deno.jsonc` but never imported in production source) (#273)
+- Removed phantom `@alexi/middleware` and `@alexi/restframework` dependencies
+  from `@alexi/admin` (#273)
+- Removed phantom `@alexi/core` and `@alexi/types` dependencies from
+  `@alexi/create` (only present in scaffolded code template strings) (#273)
+
 ## [0.42.0] - 2026-03-14
 
 ### Added
