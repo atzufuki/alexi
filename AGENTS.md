@@ -2825,11 +2825,12 @@ abstract class DatabaseBackend {
 
 ### Available Backends
 
-| Backend            | Import                         | Environment   | Use Case                                       |
-| ------------------ | ------------------------------ | ------------- | ---------------------------------------------- |
-| `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server (Deno) | Server-side apps with Deno's built-in KV store |
-| `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser       | Browser-only local storage                     |
-| `RestBackend`      | `@alexi/db/backends/rest`      | Browser       | Maps ORM operations to REST API calls          |
+| Backend            | Import                         | Environment   | Use Case                                                                         |
+| ------------------ | ------------------------------ | ------------- | -------------------------------------------------------------------------------- |
+| `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server (Deno) | Server-side apps with Deno's built-in KV store                                   |
+| `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser       | Browser-only local storage                                                       |
+| `SQLiteBackend`    | `@alexi/db/backends/sqlite`    | Server (Deno) | File-based SQL database; local dev, CI, embedded use. Requires `--unstable-ffi`. |
+| `RestBackend`      | `@alexi/db/backends/rest`      | Browser       | Maps ORM operations to REST API calls                                            |
 
 ---
 
@@ -2839,7 +2840,7 @@ abstract class DatabaseBackend {
 # Required for DenoKV
 --unstable-kv
 
-# Required for desktop apps (WebUI)
+# Required for SQLite backend and desktop apps (WebUI)
 --unstable-ffi
 
 # Common development command
