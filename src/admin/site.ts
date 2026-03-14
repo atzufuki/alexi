@@ -189,17 +189,23 @@ export class AdminSite {
   /**
    * URL patterns for this admin site as standard `URLPattern[]`.
    *
-   * Equivalent to calling `getAdminUrls(site)` from `@alexi/admin`. The
-   * patterns can be mounted with `path()` / `include()` from `@alexi/urls`:
+   * The returned patterns are **relative** — they do not include the
+   * `urlPrefix` of this AdminSite. This is consistent with how
+   * `DefaultRouter.urls` works in `@alexi/restframework`.
+   *
+   * Mount the patterns with the desired prefix using `path()` / `include()`:
    *
    * ```ts
    * import { path, include } from "@alexi/urls";
    * import { adminSite } from "./admin.ts";
    *
    * export const urlpatterns = [
-   *   path("", include(adminSite.urls)),
+   *   path("admin/", include(adminSite.urls)),
    * ];
    * ```
+   *
+   * The `urlPrefix` of the AdminSite must match the mount path chosen here
+   * so that redirect URLs, breadcrumbs, and reverse resolution stay correct.
    *
    * Note: The returned patterns use placeholder view handlers when no
    * backend has been registered yet. A real `AdminRouter` or
