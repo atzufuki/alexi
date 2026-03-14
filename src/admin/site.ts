@@ -7,6 +7,7 @@
  * @module
  */
 
+import { getBackend, hasBackend } from "@alexi/db";
 import type { Model } from "@alexi/db";
 import type { URLPattern } from "@alexi/urls";
 import { ModelAdmin } from "./model_admin.ts";
@@ -217,7 +218,11 @@ export class AdminSite {
     // urls.ts imports `AdminSite` as a *type*, so this is safe at runtime.
     // The dynamic import is synchronous in practice because the module has
     // already been evaluated by the time this getter is called.
-    return getAdminUrls(this);
+    //
+    // Pass the globally registered default backend (if available) so that the
+    // returned patterns use real SSR handlers instead of placeholders.
+    const backend = hasBackend("default") ? getBackend() : undefined;
+    return getAdminUrls(this, backend);
   }
 
   /**
