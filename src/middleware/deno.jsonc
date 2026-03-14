@@ -7,6 +7,7 @@
     "./config": "./app.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.42.0"
+    "@alexi/types": "jsr:@alexi/types@0.42.0",
+    "@alexi/urls": "jsr:@alexi/urls@0.42.0"
   }
 }

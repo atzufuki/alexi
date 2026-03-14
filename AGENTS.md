@@ -28,6 +28,39 @@ functionality:
 | `@alexi/capacitor`       | -                            | Mobile app support (placeholder)                       |
 | `@alexi/types`           | -                            | Shared TypeScript type definitions                     |
 
+### Canonical Layer Architecture
+
+Packages are organized into strict dependency layers. A package may only import
+from packages in the **same or lower** layer. No upward or circular dependencies
+are permitted. Every `@alexi/*` import in a package's source **must** be
+declared in that package's `deno.jsonc`.
+
+```
+Layer 0 — Primitives (no @alexi/* deps)
+  @alexi/types   @alexi/urls
+
+Layer 1 — Data & Transport (depend only on Layer 0)
+  @alexi/db      @alexi/storage      @alexi/middleware
+
+Layer 2 — Application Logic (depend on Layer 0–1)
+  @alexi/views   @alexi/restframework   @alexi/auth
+
+Layer 3 — Framework Core (depends on Layer 0–2)
+  @alexi/core
+
+Layer 4 — Infrastructure (depend on Layer 0–3)
+  @alexi/staticfiles   @alexi/admin
+
+Layer 5 — Runtime Hosts (depend on Layer 0–4)
+  @alexi/web   @alexi/http   @alexi/webui   @alexi/capacitor   @alexi/create
+```
+
+> **Template strings are not real imports.** Files such as
+> `src/core/management/commands/startapp.ts` and files under
+> `src/create/templates/` contain `@alexi/*` strings as scaffolded code literals
+> — these are **not** TypeScript imports and must **not** be declared as
+> dependencies in `deno.jsonc`.
+
 ---
 
 ## Project Structure
