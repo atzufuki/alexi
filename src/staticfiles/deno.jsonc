@@ -10,6 +10,7 @@
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.42.0",
     "@alexi/core/management": "jsr:@alexi/core@0.42.0/management",
+    "@alexi/middleware": "jsr:@alexi/middleware@0.42.0",
     "@alexi/types": "jsr:@alexi/types@0.42.0",
     "@std/path": "jsr:@std/path@1",
     "esbuild": "npm:esbuild@^0.24.0",
