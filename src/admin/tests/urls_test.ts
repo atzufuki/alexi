@@ -67,8 +67,8 @@ Deno.test("getAdminUrls: includes dashboard URL", () => {
   const dashboardUrl = urls.find((u: URLPattern) => u.name === "admin:index");
 
   assertExists(dashboardUrl);
-  // Patterns are relative (no leading slash) — e.g. "admin/"
-  assertEquals(dashboardUrl.pattern, "admin/");
+  // Patterns are relative (no prefix) — the dashboard is the mount root
+  assertEquals(dashboardUrl.pattern, "");
 });
 
 Deno.test("getAdminUrls: includes model list URL", () => {
@@ -81,7 +81,7 @@ Deno.test("getAdminUrls: includes model list URL", () => {
   );
 
   assertExists(listUrl);
-  assertEquals(listUrl.pattern, "admin/testarticle/");
+  assertEquals(listUrl.pattern, "testarticle/");
 });
 
 Deno.test("getAdminUrls: includes model add URL", () => {
@@ -94,7 +94,7 @@ Deno.test("getAdminUrls: includes model add URL", () => {
   );
 
   assertExists(addUrl);
-  assertEquals(addUrl.pattern, "admin/testarticle/add/");
+  assertEquals(addUrl.pattern, "testarticle/add/");
 });
 
 Deno.test("getAdminUrls: includes model detail URL", () => {
@@ -107,7 +107,7 @@ Deno.test("getAdminUrls: includes model detail URL", () => {
   );
 
   assertExists(detailUrl);
-  assertEquals(detailUrl.pattern, "admin/testarticle/:id/");
+  assertEquals(detailUrl.pattern, "testarticle/:id/");
 });
 
 Deno.test("getAdminUrls: includes model delete URL", () => {
@@ -120,7 +120,7 @@ Deno.test("getAdminUrls: includes model delete URL", () => {
   );
 
   assertExists(deleteUrl);
-  assertEquals(deleteUrl.pattern, "admin/testarticle/:id/delete/");
+  assertEquals(deleteUrl.pattern, "testarticle/:id/delete/");
 });
 
 // =============================================================================
@@ -137,7 +137,8 @@ Deno.test("getAdminUrls: respects custom URL prefix", () => {
   );
 
   assertExists(listUrl);
-  assertEquals(listUrl.pattern, "custom-admin/testarticle/");
+  // Patterns are relative — prefix is NOT included
+  assertEquals(listUrl.pattern, "testarticle/");
 });
 
 Deno.test("getAdminUrls: handles URL prefix without leading slash", () => {
@@ -148,8 +149,8 @@ Deno.test("getAdminUrls: handles URL prefix without leading slash", () => {
   const dashboardUrl = urls.find((u: URLPattern) => u.name === "admin:index");
 
   assertExists(dashboardUrl);
-  // Pattern is relative — no leading slash
-  assertEquals(dashboardUrl.pattern.startsWith("/"), false);
+  // Pattern is relative — the dashboard is always the mount-point root
+  assertEquals(dashboardUrl.pattern, "");
 });
 
 Deno.test("getAdminUrls: handles URL prefix with trailing slash", () => {
