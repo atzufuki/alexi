@@ -141,38 +141,26 @@ function normalizePrefix(prefix: string): string {
 }
 
 /**
- * Strip the leading slash from a prefix to produce a relative URL pattern
- * segment suitable for use with `path()` from `@alexi/urls`.
- *
- * @example
- * ```ts
- * relativePrefix("/admin")  // → "admin"
- * relativePrefix("/admin/panel") // → "admin/panel"
- * ```
- */
-function relativePrefix(absolutePrefix: string): string {
-  return absolutePrefix.replace(/^\/+/, "");
-}
-
-/**
  * Generate URL patterns for an AdminSite as standard `URLPattern[]`.
  *
- * The returned patterns are compatible with `path()` / `include()` from
- * `@alexi/urls` and can be mounted in your project's ROOT_URLCONF:
+ * The returned patterns are **relative** — they do not include the
+ * `urlPrefix` of the AdminSite. This mirrors how `DefaultRouter.urls`
+ * works in `@alexi/restframework`: the patterns are relative to the
+ * mount point, so callers mount them with the prefix they choose:
  *
  * ```ts
  * import { path, include } from "@alexi/urls";
  * import { getAdminUrls } from "@alexi/admin";
  *
  * export const urlpatterns = [
- *   path("", include(getAdminUrls(adminSite, backend))),
+ *   path("admin/", include(getAdminUrls(adminSite, backend))),
  * ];
  * ```
  *
  * Or equivalently via `AdminSite.urls`:
  *
  * ```ts
- * path("", include(adminSite.urls)),
+ * path("admin/", include(adminSite.urls)),
  * ```
  *
  * URL patterns are built lazily by `AdminRouter` on the first request —
@@ -188,7 +176,8 @@ function relativePrefix(absolutePrefix: string): string {
  * @param settingsOverride - Optional settings dict used as fallback when the
  *   global `conf` proxy is not configured (e.g. in tests or direct instantiation).
  *   In production, settings are always read from the global `conf` proxy.
- * @returns Array of URLPattern objects compatible with `@alexi/urls`
+ * @returns Array of URLPattern objects compatible with `@alexi/urls`, relative
+ *   to the caller's mount point (no `urlPrefix` baked in).
  */
 export function getAdminUrls(
   site: AdminSite,
@@ -197,27 +186,27 @@ export function getAdminUrls(
 ): URLPattern[] {
   const urls: URLPattern[] = [];
   const absPrefix = normalizePrefix(site.urlPrefix);
-  const rel = relativePrefix(absPrefix); // e.g. "admin"
 
   if (backend) {
     // -------------------------------------------------------------------------
     // Real SSR handlers (backend provided)
     // -------------------------------------------------------------------------
 
-    // Static files: admin/static/css/admin.css, admin/static/js/admin.js
+    // Static files: static/css/admin.css, static/js/admin.js
+    // These are relative patterns — mount point prefix is NOT included.
     const staticHandler = createStaticHandler(absPrefix);
     for (const subPath of ["css/admin.css", "js/admin.js"]) {
       urls.push(
-        path(`${rel}/static/${subPath}`, staticHandler, {
+        path(`static/${subPath}`, staticHandler, {
           name: "admin:static",
         }),
       );
     }
 
-    // Login page: GET|POST admin/login/
+    // Login page: GET|POST login/
     urls.push(
       path(
-        `${rel}/login/`,
+        `login/`,
         (request, params) => {
           if (request.method === "POST") {
             return handleLoginPost({
@@ -236,19 +225,19 @@ export function getAdminUrls(
       ),
     );
 
-    // Logout: GET|POST admin/logout/
+    // Logout: GET|POST logout/
     urls.push(
       path(
-        `${rel}/logout/`,
+        `logout/`,
         (_request, _params) => handleLogout(site),
         { name: "admin:logout" },
       ),
     );
 
-    // Dashboard/index: GET|POST admin/
+    // Dashboard/index: GET|POST (empty — matches the mount-point root)
     urls.push(
       path(
-        `${rel}/`,
+        ``,
         (request, params) =>
           renderDashboard({
             request,
@@ -264,10 +253,10 @@ export function getAdminUrls(
     for (const model of site.getRegisteredModels()) {
       const modelName = model.name.toLowerCase();
 
-      // Changelist: admin/<model>/
+      // Changelist: <model>/
       urls.push(
         path(
-          `${rel}/${modelName}/`,
+          `${modelName}/`,
           (request, params) =>
             renderChangeList(
               {
@@ -283,10 +272,10 @@ export function getAdminUrls(
         ),
       );
 
-      // Add: admin/<model>/add/
+      // Add: <model>/add/
       urls.push(
         path(
-          `${rel}/${modelName}/add/`,
+          `${modelName}/add/`,
           (request, params) =>
             renderChangeForm(
               {
@@ -302,10 +291,10 @@ export function getAdminUrls(
         ),
       );
 
-      // Change (detail): admin/<model>/:id/
+      // Change (detail): <model>/:id/
       urls.push(
         path(
-          `${rel}/${modelName}/:id/`,
+          `${modelName}/:id/`,
           (request, params) =>
             renderChangeForm(
               {
@@ -322,10 +311,10 @@ export function getAdminUrls(
         ),
       );
 
-      // Delete: admin/<model>/:id/delete/
+      // Delete: <model>/:id/delete/
       urls.push(
         path(
-          `${rel}/${modelName}/:id/delete/`,
+          `${modelName}/:id/delete/`,
           (request, params) =>
             renderDeleteConfirmation(
               {
@@ -356,30 +345,30 @@ export function getAdminUrls(
         headers: { "Content-Type": "application/json" },
       });
 
-    urls.push(path(`${rel}/login/`, placeholder, { name: "admin:login" }));
-    urls.push(path(`${rel}/logout/`, placeholder, { name: "admin:logout" }));
-    urls.push(path(`${rel}/`, placeholder, { name: "admin:index" }));
+    urls.push(path(`login/`, placeholder, { name: "admin:login" }));
+    urls.push(path(`logout/`, placeholder, { name: "admin:logout" }));
+    urls.push(path(``, placeholder, { name: "admin:index" }));
 
     for (const model of site.getRegisteredModels()) {
       const modelName = model.name.toLowerCase();
 
       urls.push(
-        path(`${rel}/${modelName}/`, placeholder, {
+        path(`${modelName}/`, placeholder, {
           name: `admin:${modelName}_changelist`,
         }),
       );
       urls.push(
-        path(`${rel}/${modelName}/add/`, placeholder, {
+        path(`${modelName}/add/`, placeholder, {
           name: `admin:${modelName}_add`,
         }),
       );
       urls.push(
-        path(`${rel}/${modelName}/:id/`, placeholder, {
+        path(`${modelName}/:id/`, placeholder, {
           name: `admin:${modelName}_change`,
         }),
       );
       urls.push(
-        path(`${rel}/${modelName}/:id/delete/`, placeholder, {
+        path(`${modelName}/:id/delete/`, placeholder, {
           name: `admin:${modelName}_delete`,
         }),
       );
@@ -417,7 +406,7 @@ export function getAdminUrls(
  * import { adminSite } from "./admin.ts";
  *
  * export const urlpatterns = [
- *   path("", include(adminSite.urls)),
+ *   path("admin/", include(adminSite.urls)),
  * ];
  * ```
  */
@@ -492,6 +481,29 @@ export class AdminRouter {
   }
 
   /**
+   * Strip the site's `urlPrefix` from a full request path to obtain a
+   * path relative to the admin mount point.
+   *
+   * `AdminRouter` holds the `urlPrefix` from its `AdminSite` (e.g.
+   * `"/admin"`). The URL patterns returned by `getAdminUrls()` are
+   * *relative* (e.g. `"login/"`, `"testarticle/"`), so the router must
+   * strip the prefix before matching.
+   *
+   * @param urlPath - Absolute request pathname (e.g. `/admin/login/`)
+   * @returns Prefix-stripped path (e.g. `/login/`)
+   */
+  private _stripPrefix(urlPath: string): string {
+    const prefix = normalizePrefix(this.site.urlPrefix); // e.g. "/admin"
+    if (urlPath === prefix || urlPath === `${prefix}/`) {
+      return "/";
+    }
+    if (urlPath.startsWith(`${prefix}/`)) {
+      return urlPath.slice(prefix.length); // "/admin/login/" → "/login/"
+    }
+    return urlPath;
+  }
+
+  /**
    * Find a matching URL pattern for a request path.
    *
    * Tries the URL as-is first (for static files without trailing slashes),
@@ -504,9 +516,10 @@ export class AdminRouter {
     pattern: URLPattern;
     params: Record<string, string>;
   } | null {
-    const candidates = urlPath.endsWith("/")
-      ? [urlPath]
-      : [urlPath, `${urlPath}/`];
+    const relative = this._stripPrefix(urlPath);
+    const candidates = relative.endsWith("/")
+      ? [relative]
+      : [relative, `${relative}/`];
 
     for (const candidate of candidates) {
       const result = _resolveUrl(candidate, this._getPatterns());
@@ -537,9 +550,10 @@ export class AdminRouter {
    */
   async handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const candidates = url.pathname.endsWith("/")
-      ? [url.pathname]
-      : [url.pathname, `${url.pathname}/`];
+    const relative = this._stripPrefix(url.pathname);
+    const candidates = relative.endsWith("/")
+      ? [relative]
+      : [relative, `${relative}/`];
 
     for (const candidate of candidates) {
       const result = _resolveUrl(candidate, this._getPatterns());
