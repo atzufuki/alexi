@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.42.2] - 2026-03-14
+
+### Fixed
+
+- `getAdminUrls()` now returns relative URL patterns instead of absolute ones,
+  fixing double-prefix 404 errors when the admin is mounted at a custom
+  `urlPrefix` (#276)
+
 ## [0.42.1] - 2026-03-14
 
 ### Fixed
