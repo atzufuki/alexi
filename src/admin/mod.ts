@@ -84,6 +84,11 @@ export { AdminRouter, getAdminUrls } from "./urls.ts";
 
 export type { AdminHandler, AdminUrlPattern, AdminViewType } from "./urls.ts";
 
+// Re-export URLPattern and DatabaseBackend so public API members that
+// reference them don't trigger `private-type-ref` lint errors from
+// `deno doc --lint`.
+export type { URLPattern } from "@alexi/urls";
+
 // =============================================================================
 // Filters
 // =============================================================================
