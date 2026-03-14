@@ -142,12 +142,18 @@ import type { URLPattern, View } from "@alexi/urls";
 
 // Middleware
 import {
-  corsMiddleware,
-  errorHandlerMiddleware,
-  loggingMiddleware,
+  AllowAllOriginsCorsMiddleware,
+  BaseMiddleware,
+  CorsMiddleware,
+  ErrorHandlerMiddleware,
+  LoggingMiddleware,
 } from "@alexi/middleware";
 import { HttpError, NotFoundError, UnauthorizedError } from "@alexi/middleware";
-import type { Middleware, NextFunction } from "@alexi/middleware";
+import type {
+  Middleware,
+  MiddlewareClass,
+  NextFunction,
+} from "@alexi/middleware";
 
 // REST Framework
 import { DefaultRouter, ModelViewSet, ViewSet } from "@alexi/restframework";
@@ -199,7 +205,7 @@ import { AbstractUser, createTokenPair, verifyToken } from "@alexi/auth";
 import { templateView } from "@alexi/views";
 
 // Static Files
-import { staticFilesMiddleware } from "@alexi/staticfiles";
+import { StaticFilesMiddleware } from "@alexi/staticfiles";
 
 // Storage
 import { getStorage, setStorage, Storage } from "@alexi/storage";
@@ -2011,32 +2017,40 @@ export const urlpatterns = [
 ## Middleware
 
 ```typescript
-import type { Middleware, NextFunction } from "@alexi/middleware";
 import {
+  AllowAllOriginsCorsMiddleware,
+  BaseMiddleware,
   corsMiddleware,
-  errorHandlerMiddleware,
-  loggingMiddleware,
+  ErrorHandlerMiddleware,
+  LoggingMiddleware,
 } from "@alexi/middleware";
+import type { MiddlewareClass, NextFunction } from "@alexi/middleware";
 
-// Using built-in middleware
-const middleware: Middleware[] = [
-  corsMiddleware({ allowedOrigins: ["http://localhost:3000"] }),
-  loggingMiddleware(),
-  errorHandlerMiddleware(),
+// Using built-in class-based middleware (preferred)
+const middleware: MiddlewareClass[] = [
+  LoggingMiddleware,
+  corsMiddleware({ origins: ["http://localhost:3000"] }),
+  ErrorHandlerMiddleware,
 ];
 
-// Custom middleware
-const authMiddleware: Middleware = async (
-  request: Request,
-  next: NextFunction,
-): Promise<Response> => {
-  const token = request.headers.get("Authorization")?.replace("Bearer ", "");
-  if (!token) {
-    return new Response("Unauthorized", { status: 401 });
+// Allow all origins (development)
+const devMiddleware: MiddlewareClass[] = [
+  LoggingMiddleware,
+  AllowAllOriginsCorsMiddleware,
+  ErrorHandlerMiddleware,
+];
+
+// Custom class-based middleware
+class AuthMiddleware extends BaseMiddleware {
+  async call(request: Request): Promise<Response> {
+    const token = request.headers.get("Authorization")?.replace("Bearer ", "");
+    if (!token) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+    // Verify token and continue
+    return this.getResponse(request);
   }
-  // Verify token and continue
-  return next(request);
-};
+}
 ```
 
 ---

@@ -20,10 +20,10 @@ import { conf, configureSettings } from "./conf.ts";
 import { setup } from "./setup.ts";
 import type { DatabasesConfig } from "./setup.ts";
 import type { URLPattern } from "@alexi/urls";
-import type { Middleware } from "@alexi/middleware";
+import type { Middleware, MiddlewareClass } from "@alexi/middleware";
 import type { TemplatesConfig } from "@alexi/types";
 
-export type { Middleware } from "@alexi/middleware";
+export type { Middleware, MiddlewareClass } from "@alexi/middleware";
 export type { URLPattern } from "@alexi/urls";
 export type { TemplatesConfig } from "@alexi/types";
 
@@ -53,8 +53,24 @@ export interface GetApplicationSettings {
       { urlpatterns?: URLPattern[]; default?: URLPattern[] }
     >);
 
-  /** Middleware factory or middleware array */
-  MIDDLEWARE?: Middleware[];
+  /**
+   * Middleware stack.
+   *
+   * Accepts class-based middleware (preferred) or legacy function middleware
+   * for backwards compatibility. Middleware is executed in order.
+   *
+   * @example Class-based (preferred)
+   * ```ts
+   * import { CorsMiddleware, LoggingMiddleware } from "@alexi/middleware";
+   * export const MIDDLEWARE = [LoggingMiddleware, CorsMiddleware];
+   * ```
+   *
+   * @example Legacy function-based
+   * ```ts
+   * export const MIDDLEWARE = [loggingMiddleware(), corsMiddleware()];
+   * ```
+   */
+  MIDDLEWARE?: Array<MiddlewareClass | Middleware>;
 
   /**
    * Middleware factory function (alternative to MIDDLEWARE array).
@@ -62,7 +78,9 @@ export interface GetApplicationSettings {
    * @deprecated Use the `MIDDLEWARE` array instead.
    * `createMiddleware` will be removed in a future release.
    */
-  createMiddleware?: (options: { debug: boolean }) => Middleware[];
+  createMiddleware?: (
+    options: { debug: boolean },
+  ) => Array<MiddlewareClass | Middleware>;
 
   /** Debug mode */
   DEBUG?: boolean;
@@ -187,6 +205,8 @@ export async function getWorkerApplication(
 // =============================================================================
 
 /**
+ * Builds an Application from a settings object.
+ *
  * @deprecated Use `getHttpApplication()` for server-side code or
  * `getWorkerApplication(settings)` for Service Workers.
  *
@@ -273,7 +293,7 @@ async function _resolveUrlPatterns(
 function _resolveMiddleware(
   settings: GetApplicationSettings,
   debug: boolean,
-): Middleware[] {
+): Array<MiddlewareClass | Middleware> {
   if (settings.MIDDLEWARE) {
     return settings.MIDDLEWARE;
   }

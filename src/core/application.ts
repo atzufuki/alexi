@@ -12,11 +12,37 @@
 
 import { resolve } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
-import type { Middleware, NextFunction } from "@alexi/middleware";
+import { BaseMiddleware } from "@alexi/middleware";
+import type {
+  Middleware,
+  MiddlewareClass,
+  NextFunction,
+} from "@alexi/middleware";
 import { HttpError } from "@alexi/middleware";
 
-export type { Middleware, NextFunction } from "@alexi/middleware";
-export type { URLPattern } from "@alexi/urls";
+export { BaseMiddleware } from "@alexi/middleware";
+export type {
+  Middleware,
+  MiddlewareClass,
+  NextFunction,
+} from "@alexi/middleware";
+export type { URLPattern, View } from "@alexi/urls";
+
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/**
+ * Returns true if `m` is a class-based middleware constructor (i.e. a subclass
+ * of {@link BaseMiddleware}), as opposed to a legacy function middleware.
+ *
+ * @param m - The middleware entry to inspect
+ */
+function _isMiddlewareClass(
+  m: MiddlewareClass | Middleware,
+): m is MiddlewareClass {
+  return typeof m === "function" && m.prototype instanceof BaseMiddleware;
+}
 
 // ============================================================================
 // Types (defined locally to avoid circular imports)
@@ -32,10 +58,24 @@ export interface ApplicationOptions {
   urls: URLPattern[];
 
   /**
-   * Middleware stack to apply to all requests
-   * Middleware is executed in order (first to last)
+   * Middleware stack to apply to all requests.
+   *
+   * Accepts class-based middleware (preferred) or legacy function middleware
+   * for backwards compatibility. Middleware is executed in order (first to
+   * last).
+   *
+   * @example Class-based (preferred)
+   * ```ts
+   * import { CorsMiddleware, LoggingMiddleware } from "@alexi/middleware";
+   * middleware: [LoggingMiddleware, CorsMiddleware]
+   * ```
+   *
+   * @example Legacy function-based
+   * ```ts
+   * middleware: [loggingMiddleware(), corsMiddleware()]
+   * ```
    */
-  middleware?: Middleware[];
+  middleware?: Array<MiddlewareClass | Middleware>;
 
   /**
    * Enable debug mode
@@ -107,7 +147,7 @@ export type Handler = (request: Request) => Promise<Response> | Response;
  */
 export class Application {
   private readonly urls: URLPattern[];
-  private readonly middleware: Middleware[];
+  private readonly middleware: Array<MiddlewareClass | Middleware>;
   private readonly debug: boolean;
 
   /**
@@ -162,10 +202,14 @@ export class Application {
   };
 
   /**
-   * Build the middleware chain for a request
+   * Build the middleware chain for a request.
    *
-   * Creates a chain of functions where each middleware calls the next.
-   * The final function in the chain dispatches to the matched view.
+   * Supports both class-based middleware ({@link MiddlewareClass}) and legacy
+   * function-based middleware ({@link Middleware}). Class-based middleware is
+   * detected via `instanceof BaseMiddleware` prototype check.
+   *
+   * Each class-based middleware is instantiated with the next layer as
+   * `getResponse` — matching Django's `__init__(get_response)` contract.
    *
    * @param request - The incoming HTTP request
    * @returns A function that executes the full middleware chain
@@ -177,9 +221,17 @@ export class Application {
     // Wrap each middleware around the current chain
     // Process in reverse order so first middleware executes first
     for (let i = this.middleware.length - 1; i >= 0; i--) {
-      const middleware = this.middleware[i];
+      const entry = this.middleware[i];
       const next = current;
-      current = () => middleware(request, next);
+
+      if (_isMiddlewareClass(entry)) {
+        // Class-based: instantiate with the next layer
+        const instance = new entry(next);
+        current = (req?: Request) => instance.call(req ?? request);
+      } else {
+        // Legacy function-based
+        current = () => (entry as Middleware)(request, next);
+      }
     }
 
     return current;
@@ -337,14 +389,16 @@ export class Application {
   // ==========================================================================
 
   /**
-   * Add middleware to the application
+   * Add middleware to the application.
    *
-   * Middleware is added to the end of the stack.
+   * Accepts both class-based ({@link MiddlewareClass}) and legacy function
+   * ({@link Middleware}) middleware. Middleware is added to the end of the
+   * stack.
    *
-   * @param middleware - Middleware function to add
+   * @param middleware - Middleware class or function to add
    * @returns this for chaining
    */
-  use(middleware: Middleware): this {
+  use(middleware: MiddlewareClass | Middleware): this {
     this.middleware.push(middleware);
     return this;
   }
@@ -359,7 +413,7 @@ export class Application {
   /**
    * Get the middleware stack
    */
-  get middlewareStack(): Middleware[] {
+  get middlewareStack(): Array<MiddlewareClass | Middleware> {
     return [...this.middleware];
   }
 

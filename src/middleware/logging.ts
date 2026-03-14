@@ -6,7 +6,8 @@
  * @module @alexi/http/middleware/logging
  */
 
-import type { Middleware } from "./types.ts";
+import { BaseMiddleware } from "./types.ts";
+import type { MiddlewareClass, NextFunction } from "./types.ts";
 
 // ============================================================================
 // Color Helpers (for terminal output)
@@ -61,8 +62,31 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(2)}s`;
 }
 
+/**
+ * Get status text for common status codes
+ */
+function getStatusText(status: number): string {
+  const texts: Record<number, string> = {
+    200: "OK",
+    201: "Created",
+    204: "No Content",
+    301: "Moved Permanently",
+    302: "Found",
+    304: "Not Modified",
+    400: "Bad Request",
+    401: "Unauthorized",
+    403: "Forbidden",
+    404: "Not Found",
+    405: "Method Not Allowed",
+    500: "Internal Server Error",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+  };
+  return texts[status] || "";
+}
+
 // ============================================================================
-// Logging Middleware
+// LoggingOptions
 // ============================================================================
 
 /**
@@ -93,48 +117,76 @@ export interface LoggingOptions {
   skip?: (request: Request) => boolean;
 }
 
+// ============================================================================
+// LoggingMiddleware — class-based
+// ============================================================================
+
 /**
- * Create a logging middleware
+ * Django-style class-based request/response logging middleware.
  *
- * @param options - Logging options
- * @returns Middleware function
+ * Logs every request's method and path before dispatch, and the response
+ * status with elapsed time after. Use the {@link loggingMiddleware} factory
+ * for a one-liner with custom options.
  *
- * @example Basic usage
+ * @example Using the factory (recommended)
  * ```ts
  * import { loggingMiddleware } from "@alexi/middleware";
  *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [loggingMiddleware()],
- * });
+ * export const MIDDLEWARE = [loggingMiddleware({ colors: false })];
  * ```
  *
- * @example With options
+ * @example Subclassing directly
  * ```ts
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [
- *     loggingMiddleware({
- *       colors: true,
- *       logHeaders: true,
- *       skip: (req) => req.url.includes("/health"),
- *     }),
- *   ],
- * });
+ * import { LoggingMiddleware } from "@alexi/middleware";
+ * import type { NextFunction } from "@alexi/middleware";
+ *
+ * class QuietLoggingMiddleware extends LoggingMiddleware {
+ *   constructor(getResponse: NextFunction) {
+ *     super(getResponse, { colors: false, skip: (req) => req.url.includes("/health") });
+ *   }
+ * }
+ *
+ * export const MIDDLEWARE = [QuietLoggingMiddleware];
  * ```
  */
-export function loggingMiddleware(options: LoggingOptions = {}): Middleware {
-  const {
-    colors: useColors = true,
-    logHeaders = false,
-    logger = console.log,
-    skip,
-  } = options;
+export class LoggingMiddleware extends BaseMiddleware {
+  /** Whether to use ANSI colors in log output. */
+  protected useColors: boolean;
+  /** Whether to log all request headers. */
+  protected logHeaders: boolean;
+  /** Log output function. */
+  protected logger: (message: string) => void;
+  /** Optional skip predicate. */
+  protected skip: ((request: Request) => boolean) | undefined;
 
-  return async (request, next) => {
-    // Check if we should skip logging
-    if (skip && skip(request)) {
-      return next();
+  /**
+   * Create a new LoggingMiddleware.
+   *
+   * @param getResponse The next layer in the middleware chain.
+   * @param options Logging configuration options.
+   */
+  constructor(getResponse: NextFunction, options: LoggingOptions = {}) {
+    super(getResponse);
+    const {
+      colors: useColors = true,
+      logHeaders = false,
+      logger = console.log,
+      skip,
+    } = options;
+    this.useColors = useColors;
+    this.logHeaders = logHeaders;
+    this.logger = logger;
+    this.skip = skip;
+  }
+
+  /**
+   * Log the request, call the next layer, and log the response.
+   *
+   * @param request The incoming HTTP request.
+   */
+  override async call(request: Request): Promise<Response> {
+    if (this.skip && this.skip(request)) {
+      return this.getResponse(request);
     }
 
     const start = performance.now();
@@ -143,105 +195,120 @@ export function loggingMiddleware(options: LoggingOptions = {}): Middleware {
     const path = url.pathname + url.search;
 
     // Log request
-    if (useColors) {
+    if (this.useColors) {
       const methodColor = getMethodColor(method);
-      logger(
+      this.logger(
         `${colors.dim}→${colors.reset} ${methodColor}${method}${colors.reset} ${path}`,
       );
     } else {
-      logger(`→ ${method} ${path}`);
+      this.logger(`→ ${method} ${path}`);
     }
 
-    // Log headers if enabled
-    if (logHeaders) {
+    if (this.logHeaders) {
       request.headers.forEach((value, key) => {
-        logger(`  ${key}: ${value}`);
+        this.logger(`  ${key}: ${value}`);
       });
     }
 
-    // Call next middleware/view
-    let response: Response;
+    let response!: Response;
     let error: unknown;
 
     try {
-      response = await next();
+      response = await this.getResponse(request);
     } catch (e) {
       error = e;
-      // Re-throw after logging
       throw e;
     } finally {
       const duration = performance.now() - start;
       const durationStr = formatDuration(duration);
 
       if (error) {
-        // Log error
-        if (useColors) {
-          logger(
+        if (this.useColors) {
+          this.logger(
             `${colors.dim}←${colors.reset} ${colors.red}ERROR${colors.reset} ${colors.dim}(${durationStr})${colors.reset}`,
           );
         } else {
-          logger(`← ERROR (${durationStr})`);
+          this.logger(`← ERROR (${durationStr})`);
         }
       }
     }
 
-    // Log response
-    const status = response!.status;
-    const statusText = response!.statusText || getStatusText(status);
+    const status = response.status;
+    const statusText = response.statusText || getStatusText(status);
+    const duration = performance.now() - start;
+    const durationStr = formatDuration(duration);
 
-    if (useColors) {
+    if (this.useColors) {
       const statusColor = getStatusColor(status);
-      const duration = performance.now() - start;
-      const durationStr = formatDuration(duration);
-      logger(
+      this.logger(
         `${colors.dim}←${colors.reset} ${statusColor}${status}${colors.reset} ${statusText} ${colors.dim}(${durationStr})${colors.reset}`,
       );
     } else {
-      const duration = performance.now() - start;
-      const durationStr = formatDuration(duration);
-      logger(`← ${status} ${statusText} (${durationStr})`);
+      this.logger(`← ${status} ${statusText} (${durationStr})`);
     }
 
-    return response!;
-  };
+    return response;
+  }
 }
 
-/**
- * Get status text for common status codes
- */
-function getStatusText(status: number): string {
-  const texts: Record<number, string> = {
-    200: "OK",
-    201: "Created",
-    204: "No Content",
-    301: "Moved Permanently",
-    302: "Found",
-    304: "Not Modified",
-    400: "Bad Request",
-    401: "Unauthorized",
-    403: "Forbidden",
-    404: "Not Found",
-    405: "Method Not Allowed",
-    500: "Internal Server Error",
-    502: "Bad Gateway",
-    503: "Service Unavailable",
-  };
-  return texts[status] || "";
-}
+// ============================================================================
+// Factory function (backwards compatible + options passing)
+// ============================================================================
 
 /**
- * Simple logging middleware with default options
+ * Create a logging middleware class configured with the given options.
  *
- * Use this for quick setup. For more control, use loggingMiddleware().
+ * Returns a {@link MiddlewareClass} (constructor) that can be added directly
+ * to the `MIDDLEWARE` setting.
  *
- * @example
+ * @param options - Logging options
+ * @returns A middleware class constructor configured with the given options.
+ *
+ * @example Basic usage
  * ```ts
- * import { simpleLoggingMiddleware } from "@alexi/middleware";
+ * import { loggingMiddleware } from "@alexi/middleware";
  *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [simpleLoggingMiddleware],
- * });
+ * export const MIDDLEWARE = [loggingMiddleware()];
+ * ```
+ *
+ * @example With options
+ * ```ts
+ * export const MIDDLEWARE = [
+ *   loggingMiddleware({
+ *     colors: true,
+ *     logHeaders: true,
+ *     skip: (req) => req.url.includes("/health"),
+ *   }),
+ * ];
  * ```
  */
-export const simpleLoggingMiddleware: Middleware = loggingMiddleware();
+export function loggingMiddleware(
+  options: LoggingOptions = {},
+): MiddlewareClass {
+  return class extends LoggingMiddleware {
+    constructor(getResponse: NextFunction) {
+      super(getResponse, options);
+    }
+  };
+}
+
+// ============================================================================
+// Legacy function-based exports (kept for backwards compatibility)
+// ============================================================================
+
+import type { Middleware } from "./types.ts";
+
+/**
+ * Simple logging middleware with default options.
+ *
+ * @deprecated Use {@link loggingMiddleware} which now returns a
+ * {@link MiddlewareClass}. Function-based middleware will be removed in a
+ * future release.
+ */
+export const simpleLoggingMiddleware: Middleware = (
+  request: Request,
+  next: () => Promise<Response>,
+): Promise<Response> => {
+  const instance = new LoggingMiddleware(next);
+  return instance.call(request);
+};

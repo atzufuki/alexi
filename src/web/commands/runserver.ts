@@ -31,7 +31,7 @@ import type {
 } from "@alexi/core/management";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
-import type { Middleware } from "@alexi/middleware";
+import type { Middleware, MiddlewareClass } from "@alexi/middleware";
 import type { AppConfig } from "@alexi/types";
 import { templateRegistry } from "@alexi/views";
 import { staticFilesMiddleware } from "@alexi/staticfiles";
@@ -578,7 +578,7 @@ export class RunServerCommand extends BaseCommand {
 
       augmentedSettings.MIDDLEWARE = undefined;
       augmentedSettings.createMiddleware = (opts) => {
-        let userMiddleware: Middleware[] = [];
+        let userMiddleware: Array<MiddlewareClass | Middleware> = [];
         if (originalCreateMiddleware) {
           userMiddleware = originalCreateMiddleware(opts);
         } else if (originalMiddleware) {
