@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.43.0] - 2026-03-15
+
+### Added
+
+- SQLite database backend (`@alexi/db/backends/sqlite`) using `jsr:@db/sqlite`
+  native Deno FFI bindings; supports full CRUD, bulk operations, transactions,
+  aggregations, and schema introspection; requires `--unstable-ffi` (#278)
+
 ## [0.42.5] - 2026-03-14
 
 ### Fixed
