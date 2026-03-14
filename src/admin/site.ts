@@ -8,6 +8,7 @@
  */
 
 import type { Model } from "@alexi/db";
+import type { URLPattern } from "@alexi/urls";
 import { ModelAdmin } from "./model_admin.ts";
 import type {
   AdminSiteOptions,
@@ -15,6 +16,7 @@ import type {
   ModelClass,
 } from "./options.ts";
 import { DEFAULT_ADMIN_SITE_OPTIONS } from "./options.ts";
+import { getAdminUrls } from "./urls.ts";
 
 // =============================================================================
 // AdminSite Class
@@ -70,6 +72,11 @@ export class AdminSite {
    */
   private _urlPatterns: Map<string, string> | null = null;
 
+  /**
+   * Creates a new AdminSite with the given options.
+   *
+   * @param options - Site configuration options.
+   */
   constructor(options: AdminSiteOptions = {}) {
     const opts = { ...DEFAULT_ADMIN_SITE_OPTIONS, ...options };
     this.title = opts.title;
@@ -178,6 +185,34 @@ export class AdminSite {
   // ===========================================================================
   // URL Management
   // ===========================================================================
+
+  /**
+   * URL patterns for this admin site as standard `URLPattern[]`.
+   *
+   * Equivalent to calling `getAdminUrls(site)` from `@alexi/admin`. The
+   * patterns can be mounted with `path()` / `include()` from `@alexi/urls`:
+   *
+   * ```ts
+   * import { path, include } from "@alexi/urls";
+   * import { adminSite } from "./admin.ts";
+   *
+   * export const urlpatterns = [
+   *   path("", include(adminSite.urls)),
+   * ];
+   * ```
+   *
+   * Note: The returned patterns use placeholder view handlers when no
+   * backend has been registered yet. A real `AdminRouter` or
+   * `getAdminUrls(site, backend)` call should be used when a backend is
+   * needed at pattern-generation time.
+   */
+  get urls(): URLPattern[] {
+    // Dynamic import to avoid a circular dependency at module-evaluation time.
+    // urls.ts imports `AdminSite` as a *type*, so this is safe at runtime.
+    // The dynamic import is synchronous in practice because the module has
+    // already been evaluated by the time this getter is called.
+    return getAdminUrls(this);
+  }
 
   /**
    * Reverse a URL by name.

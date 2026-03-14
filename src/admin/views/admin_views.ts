@@ -13,7 +13,7 @@ import type { ModelAdmin } from "../model_admin.ts";
 import { getModelFields, getModelMeta } from "../introspection.ts";
 import { getFiltersForFields } from "../filters.ts";
 import type { DatabaseBackend } from "@alexi/db";
-import { getAdminUrls } from "../urls.ts";
+import { AdminRouter, getAdminUrls } from "../urls.ts";
 
 // =============================================================================
 // Types
@@ -754,9 +754,9 @@ function formatValue(value: unknown): string {
 export function createAdminUrls(
   adminSite: AdminSite,
   backend: DatabaseBackend,
-  settings?: Record<string, unknown>,
+  _settings?: Record<string, unknown>,
 ) {
-  return getAdminUrls(adminSite, backend, settings);
+  return getAdminUrls(adminSite, backend);
 }
 
 /**
@@ -768,21 +768,23 @@ export function createAdminUrls(
 export function createAdminHandler(
   adminSite: AdminSite,
   backend: DatabaseBackend,
-  settings?: Record<string, unknown>,
+  _settings?: Record<string, unknown>,
 ): (request: Request) => Promise<Response | null> {
-  const patterns = getAdminUrls(adminSite, backend, settings);
+  const router = new AdminRouter(adminSite, backend);
 
   return async (request: Request): Promise<Response | null> => {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
     // Normalize path — ensure trailing slash for matching
-    const normalizedPath = pathname.endsWith("/") ? pathname : `${pathname}/`;
+    const candidates = pathname.endsWith("/")
+      ? [pathname]
+      : [pathname, `${pathname}/`];
 
-    for (const pattern of patterns) {
-      if (pattern.match(normalizedPath)) {
-        const params = pattern.extractParams(normalizedPath) ?? {};
-        return await pattern.handler(request, params);
+    for (const candidate of candidates) {
+      const matched = router.match(candidate);
+      if (matched) {
+        return await matched.pattern.view!(request, matched.params);
       }
     }
 

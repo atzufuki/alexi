@@ -2,10 +2,14 @@
  * URL Routing module for Alexi Admin
  *
  * This module provides URL pattern generation and routing for the admin interface.
+ * `getAdminUrls()` returns standard `URLPattern[]` from `@alexi/urls`, so admin
+ * routes can be mounted with `path()` / `include()` just like any other Alexi app.
  *
  * @module
  */
 
+import { path } from "@alexi/urls";
+import type { URLPattern } from "@alexi/urls";
 import { conf, isSettingsConfigured } from "@alexi/core";
 import { getBackend, hasBackend } from "@alexi/db";
 import type { DatabaseBackend } from "@alexi/db";
@@ -21,7 +25,7 @@ import {
 } from "./views/login_views.ts";
 
 // =============================================================================
-// Types
+// Types (legacy — kept for backwards compatibility)
 // =============================================================================
 
 /**
@@ -39,6 +43,10 @@ export type AdminHandler = (
 
 /**
  * URL pattern for admin routes.
+ *
+ * @deprecated Use the standard `URLPattern` from `@alexi/urls` instead.
+ * This interface is retained for backwards compatibility only and will be
+ * removed in a future release.
  */
 export interface AdminUrlPattern {
   /** URL pattern string (e.g., "/admin/users/:id/") */
@@ -58,86 +66,14 @@ export interface AdminUrlPattern {
 }
 
 // =============================================================================
-// AdminUrlPattern Implementation
+// Static file handler
 // =============================================================================
-
-/**
- * Create an AdminUrlPattern instance.
- */
-function createUrlPattern(
-  pattern: string,
-  name: string,
-  viewType: AdminViewType,
-  handler: AdminHandler,
-  modelName?: string,
-): AdminUrlPattern {
-  // Convert pattern to regex.
-  // The pattern uses :param syntax for URL parameters.
-  // Split by :param, escape static parts, then rejoin with named capture groups.
-  const parts = pattern.split(/:(\w+)/);
-  let regexPattern = "";
-
-  for (let i = 0; i < parts.length; i++) {
-    if (i % 2 === 0) {
-      // Static part — escape regex special chars
-      regexPattern += parts[i].replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
-    } else {
-      // Parameter name — create named capture group (matches anything except /)
-      regexPattern += `(?<${parts[i]}>[^/]+)`;
-    }
-  }
-
-  const regex = new RegExp(`^${regexPattern}$`);
-
-  return {
-    pattern,
-    name,
-    viewType,
-    handler,
-    modelName,
-
-    match(url: string): boolean {
-      return regex.test(url);
-    },
-
-    extractParams(url: string): Record<string, string> | null {
-      const m = url.match(regex);
-      if (!m) {
-        return null;
-      }
-      return m.groups ?? {};
-    },
-  };
-}
-
-// =============================================================================
-// URL Generation Helpers
-// =============================================================================
-
-/**
- * Default placeholder handler — used when no backend is provided (e.g. tests).
- */
-function createPlaceholderHandler(viewType: AdminViewType): AdminHandler {
-  return (_request: Request, _params: Record<string, string>) => {
-    return new Response(
-      JSON.stringify({
-        message: `Admin ${viewType} view`,
-        viewType,
-      }),
-      {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
-  };
-}
 
 /**
  * Create a handler that serves admin static files (CSS/JS).
  *
- * The URL pattern `/admin/static/:file` only captures a single path segment,
- * but the real sub-path (e.g. `css/admin.css`) is read from the raw URL so that
- * `css/` and `js/` sub-directories are handled correctly.
+ * The URL pattern captures an explicit sub-path so that `css/admin.css` and
+ * `js/admin.js` are served correctly from the package's `./static/` directory.
  */
 function createStaticHandler(prefix: string): AdminHandler {
   return async (request: Request, _params: Record<string, string>) => {
@@ -175,166 +111,234 @@ function createStaticHandler(prefix: string): AdminHandler {
 // =============================================================================
 
 /**
- * Generate URL patterns for an AdminSite.
+ * Resolve the effective settings object.
  *
- * When `backend` is provided, routes are wired to the real SSR view handlers
- * from `views/admin_views.ts`. Without a backend (e.g. in tests), placeholder
- * handlers are used so existing tests continue to pass unchanged.
+ * Returns the global `conf` proxy when settings have been configured.
+ * Falls back to `override` when provided (used by `AdminRouter` when an
+ * explicit settings dict was passed to its constructor, e.g. in tests).
+ *
+ * @param override - Optional fallback settings dict.
+ */
+function resolveSettings(
+  override?: Record<string, unknown>,
+): Record<string, unknown> | undefined {
+  if (isSettingsConfigured()) {
+    return conf as unknown as Record<string, unknown>;
+  }
+  return override;
+}
+
+/**
+ * Normalize a URL prefix to have a leading slash but no trailing slash.
+ *
+ * @param prefix - Raw prefix string (e.g. `"/admin"` or `"admin/"`)
+ * @returns Normalized prefix (e.g. `"/admin"`)
+ */
+function normalizePrefix(prefix: string): string {
+  let normalized = prefix.startsWith("/") ? prefix : `/${prefix}`;
+  normalized = normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
+  return normalized;
+}
+
+/**
+ * Strip the leading slash from a prefix to produce a relative URL pattern
+ * segment suitable for use with `path()` from `@alexi/urls`.
+ *
+ * @example
+ * ```ts
+ * relativePrefix("/admin")  // → "admin"
+ * relativePrefix("/admin/panel") // → "admin/panel"
+ * ```
+ */
+function relativePrefix(absolutePrefix: string): string {
+  return absolutePrefix.replace(/^\/+/, "");
+}
+
+/**
+ * Generate URL patterns for an AdminSite as standard `URLPattern[]`.
+ *
+ * The returned patterns are compatible with `path()` / `include()` from
+ * `@alexi/urls` and can be mounted in your project's ROOT_URLCONF:
+ *
+ * ```ts
+ * import { path, include } from "@alexi/urls";
+ * import { getAdminUrls } from "@alexi/admin";
+ *
+ * export const urlpatterns = [
+ *   path("", include(getAdminUrls(adminSite, backend))),
+ * ];
+ * ```
+ *
+ * Or equivalently via `AdminSite.urls`:
+ *
+ * ```ts
+ * path("", include(adminSite.urls)),
+ * ```
+ *
+ * URL patterns are built lazily by `AdminRouter` on the first request —
+ * not at module evaluation time — so that `configureSettings()` is
+ * guaranteed to have been called before the backend / settings are resolved.
+ *
+ * When `backend` is provided, routes are wired to the real SSR view handlers.
+ * Without a backend, placeholder JSON handlers are used (useful for testing
+ * URL generation without a database).
  *
  * @param site - The AdminSite instance
  * @param backend - Optional database backend; enables real SSR view handlers
- * @param settings - Optional settings object (needed for AUTH_USER_MODEL / SECRET_KEY)
- * @returns Array of AdminUrlPattern objects
+ * @param settingsOverride - Optional settings dict used as fallback when the
+ *   global `conf` proxy is not configured (e.g. in tests or direct instantiation).
+ *   In production, settings are always read from the global `conf` proxy.
+ * @returns Array of URLPattern objects compatible with `@alexi/urls`
  */
 export function getAdminUrls(
   site: AdminSite,
   backend?: DatabaseBackend,
-  settings?: Record<string, unknown>,
-): AdminUrlPattern[] {
-  const urls: AdminUrlPattern[] = [];
-  const prefix = normalizePrefix(site.urlPrefix);
+  settingsOverride?: Record<string, unknown>,
+): URLPattern[] {
+  const urls: URLPattern[] = [];
+  const absPrefix = normalizePrefix(site.urlPrefix);
+  const rel = relativePrefix(absPrefix); // e.g. "admin"
 
   if (backend) {
     // -------------------------------------------------------------------------
     // Real SSR handlers (backend provided)
     // -------------------------------------------------------------------------
 
-    // Static files: /admin/static/css/admin.css, /admin/static/js/admin.js
-    // Register explicit patterns for each known static sub-path so that the
-    // two-segment paths (e.g. "css/admin.css") are matched correctly.
-    for (
-      const subPath of ["css/admin.css", "js/admin.js"]
-    ) {
+    // Static files: admin/static/css/admin.css, admin/static/js/admin.js
+    const staticHandler = createStaticHandler(absPrefix);
+    for (const subPath of ["css/admin.css", "js/admin.js"]) {
       urls.push(
-        createUrlPattern(
-          `${prefix}/static/${subPath}`,
-          "admin:static",
-          "index",
-          createStaticHandler(prefix),
-        ),
+        path(`${rel}/static/${subPath}`, staticHandler, {
+          name: "admin:static",
+        }),
       );
     }
 
-    // Login page: GET /admin/login/
+    // Login page: GET|POST admin/login/
     urls.push(
-      createUrlPattern(
-        `${prefix}/login/`,
-        "admin:login",
-        "index",
-        (request, _params) => {
+      path(
+        `${rel}/login/`,
+        (request, params) => {
           if (request.method === "POST") {
             return handleLoginPost({
               request,
-              params: _params,
+              params,
               adminSite: site,
               backend: backend,
-              settings,
+              settings: resolveSettings(settingsOverride),
             });
           }
           const url = new URL(request.url);
           const next = url.searchParams.get("next") ?? undefined;
           return renderLoginPage(site, { next });
         },
+        { name: "admin:login" },
       ),
     );
 
-    // Logout: GET|POST /admin/logout/
+    // Logout: GET|POST admin/logout/
     urls.push(
-      createUrlPattern(
-        `${prefix}/logout/`,
-        "admin:logout",
-        "index",
-        (_request, _params) => {
-          return handleLogout(site);
-        },
+      path(
+        `${rel}/logout/`,
+        (_request, _params) => handleLogout(site),
+        { name: "admin:logout" },
       ),
     );
 
-    // Dashboard/index
+    // Dashboard/index: GET|POST admin/
     urls.push(
-      createUrlPattern(
-        `${prefix}/`,
-        "admin:index",
-        "index",
-        (request, params) => {
-          return renderDashboard({
+      path(
+        `${rel}/`,
+        (request, params) =>
+          renderDashboard({
             request,
             params,
             adminSite: site,
-            settings,
-          });
-        },
+            settings: resolveSettings(settingsOverride),
+          }),
+        { name: "admin:index" },
       ),
     );
 
     // Per-model routes
     for (const model of site.getRegisteredModels()) {
       const modelName = model.name.toLowerCase();
-      const admin = site.getModelAdmin(model);
 
-      // List (changelist)
+      // Changelist: admin/<model>/
       urls.push(
-        createUrlPattern(
-          admin.getListUrl(),
-          `admin:${modelName}_changelist`,
-          "list",
-          (request, params) => {
-            return renderChangeList(
-              { request, params, adminSite: site, backend, settings },
+        path(
+          `${rel}/${modelName}/`,
+          (request, params) =>
+            renderChangeList(
+              {
+                request,
+                params,
+                adminSite: site,
+                backend,
+                settings: resolveSettings(settingsOverride),
+              },
               modelName,
-            );
-          },
-          modelName,
+            ),
+          { name: `admin:${modelName}_changelist` },
         ),
       );
 
-      // Add
+      // Add: admin/<model>/add/
       urls.push(
-        createUrlPattern(
-          admin.getAddUrl(),
-          `admin:${modelName}_add`,
-          "add",
-          (request, params) => {
-            return renderChangeForm(
-              { request, params, adminSite: site, backend, settings },
+        path(
+          `${rel}/${modelName}/add/`,
+          (request, params) =>
+            renderChangeForm(
+              {
+                request,
+                params,
+                adminSite: site,
+                backend,
+                settings: resolveSettings(settingsOverride),
+              },
               modelName,
-            );
-          },
-          modelName,
+            ),
+          { name: `admin:${modelName}_add` },
         ),
       );
 
-      // Change (detail)
+      // Change (detail): admin/<model>/:id/
       urls.push(
-        createUrlPattern(
-          `${prefix}/${modelName}/:id/`,
-          `admin:${modelName}_change`,
-          "change",
-          (request, params) => {
-            return renderChangeForm(
-              { request, params, adminSite: site, backend, settings },
+        path(
+          `${rel}/${modelName}/:id/`,
+          (request, params) =>
+            renderChangeForm(
+              {
+                request,
+                params,
+                adminSite: site,
+                backend,
+                settings: resolveSettings(settingsOverride),
+              },
               modelName,
               params.id,
-            );
-          },
-          modelName,
+            ),
+          { name: `admin:${modelName}_change` },
         ),
       );
 
-      // Delete confirmation
+      // Delete: admin/<model>/:id/delete/
       urls.push(
-        createUrlPattern(
-          `${prefix}/${modelName}/:id/delete/`,
-          `admin:${modelName}_delete`,
-          "delete",
-          (request, params) => {
-            return renderDeleteConfirmation(
-              { request, params, adminSite: site, backend, settings },
+        path(
+          `${rel}/${modelName}/:id/delete/`,
+          (request, params) =>
+            renderDeleteConfirmation(
+              {
+                request,
+                params,
+                adminSite: site,
+                backend,
+                settings: resolveSettings(settingsOverride),
+              },
               modelName,
               params.id,
-            );
-          },
-          modelName,
+            ),
+          { name: `admin:${modelName}_delete` },
         ),
       );
     }
@@ -343,92 +347,46 @@ export function getAdminUrls(
     // Placeholder handlers (no backend — used by tests and tooling)
     // -------------------------------------------------------------------------
 
-    // Login
-    urls.push(
-      createUrlPattern(
-        `${prefix}/login/`,
-        "admin:login",
-        "index",
-        createPlaceholderHandler("index"),
-      ),
-    );
+    const placeholder = (
+      _request: Request,
+      _params: Record<string, string>,
+    ): Response =>
+      new Response(JSON.stringify({ message: "Admin placeholder" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
 
-    // Logout
-    urls.push(
-      createUrlPattern(
-        `${prefix}/logout/`,
-        "admin:logout",
-        "index",
-        createPlaceholderHandler("index"),
-      ),
-    );
-
-    // Dashboard/index
-    urls.push(
-      createUrlPattern(
-        `${prefix}/`,
-        "admin:index",
-        "index",
-        createPlaceholderHandler("index"),
-      ),
-    );
+    urls.push(path(`${rel}/login/`, placeholder, { name: "admin:login" }));
+    urls.push(path(`${rel}/logout/`, placeholder, { name: "admin:logout" }));
+    urls.push(path(`${rel}/`, placeholder, { name: "admin:index" }));
 
     for (const model of site.getRegisteredModels()) {
       const modelName = model.name.toLowerCase();
-      const admin = site.getModelAdmin(model);
 
       urls.push(
-        createUrlPattern(
-          admin.getListUrl(),
-          `admin:${modelName}_changelist`,
-          "list",
-          createPlaceholderHandler("list"),
-          modelName,
-        ),
+        path(`${rel}/${modelName}/`, placeholder, {
+          name: `admin:${modelName}_changelist`,
+        }),
       );
-
       urls.push(
-        createUrlPattern(
-          admin.getAddUrl(),
-          `admin:${modelName}_add`,
-          "add",
-          createPlaceholderHandler("add"),
-          modelName,
-        ),
+        path(`${rel}/${modelName}/add/`, placeholder, {
+          name: `admin:${modelName}_add`,
+        }),
       );
-
       urls.push(
-        createUrlPattern(
-          `${prefix}/${modelName}/:id/`,
-          `admin:${modelName}_change`,
-          "change",
-          createPlaceholderHandler("change"),
-          modelName,
-        ),
+        path(`${rel}/${modelName}/:id/`, placeholder, {
+          name: `admin:${modelName}_change`,
+        }),
       );
-
       urls.push(
-        createUrlPattern(
-          `${prefix}/${modelName}/:id/delete/`,
-          `admin:${modelName}_delete`,
-          "delete",
-          createPlaceholderHandler("delete"),
-          modelName,
-        ),
+        path(`${rel}/${modelName}/:id/delete/`, placeholder, {
+          name: `admin:${modelName}_delete`,
+        }),
       );
     }
   }
 
   return urls;
-}
-
-/**
- * Normalize URL prefix to have leading slash but no trailing slash.
- */
-function normalizePrefix(prefix: string): string {
-  let normalized = prefix.startsWith("/") ? prefix : `/${prefix}`;
-  normalized = normalized.endsWith("/") ? normalized.slice(0, -1) : normalized;
-  return normalized;
 }
 
 // =============================================================================
@@ -447,37 +405,59 @@ function normalizePrefix(prefix: string): string {
  * By deferring pattern creation to the first call to `_getPatterns()`, the
  * router is guaranteed to see the fully-configured backend and settings
  * regardless of module evaluation order.
+ *
+ * ### Migration guide
+ *
+ * `AdminRouter` is retained for backwards compatibility. For new projects,
+ * prefer mounting admin routes via `AdminSite.urls` and `include()`:
+ *
+ * ```ts
+ * // urls.ts
+ * import { path, include } from "@alexi/urls";
+ * import { adminSite } from "./admin.ts";
+ *
+ * export const urlpatterns = [
+ *   path("", include(adminSite.urls)),
+ * ];
+ * ```
  */
 export class AdminRouter {
   /**
-   * Lazily-built URL patterns.
+   * Lazily-built URL patterns (standard URLPattern[] from @alexi/urls).
    *
    * `null` means "not yet built". Once built, the array is cached for the
    * lifetime of the router — exactly as Django caches its compiled URL
    * resolver on first access.
    */
-  private _patterns: AdminUrlPattern[] | null = null;
+  private _patterns: URLPattern[] | null = null;
 
   /**
    * Explicit backend override supplied by the caller.
-   * When `null`, the router falls back to the globally registered default.
+   * When `undefined`, the router falls back to the globally registered default.
    */
   private _backendOverride: DatabaseBackend | undefined;
 
   /**
    * Explicit settings override supplied by the caller.
-   * When `null`, the router falls back to the global `conf` proxy.
+   * Used as a fallback when the global `conf` proxy is not yet configured
+   * (e.g. in tests). Production code should use `configureSettings()` instead.
    */
   private _settingsOverride: Record<string, unknown> | undefined;
 
+  /**
+   * Creates a new AdminRouter for the given site.
+   *
+   * @param site - The AdminSite whose registered models define the URL tree.
+   * @param backend - Optional explicit database backend. Defaults to the
+   *   globally registered default backend from `@alexi/db`.
+   * @param settings - Optional settings override used as a fallback when the
+   *   global `conf` proxy is not configured (e.g. in tests).
+   */
   constructor(
     private site: AdminSite,
     backend?: DatabaseBackend,
     settings?: Record<string, unknown>,
   ) {
-    // Store caller-supplied overrides for later use in _getPatterns().
-    // We intentionally do NOT resolve backend/settings here — that must happen
-    // at request time so that the global registry is fully configured.
     this._backendOverride = backend;
     this._settingsOverride = settings;
   }
@@ -494,59 +474,55 @@ export class AdminRouter {
   }
 
   /**
-   * Resolve the active settings.
-   *
-   * Returns the explicit override (if any), otherwise falls back to the
-   * global `conf` proxy from `@alexi/core`.
-   */
-  private _resolveSettings(): Record<string, unknown> | undefined {
-    return this._settingsOverride ??
-      (isSettingsConfigured()
-        ? (conf as unknown as Record<string, unknown>)
-        : undefined);
-  }
-
-  /**
    * Return the URL patterns, building them on first access (lazy init).
    *
    * This is the Django-style "setup on first request" pattern: the URL
    * resolver caches its compiled patterns after the first lookup so that
    * subsequent requests pay no extra cost.
    */
-  private _getPatterns(): AdminUrlPattern[] {
+  private _getPatterns(): URLPattern[] {
     if (this._patterns === null) {
       this._patterns = getAdminUrls(
         this.site,
         this._resolveBackend(),
-        this._resolveSettings(),
+        this._settingsOverride,
       );
     }
     return this._patterns;
   }
 
   /**
-   * Find a matching URL pattern for a request.
+   * Find a matching URL pattern for a request path.
    *
-   * Tries the URL as-is first (for static files without trailing slashes), then
-   * tries with a trailing slash appended (for all other admin routes).
+   * Tries the URL as-is first (for static files without trailing slashes),
+   * then with a trailing slash appended (for all other admin routes).
+   *
+   * @param urlPath - The URL pathname to match (e.g. `/admin/login/`)
+   * @returns The matched pattern and extracted params, or `null` if no match.
    */
-  match(url: string): {
-    pattern: AdminUrlPattern;
+  match(urlPath: string): {
+    pattern: URLPattern;
     params: Record<string, string>;
   } | null {
-    // Candidate URLs: original as-is and with a trailing slash appended.
-    // We try both so that static file paths like "/admin/static/css/admin.css"
-    // (no trailing slash) are matched before trying the slash-appended form.
-    const candidates = url.endsWith("/") ? [url] : [url, `${url}/`];
+    const candidates = urlPath.endsWith("/")
+      ? [urlPath]
+      : [urlPath, `${urlPath}/`];
 
     for (const candidate of candidates) {
-      for (const pattern of this._getPatterns()) {
-        if (pattern.match(candidate)) {
-          const params = pattern.extractParams(candidate);
-          if (params !== null) {
-            return { pattern, params };
-          }
-        }
+      const result = _resolveUrl(candidate, this._getPatterns());
+      if (result) {
+        // Find the matched URLPattern by name so the caller gets the real view fn
+        const matchedPat = result.name
+          ? (this._getPatterns().find((p) => p.name === result.name) ??
+            {
+              pattern: candidate,
+              view: result.view as unknown as URLPattern["view"],
+            })
+          : {
+            pattern: candidate,
+            view: result.view as unknown as URLPattern["view"],
+          };
+        return { pattern: matchedPat as URLPattern, params: result.params };
       }
     }
 
@@ -554,30 +530,134 @@ export class AdminRouter {
   }
 
   /**
-   * Handle a request.
+   * Handle a request by dispatching to the matched admin view.
+   *
+   * @param request - The incoming HTTP request
+   * @returns The HTTP response
    */
   async handle(request: Request): Promise<Response> {
     const url = new URL(request.url);
-    const match = this.match(url.pathname);
+    const candidates = url.pathname.endsWith("/")
+      ? [url.pathname]
+      : [url.pathname, `${url.pathname}/`];
 
-    if (!match) {
-      return new Response("Not Found", { status: 404 });
+    for (const candidate of candidates) {
+      const result = _resolveUrl(candidate, this._getPatterns());
+      if (result) {
+        return await result.view(request, result.params);
+      }
     }
 
-    return await match.pattern.handler(request, match.params);
+    return new Response("Not Found", { status: 404 });
   }
 
   /**
    * Get all URL patterns.
+   *
+   * @returns The lazily-built array of URL patterns.
    */
-  getPatterns(): AdminUrlPattern[] {
+  getPatterns(): URLPattern[] {
     return this._getPatterns();
   }
 
   /**
    * Reverse a URL by name.
+   *
+   * @param name - The URL name (e.g., `"admin:article_changelist"`)
+   * @param params - URL parameters to substitute
+   * @returns The resolved URL path
    */
   reverse(name: string, params?: Record<string, string>): string {
     return this.site.reverse(name, params);
   }
+}
+
+// =============================================================================
+// Internal helpers
+// =============================================================================
+
+/**
+ * Thin URL resolver used by `AdminRouter.match()` and `AdminRouter.handle()`.
+ *
+ * Mirrors the logic in `@alexi/urls/resolver.ts` inline to avoid any circular
+ * dependency issues that could arise from importing the resolver at the top
+ * level of this module.
+ * @internal
+ */
+function _resolveUrl(
+  urlPath: string,
+  patterns: URLPattern[],
+):
+  | { view: AdminHandler; params: Record<string, string>; name?: string }
+  | null {
+  // Inline resolution to avoid extra imports — mirrors resolver.ts logic.
+  function compileSegments(
+    pattern: string,
+  ): Array<{ isParam: boolean; value: string }> {
+    const normalized = pattern.replace(/^\/+|\/+$/g, "");
+    if (normalized === "") return [];
+    return normalized.split("/").map((seg) =>
+      seg.startsWith(":")
+        ? { isParam: true, value: seg.slice(1) }
+        : { isParam: false, value: seg }
+    );
+  }
+
+  function matchSegments(
+    urlSegs: string[],
+    patternSegs: Array<{ isParam: boolean; value: string }>,
+    accumulated: Record<string, string>,
+  ): Record<string, string> | null {
+    if (patternSegs.length !== urlSegs.length) return null;
+    const params = { ...accumulated };
+    for (let i = 0; i < patternSegs.length; i++) {
+      if (patternSegs[i].isParam) {
+        params[patternSegs[i].value] = urlSegs[i];
+      } else if (patternSegs[i].value !== urlSegs[i]) {
+        return null;
+      }
+    }
+    return params;
+  }
+
+  function tryMatch(
+    urlSegs: string[],
+    pats: URLPattern[],
+    acc: Record<string, string>,
+  ):
+    | { view: AdminHandler; params: Record<string, string>; name?: string }
+    | null {
+    for (const pat of pats) {
+      const patSegs = compileSegments(pat.pattern);
+      if (pat.view) {
+        const params = matchSegments(urlSegs, patSegs, acc);
+        if (params !== null) {
+          return {
+            view: pat.view as unknown as AdminHandler,
+            params,
+            name: pat.name,
+          };
+        }
+      } else if (pat.children && urlSegs.length >= patSegs.length) {
+        const partial = matchSegments(
+          urlSegs.slice(0, patSegs.length),
+          patSegs,
+          acc,
+        );
+        if (partial !== null) {
+          const sub = tryMatch(
+            urlSegs.slice(patSegs.length),
+            pat.children,
+            partial,
+          );
+          if (sub) return sub;
+        }
+      }
+    }
+    return null;
+  }
+
+  const normalized = urlPath.replace(/^\/+|\/+$/g, "");
+  const urlSegs = normalized === "" ? [] : normalized.split("/");
+  return tryMatch(urlSegs, patterns, {});
 }
