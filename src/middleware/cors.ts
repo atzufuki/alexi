@@ -6,7 +6,8 @@
  * @module @alexi/http/middleware/cors
  */
 
-import type { Middleware } from "./types.ts";
+import { BaseMiddleware } from "./types.ts";
+import type { MiddlewareClass, NextFunction } from "./types.ts";
 
 // ============================================================================
 // CORS Options
@@ -75,130 +76,148 @@ const DEFAULT_HEADERS = ["Content-Type", "Authorization", "X-Requested-With"];
 const DEFAULT_MAX_AGE = 86400; // 24 hours
 
 // ============================================================================
-// CORS Middleware
+// CorsMiddleware — class-based
 // ============================================================================
 
 /**
- * Create a CORS middleware
+ * Django-style class-based CORS middleware.
  *
- * @param options - CORS options
- * @returns Middleware function
+ * Handles CORS preflight requests and adds `Access-Control-*` headers to
+ * all responses. Instantiate with options by subclassing or use the
+ * {@link corsMiddleware} factory for a one-liner.
  *
- * @example Basic usage (allow all origins)
+ * @example Using the factory (recommended)
  * ```ts
  * import { corsMiddleware } from "@alexi/middleware";
  *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [corsMiddleware()],
- * });
+ * export const MIDDLEWARE = [
+ *   corsMiddleware({ origins: ["http://localhost:5173"], credentials: true }),
+ * ];
  * ```
  *
- * @example Specific origins
+ * @example Subclassing directly
  * ```ts
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [
- *     corsMiddleware({
- *       origins: ["http://localhost:5173", "https://myapp.com"],
- *       credentials: true,
- *     }),
- *   ],
- * });
- * ```
+ * import { CorsMiddleware } from "@alexi/middleware";
  *
- * @example Dynamic origin validation
- * ```ts
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [
- *     corsMiddleware({
- *       origins: (origin) => origin.endsWith(".myapp.com"),
- *       credentials: true,
- *     }),
- *   ],
- * });
+ * class MyCors extends CorsMiddleware {
+ *   constructor(getResponse: NextFunction) {
+ *     super(getResponse, { origins: ["https://myapp.com"], credentials: true });
+ *   }
+ * }
+ *
+ * export const MIDDLEWARE = [MyCors];
  * ```
  */
-export function corsMiddleware(options: CorsOptions = {}): Middleware {
-  const {
-    origins = "*",
-    methods = DEFAULT_METHODS,
-    allowedHeaders = DEFAULT_HEADERS,
-    exposedHeaders = [],
-    credentials = false,
-    maxAge = DEFAULT_MAX_AGE,
-    preflightContinue = false,
-  } = options;
+export class CorsMiddleware extends BaseMiddleware {
+  /** Resolved CORS origins setting. */
+  protected origins: string | string[] | ((origin: string) => boolean);
+  /** Allowed HTTP methods. */
+  protected methods: string[];
+  /** Allowed request headers. */
+  protected allowedHeaders: string[];
+  /** Response headers exposed to the browser. */
+  protected exposedHeaders: string[];
+  /** Whether credentials are allowed. */
+  protected credentials: boolean;
+  /** Preflight cache max-age in seconds. */
+  protected maxAge: number;
+  /** Whether to pass preflight requests through to the next layer. */
+  protected preflightContinue: boolean;
 
   /**
-   * Check if an origin is allowed
+   * Create a new CorsMiddleware.
+   *
+   * @param getResponse The next layer in the middleware chain.
+   * @param options CORS configuration options.
    */
-  function isOriginAllowed(origin: string | null): boolean {
+  constructor(getResponse: NextFunction, options: CorsOptions = {}) {
+    super(getResponse);
+    const {
+      origins = "*",
+      methods = DEFAULT_METHODS,
+      allowedHeaders = DEFAULT_HEADERS,
+      exposedHeaders = [],
+      credentials = false,
+      maxAge = DEFAULT_MAX_AGE,
+      preflightContinue = false,
+    } = options;
+    this.origins = origins;
+    this.methods = methods;
+    this.allowedHeaders = allowedHeaders;
+    this.exposedHeaders = exposedHeaders;
+    this.credentials = credentials;
+    this.maxAge = maxAge;
+    this.preflightContinue = preflightContinue;
+  }
+
+  /**
+   * Handle CORS for the request.
+   *
+   * For `OPTIONS` preflight requests, returns a `204 No Content` response with
+   * the appropriate headers (unless `preflightContinue` is `true`).
+   * For all other requests, adds CORS headers to the downstream response.
+   *
+   * @param request The incoming HTTP request.
+   */
+  override async call(request: Request): Promise<Response> {
+    const origin = request.headers.get("Origin");
+
+    if (request.method === "OPTIONS") {
+      const preflightResponse = this._createPreflightResponse(origin);
+
+      if (this.preflightContinue) {
+        const response = await this.getResponse(request);
+        return this._addCorsHeaders(response, origin);
+      }
+
+      return preflightResponse;
+    }
+
+    const response = await this.getResponse(request);
+    return this._addCorsHeaders(response, origin);
+  }
+
+  /** Check if the given origin is allowed. */
+  protected _isOriginAllowed(origin: string | null): boolean {
     if (!origin) return false;
-
-    if (origins === "*") return true;
-
-    if (typeof origins === "string") {
-      return origins === origin;
-    }
-
-    if (Array.isArray(origins)) {
-      return origins.includes(origin);
-    }
-
-    if (typeof origins === "function") {
-      return origins(origin);
-    }
-
+    if (this.origins === "*") return true;
+    if (typeof this.origins === "string") return this.origins === origin;
+    if (Array.isArray(this.origins)) return this.origins.includes(origin);
+    if (typeof this.origins === "function") return this.origins(origin);
     return false;
   }
 
-  /**
-   * Get the Access-Control-Allow-Origin header value
-   */
-  function getAllowOrigin(origin: string | null): string {
+  /** Get the `Access-Control-Allow-Origin` header value. */
+  protected _getAllowOrigin(origin: string | null): string {
     if (!origin) return "";
-
-    if (origins === "*" && !credentials) {
-      return "*";
-    }
-
-    if (isOriginAllowed(origin)) {
-      return origin;
-    }
-
+    if (this.origins === "*" && !this.credentials) return "*";
+    if (this._isOriginAllowed(origin)) return origin;
     return "";
   }
 
-  /**
-   * Add CORS headers to a response
-   */
-  function addCorsHeaders(
+  /** Clone a response and add CORS headers. */
+  protected _addCorsHeaders(
     response: Response,
     origin: string | null,
   ): Response {
-    const allowOrigin = getAllowOrigin(origin);
+    const allowOrigin = this._getAllowOrigin(origin);
+    if (!allowOrigin) return response;
 
-    if (!allowOrigin) {
-      return response;
-    }
-
-    // Clone the response to modify headers
     const headers = new Headers(response.headers);
-
     headers.set("Access-Control-Allow-Origin", allowOrigin);
 
-    if (credentials) {
+    if (this.credentials) {
       headers.set("Access-Control-Allow-Credentials", "true");
     }
 
-    if (exposedHeaders.length > 0) {
-      headers.set("Access-Control-Expose-Headers", exposedHeaders.join(", "));
+    if (this.exposedHeaders.length > 0) {
+      headers.set(
+        "Access-Control-Expose-Headers",
+        this.exposedHeaders.join(", "),
+      );
     }
 
-    // Vary header for caching
-    if (origins !== "*") {
+    if (this.origins !== "*") {
       const vary = headers.get("Vary");
       if (vary) {
         if (!vary.includes("Origin")) {
@@ -216,82 +235,124 @@ export function corsMiddleware(options: CorsOptions = {}): Middleware {
     });
   }
 
-  /**
-   * Create a preflight response
-   */
-  function createPreflightResponse(origin: string | null): Response {
-    const allowOrigin = getAllowOrigin(origin);
-
-    if (!allowOrigin) {
-      return new Response(null, { status: 403 });
-    }
+  /** Create a preflight `204 No Content` response with CORS headers. */
+  protected _createPreflightResponse(origin: string | null): Response {
+    const allowOrigin = this._getAllowOrigin(origin);
+    if (!allowOrigin) return new Response(null, { status: 403 });
 
     const headers = new Headers();
-
     headers.set("Access-Control-Allow-Origin", allowOrigin);
-    headers.set("Access-Control-Allow-Methods", methods.join(", "));
-    headers.set("Access-Control-Allow-Headers", allowedHeaders.join(", "));
-    headers.set("Access-Control-Max-Age", String(maxAge));
+    headers.set("Access-Control-Allow-Methods", this.methods.join(", "));
+    headers.set("Access-Control-Allow-Headers", this.allowedHeaders.join(", "));
+    headers.set("Access-Control-Max-Age", String(this.maxAge));
 
-    if (credentials) {
+    if (this.credentials) {
       headers.set("Access-Control-Allow-Credentials", "true");
     }
 
-    // Vary header for caching
-    if (origins !== "*") {
+    if (this.origins !== "*") {
       headers.set(
         "Vary",
         "Origin, Access-Control-Request-Method, Access-Control-Request-Headers",
       );
     }
 
-    return new Response(null, {
-      status: 204,
-      headers,
-    });
+    return new Response(null, { status: 204, headers });
   }
+}
 
-  // Return the middleware function
-  return async (request, next) => {
-    const origin = request.headers.get("Origin");
+// ============================================================================
+// Factory function (backwards compatible + options passing)
+// ============================================================================
 
-    // Handle preflight requests
-    if (request.method === "OPTIONS") {
-      const preflightResponse = createPreflightResponse(origin);
-
-      if (preflightContinue) {
-        // Continue to next middleware/view
-        const response = await next();
-        return addCorsHeaders(response, origin);
-      }
-
-      return preflightResponse;
+/**
+ * Create a CORS middleware class configured with the given options.
+ *
+ * Returns a {@link MiddlewareClass} (constructor) that can be added directly
+ * to the `MIDDLEWARE` setting.
+ *
+ * @param options - CORS options
+ * @returns A middleware class constructor configured with the given options.
+ *
+ * @example Basic usage (allow all origins)
+ * ```ts
+ * import { corsMiddleware } from "@alexi/middleware";
+ *
+ * export const MIDDLEWARE = [corsMiddleware()];
+ * ```
+ *
+ * @example Specific origins
+ * ```ts
+ * export const MIDDLEWARE = [
+ *   corsMiddleware({
+ *     origins: ["http://localhost:5173", "https://myapp.com"],
+ *     credentials: true,
+ *   }),
+ * ];
+ * ```
+ *
+ * @example Dynamic origin validation
+ * ```ts
+ * export const MIDDLEWARE = [
+ *   corsMiddleware({
+ *     origins: (origin) => origin.endsWith(".myapp.com"),
+ *     credentials: true,
+ *   }),
+ * ];
+ * ```
+ */
+export function corsMiddleware(options: CorsOptions = {}): MiddlewareClass {
+  return class extends CorsMiddleware {
+    constructor(getResponse: NextFunction) {
+      super(getResponse, options);
     }
-
-    // Handle actual requests
-    const response = await next();
-    return addCorsHeaders(response, origin);
   };
 }
 
 /**
- * Simple CORS middleware that allows all origins
+ * Middleware class that allows all origins.
  *
  * Use this for quick setup during development.
- * For production, use corsMiddleware() with specific origins.
+ * For production, use {@link corsMiddleware} with specific origins.
  *
  * @example
  * ```ts
- * import { allowAllOriginsMiddleware } from "@alexi/middleware";
+ * import { AllowAllOriginsCorsMiddleware } from "@alexi/middleware";
  *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [allowAllOriginsMiddleware],
- * });
+ * export const MIDDLEWARE = [AllowAllOriginsCorsMiddleware];
  * ```
  */
-export const allowAllOriginsMiddleware: Middleware = corsMiddleware({
-  origins: "*",
-  methods: DEFAULT_METHODS,
-  allowedHeaders: DEFAULT_HEADERS,
-});
+export class AllowAllOriginsCorsMiddleware extends CorsMiddleware {
+  /**
+   * Creates an allow-all-origins CORS middleware instance.
+   *
+   * @param getResponse - The next middleware or view handler in the chain.
+   */
+  constructor(getResponse: NextFunction) {
+    super(getResponse, {
+      origins: "*",
+      methods: DEFAULT_METHODS,
+      allowedHeaders: DEFAULT_HEADERS,
+    });
+  }
+}
+
+// ============================================================================
+// Legacy function-based exports (kept for backwards compatibility)
+// ============================================================================
+
+import type { Middleware } from "./types.ts";
+
+/**
+ * CORS middleware that allows all origins.
+ *
+ * @deprecated Use {@link AllowAllOriginsCorsMiddleware} class instead.
+ * Function-based middleware will be removed in a future release.
+ */
+export const allowAllOriginsMiddleware: Middleware = (
+  request: Request,
+  next: () => Promise<Response>,
+): Promise<Response> => {
+  const instance = new AllowAllOriginsCorsMiddleware(next);
+  return instance.call(request);
+};

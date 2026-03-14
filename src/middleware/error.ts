@@ -6,7 +6,8 @@
  * @module @alexi/middleware/error
  */
 
-import type { Middleware } from "./types.ts";
+import { BaseMiddleware } from "./types.ts";
+import type { MiddlewareClass, NextFunction } from "./types.ts";
 
 // ============================================================================
 // HTTP Errors
@@ -33,6 +34,13 @@ export class HttpError extends Error {
    */
   readonly details?: Record<string, unknown>;
 
+  /**
+   * Creates a new HTTP error.
+   *
+   * @param status - HTTP status code
+   * @param message - Error message
+   * @param details - Optional additional error details
+   */
   constructor(
     status: number,
     message: string,
@@ -49,6 +57,12 @@ export class HttpError extends Error {
  * 400 Bad Request error
  */
 export class BadRequestError extends HttpError {
+  /**
+   * Creates a 400 Bad Request error.
+   *
+   * @param message - Error message. Defaults to `"Bad Request"`.
+   * @param details - Optional additional error details.
+   */
   constructor(message = "Bad Request", details?: Record<string, unknown>) {
     super(400, message, details);
     this.name = "BadRequestError";
@@ -59,6 +73,12 @@ export class BadRequestError extends HttpError {
  * 401 Unauthorized error
  */
 export class UnauthorizedError extends HttpError {
+  /**
+   * Creates a 401 Unauthorized error.
+   *
+   * @param message - Error message. Defaults to `"Unauthorized"`.
+   * @param details - Optional additional error details.
+   */
   constructor(message = "Unauthorized", details?: Record<string, unknown>) {
     super(401, message, details);
     this.name = "UnauthorizedError";
@@ -69,6 +89,12 @@ export class UnauthorizedError extends HttpError {
  * 403 Forbidden error
  */
 export class ForbiddenError extends HttpError {
+  /**
+   * Creates a 403 Forbidden error.
+   *
+   * @param message - Error message. Defaults to `"Forbidden"`.
+   * @param details - Optional additional error details.
+   */
   constructor(message = "Forbidden", details?: Record<string, unknown>) {
     super(403, message, details);
     this.name = "ForbiddenError";
@@ -79,6 +105,12 @@ export class ForbiddenError extends HttpError {
  * 404 Not Found error
  */
 export class NotFoundError extends HttpError {
+  /**
+   * Creates a 404 Not Found error.
+   *
+   * @param message - Error message. Defaults to `"Not Found"`.
+   * @param details - Optional additional error details.
+   */
   constructor(message = "Not Found", details?: Record<string, unknown>) {
     super(404, message, details);
     this.name = "NotFoundError";
@@ -89,6 +121,12 @@ export class NotFoundError extends HttpError {
  * 405 Method Not Allowed error
  */
 export class MethodNotAllowedError extends HttpError {
+  /**
+   * Creates a 405 Method Not Allowed error.
+   *
+   * @param message - Error message. Defaults to `"Method Not Allowed"`.
+   * @param details - Optional additional error details.
+   */
   constructor(
     message = "Method Not Allowed",
     details?: Record<string, unknown>,
@@ -102,6 +140,12 @@ export class MethodNotAllowedError extends HttpError {
  * 409 Conflict error
  */
 export class ConflictError extends HttpError {
+  /**
+   * Creates a 409 Conflict error.
+   *
+   * @param message - Error message. Defaults to `"Conflict"`.
+   * @param details - Optional additional error details.
+   */
   constructor(message = "Conflict", details?: Record<string, unknown>) {
     super(409, message, details);
     this.name = "ConflictError";
@@ -112,6 +156,12 @@ export class ConflictError extends HttpError {
  * 422 Unprocessable Entity error (validation error)
  */
 export class ValidationError extends HttpError {
+  /**
+   * Creates a 422 Validation Error.
+   *
+   * @param message - Error message. Defaults to `"Validation Error"`.
+   * @param details - Optional additional error details.
+   */
   constructor(
     message = "Validation Error",
     details?: Record<string, unknown>,
@@ -125,6 +175,12 @@ export class ValidationError extends HttpError {
  * 500 Internal Server Error
  */
 export class InternalServerError extends HttpError {
+  /**
+   * Creates a 500 Internal Server Error.
+   *
+   * @param message - Error message. Defaults to `"Internal Server Error"`.
+   * @param details - Optional additional error details.
+   */
   constructor(
     message = "Internal Server Error",
     details?: Record<string, unknown>,
@@ -165,7 +221,7 @@ export interface ErrorHandlerOptions {
 }
 
 // ============================================================================
-// Error Handler Middleware
+// Helpers
 // ============================================================================
 
 /**
@@ -173,44 +229,25 @@ export interface ErrorHandlerOptions {
  */
 function defaultFormatError(
   error: unknown,
-  request: Request,
+  _request: Request,
   options: ErrorHandlerOptions,
 ): Response {
-  // Handle HttpError instances
   if (error instanceof HttpError) {
-    const body: Record<string, unknown> = {
-      error: error.message,
-    };
-
-    if (error.details) {
-      body.details = error.details;
-    }
-
-    if (options.includeStack && error.stack) {
-      body.stack = error.stack;
-    }
-
+    const body: Record<string, unknown> = { error: error.message };
+    if (error.details) body.details = error.details;
+    if (options.includeStack && error.stack) body.stack = error.stack;
     return Response.json(body, { status: error.status });
   }
 
-  // Handle standard Error instances
   if (error instanceof Error) {
     const body: Record<string, unknown> = {
       error: options.includeStack ? error.message : "Internal Server Error",
     };
-
-    if (options.includeStack && error.stack) {
-      body.stack = error.stack;
-    }
-
+    if (options.includeStack && error.stack) body.stack = error.stack;
     return Response.json(body, { status: 500 });
   }
 
-  // Handle unknown errors
-  return Response.json(
-    { error: "Internal Server Error" },
-    { status: 500 },
-  );
+  return Response.json({ error: "Internal Server Error" }, { status: 500 });
 }
 
 /**
@@ -221,110 +258,180 @@ function defaultLogger(error: unknown, request: Request): void {
   console.error(`[ERROR] ${request.method} ${url.pathname}:`, error);
 }
 
+// ============================================================================
+// ErrorHandlerMiddleware — class-based
+// ============================================================================
+
 /**
- * Create an error handler middleware
+ * Django-style class-based error handler middleware.
  *
- * This middleware catches errors thrown by views and other middleware,
- * and returns appropriate error responses.
+ * Catches exceptions thrown by downstream middleware and views, and converts
+ * them to appropriate HTTP error responses. Uses the {@link HttpError}
+ * hierarchy for structured error handling.
+ *
+ * Use the {@link errorHandlerMiddleware} factory for a one-liner with custom
+ * options.
+ *
+ * @example Using the factory (recommended)
+ * ```ts
+ * import { errorHandlerMiddleware } from "@alexi/middleware";
+ *
+ * export const MIDDLEWARE = [errorHandlerMiddleware()];
+ * ```
+ *
+ * @example With stack traces (development)
+ * ```ts
+ * export const MIDDLEWARE = [errorHandlerMiddleware({ includeStack: true })];
+ * ```
+ *
+ * @example Subclassing directly
+ * ```ts
+ * import { ErrorHandlerMiddleware } from "@alexi/middleware";
+ * import type { NextFunction } from "@alexi/middleware";
+ *
+ * class MyErrorHandler extends ErrorHandlerMiddleware {
+ *   constructor(getResponse: NextFunction) {
+ *     super(getResponse, {
+ *       formatError: (error) =>
+ *         Response.json({ success: false, message: String(error) }, { status: 500 }),
+ *     });
+ *   }
+ * }
+ *
+ * export const MIDDLEWARE = [MyErrorHandler];
+ * ```
+ */
+export class ErrorHandlerMiddleware extends BaseMiddleware {
+  /** Whether to include stack traces in error responses. */
+  protected includeStack: boolean;
+  /** Error logger function. */
+  protected logger: (error: unknown, request: Request) => void;
+  /** Error response formatter. */
+  protected formatError: (
+    error: unknown,
+    request: Request,
+    options: ErrorHandlerOptions,
+  ) => Response;
+
+  /**
+   * Create a new ErrorHandlerMiddleware.
+   *
+   * @param getResponse The next layer in the middleware chain.
+   * @param options Error handler configuration options.
+   */
+  constructor(getResponse: NextFunction, options: ErrorHandlerOptions = {}) {
+    super(getResponse);
+    const {
+      includeStack = false,
+      logger = defaultLogger,
+      formatError = defaultFormatError,
+    } = options;
+    this.includeStack = includeStack;
+    this.logger = logger;
+    this.formatError = formatError;
+  }
+
+  /**
+   * Call the next layer; catch and format any errors as HTTP responses.
+   *
+   * @param request The incoming HTTP request.
+   */
+  override async call(request: Request): Promise<Response> {
+    try {
+      return await this.getResponse(request);
+    } catch (error) {
+      this.logger(error, request);
+      return this.formatError(error, request, {
+        includeStack: this.includeStack,
+        logger: this.logger,
+        formatError: this.formatError,
+      });
+    }
+  }
+}
+
+// ============================================================================
+// Factory function (backwards compatible + options passing)
+// ============================================================================
+
+/**
+ * Create an error handler middleware class configured with the given options.
+ *
+ * Returns a {@link MiddlewareClass} (constructor) that can be added directly
+ * to the `MIDDLEWARE` setting.
  *
  * @param options - Error handler options
- * @returns Middleware function
+ * @returns A middleware class constructor configured with the given options.
  *
  * @example Basic usage
  * ```ts
  * import { errorHandlerMiddleware } from "@alexi/middleware";
  *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [errorHandlerMiddleware()],
- * });
+ * export const MIDDLEWARE = [errorHandlerMiddleware()];
  * ```
  *
  * @example With stack traces (development)
  * ```ts
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [
- *     errorHandlerMiddleware({
- *       includeStack: true,
- *     }),
- *   ],
- *   debug: true,
- * });
+ * export const MIDDLEWARE = [
+ *   errorHandlerMiddleware({ includeStack: true }),
+ * ];
  * ```
  *
  * @example Custom error formatting
  * ```ts
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [
- *     errorHandlerMiddleware({
- *       formatError: (error, request, options) => {
- *         return Response.json({
- *           success: false,
- *           message: error instanceof Error ? error.message : "Unknown error",
- *         }, { status: 500 });
- *       },
- *     }),
- *   ],
- * });
+ * export const MIDDLEWARE = [
+ *   errorHandlerMiddleware({
+ *     formatError: (error, request, options) => {
+ *       return Response.json({
+ *         success: false,
+ *         message: error instanceof Error ? error.message : "Unknown error",
+ *       }, { status: 500 });
+ *     },
+ *   }),
+ * ];
  * ```
  */
 export function errorHandlerMiddleware(
   options: ErrorHandlerOptions = {},
-): Middleware {
-  const {
-    includeStack = false,
-    logger = defaultLogger,
-    formatError = defaultFormatError,
-  } = options;
-
-  return async (request, next) => {
-    try {
-      return await next();
-    } catch (error) {
-      // Log the error
-      logger(error, request);
-
-      // Format and return error response
-      return formatError(error, request, { includeStack, logger, formatError });
+): MiddlewareClass {
+  return class extends ErrorHandlerMiddleware {
+    constructor(getResponse: NextFunction) {
+      super(getResponse, options);
     }
   };
 }
 
-/**
- * Simple error handler middleware with default options
- *
- * Use this for quick setup. For more control, use errorHandlerMiddleware().
- *
- * @example
- * ```ts
- * import { simpleErrorHandler } from "@alexi/middleware";
- *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [simpleErrorHandler],
- * });
- * ```
- */
-export const simpleErrorHandler: Middleware = errorHandlerMiddleware();
+// ============================================================================
+// Legacy function-based exports (kept for backwards compatibility)
+// ============================================================================
+
+import type { Middleware } from "./types.ts";
 
 /**
- * Debug error handler that includes stack traces
+ * Simple error handler middleware with default options.
  *
- * Use this during development to get detailed error information.
- *
- * @example
- * ```ts
- * import { debugErrorHandler } from "@alexi/middleware";
- *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [debugErrorHandler],
- *   debug: true,
- * });
- * ```
+ * @deprecated Use {@link errorHandlerMiddleware} which now returns a
+ * {@link MiddlewareClass}. Function-based middleware will be removed in a
+ * future release.
  */
-export const debugErrorHandler: Middleware = errorHandlerMiddleware({
-  includeStack: true,
-});
+export const simpleErrorHandler: Middleware = (
+  request: Request,
+  next: () => Promise<Response>,
+): Promise<Response> => {
+  const instance = new ErrorHandlerMiddleware(next);
+  return instance.call(request);
+};
+
+/**
+ * Debug error handler that includes stack traces.
+ *
+ * @deprecated Use {@link errorHandlerMiddleware} with `{ includeStack: true }`.
+ * Function-based middleware will be removed in a future release.
+ */
+export const debugErrorHandler: Middleware = (
+  request: Request,
+  next: () => Promise<Response>,
+): Promise<Response> => {
+  const instance = new ErrorHandlerMiddleware(next, { includeStack: true });
+  return instance.call(request);
+};
