@@ -23,9 +23,11 @@ import {
   BooleanField,
   CharField,
   DateTimeField,
+  ForeignKey,
   IntegerField,
   Manager,
   Model,
+  OnDelete,
   TextField,
 } from "../../mod.ts";
 import { registerBackend, reset } from "../../setup.ts";
@@ -52,6 +54,35 @@ class SqliteTestArticle extends Model {
   static objects = new Manager(SqliteTestArticle);
   static override meta = {
     dbTable: "sqlite_test_articles",
+  };
+}
+
+// ----------------------------------------------------------------------------
+// FK test models — used for issue #280 regression test.
+// SqliteFkAuthor has a custom dbTable that differs from the lowercased class
+// name, so naive `modelName.toLowerCase()` would produce the wrong table name.
+// ----------------------------------------------------------------------------
+
+class SqliteFkAuthor extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(SqliteFkAuthor);
+  static override meta = {
+    dbTable: "sqlite_fk_authors", // differs from "sqliteFkauthor" / "sqliteFkauthors"
+  };
+}
+
+class SqliteFkPost extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  author = new ForeignKey<SqliteFkAuthor>("SqliteFkAuthor", {
+    onDelete: OnDelete.CASCADE,
+  });
+
+  static objects = new Manager(SqliteFkPost);
+  static override meta = {
+    dbTable: "sqlite_fk_posts",
   };
 }
 
@@ -539,6 +570,42 @@ Deno.test({
         await backend.disconnect();
       }
     });
+
+    // Regression test for https://github.com/atzufuki/alexi/issues/280:
+    // getRelatedTableName() must use meta.dbTable via ModelRegistry instead of
+    // lowercasing the raw class name.
+    await t.step(
+      "SQLiteSchemaEditor - FK REFERENCES uses meta.dbTable (issue #280)",
+      async () => {
+        const backend = new SQLiteBackend({ path: ":memory:" });
+        await backend.connect();
+
+        try {
+          const editor = backend.getSchemaEditor() as SQLiteSchemaEditor;
+
+          // Create the referenced table first so SQLite FK checks can resolve it.
+          await editor.createTable(SqliteFkAuthor);
+          // This must NOT throw "no such table: main.sqliteFkauthor" or similar.
+          await editor.createTable(SqliteFkPost);
+
+          // Verify the REFERENCES clause in the DDL points at the correct table.
+          // backend.db is typed as `any` so we cast the prepare result explicitly.
+          const rows = backend.db.prepare(
+            `SELECT sql FROM sqlite_master WHERE type='table' AND name='sqlite_fk_posts'`,
+          ).all() as Array<{ sql: string }>;
+          assertExists(rows[0]);
+          const ddl: string = rows[0].sql;
+          // Must reference the table defined in meta.dbTable, not the raw class name.
+          assertEquals(
+            ddl.includes('"sqlite_fk_authors"'),
+            true,
+            `Expected DDL to reference "sqlite_fk_authors" but got: ${ddl}`,
+          );
+        } finally {
+          await backend.disconnect();
+        }
+      },
+    );
 
     // ============================================================================
     // compile() Tests

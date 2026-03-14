@@ -12,7 +12,7 @@
  * @module
  */
 
-import type { Model } from "../../models/model.ts";
+import { Model, ModelRegistry } from "../../models/model.ts";
 import type { SchemaEditor } from "../backend.ts";
 import { FIELD_TYPE_MAP } from "./types.ts";
 
@@ -225,9 +225,21 @@ export class SQLiteSchemaEditor implements SchemaEditor {
   }
 
   /**
-   * Derive a related table name from a model name string.
+   * Derive the related table name for a FK `REFERENCES` clause.
+   *
+   * Looks up the model class from {@link ModelRegistry} so that
+   * `meta.dbTable` is respected. Falls back to the legacy lowercased
+   * class-name heuristic when the model has not been registered yet
+   * (e.g. during early bootstrap or in unit tests that bypass the registry).
+   *
+   * @param modelName - The model class name string stored on the ForeignKey field.
    */
   private getRelatedTableName(modelName: string): string {
+    const modelClass = ModelRegistry.instance.get(modelName);
+    if (modelClass) {
+      return modelClass.getTableName();
+    }
+    // Fallback: strip trailing "Model" suffix and lowercase.
     return modelName.replace(/Model$/, "").toLowerCase();
   }
 
