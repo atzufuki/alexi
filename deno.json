@@ -61,8 +61,8 @@
     "./create": "./src/create/mod.ts"
   },
   "tasks": {
-    "test": "deno test -A --unstable-kv --no-check",
-    "test:unit": "deno test -A --unstable-kv --no-check --ignore=src/create/tests/posts_e2e_test.ts,src/admin/tests/admin_e2e_test.ts",
+    "test": "deno test -A --unstable-kv --unstable-ffi --no-check",
+    "test:unit": "deno test -A --unstable-kv --unstable-ffi --no-check --ignore=src/create/tests/posts_e2e_test.ts,src/admin/tests/admin_e2e_test.ts",
     "test:scaffold": "deno test -A --unstable-kv --no-check src/create/tests/scaffold_test.ts",
     "test:e2e": "deno test -A --unstable-kv --no-check src/create/tests/posts_e2e_test.ts",
     "test:e2e:headed": "HEADLESS=false deno test -A --unstable-kv --no-check src/create/tests/posts_e2e_test.ts",
