@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.42.4] - 2026-03-14
+
+### Fixed
+
+- `AdminSite.urls` getter now passes the globally registered default backend to
+  `getAdminUrls()`, so projects using `path("admin/", include(adminSite.urls))`
+  get real SSR handlers instead of permanent placeholder responses (#278)
+
 ## [0.42.3] - 2026-03-14
 
 ### Fixed
