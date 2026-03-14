@@ -199,7 +199,7 @@ Deno.test("getAdminUrls: includes login URL in placeholder mode", async () => {
   const urls = getAdminUrls(site);
 
   const loginUrl = urls.find((u) => u.name === "admin:login");
-  assertEquals(loginUrl?.pattern, "/admin/login/");
+  assertEquals(loginUrl?.pattern, "admin/login/");
 });
 
 Deno.test("getAdminUrls: includes logout URL in placeholder mode", async () => {
@@ -208,7 +208,7 @@ Deno.test("getAdminUrls: includes logout URL in placeholder mode", async () => {
   const urls = getAdminUrls(site);
 
   const logoutUrl = urls.find((u) => u.name === "admin:logout");
-  assertEquals(logoutUrl?.pattern, "/admin/logout/");
+  assertEquals(logoutUrl?.pattern, "admin/logout/");
 });
 
 // =============================================================================
