@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.43.1] - 2026-03-15
+
+### Fixed
+
+- `SQLiteSchemaEditor.getRelatedTableName()` now resolves the model class from
+  `ModelRegistry` and calls `getTableName()`, so `REFERENCES` clauses in
+  generated DDL correctly use `meta.dbTable` instead of the raw lowercased class
+  name (e.g. `User` → `"users"` not `"user"`) (#280)
+
 ## [0.43.0] - 2026-03-15
 
 ### Added
