@@ -333,32 +333,32 @@
     "members": {
       "src/admin": {
         "dependencies": [
-          "jsr:@alexi/core@0.42.3",
-          "jsr:@alexi/db@0.42.3",
-          "jsr:@alexi/types@0.42.3",
-          "jsr:@alexi/urls@0.42.3",
+          "jsr:@alexi/core@0.42.4",
+          "jsr:@alexi/db@0.42.4",
+          "jsr:@alexi/types@0.42.4",
+          "jsr:@alexi/urls@0.42.4",
           "jsr:@std/assert@^1.0.19"
         ]
       },
       "src/auth": {
         "dependencies": [
-          "jsr:@alexi/core@0.42.3",
-          "jsr:@alexi/db@0.42.3",
-          "jsr:@alexi/types@0.42.3"
+          "jsr:@alexi/core@0.42.4",
+          "jsr:@alexi/db@0.42.4",
+          "jsr:@alexi/types@0.42.4"
         ]
       },
       "src/capacitor": {
         "dependencies": [
-          "jsr:@alexi/core@0.42.3",
-          "jsr:@alexi/types@0.42.3"
+          "jsr:@alexi/core@0.42.4",
+          "jsr:@alexi/types@0.42.4"
         ]
       },
       "src/core": {
         "dependencies": [
-          "jsr:@alexi/db@0.42.3",
-          "jsr:@alexi/middleware@0.42.3",
-          "jsr:@alexi/types@0.42.3",
-          "jsr:@alexi/urls@0.42.3",
+          "jsr:@alexi/db@0.42.4",
+          "jsr:@alexi/middleware@0.42.4",
+          "jsr:@alexi/types@0.42.4",
+          "jsr:@alexi/urls@0.42.4",
           "jsr:@std/path@1"
         ]
       },
@@ -369,38 +369,38 @@
       },
       "src/db": {
         "dependencies": [
-          "jsr:@alexi/types@0.42.3",
+          "jsr:@alexi/types@0.42.4",
           "jsr:@std/assert@1"
         ]
       },
       "src/http": {
         "dependencies": [
-          "jsr:@alexi/core@0.42.3",
-          "jsr:@alexi/middleware@0.42.3",
-          "jsr:@alexi/staticfiles@0.42.3",
-          "jsr:@alexi/urls@0.42.3",
-          "jsr:@alexi/views@0.42.3"
+          "jsr:@alexi/core@0.42.4",
+          "jsr:@alexi/middleware@0.42.4",
+          "jsr:@alexi/staticfiles@0.42.4",
+          "jsr:@alexi/urls@0.42.4",
+          "jsr:@alexi/views@0.42.4"
         ]
       },
       "src/middleware": {
         "dependencies": [
-          "jsr:@alexi/types@0.42.3",
-          "jsr:@alexi/urls@0.42.3"
+          "jsr:@alexi/types@0.42.4",
+          "jsr:@alexi/urls@0.42.4"
         ]
       },
       "src/restframework": {
         "dependencies": [
-          "jsr:@alexi/db@0.42.3",
-          "jsr:@alexi/middleware@0.42.3",
-          "jsr:@alexi/urls@0.42.3",
+          "jsr:@alexi/db@0.42.4",
+          "jsr:@alexi/middleware@0.42.4",
+          "jsr:@alexi/urls@0.42.4",
           "jsr:@std/assert@1"
         ]
       },
       "src/staticfiles": {
         "dependencies": [
-          "jsr:@alexi/core@0.42.3",
-          "jsr:@alexi/middleware@0.42.3",
-          "jsr:@alexi/types@0.42.3",
+          "jsr:@alexi/core@0.42.4",
+          "jsr:@alexi/middleware@0.42.4",
+          "jsr:@alexi/types@0.42.4",
           "jsr:@luca/esbuild-deno-loader@~0.11.1",
           "jsr:@std/path@1",
           "npm:esbuild@0.24"
@@ -408,7 +408,7 @@
       },
       "src/storage": {
         "dependencies": [
-          "jsr:@alexi/types@0.42.3"
+          "jsr:@alexi/types@0.42.4"
         ]
       },
       "src/urls": {
@@ -418,25 +418,25 @@
       },
       "src/views": {
         "dependencies": [
-          "jsr:@alexi/db@0.42.3",
-          "jsr:@alexi/types@0.42.3"
+          "jsr:@alexi/db@0.42.4",
+          "jsr:@alexi/types@0.42.4"
         ]
       },
       "src/web": {
         "dependencies": [
-          "jsr:@alexi/core@0.42.3",
-          "jsr:@alexi/db@0.42.3",
-          "jsr:@alexi/middleware@0.42.3",
-          "jsr:@alexi/staticfiles@0.42.3",
-          "jsr:@alexi/types@0.42.3",
-          "jsr:@alexi/urls@0.42.3",
-          "jsr:@alexi/views@0.42.3"
+          "jsr:@alexi/core@0.42.4",
+          "jsr:@alexi/db@0.42.4",
+          "jsr:@alexi/middleware@0.42.4",
+          "jsr:@alexi/staticfiles@0.42.4",
+          "jsr:@alexi/types@0.42.4",
+          "jsr:@alexi/urls@0.42.4",
+          "jsr:@alexi/views@0.42.4"
         ]
       },
       "src/webui": {
         "dependencies": [
-          "jsr:@alexi/core@0.42.3",
-          "jsr:@alexi/types@0.42.3",
+          "jsr:@alexi/core@0.42.4",
+          "jsr:@alexi/types@0.42.4",
           "jsr:@webui/deno-webui@^2.5.13"
         ]
       }
