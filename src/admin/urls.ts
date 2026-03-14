@@ -471,11 +471,14 @@ export class AdminRouter {
    */
   private _getPatterns(): URLPattern[] {
     if (this._patterns === null) {
-      this._patterns = getAdminUrls(
-        this.site,
-        this._resolveBackend(),
-        this._settingsOverride,
-      );
+      const backend = this._resolveBackend();
+      const patterns = getAdminUrls(this.site, backend, this._settingsOverride);
+      // Only cache if a real backend was resolved. If not, we got placeholder
+      // routes — don't cache so the next request retries after setup() has run.
+      if (backend !== undefined) {
+        this._patterns = patterns;
+      }
+      return patterns;
     }
     return this._patterns;
   }
