@@ -262,12 +262,14 @@ interface ValidationResult {
 function validateFormData(
   fields: FieldInfo[],
   formData: Record<string, string>,
+  readonlyFields: string[] = [],
 ): ValidationResult {
   const data: Record<string, unknown> = {};
   const errors: Record<string, string[]> = {};
 
   for (const field of fields) {
     if (!field.isEditable || field.isPrimaryKey) continue;
+    if (readonlyFields.includes(field.name)) continue;
 
     const raw = formData[field.name];
     const fieldErrors: string[] = [];
@@ -477,9 +479,10 @@ function renderFormHtml(
   fields: FieldInfo[],
   values: Record<string, unknown>,
   errors: Record<string, string[]>,
+  readonlyFields: string[] = [],
 ): string {
   return fields
-    .filter((f) => f.isEditable)
+    .filter((f) => f.isEditable && !readonlyFields.includes(f.name))
     .map((f) => renderWidget(f, values[f.name], errors[f.name] ?? []))
     .join("\n");
 }
@@ -524,7 +527,27 @@ export async function renderChangeForm(
 
   const meta = getModelMeta(modelAdmin.model);
   const allFields = getModelFields(modelAdmin.model);
-  const editableFields = getEditableFields(modelAdmin.model);
+  const readonlyFields = modelAdmin.readonlyFields ?? [];
+
+  // Determine which fields to show in the form:
+  // If ModelAdmin has `fieldsets`, collect fields from all fieldsets.
+  // If ModelAdmin has `fields`, use that list.
+  // Otherwise fall back to all editable fields.
+  let formFieldNames: string[] | null = null;
+  if (modelAdmin.fieldsets && modelAdmin.fieldsets.length > 0) {
+    formFieldNames = modelAdmin.fieldsets.flatMap((fs) => fs.fields);
+  } else if (modelAdmin.fields && modelAdmin.fields.length > 0) {
+    formFieldNames = modelAdmin.fields;
+  }
+
+  const editableFields = getEditableFields(modelAdmin.model).filter((f) => {
+    // If an explicit field list is configured, only include those fields
+    if (formFieldNames !== null) {
+      return formFieldNames.includes(f.name);
+    }
+    // Otherwise include all editable fields that are not readonly
+    return true;
+  });
 
   const isAdd = !objectId;
   const listUrl = modelAdmin.getListUrl();
@@ -568,7 +591,7 @@ export async function renderChangeForm(
       }
     }
 
-    const formHtml = renderFormHtml(editableFields, values, {});
+    const formHtml = renderFormHtml(editableFields, values, {}, readonlyFields);
     const title = isAdd
       ? `Add ${meta.verboseName}`
       : `Change ${meta.verboseName}`;
@@ -606,7 +629,11 @@ export async function renderChangeForm(
 
   if (request.method === "POST") {
     const formData = await parseFormData(request);
-    const validation = validateFormData(editableFields, formData);
+    const validation = validateFormData(
+      editableFields,
+      formData,
+      readonlyFields,
+    );
 
     if (!validation.isValid) {
       // Re-render form with errors
@@ -615,6 +642,7 @@ export async function renderChangeForm(
         editableFields,
         displayValues,
         validation.errors,
+        readonlyFields,
       );
       const title = isAdd
         ? `Add ${meta.verboseName}`
@@ -657,7 +685,12 @@ export async function renderChangeForm(
 
     if (!result.success) {
       const displayValues: Record<string, unknown> = { ...formData };
-      const formHtml = renderFormHtml(editableFields, displayValues, {});
+      const formHtml = renderFormHtml(
+        editableFields,
+        displayValues,
+        {},
+        readonlyFields,
+      );
       const title = isAdd
         ? `Add ${meta.verboseName}`
         : `Change ${meta.verboseName}`;
