@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.42.5] - 2026-03-14
+
+### Fixed
+
+- Admin change form now respects `ModelAdmin.readonlyFields`, `fields`, and
+  `fieldsets` — previously all editable model fields were validated and saved
+  regardless of form configuration, causing HTTP 500 for models with FK audit
+  fields not included in the fieldset (#277)
+
 ## [0.42.4] - 2026-03-14
 
 ### Fixed
