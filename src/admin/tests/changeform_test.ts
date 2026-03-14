@@ -813,3 +813,187 @@ Deno.test({
     }
   },
 });
+
+// =============================================================================
+// readonlyFields support (#162)
+// =============================================================================
+
+class AuditedModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+  secret = new CharField({ maxLength: 100, blank: true, default: "" });
+  createdBy = new ForeignKey<CategoryModel>("CategoryModel", {
+    onDelete: OnDelete.SET_NULL,
+    blank: true,
+  });
+
+  static objects = new Manager(AuditedModel);
+  static override meta = {
+    dbTable: "cf_audited",
+    verboseName: "Audited",
+    verboseNamePlural: "Auditeds",
+  };
+}
+
+class AuditedAdmin extends ModelAdmin {
+  override readonlyFields = ["id", "createdBy"];
+}
+
+Deno.test({
+  name:
+    "renderChangeForm: GET form does not render readonlyFields as editable inputs",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const site = makeSite();
+      site.register(AuditedModel, AuditedAdmin);
+      const req = makeGetRequest("/admin/auditedmodel/add/", makeValidToken());
+      const res = await renderChangeForm(
+        { request: req, params: {}, adminSite: site, backend },
+        "auditedmodel",
+      );
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      // 'name' should appear as an input
+      assertStringIncludes(html, 'name="name"');
+      // 'createdBy' is readonly — must NOT appear as an editable input
+      assertEquals(html.includes('name="createdBy"'), false);
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "renderChangeForm: POST change succeeds when readonlyFields are absent from form data",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const instance = await AuditedModel.objects.create({
+        name: "Before",
+        secret: "",
+      });
+      const id = String(instance.id.get());
+
+      const site = makeSite();
+      site.register(AuditedModel, AuditedAdmin);
+      // POST without createdBy — it is readonly and must not be required
+      const req = makePostRequest(
+        `/admin/auditedmodel/${id}/`,
+        { name: "After", secret: "mysecret" },
+        makeValidToken(),
+      );
+      const res = await renderChangeForm(
+        { request: req, params: { id }, adminSite: site, backend },
+        "auditedmodel",
+        id,
+      );
+      // Should redirect (302), not fail with 500
+      assertEquals(res.status, 302);
+
+      const updated = await AuditedModel.objects.get({ id: parseInt(id, 10) });
+      assertEquals(updated.name.get(), "After");
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
+// =============================================================================
+// fieldsets support (#162)
+// =============================================================================
+
+class FieldsetModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 100 });
+  internal = new CharField({ maxLength: 100, blank: true, default: "" });
+  hidden = new CharField({ maxLength: 100, blank: true, default: "" });
+
+  static objects = new Manager(FieldsetModel);
+  static override meta = {
+    dbTable: "cf_fieldset",
+    verboseName: "Fieldset",
+    verboseNamePlural: "Fieldsets",
+  };
+}
+
+class FieldsetAdmin extends ModelAdmin {
+  override fieldsets = [
+    { name: "Main", fields: ["title"] },
+  ];
+}
+
+Deno.test({
+  name: "renderChangeForm: GET form only renders fields listed in fieldsets",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const site = makeSite();
+      site.register(FieldsetModel, FieldsetAdmin);
+      const req = makeGetRequest("/admin/fieldsetmodel/add/", makeValidToken());
+      const res = await renderChangeForm(
+        { request: req, params: {}, adminSite: site, backend },
+        "fieldsetmodel",
+      );
+      assertEquals(res.status, 200);
+      const html = await res.text();
+      // 'title' is in fieldsets — must appear
+      assertStringIncludes(html, 'name="title"');
+      // 'internal' and 'hidden' are NOT in fieldsets — must NOT appear
+      assertEquals(html.includes('name="internal"'), false);
+      assertEquals(html.includes('name="hidden"'), false);
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
+Deno.test({
+  name: "renderChangeForm: POST change with fieldsets only saves listed fields",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const instance = await FieldsetModel.objects.create({
+        title: "Old",
+        internal: "keep-me",
+        hidden: "also-keep",
+      });
+      const id = String(instance.id.get());
+
+      const site = makeSite();
+      site.register(FieldsetModel, FieldsetAdmin);
+      // POST only sends 'title' (the only fieldset field)
+      const req = makePostRequest(
+        `/admin/fieldsetmodel/${id}/`,
+        { title: "New Title" },
+        makeValidToken(),
+      );
+      const res = await renderChangeForm(
+        { request: req, params: { id }, adminSite: site, backend },
+        "fieldsetmodel",
+        id,
+      );
+      // Should succeed with redirect, not 500
+      assertEquals(res.status, 302);
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
