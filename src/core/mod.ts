@@ -47,6 +47,14 @@ export type {
   Handler,
   ServeOptions,
 } from "./application.ts";
+export { BaseMiddleware } from "./application.ts";
+export type {
+  Middleware,
+  MiddlewareClass,
+  NextFunction,
+  URLPattern,
+  View,
+} from "./application.ts";
 
 // =============================================================================
 // Application Factories
@@ -65,6 +73,7 @@ export type { GetApplicationSettings } from "./get_application.ts";
 
 export { setup } from "./setup.ts";
 export type { DatabasesConfig } from "./setup.ts";
+export type { TemplatesConfig } from "./get_application.ts";
 
 // =============================================================================
 // Request Context (Django-style request.user side-channel)

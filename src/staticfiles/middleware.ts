@@ -10,6 +10,8 @@
  * @module alexi_http/static/middleware
  */
 
+import { BaseMiddleware } from "@alexi/middleware";
+import type { MiddlewareClass, NextFunction } from "@alexi/middleware";
 import { StaticFileFinders } from "./finders.ts";
 import { getContentType } from "./storage.ts";
 
@@ -213,65 +215,119 @@ export function staticServe(
 }
 
 // =============================================================================
-// Middleware
+// StaticFilesMiddleware — class-based
 // =============================================================================
 
 /**
- * Create middleware for serving static files
+ * Django-style class-based middleware for serving static files.
  *
- * This middleware intercepts requests to STATIC_URL and serves files.
- * Other requests are passed to the next middleware.
+ * Intercepts requests to `STATIC_URL` and serves files from app
+ * `static/` directories (development) or `STATIC_ROOT` (production).
+ * Requests to other paths are forwarded to the next layer.
+ *
+ * Use the {@link staticFilesMiddleware} factory for a one-liner.
+ *
+ * @example Using the factory (recommended)
+ * ```ts
+ * import { staticFilesMiddleware } from "@alexi/staticfiles";
+ *
+ * export const MIDDLEWARE = [
+ *   staticFilesMiddleware({
+ *     installedApps: settings.INSTALLED_APPS,
+ *     appPaths: settings.APP_PATHS,
+ *     staticUrl: settings.STATIC_URL,
+ *     debug: settings.DEBUG,
+ *   }),
+ * ];
+ * ```
+ */
+export class StaticFilesMiddleware extends BaseMiddleware {
+  /** Resolved static file serving options. */
+  protected options: StaticServeOptions;
+  /** Resolved STATIC_URL prefix. */
+  protected staticUrl: string;
+  /** Inner static serve function. */
+  protected serveStatic: (
+    request: Request,
+    params?: Record<string, string>,
+  ) => Promise<Response>;
+
+  /**
+   * Create a new StaticFilesMiddleware.
+   *
+   * @param getResponse The next layer in the middleware chain.
+   * @param options Static file serving options.
+   */
+  constructor(getResponse: NextFunction, options: StaticServeOptions) {
+    super(getResponse);
+    this.options = options;
+    this.staticUrl = options.staticUrl ?? "/static/";
+    this.serveStatic = staticServe(options);
+  }
+
+  /**
+   * Serve static files or forward to the next layer.
+   *
+   * @param request The incoming HTTP request.
+   */
+  override async call(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    const pathname = url.pathname;
+
+    if (!pathname.startsWith(this.staticUrl)) {
+      return this.getResponse(request);
+    }
+
+    const filePath = pathname.slice(this.staticUrl.length);
+
+    if (!filePath) {
+      return this.getResponse(request);
+    }
+
+    const response = await this.serveStatic(request, { path: filePath });
+
+    if (response.status === 404) {
+      return this.getResponse(request);
+    }
+
+    return response;
+  }
+}
+
+// =============================================================================
+// Middleware factory (backwards compatible + options passing)
+// =============================================================================
+
+/**
+ * Create a static files middleware class configured with the given options.
+ *
+ * Returns a {@link MiddlewareClass} (constructor) that can be added directly
+ * to the `MIDDLEWARE` setting.
+ *
+ * @param options - Static file serving options.
+ * @returns A middleware class constructor configured with the given options.
  *
  * @example
  * ```ts
- * import { staticFilesMiddleware } from "@alexi/http/static";
+ * import { staticFilesMiddleware } from "@alexi/staticfiles";
  *
- * const app = new Application({
- *   urls: urlpatterns,
- *   middleware: [
- *     staticFilesMiddleware({
- *       installedApps: settings.INSTALLED_APPS,
- *       appPaths: settings.APP_PATHS,
- *       staticUrl: settings.STATIC_URL,
- *       debug: settings.DEBUG,
- *     }),
- *   ],
- * });
+ * export const MIDDLEWARE = [
+ *   staticFilesMiddleware({
+ *     installedApps: settings.INSTALLED_APPS,
+ *     appPaths: settings.APP_PATHS,
+ *     staticUrl: settings.STATIC_URL,
+ *     debug: settings.DEBUG,
+ *   }),
+ * ];
  * ```
  */
 export function staticFilesMiddleware(
   options: StaticServeOptions,
-): (request: Request, next: () => Promise<Response>) => Promise<Response> {
-  const staticUrl = options.staticUrl ?? "/static/";
-  const serveStatic = staticServe(options);
-
-  return async (
-    request: Request,
-    next: () => Promise<Response>,
-  ): Promise<Response> => {
-    const url = new URL(request.url);
-    const pathname = url.pathname;
-
-    // Only handle requests to STATIC_URL
-    if (!pathname.startsWith(staticUrl)) {
-      return next();
+): MiddlewareClass {
+  return class extends StaticFilesMiddleware {
+    constructor(getResponse: NextFunction) {
+      super(getResponse, options);
     }
-
-    // Extract file path and serve
-    const filePath = pathname.slice(staticUrl.length);
-
-    if (!filePath) {
-      return next();
-    }
-
-    const response = await serveStatic(request, { path: filePath });
-
-    // If not found, let other middleware handle it
-    if (response.status === 404) {
-      return next();
-    }
-
-    return response;
   };
 }
 
