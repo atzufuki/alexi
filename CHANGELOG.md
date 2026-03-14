@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.42.3] - 2026-03-14
+
+### Fixed
+
+- `AdminRouter` no longer caches placeholder URL patterns when the database
+  backend is not yet available at first request time; patterns are rebuilt on
+  the next request once `setup()` has run, preventing a permanent
+  `{"message":"Admin placeholder"}` response (#277)
+
 ## [0.42.2] - 2026-03-14
 
 ### Fixed
