@@ -8,6 +8,33 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.42.0] - 2026-03-14
+
+### Added
+
+- Class-based middleware interface: `BaseMiddleware` abstract class with
+  Django-style constructor-based setup (`getResponse`) and per-request
+  `call(request)` method (`@alexi/middleware`) (#270)
+- `MiddlewareClass` type for class constructor middleware (#270)
+- Concrete middleware classes: `CorsMiddleware`,
+  `AllowAllOriginsCorsMiddleware`, `LoggingMiddleware`,
+  `ErrorHandlerMiddleware`, `StaticFilesMiddleware` (#270)
+- Factory functions `corsMiddleware()`, `loggingMiddleware()`,
+  `errorHandlerMiddleware()`, `staticFilesMiddleware()` that return
+  `MiddlewareClass` for a one-liner settings experience (#270)
+- Django-style admin URL patterns, context helpers, and typed settings
+  (`@alexi/admin`, `@alexi/core`) (#271)
+- `BaseMiddleware`, `MiddlewareClass`, `Middleware`, `NextFunction`,
+  `URLPattern`, `View`, `TemplatesConfig` are now re-exported from `@alexi/core`
+  for complete public API coverage (#270)
+
+### Changed
+
+- `Application.use()`, `ApplicationOptions.middleware`, and
+  `GetApplicationSettings.MIDDLEWARE` now accept
+  `Array<MiddlewareClass | Middleware>`, remaining fully backwards compatible
+  with legacy function middleware (#270)
+
 ## [0.41.1] - 2026-03-14
 
 ### Fixed
