@@ -74,16 +74,6 @@ export interface GetApplicationSettings {
    */
   MIDDLEWARE?: Array<MiddlewareClass | Middleware>;
 
-  /**
-   * Middleware factory function (alternative to MIDDLEWARE array).
-   *
-   * @deprecated Use the `MIDDLEWARE` array instead.
-   * `createMiddleware` will be removed in a future release.
-   */
-  createMiddleware?: (
-    options: { debug: boolean },
-  ) => Array<MiddlewareClass | Middleware>;
-
   /** Debug mode */
   DEBUG?: boolean;
 
@@ -384,20 +374,14 @@ async function _resolveUrlPatterns(
 /**
  * Resolve middleware from settings.
  *
- * Supports two forms:
- * - MIDDLEWARE as a direct array
- * - createMiddleware() factory function
+ * Reads the `MIDDLEWARE` array from settings.
  */
 function _resolveMiddleware(
   settings: GetApplicationSettings,
-  debug: boolean,
+  _debug: boolean,
 ): Array<MiddlewareClass | Middleware> {
   if (settings.MIDDLEWARE) {
     return settings.MIDDLEWARE;
-  }
-
-  if (settings.createMiddleware) {
-    return settings.createMiddleware({ debug });
   }
 
   return [];

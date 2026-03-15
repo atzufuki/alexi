@@ -549,7 +549,7 @@ export class RunServerCommand extends BaseCommand {
     // Build augmented settings for getHttpApplication():
     //   1. DEBUG is always true in dev mode
     //   2. ROOT_URLCONF is wrapped to prepend the HMR endpoint (if active)
-    //   3. createMiddleware is wrapped to prepend staticFilesMiddleware
+    //   3. MIDDLEWARE is prepended with staticFilesMiddleware
     const baseSettings = settings as unknown as GetApplicationSettings;
 
     const augmentedSettings: GetApplicationSettings = {
@@ -585,19 +585,9 @@ export class RunServerCommand extends BaseCommand {
         debug: config.debug,
       });
 
-      const originalCreateMiddleware = baseSettings.createMiddleware;
       const originalMiddleware = baseSettings.MIDDLEWARE;
 
-      augmentedSettings.MIDDLEWARE = undefined;
-      augmentedSettings.createMiddleware = (opts) => {
-        let userMiddleware: Array<MiddlewareClass | Middleware> = [];
-        if (originalCreateMiddleware) {
-          userMiddleware = originalCreateMiddleware(opts);
-        } else if (originalMiddleware) {
-          userMiddleware = originalMiddleware;
-        }
-        return [staticMw, ...userMiddleware];
-      };
+      augmentedSettings.MIDDLEWARE = [staticMw, ...(originalMiddleware ?? [])];
     }
 
     // Configure global settings registry, then build the application.
