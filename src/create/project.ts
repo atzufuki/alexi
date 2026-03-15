@@ -10,6 +10,7 @@
 // Template imports - Root files
 import { generateDenoJsonc } from "./templates/root/deno_jsonc.ts";
 import { generateHttpTs } from "./templates/root/http_ts.ts";
+import { generateWebuiTs } from "./templates/root/webui_ts.ts";
 import { generateManageTs } from "./templates/root/manage_ts.ts";
 import { generateGitignore } from "./templates/root/gitignore.ts";
 import { generateReadme } from "./templates/root/readme.ts";
@@ -222,6 +223,10 @@ async function generateFiles(name: string, version: string): Promise<void> {
     {
       path: `${name}/project/http.ts`,
       content: generateHttpTs(name),
+    },
+    {
+      path: `${name}/project/webui.ts`,
+      content: generateWebuiTs(name),
     },
     {
       path: `${name}/.gitignore`,

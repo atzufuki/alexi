@@ -23,6 +23,9 @@ export function generateDenoJsonc(name: string, version: string): string {
         "deno run -A --unstable-kv --unstable-bundle manage.ts bundle --settings ./project/settings.ts",
       collectstatic:
         "deno run -A --unstable-kv --unstable-bundle manage.ts collectstatic --no-input --settings ./project/settings.ts",
+      desktop: "deno run -A --unstable-kv --unstable-ffi project/webui.ts",
+      "build:desktop":
+        `deno compile -A --unstable-kv --unstable-ffi -o ${name} project/webui.ts`,
     },
     imports: {
       // Alexi framework
@@ -44,6 +47,7 @@ export function generateDenoJsonc(name: string, version: string): string {
       "@alexi/auth": `jsr:@alexi/auth@${versionRange}`,
       "@alexi/admin": `jsr:@alexi/admin@${versionRange}`,
       "@alexi/types": `jsr:@alexi/types@${versionRange}`,
+      "@alexi/webui": `jsr:@alexi/webui@${versionRange}`,
 
       // App imports — one entry point per app
       [`@${name}/`]: `./src/${name}/`,

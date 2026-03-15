@@ -250,6 +250,8 @@ import { AdminRouter, AdminSite, ModelAdmin, register } from "@alexi/admin";
 import { getAdminUrls } from "@alexi/admin";
 
 // WebUI (Desktop)
+import { getWebuiApplication, WebuiApplication } from "@alexi/webui";
+import type { GetWebuiApplicationSettings } from "@alexi/webui";
 import { WebUILauncher } from "@alexi/webui/launcher";
 import { createDefaultBindings } from "@alexi/webui/bindings";
 ```
@@ -2543,6 +2545,73 @@ The settings object accepted by `getWorkerApplication()` (and
 | `MIDDLEWARE`       | `Middleware[]`                             | Middleware array                          |
 | `createMiddleware` | `(opts: {debug: boolean}) => Middleware[]` | Middleware factory function (alternative) |
 | `DEBUG`            | `boolean`                                  | Enable debug mode                         |
+
+### `getWebuiApplication()` — Desktop App Factory
+
+`getWebuiApplication(settings?)` opens the application in a native desktop
+window using WebUI. It mirrors the factory pattern of `getHttpApplication()` and
+`getWorkerApplication()`, but targets a standalone desktop binary.
+
+```typescript
+import { getWebuiApplication } from "@alexi/webui";
+
+const app = await getWebuiApplication({
+  url: "http://localhost:8000/",
+  webui: {
+    title: "My App",
+    width: 1400,
+    height: 900,
+  },
+});
+
+await app.launch();
+```
+
+**`project/webui.ts`** is the conventional desktop entry point (scaffolded by
+`@alexi/create`):
+
+```typescript
+// project/webui.ts
+import { getWebuiApplication } from "@alexi/webui";
+
+const app = await getWebuiApplication({
+  url: "http://localhost:8000/",
+  webui: { title: "MyApp", width: 1400, height: 900 },
+});
+
+await app.launch();
+```
+
+Run in development alongside `deno task dev`:
+
+```bash
+deno run -A --unstable-kv --unstable-ffi project/webui.ts
+# shortcut:
+deno task desktop
+```
+
+Compile to a standalone binary:
+
+```bash
+deno compile -A --unstable-kv --unstable-ffi -o my-app project/webui.ts
+# shortcut:
+deno task build:desktop
+```
+
+#### `GetWebuiApplicationSettings` Interface
+
+| Key        | Type                       | Description                                                     |
+| ---------- | -------------------------- | --------------------------------------------------------------- |
+| `url`      | `string`                   | URL to open in the window (default: `"http://localhost:8000/"`) |
+| `webui`    | `WebUIConfig`              | WebUI window options (`title`, `width`, `height`, …)            |
+| `bindings` | `Record<string, Function>` | Custom JS↔Deno bindings exposed to the window                   |
+
+#### `WebuiApplication` Methods
+
+| Method     | Description                                 |
+| ---------- | ------------------------------------------- |
+| `launch()` | Open the window and block until it's closed |
+| `close()`  | Programmatically close the window           |
 
 ---
 
