@@ -44,6 +44,8 @@ import {
   toSQLiteValue,
 } from "./query_builder.ts";
 import { SQLiteSchemaEditor } from "./schema_editor.ts";
+import { SQLiteMigrationSchemaEditor } from "../../migrations/schema/sqlite.ts";
+import type { IBackendSchemaEditor } from "../../migrations/schema_editor.ts";
 
 // ============================================================================
 // @db/sqlite driver shim
@@ -730,6 +732,22 @@ export class SQLiteBackend extends DatabaseBackend {
   getSchemaEditor(): SchemaEditor {
     this.ensureConnected();
     return new SQLiteSchemaEditor(this.db);
+  }
+
+  /**
+   * Return a {@link SQLiteMigrationSchemaEditor} for migration operations.
+   *
+   * Used by {@link MigrationExecutor} to apply schema changes declared in
+   * migration files (`schema.addColumn()`, `schema.dropColumn()`, etc.).
+   *
+   * @param options - Optional configuration forwarded to the editor.
+   * @param options.dryRun - When `true`, SQL is collected but not executed.
+   */
+  getMigrationSchemaEditor(
+    options?: { dryRun?: boolean },
+  ): IBackendSchemaEditor {
+    this.ensureConnected();
+    return new SQLiteMigrationSchemaEditor(this.db, options);
   }
 
   /**
