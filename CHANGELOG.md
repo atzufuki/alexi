@@ -8,6 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.44.2] - 2026-03-15
+
+### Fixed
+
+- Migration executor now correctly routes SQLite through a dedicated
+  `SQLiteMigrationSchemaEditor` — `schema.addColumn()` and other migration
+  operations no longer crash with `is not a function` (#372)
+- Added `SQLiteMigrationSchemaEditor` implementing the full
+  `IBackendSchemaEditor` interface for SQLite (createTable, addColumn,
+  dropColumn, renameColumn, renameTable, copyColumnData, createIndex, dropIndex,
+  executeRaw, getGeneratedSQL); `alterColumn` throws a descriptive error since
+  SQLite does not support it (#372)
+- `PostgresBackend` and `DenoKVBackend` now expose `getMigrationSchemaEditor()`
+  used by the executor duck-type dispatch (#372)
+
 ## [0.44.1] - 2026-03-15
 
 ### Added
