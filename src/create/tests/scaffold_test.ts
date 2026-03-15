@@ -167,7 +167,7 @@ Deno.test({
         "DEFAULT_PORT",
         "STATIC_URL",
         "CORS_ORIGINS",
-        "createMiddleware",
+        "MIDDLEWARE",
         "ASSETFILES_DIRS",
         "STATICFILES_DIRS",
       ];

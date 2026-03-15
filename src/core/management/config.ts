@@ -79,11 +79,6 @@ export interface AlexiSettings {
 
   // Testing
   TEST_PATTERN?: string;
-
-  // Middleware factory
-  createMiddleware?: (options: {
-    debug: boolean;
-  }) => unknown[];
 }
 
 /**
@@ -201,9 +196,6 @@ export async function loadSettings(
 
       // Testing
       TEST_PATTERN: module.TEST_PATTERN,
-
-      // Middleware factory
-      createMiddleware: module.createMiddleware,
     };
 
     _settings = settings;

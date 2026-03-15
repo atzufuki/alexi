@@ -183,13 +183,11 @@ export const CORS_ORIGINS = Deno.env.get("CORS_ORIGINS")?.split(",") ?? [
 // Middleware
 // =============================================================================
 
-export function createMiddleware() {
-  return [
-    loggingMiddleware(),
-    corsMiddleware({ origins: CORS_ORIGINS }),
-    errorHandlerMiddleware(),
-  ];
-}
+export const MIDDLEWARE = [
+  loggingMiddleware(),
+  corsMiddleware({ origins: CORS_ORIGINS }),
+  errorHandlerMiddleware(),
+];
 `
   );
 }
@@ -340,13 +338,11 @@ export const CORS_ORIGINS = Deno.env.get("CORS_ORIGINS")?.split(",") ?? [];
 // Middleware
 // =============================================================================
 
-export function createMiddleware() {
-  return [
-    loggingMiddleware(),
-    corsMiddleware({ origins: CORS_ORIGINS }),
-    errorHandlerMiddleware(),
-  ];
-}
+export const MIDDLEWARE = [
+  loggingMiddleware(),
+  corsMiddleware({ origins: CORS_ORIGINS }),
+  errorHandlerMiddleware(),
+];
 `
   );
 }
