@@ -25,6 +25,56 @@
  */
 
 // =============================================================================
+// App Registration Hooks
+// =============================================================================
+
+/**
+ * Callback invoked by `_buildApplication()` for every entry in `INSTALLED_APPS`
+ * as part of application startup.
+ *
+ * Higher-layer packages (e.g. `@alexi/staticfiles`) can register a hook here
+ * so that they are notified of each installed app without requiring
+ * `@alexi/core` to import them directly (which would create a circular
+ * dependency).
+ *
+ * @param appName - The app's `name` field.
+ * @param appPath - The resolved app path (absolute path string), or `undefined`
+ *                  if the app has no `appPath` configured.
+ */
+export type AppRegistrationHook = (
+  appName: string,
+  appPath: string | undefined,
+) => void | Promise<void>;
+
+/**
+ * Global list of app-registration hooks.
+ *
+ * Populated at module-load time by packages such as `@alexi/staticfiles`.
+ * `_buildApplication()` calls every hook for each installed app.
+ *
+ * @internal
+ */
+export const appRegistrationHooks: AppRegistrationHook[] = [];
+
+/**
+ * Register a hook to be called for each installed app during startup.
+ *
+ * @param hook - The callback to register.
+ *
+ * @example
+ * ```ts
+ * import { onAppRegistered } from "@alexi/types";
+ *
+ * onAppRegistered((name, appPath) => {
+ *   console.log(`App registered: ${name} at ${appPath}`);
+ * });
+ * ```
+ */
+export function onAppRegistered(hook: AppRegistrationHook): void {
+  appRegistrationHooks.push(hook);
+}
+
+// =============================================================================
 // App Configuration
 // =============================================================================
 
@@ -214,4 +264,27 @@ export interface AppConfig {
    * @example "file:///path/to/package"  // new URL("./", import.meta.url).href
    */
   appPath?: string;
+
+  /**
+   * Called once during application startup after all apps have been loaded.
+   *
+   * Mirrors Django's `AppConfig.ready()`. Use this to perform one-time
+   * initialisation that requires other apps to be available — for example,
+   * registering signals, configuring third-party libraries, or populating
+   * a cache.
+   *
+   * May be synchronous or asynchronous. Any error thrown here will abort
+   * application startup.
+   *
+   * @example
+   * ```ts
+   * const config: AppConfig = {
+   *   name: "my-app",
+   *   async ready() {
+   *     await populateCache();
+   *   },
+   * };
+   * ```
+   */
+  ready?(): Promise<void> | void;
 }

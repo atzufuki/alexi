@@ -17,7 +17,10 @@ export type { TemplateContext, TemplateLoader } from "./renderer.ts";
 export {
   ChainTemplateLoader,
   FilesystemTemplateLoader,
+  globalChainLoader,
+  globalFilesystemLoader,
   MemoryTemplateLoader,
+  registerTemplateDir,
   TemplateNotFoundError,
   templateRegistry,
 } from "./registry.ts";

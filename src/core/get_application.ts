@@ -21,11 +21,13 @@ import { setup } from "./setup.ts";
 import type { DatabasesConfig } from "./setup.ts";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware, MiddlewareClass } from "@alexi/middleware";
-import type { TemplatesConfig } from "@alexi/types";
+import type { AppConfig, TemplatesConfig } from "@alexi/types";
+import { appRegistrationHooks } from "@alexi/types";
+import { registerTemplateDir } from "@alexi/views";
 
 export type { Middleware, MiddlewareClass } from "@alexi/middleware";
 export type { URLPattern } from "@alexi/urls";
-export type { TemplatesConfig } from "@alexi/types";
+export type { AppConfig, TemplatesConfig } from "@alexi/types";
 
 // =============================================================================
 // Types
@@ -123,6 +125,29 @@ export interface GetApplicationSettings {
    * ];
    */
   TEMPLATES?: TemplatesConfig[];
+
+  /**
+   * List of installed application configurations.
+   *
+   * Mirrors Django's `INSTALLED_APPS`. Each entry is a plain `AppConfig`
+   * object (not an import function). The framework calls `appConfig.ready()`
+   * on each entry during application startup, after databases are initialised.
+   *
+   * When `TEMPLATES[0].APP_DIRS` is `true`, each app's `<appPath>/templates/`
+   * directory is automatically registered as a template search directory.
+   *
+   * @example
+   * ```ts
+   * import { StaticfilesConfig } from "@alexi/staticfiles";
+   * import { AuthConfig } from "@alexi/auth";
+   *
+   * export const INSTALLED_APPS = [
+   *   StaticfilesConfig,
+   *   AuthConfig,
+   * ];
+   * ```
+   */
+  INSTALLED_APPS?: AppConfig[];
 }
 
 // =============================================================================
@@ -234,14 +259,22 @@ async function _buildApplication(
     await setup({ DATABASES: settings.DATABASES });
   }
 
-  // 2. Resolve URL patterns
+  // 2. Process INSTALLED_APPS and TEMPLATES
+  if (settings.INSTALLED_APPS || settings.TEMPLATES) {
+    await _processInstalledApps(
+      settings.INSTALLED_APPS ?? [],
+      settings.TEMPLATES,
+    );
+  }
+
+  // 3. Resolve URL patterns
   const urls = await _resolveUrlPatterns(settings);
 
-  // 3. Build middleware
+  // 4. Build middleware
   const debug = settings.DEBUG ?? false;
   const middleware = _resolveMiddleware(settings, debug);
 
-  // 4. Create and return Application
+  // 5. Create and return Application
   const options: ApplicationOptions = {
     urls,
     middleware,
@@ -249,6 +282,59 @@ async function _buildApplication(
   };
 
   return new Application(options);
+}
+
+/**
+ * Process INSTALLED_APPS: call ready(), register template dirs, and notify
+ * app-registration hooks (e.g. static file registration).
+ *
+ * For each app:
+ * 1. All registered `appRegistrationHooks` are called with the app name and
+ *    resolved path (e.g. `@alexi/staticfiles` uses this to populate the
+ *    global `AppDirectoriesFinder`).
+ * 2. When `TEMPLATES[0].APP_DIRS` is `true`, the app's `<appPath>/templates/`
+ *    directory is registered with the global filesystem template loader.
+ * 3. `app.ready()` is called (if defined).
+ */
+async function _processInstalledApps(
+  installedApps: AppConfig[],
+  templates?: TemplatesConfig[],
+): Promise<void> {
+  const appDirs = templates?.[0]?.APP_DIRS === true;
+  const extraDirs = templates?.[0]?.DIRS ?? [];
+
+  // Register explicit TEMPLATES[0].DIRS entries first
+  for (const dir of extraDirs) {
+    registerTemplateDir(dir);
+  }
+
+  for (const app of installedApps) {
+    const appPath = app.appPath;
+
+    // 1. Notify all app-registration hooks (e.g. static file registration)
+    for (const hook of appRegistrationHooks) {
+      await hook(app.name, appPath);
+    }
+
+    // 2. Register template directory when APP_DIRS is true
+    if (appDirs && appPath) {
+      // Normalise: convert file:// URL to path and strip trailing slash
+      let resolvedPath = appPath;
+      if (appPath.startsWith("file://")) {
+        try {
+          resolvedPath = new URL(appPath).pathname.replace(/\/$/, "");
+        } catch {
+          // keep original
+        }
+      }
+      registerTemplateDir(`${resolvedPath}/templates`);
+    }
+
+    // 3. Call ready() hook
+    if (typeof app.ready === "function") {
+      await app.ready();
+    }
+  }
 }
 
 /**

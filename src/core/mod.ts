@@ -66,6 +66,7 @@ export {
   getWorkerApplication,
 } from "./get_application.ts";
 export type { GetApplicationSettings } from "./get_application.ts";
+export type { AppConfig } from "@alexi/types";
 
 // =============================================================================
 // Setup

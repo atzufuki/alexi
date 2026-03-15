@@ -32,14 +32,17 @@
  * @module @alexi/views/template
  */
 
-import { render, templateRegistry } from "./engine/mod.ts";
+import { globalChainLoader, render, templateRegistry } from "./engine/mod.ts";
 import type { TemplateContext, TemplateLoader } from "./engine/mod.ts";
 
 // Re-export engine symbols so callers can use them without a separate import
 export {
   ChainTemplateLoader,
   FilesystemTemplateLoader,
+  globalChainLoader,
+  globalFilesystemLoader,
   MemoryTemplateLoader,
+  registerTemplateDir,
   render,
   TemplateNotFoundError,
   TemplateParseError,
@@ -195,7 +198,7 @@ function newTemplateView(
         ? await contextFn(request, params)
         : {};
 
-      const resolvedLoader = loader ?? templateRegistry;
+      const resolvedLoader = loader ?? globalChainLoader;
       const html = await render(templateName, ctx, resolvedLoader);
 
       return new Response(html, {
