@@ -38,7 +38,11 @@
  * @module @alexi/db/migrations
  */
 
-export { DataMigration, Migration } from "./migration.ts";
+export {
+  DataMigration,
+  IrreversibleMigrationError,
+  Migration,
+} from "./migration.ts";
 export type { MigrationDependency, MigrationOptions } from "./migration.ts";
 
 export { MigrationSchemaEditor } from "./schema_editor.ts";
