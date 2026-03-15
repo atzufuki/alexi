@@ -90,8 +90,14 @@ class PostgresTransaction implements Transaction {
 /**
  * PostgreSQL database backend
  *
- * Uses connection pooling via npm:pg for optimal performance.
+ * Uses connection pooling via `npm:pg` for optimal performance.
  * Supports both connection strings and individual connection parameters.
+ *
+ * @experimental This backend is functional but not yet considered
+ * production-ready. Use in production at your own risk. Feedback and
+ * bug reports are welcome.
+ *
+ * @category Backends
  *
  * @example
  * ```ts
@@ -504,6 +510,48 @@ export class PostgresBackend extends DatabaseBackend {
 
     if (this._debug) {
       console.log("[PostgresBackend] Update:", compiled.sql, compiled.params);
+    }
+
+    await this._pool!.query(compiled.sql!, compiled.params);
+  }
+
+  async partialUpdate<T extends Model>(
+    instance: T,
+    fields: string[],
+  ): Promise<void> {
+    this.ensureConnected();
+
+    const tableName = instance.getTableName();
+    const fullData = this.prepareData(instance.toDB());
+    const id = fullData.id;
+
+    if (id === null || id === undefined) {
+      throw new Error("Cannot update a record without an ID");
+    }
+
+    // Keep only the requested fields.
+    const data: Record<string, unknown> = {};
+    for (const field of fields) {
+      if (field in fullData) {
+        data[field] = fullData[field];
+      }
+    }
+
+    if (Object.keys(data).length === 0) return;
+
+    const compiled = PostgresQueryBuilder.buildUpdate(
+      tableName,
+      id,
+      data,
+      this._schema,
+    );
+
+    if (this._debug) {
+      console.log(
+        "[PostgresBackend] PartialUpdate:",
+        compiled.sql,
+        compiled.params,
+      );
     }
 
     await this._pool!.query(compiled.sql!, compiled.params);

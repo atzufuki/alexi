@@ -226,6 +226,42 @@ Deno.test({
 });
 
 Deno.test({
+  name: "PostgresBackend - partialUpdate",
+  ignore: !hasPostgres(),
+  async fn() {
+    const config = getTestConfig();
+    const backend = new PostgresBackend(config);
+
+    try {
+      await backend.connect();
+      await setupTestTable(backend);
+
+      // Insert
+      const article = new PgTestArticle();
+      article.title.set("Original Title");
+      article.views.set(42);
+
+      const inserted = await backend.insert(article);
+      article.id.set(inserted.id as number);
+
+      // Partial update — change only title, views should remain 42
+      article.title.set("Partial Update Title");
+      article.views.set(999); // should be ignored
+
+      await backend.partialUpdate(article, ["title"]);
+
+      // Verify only title changed
+      const retrieved = await backend.getById(PgTestArticle, inserted.id);
+      assertEquals(retrieved!.title, "Partial Update Title");
+      assertEquals(retrieved!.views, 42);
+    } finally {
+      await cleanupTestTable(backend);
+      await backend.disconnect();
+    }
+  },
+});
+
+Deno.test({
   name: "PostgresBackend - delete",
   ignore: !hasPostgres(),
   async fn() {
