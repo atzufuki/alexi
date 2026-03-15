@@ -439,12 +439,13 @@ Key design principles:
 
 ### Database Backends
 
-| Backend            | Import                         | Environment | Notes                      |
-| ------------------ | ------------------------------ | ----------- | -------------------------- |
-| `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server      | Deno KV store              |
-| `SQLiteBackend`    | `@alexi/db/backends/sqlite`    | Server      | Requires `--unstable-ffi`  |
-| `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser     | Local browser storage      |
-| `RestBackend`      | `@alexi/db/backends/rest`      | Browser     | Maps ORM calls to REST API |
+| Backend            | Import                         | Environment | Notes                          |
+| ------------------ | ------------------------------ | ----------- | ------------------------------ |
+| `DenoKVBackend`    | `@alexi/db/backends/denokv`    | Server      | Deno KV store                  |
+| `SQLiteBackend`    | `@alexi/db/backends/sqlite`    | Server      | Requires `--unstable-ffi`      |
+| `PostgresBackend`  | `@alexi/db/backends/postgres`  | Server      | PostgreSQL via connection pool |
+| `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser     | Local browser storage          |
+| `RestBackend`      | `@alexi/db/backends/rest`      | Browser     | Maps ORM calls to REST API     |
 
 ---
 
