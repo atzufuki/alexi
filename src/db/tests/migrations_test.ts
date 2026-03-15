@@ -349,6 +349,147 @@ Deno.test("MigrationExecutor - constructor", () => {
   assertExists(executor.getDeprecationRecorder());
 });
 
+// ============================================================================
+// Helper: build a MigrationExecutor with in-memory recorder for plan() tests
+// ============================================================================
+
+function buildExecutorWithRecorder(
+  migrations: ReturnType<MigrationLoader["getOrderedMigrations"]>,
+  appliedNames: string[] = [],
+) {
+  const mockBackend = {
+    tableExists: async () => false,
+    executeRaw: async () => [],
+    getSchemaEditor: () => ({}),
+  } as unknown as import("../backends/backend.ts").DatabaseBackend;
+
+  const loader = new MigrationLoader();
+  // Inject ordered migrations directly (bypass file loading)
+  (loader as unknown as { _orderedMigrations: typeof migrations })
+    ._orderedMigrations = migrations;
+  (loader as unknown as { _hasMigrations: boolean })._hasMigrations =
+    migrations.length > 0;
+
+  const executor = new MigrationExecutor(mockBackend, loader);
+
+  // Inject in-memory recorder seeded with applied names
+  const applied = new Map<
+    string,
+    import("../migrations/recorders/interfaces.ts").MigrationRecord
+  >(
+    appliedNames.map((n) => [
+      n,
+      { name: n, appLabel: n.split(".")[0] ?? "", appliedAt: new Date() },
+    ]),
+  );
+
+  executor.setRecorder({
+    ensureTable: async () => {},
+    isApplied: async (name) => applied.has(name),
+    getAppliedMigrations: async () => [...applied.values()],
+    getAppliedForApp: async (app) =>
+      [...applied.values()].filter((r) => r.appLabel === app),
+    recordApplied: async (name, appLabel) =>
+      void applied.set(name, { name, appLabel, appliedAt: new Date() }),
+    recordUnapplied: async (name) => void applied.delete(name),
+    getLatestForApp: async (app) =>
+      [...applied.values()].filter((r) => r.appLabel === app).at(-1) ?? null,
+    clear: async () => applied.clear(),
+  });
+
+  return executor;
+}
+
+// Build a LoadedMigration-shaped object for plan() tests
+function loadedMigration(
+  migration: Migration,
+  appLabel: string,
+): import("../migrations/loader.ts").LoadedMigration {
+  return { migration, appLabel, filePath: "", name: migration.name };
+}
+
+Deno.test("MigrationExecutor.plan() - all pending when nothing applied", async () => {
+  const m1 = new Migration0001();
+  m1.appLabel = "myapp";
+  const m2 = new Migration0002();
+  m2.appLabel = "myapp";
+
+  const executor = buildExecutorWithRecorder(
+    [loadedMigration(m1, "myapp"), loadedMigration(m2, "myapp")],
+    [],
+  );
+
+  const plan = await executor.plan();
+  assertEquals(plan.toApply.length, 2);
+  assertEquals(plan.toUnapply.length, 0);
+  assertEquals(plan.totalOperations, 2);
+});
+
+Deno.test("MigrationExecutor.plan() - nothing to do when all applied", async () => {
+  const m1 = new Migration0001();
+  m1.appLabel = "myapp";
+
+  const executor = buildExecutorWithRecorder(
+    [loadedMigration(m1, "myapp")],
+    ["myapp.0001_initial"],
+  );
+
+  const plan = await executor.plan();
+  assertEquals(plan.toApply.length, 0);
+  assertEquals(plan.toUnapply.length, 0);
+  assertEquals(plan.totalOperations, 0);
+});
+
+Deno.test("MigrationExecutor.plan() - 'zero' rolls back all applied migrations", async () => {
+  const m1 = new Migration0001();
+  m1.appLabel = "myapp";
+  const m2 = new Migration0002();
+  m2.appLabel = "myapp";
+
+  const executor = buildExecutorWithRecorder(
+    [loadedMigration(m1, "myapp"), loadedMigration(m2, "myapp")],
+    ["myapp.0001_initial", "myapp.0002_add_user_email"],
+  );
+
+  const plan = await executor.plan({ to: "zero" });
+  assertEquals(plan.toUnapply.length, 2);
+  assertEquals(plan.toApply.length, 0);
+  assertEquals(plan.totalOperations, 2);
+  // Should be in reverse order
+  assertEquals(plan.toUnapply[0].migration.name, "0002_add_user_email");
+  assertEquals(plan.toUnapply[1].migration.name, "0001_initial");
+});
+
+Deno.test("MigrationExecutor.plan() - 'zero' with appLabel only rolls back that app", async () => {
+  const m1 = new Migration0001();
+  m1.appLabel = "myapp";
+  const m2 = new Migration0003();
+  m2.appLabel = "otherapp";
+
+  const executor = buildExecutorWithRecorder(
+    [loadedMigration(m1, "myapp"), loadedMigration(m2, "otherapp")],
+    ["myapp.0001_initial", "otherapp.0003_create_articles"],
+  );
+
+  const plan = await executor.plan({ to: "zero", appLabel: "myapp" });
+  assertEquals(plan.toUnapply.length, 1);
+  assertEquals(plan.toUnapply[0].migration.name, "0001_initial");
+});
+
+Deno.test("MigrationExecutor.plan() - 'zero' with nothing applied returns empty plan", async () => {
+  const m1 = new Migration0001();
+  m1.appLabel = "myapp";
+
+  const executor = buildExecutorWithRecorder(
+    [loadedMigration(m1, "myapp")],
+    [],
+  );
+
+  const plan = await executor.plan({ to: "zero" });
+  assertEquals(plan.toUnapply.length, 0);
+  assertEquals(plan.totalOperations, 0);
+});
+
 Deno.test("MigrationRecorder - constructor with factory", () => {
   const mockBackend = {
     tableExists: async () => false,
