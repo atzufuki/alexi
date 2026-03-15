@@ -2,8 +2,7 @@
  * Built-in Commands for Alexi Core
  *
  * Core management commands. Other commands are provided by their respective modules:
- * - bundle, collectstatic, runserver (static) → @alexi/staticfiles
- * - runserver (web) → @alexi/web
+ * - bundle, collectstatic → @alexi/staticfiles
  * - runserver (desktop) → @alexi/webui
  * - createsuperuser → @alexi/auth
  *
@@ -15,6 +14,7 @@ export { TestCommand } from "./test.ts";
 export type { TestConfig } from "./test.ts";
 export { StartAppCommand } from "./startapp.ts";
 export { FlushCommand } from "./flush.ts";
+export { RunServerCommand } from "./runserver.ts";
 
 // Migration commands (moved from @alexi/db to break circular dependency)
 export { MakemigrationsCommand } from "./makemigrations.ts";

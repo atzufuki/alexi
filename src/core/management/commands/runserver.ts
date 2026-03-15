@@ -1,44 +1,38 @@
 /**
- * Alexi Web RunServer Command
+ * Alexi Core RunServer Command
  *
- * Django-style HTTP server with REST API, authentication, and admin panel.
- * This is the main backend server that provides:
- * - REST API endpoints (/api/...)
- * - Admin panel (/admin/...)
- * - Static file serving
- * - SPA fallback
+ * Django-style HTTP development server with REST API, authentication, and
+ * admin panel support. Mirrors `django-admin runserver` — no separate
+ * installed app is required.
  *
  * Usage:
- *   deno task dev:web
- *   deno run -A manage.ts runserver --settings web
+ *   deno run -A manage.ts runserver --settings ./project/settings.ts
+ *   deno run -A manage.ts runserver --settings ./project/settings.ts -p 3000
  *
- * @module @alexi/web/commands/runserver
+ * @module @alexi/core/management/commands/runserver
  */
 
-import { configureSettings, getHttpApplication } from "@alexi/core";
-import type { GetApplicationSettings } from "@alexi/core";
+import { getHttpApplication } from "../../get_application.ts";
+import type { GetApplicationSettings } from "../../get_application.ts";
+import { configureSettings } from "../../conf.ts";
 import {
   BaseCommand,
   failure,
   resolveSettingsPath,
   success,
   toImportUrl,
-} from "@alexi/core/management";
+} from "../mod.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
-} from "@alexi/core/management";
+} from "../types.ts";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware, MiddlewareClass } from "@alexi/middleware";
 import type { AppConfig } from "@alexi/types";
 import { templateRegistry } from "@alexi/views";
 import { staticFilesMiddleware } from "@alexi/staticfiles";
-
-// =============================================================================
-// Helper Functions
-// =============================================================================
 
 // =============================================================================
 // Types
@@ -63,12 +57,27 @@ type AppImportFn = () => Promise<
 // =============================================================================
 
 /**
- * Web RunServer Command
+ * `runserver` management command.
  *
- * Django-style HTTP server with REST API, admin panel, and static file serving.
+ * Starts a Django-style HTTP development server that provides REST API,
+ * admin panel, static file serving, and optional HMR bundling.
+ *
+ * This command is built into `@alexi/core` — no additional installed app is
+ * required. It is the Alexi equivalent of `django-admin runserver`.
+ *
+ * @example
+ * ```bash
+ * deno run -A manage.ts runserver --settings ./project/settings.ts
+ * deno run -A manage.ts runserver --settings ./project/settings.ts -p 3000
+ * deno run -A manage.ts runserver --settings ./project/settings.ts --no-bundle
+ * ```
+ *
+ * @category Management
  */
 export class RunServerCommand extends BaseCommand {
+  /** Command name registered with the management CLI. */
   readonly name = "runserver";
+  /** Short description shown in `help` output. */
   readonly help = "Start web server (API + Admin)";
   override readonly description =
     "Starts a Django-style web server that provides REST API, " +
@@ -76,9 +85,9 @@ export class RunServerCommand extends BaseCommand {
     "Automatically bundles TypeScript frontends and supports HMR.";
 
   override readonly examples = [
-    "manage.ts runserver --settings web         - Start web server",
-    "manage.ts runserver --settings web -p 3000 - Start on port 3000",
-    "manage.ts runserver --settings web --no-bundle - Skip bundling",
+    "manage.ts runserver --settings ./project/settings.ts         - Start web server",
+    "manage.ts runserver --settings ./project/settings.ts -p 3000 - Start on port 3000",
+    "manage.ts runserver --settings ./project/settings.ts --no-bundle - Skip bundling",
   ];
 
   private serverAbortController: AbortController | null = null;
@@ -94,7 +103,7 @@ export class RunServerCommand extends BaseCommand {
     parser.addArgument("--settings", {
       type: "string",
       alias: "-s",
-      help: "Settings module (e.g., 'web')",
+      help: "Settings module path (e.g., './project/settings.ts')",
     });
 
     parser.addArgument("--port", {
@@ -126,6 +135,12 @@ export class RunServerCommand extends BaseCommand {
   // Main Handler
   // ==========================================================================
 
+  /**
+   * Execute the runserver command.
+   *
+   * @param options - Parsed CLI options.
+   * @returns Command result (success or failure).
+   */
   async handle(options: CommandOptions): Promise<CommandResult> {
     const settingsArg = (options.args.settings as string | undefined) ??
       Deno.env.get("ALEXI_SETTINGS_MODULE");
@@ -137,7 +152,9 @@ export class RunServerCommand extends BaseCommand {
     try {
       // Load settings
       if (!settingsArg) {
-        this.error("--settings is required (e.g., --settings web)");
+        this.error(
+          "--settings is required (e.g., --settings ./project/settings.ts)",
+        );
         return failure("Settings not specified");
       }
       const settingsPath = this.resolveSettingsPath(settingsArg);
@@ -355,11 +372,6 @@ export class RunServerCommand extends BaseCommand {
         }
       }
     }
-
-    // Also register templates from explicit STATICFILES_DIRS entries that
-    // live alongside a templates/ sibling — but this is intentionally NOT done
-    // here: STATICFILES_DIRS is for static assets only; templates from
-    // ASSETFILES_DIRS are embedded at bundle time, not served by runserver.
 
     if (templatesRegistered > 0) {
       this.success(`Templates loaded from ${templatesRegistered} app(s)`);
@@ -663,7 +675,7 @@ export class RunServerCommand extends BaseCommand {
         });
 
         if (isBackendChange && event.kind === "modify") {
-          this.info("\n🔄 Backend change detected...");
+          this.info("\nBackend change detected...");
         }
       }
     })();

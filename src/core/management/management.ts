@@ -16,6 +16,7 @@ import { MakemigrationsCommand } from "./commands/makemigrations.ts";
 import { MigrateCommand } from "./commands/migrate.ts";
 import { ShowmigrationsCommand } from "./commands/showmigrations.ts";
 import { SqlmigrateCommand } from "./commands/sqlmigrate.ts";
+import { RunServerCommand } from "./commands/runserver.ts";
 import type {
   CliApplicationConfig,
   CommandConstructor,
@@ -152,8 +153,7 @@ export class ManagementUtility {
    * Register built-in commands (only core commands: help, test)
    *
    * Other commands are provided by their respective modules via INSTALLED_APPS:
-   * - bundle, collectstatic, runserver (static) → @alexi/staticfiles
-   * - runserver (web) → @alexi/web
+   * - bundle, collectstatic → @alexi/staticfiles
    * - runserver (desktop) → @alexi/webui
    * - createsuperuser → @alexi/auth
    */
@@ -769,6 +769,7 @@ export async function getCliApplication(
  */
 export const alexi_management_commands: CommandConstructor[] = [
   HelpCommand,
+  RunServerCommand,
   TestCommand,
   StartAppCommand,
   FlushCommand,

@@ -257,7 +257,6 @@ After creating an app, register it in your settings file:
 ```ts
 // project/web.settings.ts
 export const INSTALLED_APPS = [
-  () => import("@alexi/web"),
   () => import("@alexi/db"),
   () => import("@alexi/auth"),
   () => import("@myproject/web"),
