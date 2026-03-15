@@ -270,8 +270,8 @@ export class PostgresSchemaEditor implements SchemaEditor {
    * Get table name from related model name
    */
   private getRelatedTableName(modelName: string): string {
-    // Remove "Model" suffix and convert to lowercase
-    return modelName.replace(/Model$/, "").toLowerCase();
+    // Remove "Model" suffix, lowercase, and pluralise — matches Model.getTableName().
+    return modelName.replace(/Model$/, "").toLowerCase() + "s";
   }
 
   /**

@@ -22,6 +22,7 @@ import {
   createDeprecationRecorder,
   createMigrationRecorder,
 } from "./recorders/factory.ts";
+import { createSchemaEditor } from "./schema/mod.ts";
 
 // ============================================================================
 // Types
@@ -485,9 +486,8 @@ export class MigrationExecutor {
         options,
       );
     } else {
-      // Use the backend's built-in schema editor
-      backendEditor = this._backend
-        .getSchemaEditor() as unknown as IBackendSchemaEditor;
+      // Auto-detect the appropriate schema editor for this backend
+      backendEditor = createSchemaEditor(this._backend);
     }
 
     return new MigrationSchemaEditor(

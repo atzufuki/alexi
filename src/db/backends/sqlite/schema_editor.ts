@@ -239,8 +239,9 @@ export class SQLiteSchemaEditor implements SchemaEditor {
     if (modelClass) {
       return modelClass.getTableName();
     }
-    // Fallback: strip trailing "Model" suffix and lowercase.
-    return modelName.replace(/Model$/, "").toLowerCase();
+    // Fallback: strip trailing "Model" suffix, lowercase, and pluralise.
+    // Must match Model.getTableName() which returns `name.toLowerCase() + "s"`.
+    return modelName.replace(/Model$/, "").toLowerCase() + "s";
   }
 
   /**

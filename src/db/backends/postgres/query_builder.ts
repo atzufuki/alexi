@@ -230,7 +230,7 @@ export class PostgresQueryBuilder<T extends Model> {
    */
   private getRelatedTableName(model: new () => Model): string {
     const meta = (model as unknown as { meta?: { dbTable?: string } }).meta;
-    return meta?.dbTable ?? model.name.toLowerCase();
+    return meta?.dbTable ?? model.name.toLowerCase() + "s";
   }
 
   /**
