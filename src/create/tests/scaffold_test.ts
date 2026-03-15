@@ -431,6 +431,7 @@ Deno.test({
         `src/${project.name}/templates/${project.name}/index.html`,
         `src/${project.name}/templates/${project.name}/post_list.html`,
         `src/${project.name}/templates/${project.name}/post_form.html`,
+        `src/${project.name}/templates/${project.name}/post_detail.html`,
       ];
 
       for (const file of workerFiles) {
@@ -587,6 +588,75 @@ Deno.test({
         "post_form.html should contain a form element",
       );
     });
+
+    await t.step("post_detail.html extends base and shows post", async () => {
+      const content = await Deno.readTextFile(
+        `${project.path}/src/${project.name}/templates/${project.name}/post_detail.html`,
+      );
+      assertEquals(
+        content.includes(`extends "${project.name}/base.html"`),
+        true,
+        "post_detail.html should extend base.html",
+      );
+      assertEquals(
+        content.includes("{{ post.title }}"),
+        true,
+        "post_detail.html should render post title",
+      );
+      assertEquals(
+        content.includes("{{ post.content }}"),
+        true,
+        "post_detail.html should render post content",
+      );
+    });
+
+    await t.step(
+      "worker views.ts defines PostDetailView, PostPublishView, PostDeleteView",
+      async () => {
+        const content = await Deno.readTextFile(
+          `${project.path}/src/${project.name}/workers/${project.name}/views.ts`,
+        );
+        assertEquals(
+          content.includes("PostDetailView"),
+          true,
+          "views.ts should define PostDetailView",
+        );
+        assertEquals(
+          content.includes("PostPublishView"),
+          true,
+          "views.ts should define PostPublishView",
+        );
+        assertEquals(
+          content.includes("PostDeleteView"),
+          true,
+          "views.ts should define PostDeleteView",
+        );
+      },
+    );
+
+    await t.step(
+      "worker urls.ts includes detail/publish/delete routes",
+      async () => {
+        const content = await Deno.readTextFile(
+          `${project.path}/src/${project.name}/workers/${project.name}/urls.ts`,
+        );
+        assertEquals(
+          content.includes("posts/:id/"),
+          true,
+          "urls.ts should include posts/:id/ route",
+        );
+        assertEquals(
+          content.includes("posts/:id/publish/"),
+          true,
+          "urls.ts should include posts/:id/publish/ route",
+        );
+        assertEquals(
+          content.includes("posts/:id/delete/"),
+          true,
+          "urls.ts should include posts/:id/delete/ route",
+        );
+      },
+    );
 
     // ==========================================================================
     // No Old App Directories

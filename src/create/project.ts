@@ -47,6 +47,7 @@ import { generateWorkerBaseHtml } from "./templates/unified/workers/base_html.ts
 import { generateWorkerIndexHtml } from "./templates/unified/workers/index_html.ts";
 import { generateWorkerPostListHtml } from "./templates/unified/workers/post_list_html.ts";
 import { generateWorkerPostFormHtml } from "./templates/unified/workers/post_form_html.ts";
+import { generateWorkerPostDetailHtml } from "./templates/unified/workers/post_detail_html.ts";
 
 import { VERSION } from "./version.ts";
 
@@ -266,6 +267,10 @@ async function generateFiles(name: string, version: string): Promise<void> {
     {
       path: `${name}/src/${name}/templates/${name}/post_form.html`,
       content: generateWorkerPostFormHtml(name),
+    },
+    {
+      path: `${name}/src/${name}/templates/${name}/post_detail.html`,
+      content: generateWorkerPostDetailHtml(name),
     },
   ];
 
