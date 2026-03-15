@@ -8,13 +8,19 @@
  * @module
  */
 
-import { assertEquals, assertExists, assertThrows } from "jsr:@std/assert";
+import {
+  assertEquals,
+  assertExists,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert";
 
 import {
   categorizeChanges,
   createMigrationRecorder,
   DataMigration,
   formatChange,
+  IrreversibleMigrationError,
   Migration,
   MigrationExecutor,
   MigrationLoader,
@@ -135,6 +141,22 @@ Deno.test("Migration - canReverse() returns true when backwards() is implemented
 Deno.test("DataMigration - canReverse() returns false when backwards() is not implemented", () => {
   const migration = new IrreversibleMigration();
   assertEquals(migration.canReverse(), false);
+});
+
+Deno.test("DataMigration - backwards() throws IrreversibleMigrationError", async () => {
+  const migration = new IrreversibleMigration();
+  const mockEditor = {} as MigrationSchemaEditor;
+  await assertRejects(
+    () => migration.backwards(mockEditor),
+    IrreversibleMigrationError,
+    migration.name,
+  );
+});
+
+Deno.test("IrreversibleMigrationError - has correct name and message", () => {
+  const err = new IrreversibleMigrationError("0004_data_migration");
+  assertEquals(err.name, "IrreversibleMigrationError");
+  assertEquals(err.message.includes("0004_data_migration"), true);
 });
 
 Deno.test("Migration - getFullName without appLabel", () => {

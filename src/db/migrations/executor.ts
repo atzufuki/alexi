@@ -281,10 +281,10 @@ export class MigrationExecutor {
     const fullName = migration.getFullName();
     const startTime = Date.now();
 
-    // Warn if migration cannot be reversed
+    // Warn if migration explicitly declares it cannot be reversed (DataMigration)
     if (!migration.canReverse() && options?.verbosity !== 0) {
       console.warn(
-        `Warning: Migration ${fullName} cannot be reversed (no backwards() method)`,
+        `Warning: Migration ${fullName} is a DataMigration and cannot be reversed`,
       );
     }
 

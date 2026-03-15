@@ -2,13 +2,34 @@
  * Migration Base Class
  *
  * Base class for all database migrations. Migrations define schema changes
- * using an imperative `forwards()` method, and optionally a `backwards()`
+ * using an imperative `forwards()` method and a required `backwards()`
  * method for reversibility.
  *
  * @module
  */
 
 import type { MigrationSchemaEditor } from "./schema_editor.ts";
+
+// ============================================================================
+// Errors
+// ============================================================================
+
+/**
+ * Thrown when attempting to reverse a migration that explicitly declares
+ * itself as non-reversible (e.g. {@link DataMigration}).
+ *
+ * If you need a truly irreversible schema migration, extend {@link Migration}
+ * directly and implement `backwards()` to throw this error with an explanation.
+ */
+export class IrreversibleMigrationError extends Error {
+  constructor(migrationName: string) {
+    super(
+      `Migration "${migrationName}" is not reversible. ` +
+        `If you need to roll back, implement backwards() manually or restore from a backup.`,
+    );
+    this.name = "IrreversibleMigrationError";
+  }
+}
 
 // ============================================================================
 // Types
@@ -40,22 +61,27 @@ export interface MigrationOptions {
 // ============================================================================
 
 /**
- * Abstract base class for migrations
+ * Abstract base class for schema migrations.
  *
- * All migrations should extend this class and implement:
- * - `forwards()`: Apply the migration (required)
- * - `backwards()`: Reverse the migration (optional - omit for non-reversible)
+ * Every migration **must** implement both `forwards()` and `backwards()`.
+ * This is enforced at compile time — there is no optional `backwards()`.
+ *
+ * For migrations where backwards is genuinely impossible (e.g. irreversible
+ * data transformations), use {@link DataMigration} instead, which documents
+ * the intent explicitly and throws {@link IrreversibleMigrationError} at
+ * runtime if a rollback is attempted.
  *
  * @example
  * ```ts
- * import { Migration, MigrationSchemaEditor } from "@alexi/db/migrations";
+ * import { Migration } from "@alexi/db/migrations";
+ * import type { MigrationSchemaEditor } from "@alexi/db/migrations";
  * import { Model, AutoField, CharField, EmailField } from "@alexi/db";
  *
  * // Snapshot model - frozen at this migration's point in time
  * class UserModel extends Model {
  *   static meta = { dbTable: "users" };
  *   id = new AutoField({ primaryKey: true });
- *   email = new EmailField({ unique: true });
+ *   email = new CharField({ maxLength: 255 });
  *   name = new CharField({ maxLength: 100 });
  * }
  *
@@ -142,13 +168,14 @@ export abstract class Migration {
   abstract forwards(schema: MigrationSchemaEditor): Promise<void>;
 
   /**
-   * Reverse the migration (optional)
+   * Reverse the migration.
    *
    * Implement this method to undo the changes made in `forwards()`.
-   * Use deprecation methods instead of deletion for safety.
+   * Use deprecation methods instead of hard deletion for safety.
    *
-   * If not implemented, the migration cannot be reversed. A warning will
-   * be shown when applying, and rollback will be blocked.
+   * This method is **abstract** — every migration must provide an
+   * implementation. If a rollback is genuinely impossible, use
+   * {@link DataMigration} which documents that intent explicitly.
    *
    * @param schema - Schema editor for making changes
    *
@@ -160,7 +187,7 @@ export abstract class Migration {
    * }
    * ```
    */
-  backwards?(schema: MigrationSchemaEditor): Promise<void>;
+  abstract backwards(schema: MigrationSchemaEditor): Promise<void>;
 
   // ==========================================================================
   // Utility Methods
@@ -204,14 +231,16 @@ export abstract class Migration {
   }
 
   /**
-   * Check if this migration can be reversed
+   * Check if this migration can be reversed.
    *
-   * Returns true if `backwards()` is implemented.
+   * Always returns `true` for {@link Migration} subclasses since
+   * `backwards()` is required. {@link DataMigration} overrides this to
+   * return `false`.
    *
-   * @returns true if reversible
+   * @returns `true` if the migration can be safely rolled back
    */
   canReverse(): boolean {
-    return typeof this.backwards === "function";
+    return true;
   }
 }
 
@@ -220,15 +249,20 @@ export abstract class Migration {
 // ============================================================================
 
 /**
- * Helper class for data migrations
+ * Base class for data migrations — migrations that transform data rather
+ * than schema, and where rollback is genuinely not possible.
  *
- * Use this for migrations that need to transform data, not just schema.
- * By default, data migrations don't have a `backwards()` method, making
- * them non-reversible. Override `backwards()` to make them reversible.
+ * `DataMigration` satisfies the abstract `backwards()` contract by providing
+ * an implementation that throws {@link IrreversibleMigrationError} at runtime.
+ * This makes the non-reversibility explicit and intentional rather than
+ * accidental.
+ *
+ * Override `backwards()` if your data migration can be reversed.
  *
  * @example Non-reversible data migration
  * ```ts
- * import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
+ * import { DataMigration } from "@alexi/db/migrations";
+ * import type { MigrationSchemaEditor } from "@alexi/db/migrations";
  *
  * export default class Migration0003 extends DataMigration {
  *   name = "0003_normalize_emails";
@@ -240,34 +274,48 @@ export abstract class Migration {
  *       await user.save();
  *     }
  *   }
- *   // No backwards() - cannot be reversed
+ *   // backwards() is intentionally non-reversible — provided by DataMigration
  * }
  * ```
  *
- * @example Reversible data migration
+ * @example Reversible data migration (override backwards)
  * ```ts
- * import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
+ * import { DataMigration } from "@alexi/db/migrations";
+ * import type { MigrationSchemaEditor } from "@alexi/db/migrations";
  *
- * export default class Migration0003 extends DataMigration {
- *   name = "0003_normalize_emails";
+ * export default class Migration0004 extends DataMigration {
+ *   name = "0004_backfill_slugs";
  *
- *   async forwards(schema: MigrationSchemaEditor): Promise<void> {
- *     await schema.deprecateField(UserModel, "email");
- *     await schema.addField(UserModel, "email", new EmailField());
- *     await schema.executeSQL(`
- *       UPDATE users SET email = LOWER(_deprecated_0003_email)
- *     `);
+ *   async forwards(_schema: MigrationSchemaEditor): Promise<void> {
+ *     // ... backfill slug field from title
  *   }
  *
- *   async backwards(schema: MigrationSchemaEditor): Promise<void> {
- *     await schema.dropField(UserModel, "email");
- *     await schema.restoreField(UserModel, "email");
+ *   override async backwards(_schema: MigrationSchemaEditor): Promise<void> {
+ *     // ... clear slug field
  *   }
  * }
  * ```
  */
 export abstract class DataMigration extends Migration {
-  // DataMigration doesn't override anything special anymore.
-  // It's just a semantic marker for data-only migrations.
-  // backwards() is optional by default (inherited from Migration).
+  /**
+   * {@inheritDoc Migration.canReverse}
+   *
+   * Always returns `false` for `DataMigration` unless `backwards()` is
+   * overridden in a subclass.
+   */
+  override canReverse(): boolean {
+    return false;
+  }
+
+  /**
+   * Throws {@link IrreversibleMigrationError}.
+   *
+   * Override this method in subclasses where the data migration can be
+   * meaningfully reversed.
+   *
+   * @throws {IrreversibleMigrationError} Always, unless overridden.
+   */
+  override async backwards(_schema: MigrationSchemaEditor): Promise<void> {
+    throw new IrreversibleMigrationError(this.name);
+  }
 }
