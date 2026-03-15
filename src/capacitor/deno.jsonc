@@ -1,12 +1,12 @@
 {
   "name": "@alexi/capacitor",
-  "version": "0.44.0",
+  "version": "0.44.1",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./config": "./app.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.44.0"
+    "@alexi/types": "jsr:@alexi/types@0.44.1"
   }
 }

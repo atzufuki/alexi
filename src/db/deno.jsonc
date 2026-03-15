@@ -1,6 +1,6 @@
 {
   "name": "@alexi/db",
-  "version": "0.44.0",
+  "version": "0.44.1",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -17,7 +17,7 @@
     "./backends/sqlite": "./backends/sqlite/mod.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.44.0",
+    "@alexi/types": "jsr:@alexi/types@0.44.1",
     "@std/assert": "jsr:@std/assert@1",
     "@db/sqlite": "jsr:@db/sqlite@0.12"
   },
