@@ -487,3 +487,53 @@ Deno.test({
     }
   },
 });
+
+// =============================================================================
+// AdminRouter.asView() tests (#346)
+// =============================================================================
+
+Deno.test({
+  name: "AdminRouter.asView: returns a two-argument view function",
+  fn() {
+    const site = new AdminSite({ urlPrefix: "/admin" });
+    site.register(TestArticle);
+    const router = new AdminRouter(site);
+
+    const view = router.asView();
+
+    assertEquals(typeof view, "function");
+    assertEquals(view.length, 2); // (request, params)
+  },
+});
+
+Deno.test({
+  name: "AdminRouter.asView: view function dispatches to handle()",
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "as_view_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      site.register(TestArticle);
+      const router = new AdminRouter(site, backend);
+
+      const view = router.asView();
+
+      // The asView() wrapper should dispatch the same way as handle() directly.
+      const req = new Request("http://localhost/admin/static/css/admin.css");
+      const res = await view(req, {});
+
+      assertEquals(res.status, 200);
+      assertEquals(
+        res.headers.get("Content-Type"),
+        "text/css; charset=utf-8",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});

@@ -578,6 +578,39 @@ export class AdminRouter {
   }
 
   /**
+   * Return a view function compatible with `path()` that dispatches all
+   * matching requests to this `AdminRouter`.
+   *
+   * This is the idiomatic way to mount `AdminRouter` in a URL conf when you
+   * need to pass the router through the full middleware chain:
+   *
+   * ```ts
+   * import { path } from "@alexi/urls";
+   * import { AdminRouter, AdminSite } from "@alexi/admin";
+   *
+   * const adminSite = new AdminSite({ title: "My App", urlPrefix: "/admin" });
+   * const adminRouter = new AdminRouter(adminSite, backend);
+   *
+   * export const urlpatterns = [
+   *   path("admin/", adminRouter.asView()),
+   * ];
+   * ```
+   *
+   * Prefer `path("admin/", include(adminSite.urls))` when you do not need a
+   * pre-instantiated `AdminRouter` — it is slightly simpler and equally
+   * middleware-friendly.
+   *
+   * @returns A two-argument view function `(request, _params) => Promise<Response>`.
+   */
+  asView(): (
+    request: Request,
+    params: Record<string, string>,
+  ) => Promise<Response> {
+    return (request: Request, _params: Record<string, string>) =>
+      this.handle(request);
+  }
+
+  /**
    * Reverse a URL by name.
    *
    * @param name - The URL name (e.g., `"admin:article_changelist"`)
