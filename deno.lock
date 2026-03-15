@@ -484,15 +484,6 @@
           "jsr:@std/assert@1"
         ]
       },
-      "src/http": {
-        "dependencies": [
-          "jsr:@alexi/core@0.43.1",
-          "jsr:@alexi/middleware@0.43.1",
-          "jsr:@alexi/staticfiles@0.43.1",
-          "jsr:@alexi/urls@0.43.1",
-          "jsr:@alexi/views@0.43.1"
-        ]
-      },
       "src/middleware": {
         "dependencies": [
           "jsr:@alexi/types@0.43.1",

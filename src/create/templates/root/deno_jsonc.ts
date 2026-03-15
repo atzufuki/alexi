@@ -41,7 +41,6 @@ export function generateDenoJsonc(name: string, version: string): string {
         `jsr:@alexi/db@${versionRange}/backends/indexeddb`,
       "@alexi/db/backends/rest": `jsr:@alexi/db@${versionRange}/backends/rest`,
       "@alexi/urls": `jsr:@alexi/urls@${versionRange}`,
-      "@alexi/http": `jsr:@alexi/http@${versionRange}`,
       "@alexi/middleware": `jsr:@alexi/middleware@${versionRange}`,
       "@alexi/views": `jsr:@alexi/views@${versionRange}`,
       "@alexi/staticfiles": `jsr:@alexi/staticfiles@${versionRange}`,

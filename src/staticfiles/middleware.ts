@@ -89,7 +89,7 @@ export interface StaticServeOptions {
  *
  * @example
  * ```ts
- * import { staticServe } from "@alexi/http/static";
+ * import { staticServe } from "@alexi/staticfiles";
  *
  * const serveStatic = staticServe({
  *   installedApps: settings.INSTALLED_APPS,

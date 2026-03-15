@@ -3,7 +3,7 @@
  *
  * Handles CORS preflight requests and adds appropriate headers to responses.
  *
- * @module @alexi/http/middleware/cors
+ * @module @alexi/middleware/cors
  */
 
 import { BaseMiddleware } from "./types.ts";
