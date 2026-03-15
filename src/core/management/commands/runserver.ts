@@ -546,7 +546,7 @@ export class RunServerCommand extends BaseCommand {
     // that this.appNames / this.appPaths are populated for staticFilesMiddleware.
     await this.loadInstalledApps(settings);
 
-    // Build augmented settings for getApplication():
+    // Build augmented settings for getHttpApplication():
     //   1. DEBUG is always true in dev mode
     //   2. ROOT_URLCONF is wrapped to prepend the HMR endpoint (if active)
     //   3. createMiddleware is wrapped to prepend staticFilesMiddleware

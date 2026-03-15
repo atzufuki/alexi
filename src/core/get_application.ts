@@ -257,23 +257,6 @@ export async function getWorkerApplication(
 // =============================================================================
 // Legacy alias — kept for backwards compatibility
 // =============================================================================
-
-/**
- * Builds an Application from a settings object.
- *
- * @deprecated Use `getHttpApplication()` for server-side code or
- * `getWorkerApplication(settings)` for Service Workers.
- *
- * @param settings Settings object used to build the application.
- */
-export async function getApplication(
-  settings: GetApplicationSettings,
-): Promise<Application> {
-  configureSettings(settings);
-  return _buildApplication(settings);
-}
-
-// =============================================================================
 // Internal helpers
 // =============================================================================
 

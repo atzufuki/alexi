@@ -60,11 +60,7 @@ export type {
 // Application Factories
 // =============================================================================
 
-export {
-  getApplication,
-  getHttpApplication,
-  getWorkerApplication,
-} from "./get_application.ts";
+export { getHttpApplication, getWorkerApplication } from "./get_application.ts";
 export type { GetApplicationSettings } from "./get_application.ts";
 export type { AppConfig } from "@alexi/types";
 

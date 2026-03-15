@@ -5,7 +5,7 @@
  *
  * `conf` is a global, lazily-loaded settings proxy that always reflects the
  * *active* settings module regardless of how the application was started.
- * It is populated by `getApplication()` / `setup()` and can be imported from
+ * It is populated by `getHttpApplication()` / `getWorkerApplication()` / `setup()` and can be imported from
  * any module without hardcoding the settings file path.
  *
  * @module @alexi/core/conf
@@ -37,10 +37,10 @@ let _settings: GetApplicationSettings | null = null;
 /**
  * Configure the global settings registry.
  *
- * This is called automatically by `getApplication()`. You do not normally need
+ * This is called automatically by `getHttpApplication()` and `getWorkerApplication()`. You do not normally need
  * to call this directly.
  *
- * @param settings - The settings object passed to `getApplication()`
+ * @param settings - The settings object passed to `getWorkerApplication()`
  */
 export function configureSettings(settings: GetApplicationSettings): void {
   _settings = settings;
@@ -66,7 +66,7 @@ export function isSettingsConfigured(): boolean {
  * Global settings proxy — always reflects the active settings module.
  *
  * This is the Alexi equivalent of Django's `django.conf.settings`.
- * Access it after `getApplication()` has been called.
+ * Access it after `getHttpApplication()` or `getWorkerApplication()` has been called.
  *
  * @example
  * ```ts
@@ -77,7 +77,7 @@ export function isSettingsConfigured(): boolean {
  * const db = conf.DATABASES?.default;
  * ```
  *
- * @throws {Error} If accessed before `getApplication()` has been called.
+ * @throws {Error} If accessed before `getHttpApplication()` or `getWorkerApplication()` has been called.
  */
 export const conf: GetApplicationSettings = new Proxy(
   {} as GetApplicationSettings,
