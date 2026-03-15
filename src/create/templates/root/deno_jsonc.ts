@@ -23,8 +23,8 @@ export function generateDenoJsonc(name: string, version: string): string {
         "deno run -A --unstable-kv --unstable-bundle manage.ts bundle --settings ./project/settings.ts",
       collectstatic:
         "deno run -A --unstable-kv --unstable-bundle manage.ts collectstatic --no-input --settings ./project/settings.ts",
-      desktop: "deno run -A --unstable-kv --unstable-ffi project/webui.ts",
-      "build:desktop":
+      webui: "deno run -A --unstable-kv --unstable-ffi project/webui.ts",
+      "build:webui":
         `deno compile -A --unstable-kv --unstable-ffi -o ${name} project/webui.ts`,
     },
     imports: {

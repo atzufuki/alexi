@@ -2587,7 +2587,7 @@ Run in development alongside `deno task dev`:
 ```bash
 deno run -A --unstable-kv --unstable-ffi project/webui.ts
 # shortcut:
-deno task desktop
+deno task webui
 ```
 
 Compile to a standalone binary:
@@ -2595,7 +2595,7 @@ Compile to a standalone binary:
 ```bash
 deno compile -A --unstable-kv --unstable-ffi -o my-app project/webui.ts
 # shortcut:
-deno task build:desktop
+deno task build:webui
 ```
 
 #### `GetWebuiApplicationSettings` Interface

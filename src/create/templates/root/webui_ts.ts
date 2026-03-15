@@ -23,10 +23,10 @@ export function generateWebuiTs(name: string): string {
  * desktop-app experience without Electron.
  *
  * Usage (development):
- *   deno run -A --unstable-kv --unstable-ffi project/webui.ts
+ *   deno task webui
  *
  * Usage (production binary):
- *   deno compile -A --unstable-kv --unstable-ffi -o ${name} project/webui.ts
+ *   deno task build:webui
  *   ./${name}
  *
  * @module webui
