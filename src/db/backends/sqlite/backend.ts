@@ -206,6 +206,65 @@ export class SQLiteBackend extends DatabaseBackend {
   }
 
   // ============================================================================
+  // Test Isolation
+  // ============================================================================
+
+  /**
+   * Create an isolated copy of this SQLite database for `migrate --test`.
+   *
+   * For file-based databases the `.db` file is copied to a temporary path
+   * (`<original>.test-<timestamp>.db`).  A new, connected
+   * {@link SQLiteBackend} pointing at the copy is returned.
+   *
+   * In-memory databases (`:memory:`) are already isolated, so a fresh
+   * in-memory backend is returned directly — no file copying needed.
+   *
+   * @returns A new connected backend backed by the temporary copy.
+   */
+  override async copyForTest(): Promise<SQLiteBackend> {
+    if (this._path === ":memory:") {
+      // In-memory: return a fresh isolated backend — no file copy needed.
+      const copy = new SQLiteBackend({ path: ":memory:" });
+      await copy.connect();
+      return copy;
+    }
+
+    // Disconnect so the file is fully flushed before copying.
+    await this.disconnect();
+
+    const tempPath = `${this._path}.test-${Date.now()}.db`;
+    await Deno.copyFile(this._path, tempPath);
+
+    // Reconnect the original backend.
+    await this.connect();
+
+    const copy = new SQLiteBackend({ path: tempPath, debug: this._debug });
+    await copy.connect();
+    (copy as SQLiteBackend & { _tempPath?: string })._tempPath = tempPath;
+    return copy;
+  }
+
+  /**
+   * Destroy this temporary copy created by {@link copyForTest}.
+   *
+   * Disconnects and removes the temporary `.db` file (and WAL/SHM files if
+   * they exist).
+   */
+  override async destroyTestCopy(): Promise<void> {
+    await this.disconnect();
+    const tempPath = (this as SQLiteBackend & { _tempPath?: string })._tempPath;
+    if (tempPath) {
+      for (const suffix of ["", "-wal", "-shm"]) {
+        try {
+          await Deno.remove(tempPath + suffix);
+        } catch {
+          // Best-effort cleanup.
+        }
+      }
+    }
+  }
+
+  // ============================================================================
   // Query Execution
   // ============================================================================
 

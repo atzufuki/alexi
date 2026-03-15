@@ -240,6 +240,160 @@ export class PostgresBackend extends DatabaseBackend {
   }
 
   // ============================================================================
+  // Test Isolation
+  // ============================================================================
+
+  /**
+   * Create an isolated copy of this PostgreSQL database for `migrate --test`.
+   *
+   * Uses PostgreSQL's native `CREATE DATABASE "<temp>" TEMPLATE "<original>"`
+   * to produce an identical copy in a single server-side operation.  A new,
+   * connected {@link PostgresBackend} pointing at the temp database is
+   * returned.
+   *
+   * The temporary database name is `<original>_test_<timestamp>` (e.g.
+   * `myapp_test_1700000000000`).
+   *
+   * **Important:** `CREATE DATABASE … TEMPLATE` requires that no other
+   * sessions are connected to the template database at the time of the call.
+   * This method disconnects from the original backend, creates the copy via a
+   * maintenance connection to the `postgres` system database, then reconnects
+   * the original backend.
+   *
+   * @returns A new connected backend backed by the temporary database.
+   * @throws {Error} If the backend uses a `connectionString` (the individual
+   *   host/user/password parameters are required to build the maintenance
+   *   connection).
+   */
+  override async copyForTest(): Promise<PostgresBackend> {
+    const config = this._config;
+    const options = config.options as {
+      connectionString?: string;
+      ssl?: boolean | object;
+    };
+
+    const originalName = config.name;
+    const tempName = `${originalName}_test_${Date.now()}`;
+
+    // Build a maintenance pool config that connects to the 'postgres' system
+    // database so we can issue CREATE DATABASE without being connected to the
+    // template database.
+    const maintenancePoolConfig: Record<string, unknown> = {
+      database: "postgres",
+    };
+
+    if (options?.connectionString) {
+      // Rewrite the database portion of the connection string to 'postgres'.
+      // We replace the last path segment before any query string.
+      const url = new URL(options.connectionString);
+      url.pathname = "/postgres";
+      maintenancePoolConfig.connectionString = url.toString();
+    } else {
+      maintenancePoolConfig.host = config.host ?? "localhost";
+      maintenancePoolConfig.port = config.port ?? 5432;
+      maintenancePoolConfig.user = config.user;
+      maintenancePoolConfig.password = config.password;
+    }
+
+    if (options?.ssl !== undefined) {
+      maintenancePoolConfig.ssl = options.ssl;
+    }
+
+    // Disconnect from the original database so it can be used as a template
+    // (CREATE DATABASE ... TEMPLATE requires no other sessions on the source).
+    await this.disconnect();
+
+    const maintenancePool = new Pool(maintenancePoolConfig);
+    try {
+      const client = await maintenancePool.connect();
+      try {
+        // identifiers are double-quoted to handle mixed-case names
+        await client.query(
+          `CREATE DATABASE "${tempName}" TEMPLATE "${originalName}"`,
+        );
+      } finally {
+        client.release();
+      }
+    } finally {
+      await maintenancePool.end();
+    }
+
+    // Reconnect the original backend.
+    await this.connect();
+
+    if (this._debug) {
+      console.log(
+        `[PostgresBackend] Created test copy database: ${tempName}`,
+      );
+    }
+
+    // Build config for the temp database — same connection params, different name.
+    const tempConfig: PostgresConfig = {
+      engine: "postgres",
+      name: tempName,
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      schema: this._schema !== "public" ? this._schema : undefined,
+      debug: this._debug,
+    };
+
+    if (options?.connectionString) {
+      const url = new URL(options.connectionString);
+      url.pathname = `/${tempName}`;
+      tempConfig.connectionString = url.toString();
+    }
+
+    const copy = new PostgresBackend(tempConfig);
+    await copy.connect();
+    (copy as PostgresBackend & { _tempDbName?: string })._tempDbName = tempName;
+    (copy as PostgresBackend & {
+      _maintenancePoolConfig?: Record<string, unknown>;
+    })
+      ._maintenancePoolConfig = maintenancePoolConfig;
+    return copy;
+  }
+
+  /**
+   * Destroy the temporary database created by {@link copyForTest}.
+   *
+   * Disconnects and runs `DROP DATABASE "<temp>"` via a maintenance connection
+   * to the `postgres` system database.
+   */
+  override async destroyTestCopy(): Promise<void> {
+    const tempDbName =
+      (this as PostgresBackend & { _tempDbName?: string })._tempDbName;
+    const maintenancePoolConfig = (
+      this as PostgresBackend & {
+        _maintenancePoolConfig?: Record<string, unknown>;
+      }
+    )._maintenancePoolConfig;
+
+    await this.disconnect();
+
+    if (tempDbName && maintenancePoolConfig) {
+      const maintenancePool = new Pool(maintenancePoolConfig);
+      try {
+        const client = await maintenancePool.connect();
+        try {
+          await client.query(`DROP DATABASE IF EXISTS "${tempDbName}"`);
+        } finally {
+          client.release();
+        }
+      } finally {
+        await maintenancePool.end();
+      }
+
+      if (this._debug) {
+        console.log(
+          `[PostgresBackend] Dropped test copy database: ${tempDbName}`,
+        );
+      }
+    }
+  }
+
+  // ============================================================================
   // Query Execution
   // ============================================================================
 

@@ -233,12 +233,39 @@ export class MigrateCommand extends BaseCommand {
       }
 
       // Execute migrations
-      const results = await executor.migrate({
-        to,
-        appLabel,
-        verbosity,
-        testMode,
-      });
+      let activeBackend = backend;
+      let testCopy = null;
+
+      if (testMode) {
+        if (verbosity > 0) {
+          this.stdout.log("Creating isolated database copy for test run...");
+        }
+        testCopy = await backend.copyForTest();
+        activeBackend = testCopy;
+        if (verbosity > 1) {
+          this.stdout.log(
+            `Using temp backend: ${activeBackend.config.name}`,
+          );
+        }
+      }
+
+      let results;
+      try {
+        const testExecutor = new MigrationExecutor(activeBackend, loader);
+        results = await testExecutor.migrate({
+          to,
+          appLabel,
+          verbosity,
+          testMode,
+        });
+      } finally {
+        if (testCopy) {
+          if (verbosity > 0) {
+            this.stdout.log("Removing isolated database copy...");
+          }
+          await testCopy.destroyTestCopy();
+        }
+      }
 
       // Summary
       const successful = results.filter((r) => r.success);
