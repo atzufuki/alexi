@@ -97,7 +97,6 @@ export const DATABASES = {
  */
 export const INSTALLED_APPS = [
   () => import("@alexi/staticfiles"),
-  () => import("@alexi/web"),
   () => import("@alexi/db"),
   () => import("@alexi/restframework"),
   () => import("@${name}/mod.ts"),
@@ -280,7 +279,6 @@ export const DATABASES = {
  */
 export const INSTALLED_APPS = [
   () => import("@alexi/staticfiles"),
-  () => import("@alexi/web"),
   () => import("@alexi/db"),
   () => import("@alexi/restframework"),
   () => import("@${name}/mod.ts"),

@@ -8,4 +8,3 @@
 
 export { BundleCommand } from "./bundle.ts";
 export { CollectStaticCommand } from "./collectstatic.ts";
-export { RunServerCommand } from "./runserver.ts";

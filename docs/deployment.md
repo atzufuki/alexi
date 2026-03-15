@@ -80,7 +80,6 @@ export const CORS_ALLOWED_ORIGINS = Deno.env.get("CORS_ORIGINS")?.split(",") ??
 // Installed apps
 export const INSTALLED_APPS = [
   () => import("@alexi/staticfiles"),
-  () => import("@alexi/web"),
   () => import("@alexi/db"),
   () => import("@alexi/auth"),
   () => import("@myapp/web"),

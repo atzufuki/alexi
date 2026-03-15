@@ -15,7 +15,7 @@
  */
 
 import { parseArgs } from "./args.ts";
-import { createProject, installSkills } from "./project.ts";
+import { createProject } from "./project.ts";
 import { printHelp, printVersion } from "./help.ts";
 import { VERSION } from "./version.ts";
 
@@ -30,25 +30,6 @@ async function main(): Promise<number> {
   if (args.version) {
     printVersion(VERSION);
     return 0;
-  }
-
-  // Handle --skills-only: install skills to current directory
-  if (args.skillsOnly) {
-    try {
-      await installSkills();
-
-      console.log("");
-      console.log("AI Coding Assistant:");
-      console.log("  • Agent Skills installed in .opencode/skills/");
-      console.log("  • Compatible with OpenCode, Claude Code, Cursor");
-      console.log("");
-
-      return 0;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(`Error: ${message}`);
-      return 1;
-    }
   }
 
   if (!args.projectName) {
@@ -76,10 +57,6 @@ async function main(): Promise<number> {
     console.log("");
     console.log("This will start:");
     console.log("  • Web server on http://localhost:8000");
-    console.log("");
-    console.log("AI Coding Assistant:");
-    console.log("  • Agent Skills installed in .opencode/skills/");
-    console.log("  • Compatible with OpenCode, Claude Code, Cursor");
     console.log("");
 
     return 0;
