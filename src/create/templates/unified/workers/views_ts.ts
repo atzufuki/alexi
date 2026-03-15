@@ -16,45 +16,89 @@ export function generateWorkerViewsTs(name: string): string {
  * @module ${name}/workers/${name}/views
  */
 
-import { templateView } from "@alexi/views";
+import { DetailView, ListView, TemplateView, View } from "@alexi/views";
 import { PostModel } from "./models.ts";
 
-export const homeView = templateView({
-  templateName: "${name}/index.html",
-  context: async (_request, _params) => ({
-    title: "${toPascalCase(name)}",
-  }),
-});
+/** Home page view. */
+export class HomeView extends TemplateView {
+  override templateName = "${name}/index.html";
 
-export const postListView = templateView({
-  templateName: "${name}/post_list.html",
-  context: async (_request, _params) => {
-    const posts = await PostModel.objects.all().fetch();
-    return {
-      posts: posts.array().map((p) => ({
-        id: p.id.get(),
-        title: p.title.get(),
-        published: p.published.get(),
-      })),
-    };
-  },
-});
+  override async getContextData(
+    request: Request,
+    params: Record<string, string>,
+  ): Promise<Record<string, unknown>> {
+    const base = await super.getContextData(request, params);
+    return { ...base, title: "${toPascalCase(name)}" };
+  }
+}
 
-export async function postCreateView(request: Request): Promise<Response> {
-  if (request.method === "POST") {
+/** Displays the full list of posts with stats. */
+export class PostListView extends ListView<typeof PostModel.prototype> {
+  override model = PostModel;
+  override templateName = "${name}/post_list.html";
+
+  override async getContextData(
+    request: Request,
+    params: Record<string, string>,
+  ): Promise<Record<string, unknown>> {
+    const base = await super.getContextData(request, params);
+    const posts = (base["post_list"] ?? []) as Record<string, unknown>[];
+    const total = posts.length;
+    const published_count = posts.filter((p) => p["published"]).length;
+    const draft_count = total - published_count;
+    return { ...base, posts, total, published_count, draft_count };
+  }
+}
+
+/** Displays a single post. */
+export class PostDetailView extends DetailView<typeof PostModel.prototype> {
+  override model = PostModel;
+  override templateName = "${name}/post_detail.html";
+  override pkUrlKwarg = "id";
+
+  override async getContextData(
+    request: Request,
+    params: Record<string, string>,
+  ): Promise<Record<string, unknown>> {
+    const base = await super.getContextData(request, params);
+    return { ...base, post: base["object"] };
+  }
+}
+
+/** Handles creating a new post via a GET form and a POST submission. */
+export class PostCreateView extends View {
+  async get(request: Request, params: Record<string, string>): Promise<Response> {
+    const view = TemplateView.as_view({ templateName: "${name}/post_form.html" });
+    return view(request, params);
+  }
+
+  async post(request: Request): Promise<Response> {
     const formData = await request.formData();
     const title = (formData.get("title") as string | null) ?? "";
     const content = (formData.get("content") as string | null) ?? "";
-    await PostModel.objects.create({ title, content, published: false });
+    const published = formData.get("published") === "true";
+    await PostModel.objects.create({ title, content, published });
     return Response.redirect("/posts/", 303);
   }
+}
 
-  // GET — render the form
-  const view = templateView({
-    templateName: "${name}/post_form.html",
-    context: async (_req, _params) => ({}),
-  });
-  return view(request, {});
+/** Publishes a draft post. */
+export class PostPublishView extends View {
+  async post(_request: Request, params: Record<string, string>): Promise<Response> {
+    const post = await PostModel.objects.get({ id: Number(params["id"]) });
+    post.published.set(true);
+    await post.save({ updateFields: ["published"] });
+    return Response.redirect("/posts/", 303);
+  }
+}
+
+/** Deletes a post. */
+export class PostDeleteView extends View {
+  async post(_request: Request, params: Record<string, string>): Promise<Response> {
+    const post = await PostModel.objects.get({ id: Number(params["id"]) });
+    await post.delete();
+    return Response.redirect("/posts/", 303);
+  }
 }
 `;
 }

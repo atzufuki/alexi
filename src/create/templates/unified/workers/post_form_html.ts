@@ -13,24 +13,44 @@ export function generateWorkerPostFormHtml(name: string): string {
   return `{% extends "${name}/base.html" %}
 
 {% block title %}New Post — ${title}{% endblock %}
+{% block nav_posts_active %}class="active"{% endblock %}
 
 {% block content %}
-<h1>New Post</h1>
+<div class="page-wrapper">
 
-<form method="post" action="/posts/new/">
-  <div>
-    <label for="title">Title</label>
-    <input type="text" id="title" name="title" required>
+  <a class="back-link" href="/posts/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+         stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 18 9 12 15 6"/>
+    </svg>
+    Back
+  </a>
+
+  <div class="form-card">
+    <h2>New Post</h2>
+    <form method="post" action="/posts/new/">
+      <div class="form-group">
+        <label class="form-label" for="title">Title</label>
+        <input class="form-input" type="text" id="title" name="title"
+               placeholder="Enter a title…" required autofocus>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="content">Content</label>
+        <textarea class="form-textarea" id="content" name="content"
+                  placeholder="Start writing…"></textarea>
+      </div>
+      <label class="form-check">
+        <input type="checkbox" name="published" value="true">
+        Publish immediately
+      </label>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Create Post</button>
+        <a href="/posts/" class="btn btn-ghost">Cancel</a>
+      </div>
+    </form>
   </div>
-  <div>
-    <label for="content">Content</label>
-    <textarea id="content" name="content" rows="6"></textarea>
-  </div>
-  <div>
-    <button type="submit">Create Post</button>
-    <a href="/posts/">Cancel</a>
-  </div>
-</form>
+
+</div>
 {% endblock %}
 `;
 }
