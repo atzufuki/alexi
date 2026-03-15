@@ -85,8 +85,7 @@ alexi/
     ├── core/
     │   ├── management/
     │   │   └── commands/    # runserver, test, makemigrations, migrate,
-    │   │                    # createsuperuser, bundle, collectstatic,
-    │   │                    # flush, startproject, startapp
+    │   │                    # bundle, collectstatic, flush, startapp
     │   ├── application.ts
     │   ├── get_application.ts
     │   ├── config.ts
@@ -115,6 +114,16 @@ All TypeScript files use **lowercase snake_case**:
 // project/settings.ts
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { UserModel } from "@myapp/models";
+import {
+  CorsMiddleware,
+  ErrorHandlerMiddleware,
+  LoggingMiddleware,
+} from "@alexi/middleware";
+import { StaticfilesConfig } from "@alexi/staticfiles";
+import { DbConfig } from "@alexi/db";
+import { AuthConfig } from "@alexi/auth";
+import { AdminConfig } from "@alexi/admin";
+import { MyAppConfig } from "@myapp/web";
 
 export const DEBUG = Deno.env.get("DEBUG") === "true";
 export const SECRET_KEY = Deno.env.get("SECRET_KEY") ?? "dev-secret";
@@ -122,11 +131,11 @@ export const DEFAULT_HOST = "0.0.0.0";
 export const DEFAULT_PORT = 8000;
 
 export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@alexi/db"),
-  () => import("@alexi/auth"),
-  () => import("@alexi/admin"),
-  () => import("@myapp/web"),
+  StaticfilesConfig,
+  DbConfig,
+  AuthConfig,
+  AdminConfig,
+  MyAppConfig,
 ];
 
 export const ROOT_URLCONF = () => import("@myapp/web/urls");
@@ -150,14 +159,14 @@ export const STATICFILES_DIRS = [
 export const AUTH_USER_MODEL = UserModel;
 
 export const MIDDLEWARE = [
-  () => import("@alexi/middleware").then((m) => m.LoggingMiddleware),
-  () => import("@alexi/middleware").then((m) => m.CorsMiddleware),
-  () => import("@alexi/middleware").then((m) => m.ErrorHandlerMiddleware),
+  LoggingMiddleware,
+  CorsMiddleware,
+  ErrorHandlerMiddleware,
 ];
 ```
 
-`INSTALLED_APPS` and `ROOT_URLCONF` use import functions so that the user
-project's import map (defined in `deno.json`) is in scope when the import runs.
+`ROOT_URLCONF` uses an import function so that the user project's import map
+(defined in `deno.json`) is in scope when the import runs.
 
 ---
 
@@ -215,19 +224,18 @@ await app.launch();
 
 ## Management Commands
 
-| Command           | Django Equivalent              | Description                   |
-| ----------------- | ------------------------------ | ----------------------------- |
-| `runserver`       | `django-admin runserver`       | Start HTTP development server |
-| `makemigrations`  | `django-admin makemigrations`  | Generate migration files      |
-| `migrate`         | `django-admin migrate`         | Apply migrations              |
-| `createsuperuser` | `django-admin createsuperuser` | Create admin user             |
-| `collectstatic`   | `django-admin collectstatic`   | Collect static files          |
-| `bundle`          | —                              | Bundle frontend assets        |
-| `flush`           | `django-admin flush`           | Clear database                |
-| `test`            | `django-admin test`            | Run tests                     |
-| `startproject`    | `django-admin startproject`    | Scaffold new project          |
-| `startapp`        | `django-admin startapp`        | Scaffold new app              |
-| `help`            | `django-admin help`            | Show available commands       |
+| Command           | Django Equivalent              | Description                                      |
+| ----------------- | ------------------------------ | ------------------------------------------------ |
+| `runserver`       | `django-admin runserver`       | Start HTTP development server                    |
+| `makemigrations`  | `django-admin makemigrations`  | Generate migration files                         |
+| `migrate`         | `django-admin migrate`         | Apply migrations                                 |
+| `createsuperuser` | `django-admin createsuperuser` | Create admin user (contributed by `@alexi/auth`) |
+| `collectstatic`   | `django-admin collectstatic`   | Collect static files                             |
+| `bundle`          | —                              | Bundle frontend assets                           |
+| `flush`           | `django-admin flush`           | Clear database                                   |
+| `test`            | `django-admin test`            | Run tests                                        |
+| `startapp`        | `django-admin startapp`        | Scaffold new app                                 |
+| `help`            | `django-admin help`            | Show available commands                          |
 
 ```bash
 deno run -A --unstable-kv manage.ts runserver --settings ./project/settings.ts
@@ -555,7 +563,7 @@ class IsOwnerOrReadOnly extends BasePermission {
       return true;
     }
     const record = obj as { authorId?: number };
-    return record.authorId === context.user?.userId;
+    return record.authorId === context.user?.id;
   }
 }
 
@@ -597,7 +605,7 @@ class ApiKeyAuthentication extends BaseAuthentication {
     const user = await UserModel.objects.filter({ apiKey: key }).first();
     if (!user) return null;
     return {
-      userId: user.id.get(),
+      id: user.id.get(),
       email: user.email.get(),
       isAdmin: user.isAdmin.get(),
     };
@@ -609,9 +617,9 @@ class ApiKeyAuthentication extends BaseAuthentication {
 
 ```typescript
 type AuthenticatedUser = {
-  userId: number;
-  email: string;
-  isAdmin: boolean;
+  id: number | string;
+  email?: string;
+  isAdmin?: boolean;
 };
 ```
 
@@ -822,21 +830,15 @@ const valid = await user.verifyPassword("secret"); // true | false
 ### View Decorators
 
 ```typescript
-import {
-  adminRequired,
-  getRequestUser,
-  loginRequired,
-  optionalLogin,
-} from "@alexi/auth";
+import { getRequestUser, loginRequired, permissionRequired } from "@alexi/auth";
 
 path("profile/", loginRequired(profileView));
-path("admin/", adminRequired(adminView));
-path("feed/", optionalLogin(feedView));
+path("dashboard/", permissionRequired("admin", adminView));
 
 // Access user inside a decorated view
 const profileView = loginRequired(async (request, params) => {
   const user = getRequestUser(request);
-  return Response.json({ userId: user.userId, email: user.email });
+  return Response.json({ id: user.id, email: user.email });
 });
 ```
 
@@ -849,7 +851,7 @@ const tokens = await createTokenPair(userId, email, isAdmin);
 // → { accessToken, refreshToken, expiresAt }
 
 const payload = await verifyToken(accessToken);
-// → { userId, email, isAdmin, exp, iat }
+// → { id, email, isAdmin, exp, iat }
 ```
 
 ---
@@ -973,8 +975,9 @@ deno test -A --unstable-kv src/db/models/model_test.ts
    (SQL backends). DenoKV and IndexedDB are schemaless.
 5. **No `@alexi/web`**: `runserver` lives in `@alexi/core/management`. Entry
    point is `http.ts` using `getHttpApplication()`.
-6. **Import functions in settings**: `INSTALLED_APPS` and `ROOT_URLCONF` use
-   `() => import(...)` so the project's import map is in scope.
+6. **Import function in settings**: `ROOT_URLCONF` uses `() => import(...)` so
+   the project's import map is in scope. `INSTALLED_APPS` uses direct class
+   references imported at the top of `settings.ts`.
 7. **Layer discipline**: never import upward in the layer hierarchy.
-8. **`context.user.userId`**: the `AuthenticatedUser` type exposes `userId`,
-   `email`, and `isAdmin` — no other fields unless you extend it.
+8. **`context.user.id`**: the `AuthenticatedUser` type exposes `id`, `email`,
+   and `isAdmin` — no other fields unless you extend it.
