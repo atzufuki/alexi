@@ -862,7 +862,8 @@ const payload = await verifyToken(accessToken);
 ## Admin Panel
 
 ```typescript
-import { AdminRouter, AdminSite, ModelAdmin, register } from "@alexi/admin";
+import { AdminSite, ModelAdmin, register } from "@alexi/admin";
+import { include, path } from "@alexi/urls";
 
 const adminSite = new AdminSite({ title: "My App", urlPrefix: "/admin" });
 
@@ -874,12 +875,27 @@ class ArticleAdmin extends ModelAdmin {
   ordering = ["-createdAt"];
 }
 
-// Mount in your URL conf
-const adminRouter = new AdminRouter(adminSite, backend);
-path("admin/", (req, params) => adminRouter.handle(req));
+// Mount in your URL conf — routes pass through the full middleware stack
+export const urlpatterns = [
+  path("admin/", include(adminSite.urls)),
+];
 ```
 
 Admin requires a JWT with `isAdmin: true`.
+
+If you need a pre-instantiated `AdminRouter` (e.g. to call `router.handle()`
+directly in tests or a custom server), use `AdminRouter.asView()` to mount it
+via `path()` so that middleware still applies:
+
+```typescript
+import { AdminRouter, AdminSite } from "@alexi/admin";
+
+const adminRouter = new AdminRouter(adminSite, backend);
+
+export const urlpatterns = [
+  path("admin/", adminRouter.asView()),
+];
+```
 
 ---
 
