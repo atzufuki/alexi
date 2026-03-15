@@ -38,6 +38,16 @@
  * const payload = await verifyToken(accessToken);
  * if (!payload) return Response.json({ error: "Unauthorized" }, { status: 401 });
  * ```
+ *
+ * @example Protect a view with login_required
+ * ```ts
+ * import { loginRequired, getRequestUser } from "@alexi/auth";
+ *
+ * export const profileView = loginRequired(async (request, _params) => {
+ *   const user = getRequestUser(request)!;
+ *   return Response.json({ id: user.id, email: user.email });
+ * });
+ * ```
  */
 
 // =============================================================================
@@ -54,5 +64,13 @@ export { AbstractUser } from "./models/mod.ts";
 // JWT utilities
 export { createTokenPair, verifyToken } from "./jwt.ts";
 export type { TokenPair, TokenPayload } from "./jwt.ts";
+
+// View decorators
+export {
+  getRequestUser,
+  loginRequired,
+  permissionRequired,
+} from "./decorators.ts";
+export type { AuthenticatedUser, ViewFunction } from "./decorators.ts";
 
 // Commands are loaded dynamically via app.ts commandsModule
