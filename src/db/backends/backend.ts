@@ -319,6 +319,47 @@ export abstract class DatabaseBackend {
   }
 
   // ============================================================================
+  // Test Isolation
+  // ============================================================================
+
+  /**
+   * Create an isolated copy of this backend for use with `migrate --test`.
+   *
+   * The returned backend is fully connected and contains an identical copy of
+   * the current database. The caller is responsible for calling
+   * {@link destroyTestCopy} on the returned instance when done.
+   *
+   * Backends that cannot be copied (e.g. remote backends) should throw an
+   * error with an actionable message.
+   *
+   * The default implementation throws `NotImplementedError`. Override in each
+   * concrete backend.
+   *
+   * @returns A new, connected backend instance backed by the temporary copy.
+   * @throws {Error} If the backend does not support test isolation.
+   */
+  async copyForTest(): Promise<DatabaseBackend> {
+    throw new Error(
+      `The '${this._config.engine}' backend does not support test isolation ` +
+        `(copyForTest). Run 'migrate --test' against a local backend instead.`,
+    );
+  }
+
+  /**
+   * Destroy the temporary copy created by {@link copyForTest}.
+   *
+   * This method is called on the **copy** instance (not the original) after
+   * the test run finishes. It should disconnect from the database and remove
+   * all associated resources (files, databases, etc.).
+   *
+   * The default implementation only disconnects. Override when additional
+   * cleanup (e.g. file deletion, `DROP DATABASE`) is required.
+   */
+  async destroyTestCopy(): Promise<void> {
+    await this.disconnect();
+  }
+
+  // ============================================================================
   // Schema Operations
   // ============================================================================
 

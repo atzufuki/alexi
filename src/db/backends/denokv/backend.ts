@@ -80,6 +80,11 @@ declare namespace Deno {
   }
 
   export function openKv(path?: string): Promise<Kv>;
+  export function copyFile(from: string, to: string): Promise<void>;
+  export function remove(
+    path: string,
+    options?: { recursive?: boolean },
+  ): Promise<void>;
 }
 
 import type { Model } from "../../models/model.ts";
@@ -347,6 +352,78 @@ export class DenoKVBackend extends DatabaseBackend {
       this._kv = null;
     }
     this._connected = false;
+  }
+
+  // ============================================================================
+  // Test Isolation
+  // ============================================================================
+
+  /**
+   * Create an isolated copy of this DenoKV database for `migrate --test`.
+   *
+   * For local file-based databases the `.db` file is copied to a temporary
+   * path (`<original>.test-<timestamp>.db`).  A new, connected
+   * {@link DenoKVBackend} pointing at the copy is returned.
+   *
+   * In-memory databases (no path / `:memory:`) are already isolated, so a
+   * fresh in-memory backend is returned directly — no file copying needed.
+   *
+   * Remote Deno Deploy KV databases (configured via `url`) cannot be copied;
+   * calling this method for a remote backend throws an error.
+   *
+   * @returns A new connected backend backed by the temporary copy.
+   * @throws {Error} If the backend is connected to a remote Deno Deploy KV URL.
+   */
+  override async copyForTest(): Promise<DenoKVBackend> {
+    const url = this._config.options?.url as string | undefined;
+    const path = this._config.options?.path as string | undefined;
+
+    if (url) {
+      throw new Error(
+        "DenoKVBackend connected to a remote Deno Deploy KV URL cannot be " +
+          "copied for test isolation. Use a local file-based backend with " +
+          "'migrate --test', or omit --test when targeting a remote database.",
+      );
+    }
+
+    if (!path || path === ":memory:") {
+      // In-memory: return a fresh isolated backend — no file copy needed.
+      const copy = new DenoKVBackend({
+        name: `${this._config.name}_test`,
+        path: ":memory:",
+      });
+      await copy.connect();
+      return copy;
+    }
+
+    const tempPath = `${path}.test-${Date.now()}.db`;
+    await Deno.copyFile(path, tempPath);
+
+    const copy = new DenoKVBackend({
+      name: `${this._config.name}_test`,
+      path: tempPath,
+    });
+    await copy.connect();
+    // Store the temp path so destroyTestCopy knows what to delete.
+    (copy as DenoKVBackend & { _tempPath?: string })._tempPath = tempPath;
+    return copy;
+  }
+
+  /**
+   * Destroy this temporary copy created by {@link copyForTest}.
+   *
+   * Disconnects from the KV store and removes the temporary `.db` file.
+   */
+  override async destroyTestCopy(): Promise<void> {
+    await this.disconnect();
+    const tempPath = (this as DenoKVBackend & { _tempPath?: string })._tempPath;
+    if (tempPath) {
+      try {
+        await Deno.remove(tempPath);
+      } catch {
+        // Best-effort cleanup — ignore errors if the file is already gone.
+      }
+    }
   }
 
   // ============================================================================
