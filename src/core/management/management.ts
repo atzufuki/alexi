@@ -221,8 +221,9 @@ export class ManagementUtility {
       const settingsArg = this.parseSettingsArg(args) ??
         Deno.env.get("ALEXI_SETTINGS_MODULE");
 
-      // Collect import functions from settings
+      // Collect import functions and direct AppConfig objects from settings
       const importFunctions: AppImportFn[] = [];
+      const directConfigs: AppConfig[] = [];
 
       if (settingsArg) {
         // Load from specified settings file
@@ -245,6 +246,9 @@ export class ManagementUtility {
           for (const app of installedApps) {
             if (typeof app === "function") {
               importFunctions.push(app as AppImportFn);
+            } else if (app && typeof app === "object" && "name" in app) {
+              // Direct AppConfig object
+              directConfigs.push(app as AppConfig);
             }
           }
         } catch (error) {
@@ -274,6 +278,12 @@ export class ManagementUtility {
                     if (!importFunctions.includes(app as AppImportFn)) {
                       importFunctions.push(app as AppImportFn);
                     }
+                  } else if (app && typeof app === "object" && "name" in app) {
+                    // Direct AppConfig object — deduplicate by name
+                    const config = app as AppConfig;
+                    if (!directConfigs.some((c) => c.name === config.name)) {
+                      directConfigs.push(config);
+                    }
                   }
                 }
               } catch {
@@ -291,11 +301,17 @@ export class ManagementUtility {
 
       if (this.debug) {
         console.log(`Found ${importFunctions.length} app import functions`);
+        console.log(`Found ${directConfigs.length} direct AppConfig objects`);
       }
 
       // Load commands from each app by calling the import function
       for (const importFn of importFunctions) {
         await this.loadCommandsFromImportFn(importFn);
+      }
+
+      // Load commands from direct AppConfig objects
+      for (const config of directConfigs) {
+        await this.loadCommandsFromAppConfig(config);
       }
     } catch (error) {
       if (this.debug) {
@@ -390,6 +406,61 @@ export class ManagementUtility {
     } catch (error) {
       if (this.debug) {
         console.warn(`  Could not load commands from app: ${error}`);
+      }
+    }
+  }
+
+  /**
+   * Load commands from a direct AppConfig object.
+   *
+   * Used when INSTALLED_APPS contains plain AppConfig objects rather than
+   * import functions. Commands are discovered by convention from
+   * `<appPath>/commands/mod.ts`.
+   */
+  private async loadCommandsFromAppConfig(config: AppConfig): Promise<void> {
+    try {
+      if (this.debug) {
+        console.log(`Loading commands from app config: ${config.name}`);
+      }
+
+      // Resolve the app's source directory from appPath or convention
+      const appPath = config.appPath ?? `./src/${config.name}`;
+      let commandsUrl: string;
+
+      if (
+        appPath.startsWith("file://") ||
+        appPath.startsWith("https://") ||
+        appPath.startsWith("http://")
+      ) {
+        // Absolute URL (local file:// or remote https:// from JSR)
+        const base = appPath.endsWith("/") ? appPath : `${appPath}/`;
+        commandsUrl = `${base}commands/mod.ts`;
+      } else {
+        // Relative path — resolve against project root
+        const rel = appPath.replace(/^\.\//, "");
+        commandsUrl = toImportUrl(
+          `${this.projectRoot}/${rel}/commands/mod.ts`,
+        );
+      }
+
+      // Try to import commands/mod.ts by convention
+      try {
+        const commandsModule = await import(commandsUrl);
+        this.registerCommandsFromModule(
+          commandsModule as Record<string, unknown>,
+          config.name,
+        );
+      } catch {
+        // No commands/mod.ts — this is normal for most apps
+        if (this.debug) {
+          console.log(
+            `  ${config.name}: no commands/mod.ts found at ${commandsUrl}`,
+          );
+        }
+      }
+    } catch (error) {
+      if (this.debug) {
+        console.warn(`  Could not load commands from app config: ${error}`);
       }
     }
   }

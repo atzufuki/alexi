@@ -12,7 +12,7 @@
  * @module @alexi/views/views/base
  */
 
-import { render, templateRegistry } from "../engine/mod.ts";
+import { globalChainLoader, render, templateRegistry } from "../engine/mod.ts";
 import type { TemplateContext, TemplateLoader } from "../engine/mod.ts";
 
 // =============================================================================
@@ -277,7 +277,7 @@ export class TemplateResponseMixin extends ContextMixin {
    */
   async renderToResponse(context: TemplateContext): Promise<Response> {
     const templateName = this.getTemplateName();
-    const loader = this.templateLoader ?? templateRegistry;
+    const loader = this.templateLoader ?? globalChainLoader;
 
     try {
       const html = await render(templateName, context, loader);

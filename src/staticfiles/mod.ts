@@ -41,6 +41,8 @@ export { default } from "./app.ts";
 export {
   AppDirectoriesFinder,
   FileSystemFinder,
+  globalAppDirectoriesFinder,
+  registerStaticAppPath,
   StaticFileFinders,
 } from "./finders.ts";
 

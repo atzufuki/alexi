@@ -157,6 +157,69 @@ export class ChainTemplateLoader implements TemplateLoader {
 export const templateRegistry = new MemoryTemplateLoader();
 
 // =============================================================================
+// Global Filesystem Loader  (server / Deno only)
+// =============================================================================
+
+/**
+ * Global filesystem template loader.
+ *
+ * On the server, `_buildApplication()` calls {@link registerTemplateDir} for
+ * each installed app's `<appPath>/templates/` directory (when
+ * `TEMPLATES[0].APP_DIRS` is `true`) and for every entry in
+ * `TEMPLATES[0].DIRS`.
+ *
+ * `templateView` and class-based views automatically chain this loader after
+ * the in-memory {@link templateRegistry}, so filesystem templates are
+ * discovered without manual registration.
+ *
+ * In a Service Worker context this loader is never populated (SW has no
+ * filesystem access) — all templates are pre-registered into
+ * {@link templateRegistry} by the bundle command.
+ */
+export const globalFilesystemLoader = new FilesystemTemplateLoader([]);
+
+/**
+ * Register a template directory with the global filesystem loader.
+ *
+ * Call this (or let `_buildApplication()` call it automatically) for every
+ * directory that contains `.html` template files you want to resolve at
+ * runtime by name.
+ *
+ * @param dir - Absolute path or `file://` URL of the template directory.
+ *
+ * @example
+ * ```ts
+ * import { registerTemplateDir } from "@alexi/views";
+ *
+ * registerTemplateDir("./src/my-app/templates");
+ * ```
+ */
+export function registerTemplateDir(dir: string): void {
+  globalFilesystemLoader.addDir(dir);
+}
+
+// =============================================================================
+// Global Chain Loader
+// =============================================================================
+
+/**
+ * Global chain template loader.
+ *
+ * Searches {@link templateRegistry} (in-memory, populated by the SW bundle or
+ * programmatic registration) first, then falls back to
+ * {@link globalFilesystemLoader} (populated at server startup from
+ * `INSTALLED_APPS` when `APP_DIRS: true`).
+ *
+ * This is the default loader used by `templateView` and class-based views.
+ * In a Service Worker, `globalFilesystemLoader` is always empty so only the
+ * in-memory registry is searched.
+ */
+export const globalChainLoader = new ChainTemplateLoader([
+  templateRegistry,
+  globalFilesystemLoader,
+]);
+
+// =============================================================================
 // TemplateNotFoundError
 // =============================================================================
 

@@ -11,6 +11,8 @@
  * @module alexi_staticfiles/finders
  */
 
+import { onAppRegistered } from "@alexi/types";
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -133,6 +135,22 @@ export class AppDirectoriesFinder implements StaticFileFinder {
     this.installedApps = options.installedApps;
     this.appPaths = options.appPaths;
     this.projectRoot = options.projectRoot;
+  }
+
+  /**
+   * Register an app with this finder.
+   *
+   * Adds `appName` to the installed apps list and records its `appPath`.
+   * Idempotent — registering the same name twice is a no-op.
+   *
+   * @param appName - The app's unique identifier.
+   * @param appPath - Absolute path or relative path (resolved against project root).
+   */
+  registerApp(appName: string, appPath: string): void {
+    if (!this.installedApps.includes(appName)) {
+      this.installedApps.push(appName);
+    }
+    this.appPaths[appName] = appPath;
   }
 
   /**
@@ -418,8 +436,70 @@ export class FileSystemFinder implements StaticFileFinder {
 }
 
 // =============================================================================
-// StaticFileFinders (Registry)
+// Global AppDirectoriesFinder Registry
 // =============================================================================
+
+/**
+ * Global `AppDirectoriesFinder` instance.
+ *
+ * `_buildApplication()` in `@alexi/core` populates this automatically from
+ * `INSTALLED_APPS` when the application is started.  Each installed app's
+ * `<appPath>/static/` directory is registered here so that static-file
+ * middleware and the `collectstatic` command can discover files without
+ * requiring manual `installedApps`/`appPaths` configuration.
+ *
+ * You can also register app paths manually via {@link registerStaticAppPath}.
+ */
+export const globalAppDirectoriesFinder = new AppDirectoriesFinder({
+  installedApps: [],
+  appPaths: {},
+  projectRoot: typeof Deno !== "undefined" ? Deno.cwd() : "/",
+});
+
+/**
+ * Register an installed app's static directory with the global finder.
+ *
+ * Called automatically by `_buildApplication()` for each entry in
+ * `INSTALLED_APPS`.  You may also call this manually when using the
+ * finder outside of the full application bootstrap.
+ *
+ * @param appName - The app's identifier (e.g. `"alexi_staticfiles"`).
+ * @param appPath - Absolute path or `file://` URL to the app's root directory.
+ *                  The finder will look for static files under `<appPath>/static/`.
+ *
+ * @example
+ * ```ts
+ * import { registerStaticAppPath } from "@alexi/staticfiles";
+ *
+ * registerStaticAppPath("my-app", "./src/my-app");
+ * ```
+ */
+export function registerStaticAppPath(
+  appName: string,
+  appPath: string,
+): void {
+  // Resolve file:// URLs to an OS path
+  let resolvedPath = appPath;
+  if (appPath.startsWith("file://")) {
+    try {
+      // Remove trailing slash so static/ is appended correctly
+      resolvedPath = new URL(appPath).pathname.replace(/\/$/, "");
+    } catch {
+      resolvedPath = appPath;
+    }
+  }
+
+  globalAppDirectoriesFinder.registerApp(appName, resolvedPath);
+}
+
+// Register with the global app-registration hook system so that
+// _buildApplication() automatically populates the finder for every
+// installed app without @alexi/core needing to import @alexi/staticfiles.
+onAppRegistered((appName, appPath) => {
+  if (appPath !== undefined) {
+    registerStaticAppPath(appName, appPath);
+  }
+});
 
 /**
  * Combined static file finder that searches multiple finders

@@ -46,7 +46,11 @@ export {
   // Loaders / Registry
   ChainTemplateLoader,
   FilesystemTemplateLoader,
+  globalChainLoader,
+  globalFilesystemLoader,
   MemoryTemplateLoader,
+  // Registration helper
+  registerTemplateDir,
   // Renderer
   render,
   // Errors
