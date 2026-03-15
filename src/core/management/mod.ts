@@ -111,9 +111,13 @@ export {
   HelpCommand,
   MakemigrationsCommand,
   MigrateCommand,
+  RunServerCommand,
   ShowmigrationsCommand,
   SqlmigrateCommand,
   StartAppCommand,
   TestCommand,
 } from "./commands/mod.ts";
-export type { TestConfig } from "./commands/mod.ts";
+export type {
+  ServerConfig as RunServerConfig,
+  TestConfig,
+} from "./commands/mod.ts";
