@@ -3,7 +3,7 @@
  *
  * Logs incoming requests and outgoing responses with timing information.
  *
- * @module @alexi/http/middleware/logging
+ * @module @alexi/middleware/logging
  */
 
 import { BaseMiddleware } from "./types.ts";

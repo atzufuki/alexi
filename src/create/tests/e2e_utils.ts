@@ -154,7 +154,6 @@ async function patchProjectForLocalAlexi(projectPath: string): Promise<void> {
     "@alexi/db/migrations/schema":
       `${alexiRoot}src/db/migrations/schema/mod.ts`,
     "@alexi/urls": `${alexiRoot}src/urls/mod.ts`,
-    "@alexi/http": `${alexiRoot}src/http/mod.ts`,
     "@alexi/middleware": `${alexiRoot}src/middleware/mod.ts`,
     "@alexi/views": `${alexiRoot}src/views/mod.ts`,
     "@alexi/webui": `${alexiRoot}src/webui/mod.ts`,
