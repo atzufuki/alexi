@@ -116,6 +116,15 @@ export class MigrationExecutor {
     this._schemaEditorFactory = factory;
   }
 
+  /**
+   * Override the migration recorder (useful for testing)
+   *
+   * @param recorder - Custom recorder implementation
+   */
+  setRecorder(recorder: IMigrationRecorder): void {
+    this._recorder = recorder;
+  }
+
   // ==========================================================================
   // Planning
   // ==========================================================================
