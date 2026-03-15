@@ -493,8 +493,19 @@ export class ManagementUtility {
         exportName.endsWith("Command")
       ) {
         try {
-          // Determine the command name from the prototype or class property
-          const cmdName: string = proto.name ?? exportName;
+          // `name` is an instance field in BaseCommand subclasses, not on the
+          // prototype. Instantiate with a no-op console to read the real name.
+          const noop = () => {};
+          const noopConsole = {
+            log: noop,
+            error: noop,
+            warn: noop,
+            info: noop,
+          };
+          const instance = new (exportValue as new (
+            c: typeof noopConsole,
+          ) => { name: string })(noopConsole);
+          const cmdName: string = instance.name ?? exportName;
 
           // Only HelpCommand is protected: it carries registry state set up
           // during ManagementUtility construction. All other built-ins can be

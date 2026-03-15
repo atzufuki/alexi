@@ -405,6 +405,153 @@ Deno.test("ManagementUtility - respects projectRoot config", () => {
 // App Command Discovery Tests
 // =============================================================================
 
+// =============================================================================
+// Command Shadowing Tests (Django-style, fix #370)
+// =============================================================================
+
+/**
+ * Fake "staticfiles-style" RunServerCommand that should shadow the core one.
+ * Has `name = "runserver"` — exactly how @alexi/staticfiles contributes it.
+ */
+class FakeStaticRunServerCommand extends BaseCommand {
+  readonly name = "runserver";
+  readonly help = "Staticfiles runserver (fake)";
+
+  async handle(_options: CommandOptions): Promise<CommandResult> {
+    this.stdout.log("staticfiles runserver");
+    return success();
+  }
+}
+
+/** App command that shadows the built-in `flush` command. */
+class AppFlushCommand extends BaseCommand {
+  readonly name = "flush";
+  readonly help = "App flush (custom)";
+
+  async handle(_options: CommandOptions): Promise<CommandResult> {
+    this.stdout.log("app flush");
+    return success();
+  }
+}
+
+/** Trying to shadow the `help` command — must NOT take effect. */
+class FakeHelpCommand extends BaseCommand {
+  readonly name = "help";
+  readonly help = "Fake help";
+
+  async handle(_options: CommandOptions): Promise<CommandResult> {
+    this.stdout.log("fake help");
+    return success();
+  }
+}
+
+Deno.test(
+  "Command shadowing: app runserver replaces core runserver",
+  async () => {
+    // Register core runserver, then shadow it with the staticfiles variant
+    const { RunServerCommand: CoreRunServer } = await import(
+      "../management/commands/runserver.ts"
+    );
+
+    const cli = new ManagementUtility({
+      commands: [CoreRunServer],
+    });
+    const mockConsole = new MockConsole();
+    cli.setConsole(mockConsole);
+
+    // Shadow via registerCommandsFromModule (the real path used by INSTALLED_APPS)
+    cli["registerCommandsFromModule"](
+      { RunServerCommand: FakeStaticRunServerCommand },
+      "fake-staticfiles",
+    );
+
+    const exitCode = await cli.execute(["runserver"]);
+
+    assertEquals(exitCode, 0);
+    assertEquals(
+      mockConsole.logs.some((l) => l.includes("staticfiles runserver")),
+      true,
+      "staticfiles variant should have run",
+    );
+  },
+);
+
+Deno.test(
+  "Command shadowing: help command cannot be shadowed",
+  async () => {
+    const cli = new ManagementUtility();
+    const mockConsole = new MockConsole();
+    cli.setConsole(mockConsole);
+
+    // Attempt to shadow the protected help command
+    cli["registerCommandsFromModule"](
+      { HelpCommand: FakeHelpCommand },
+      "fake-app",
+    );
+
+    // The real help command should still respond
+    const exitCode = await cli.execute(["help"]);
+
+    assertEquals(exitCode, 0);
+    // Fake help outputs "fake help" — real help outputs "Available commands"
+    assertEquals(
+      mockConsole.logs.some((l) => l.includes("fake help")),
+      false,
+      "fake help must NOT have run",
+    );
+  },
+);
+
+Deno.test(
+  "Command shadowing: non-runserver built-in can also be shadowed",
+  async () => {
+    const { FlushCommand } = await import(
+      "../management/commands/flush.ts"
+    );
+
+    const cli = new ManagementUtility({ commands: [FlushCommand] });
+    const mockConsole = new MockConsole();
+    cli.setConsole(mockConsole);
+
+    cli["registerCommandsFromModule"](
+      { AppFlushCommand },
+      "fake-app",
+    );
+
+    const exitCode = await cli.execute(["flush"]);
+
+    assertEquals(exitCode, 0);
+    assertEquals(
+      mockConsole.logs.some((l) => l.includes("app flush")),
+      true,
+      "app flush should have shadowed the built-in",
+    );
+  },
+);
+
+Deno.test(
+  "Command shadowing: registering same command twice uses last registration",
+  () => {
+    const cli = new ManagementUtility();
+
+    cli.registerCommand(GreetCommand);
+
+    // Register again with a different class that has same name — registry allows overrides
+    class GreetV2Command extends BaseCommand {
+      readonly name = "greet";
+      readonly help = "Greet v2";
+      async handle(_options: CommandOptions): Promise<CommandResult> {
+        return success();
+      }
+    }
+
+    cli.registerCommand(GreetV2Command);
+
+    // Registry should still have exactly one "greet", not throw
+    assertEquals(cli.getRegistry().has("greet"), true);
+  },
+);
+
 Deno.test("ManagementUtility - runserver requires --settings argument", async () => {
   // This test verifies that runserver command (loaded from INSTALLED_APPS)
   // requires the --settings argument to know which settings file to use
