@@ -1,18 +1,14 @@
 /**
  * Alexi's authentication package.
  *
- * `@alexi/auth` provides the framework's authentication app configuration and
- * its Django-style `AbstractUser` base model. It is the starting point for apps
- * that want a conventional user model with email identity, admin flags, and
- * password hashing behavior compatible with Alexi's admin and auth workflows.
+ * `@alexi/auth` provides the framework's authentication app configuration,
+ * its Django-style `AbstractUser` base model, and JWT utilities for issuing
+ * and verifying signed access and refresh tokens.
  *
  * Most projects import `AbstractUser` from this package, extend it with
  * application-specific fields, and register the resulting model in settings as
  * the active user model. Authentication-related commands are exposed from the
  * `@alexi/auth/commands` subpath rather than this root entrypoint.
- *
- * This package is primarily model-focused. Runtime behavior such as admin login
- * flows or command execution depends on server-side Alexi integrations.
  *
  * @module @alexi/auth
  *
@@ -26,6 +22,22 @@
  *   static meta = { dbTable: "users" };
  * }
  * ```
+ *
+ * @example Issue a token pair on login
+ * ```ts
+ * import { createTokenPair } from "@alexi/auth";
+ *
+ * const tokens = await createTokenPair(user.id.get(), user.email.get(), user.isAdmin.get());
+ * return Response.json(tokens);
+ * ```
+ *
+ * @example Verify a token
+ * ```ts
+ * import { verifyToken } from "@alexi/auth";
+ *
+ * const payload = await verifyToken(accessToken);
+ * if (!payload) return Response.json({ error: "Unauthorized" }, { status: 401 });
+ * ```
  */
 
 // =============================================================================
@@ -38,5 +50,9 @@ export { default as config } from "./app.ts";
 
 // Abstract base user model
 export { AbstractUser } from "./models/mod.ts";
+
+// JWT utilities
+export { createTokenPair, verifyToken } from "./jwt.ts";
+export type { TokenPair, TokenPayload } from "./jwt.ts";
 
 // Commands are loaded dynamically via app.ts commandsModule

@@ -501,6 +501,7 @@
       },
       "src/restframework": {
         "dependencies": [
+          "jsr:@alexi/auth@0.43.1",
           "jsr:@alexi/db@0.43.1",
           "jsr:@alexi/middleware@0.43.1",
           "jsr:@alexi/urls@0.43.1",

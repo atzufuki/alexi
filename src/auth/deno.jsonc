@@ -6,7 +6,8 @@
     ".": "./mod.ts",
     "./config": "./app.ts",
     "./commands": "./commands/mod.ts",
-    "./models": "./models/mod.ts"
+    "./models": "./models/mod.ts",
+    "./jwt": "./jwt.ts"
   },
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.43.1",
