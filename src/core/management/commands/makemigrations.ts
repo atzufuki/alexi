@@ -260,12 +260,12 @@ ${detectedChanges.map((c) => `  // ${formatChange(c)}`).join("\n")}
   // For backwards():
   // - Use schema.deprecateModel() instead of dropping tables
   // - Use schema.deprecateField() instead of removing columns
-  // - Use schema.undeprecateModel() / schema.undeprecateField() to undo deprecations
+  // - Use schema.restoreModel() / schema.restoreField() to undo deprecations
   //
   // See: https://alexi.dev/docs/migrations
-`;
+\`;
     } else if (!isEmpty) {
-      changesComment = `
+      changesComment = \`
   // TODO: Implement this migration
   // 
   // For forwards():
@@ -277,7 +277,7 @@ ${detectedChanges.map((c) => `  // ${formatChange(c)}`).join("\n")}
   // For backwards():
   // - Use schema.deprecateModel() instead of dropping tables
   // - Use schema.deprecateField() instead of removing columns
-  // - Use schema.undeprecateModel() / schema.undeprecateField() to undo deprecations
+  // - Use schema.restoreModel() / schema.restoreField() to undo deprecations
   //
   // See: https://alexi.dev/docs/migrations
 `;
@@ -431,7 +431,7 @@ ${backwardsHints}
           break;
         case "delete_model":
           lines.push(
-            `    // await schema.undeprecateModel(${change.modelName}Model);`,
+            `    // await schema.restoreModel("${change.modelName.toLowerCase()}");`,
           );
           break;
         case "add_field":
@@ -441,7 +441,7 @@ ${backwardsHints}
           break;
         case "remove_field":
           lines.push(
-            `    // await schema.undeprecateField(${change.modelName}Model, "${change.fieldName}");`,
+            `    // await schema.restoreField(${change.modelName}Model, "${change.fieldName}");`,
           );
           break;
         case "alter_field":
