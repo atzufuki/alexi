@@ -26,6 +26,8 @@ import {
   toPostgresValue,
 } from "./query_builder.ts";
 import { PostgresSchemaEditor } from "./schema_editor.ts";
+import { PostgresMigrationSchemaEditor } from "../../migrations/schema/postgres.ts";
+import type { IBackendSchemaEditor } from "../../migrations/schema_editor.ts";
 
 // Import pg driver
 import pg from "npm:pg@8";
@@ -817,6 +819,20 @@ export class PostgresBackend extends DatabaseBackend {
   getSchemaEditor(): SchemaEditor {
     this.ensureConnected();
     return new PostgresSchemaEditor(this._pool!, this._schema);
+  }
+
+  /**
+   * Get a migration-aware schema editor for this backend.
+   *
+   * Returns a {@link PostgresMigrationSchemaEditor} that implements the full
+   * {@link IBackendSchemaEditor} interface required by the migration executor,
+   * including `addColumn`, `dropColumn`, `renameColumn`, `alterColumn`, etc.
+   */
+  getMigrationSchemaEditor(): IBackendSchemaEditor {
+    this.ensureConnected();
+    return new PostgresMigrationSchemaEditor(this._pool!, {
+      schema: this._schema !== "public" ? this._schema : undefined,
+    });
   }
 
   async tableExists(tableName: string): Promise<boolean> {

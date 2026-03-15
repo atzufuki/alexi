@@ -8,3 +8,4 @@
 
 export { PostgresMigrationSchemaEditor } from "./postgres.ts";
 export { DenoKVMigrationSchemaEditor } from "./denokv.ts";
+export { SQLiteMigrationSchemaEditor } from "./sqlite.ts";

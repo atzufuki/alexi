@@ -494,9 +494,17 @@ export class MigrationExecutor {
         options,
       );
     } else {
-      // Use the backend's built-in schema editor
-      backendEditor = this._backend
-        .getSchemaEditor() as unknown as IBackendSchemaEditor;
+      // Use the backend's migration-aware schema editor when available,
+      // falling back to the legacy schema editor cast for unknown backends.
+      const b = this._backend as unknown as {
+        getMigrationSchemaEditor?: () => IBackendSchemaEditor;
+      };
+      if (typeof b.getMigrationSchemaEditor === "function") {
+        backendEditor = b.getMigrationSchemaEditor();
+      } else {
+        backendEditor = this._backend
+          .getSchemaEditor() as unknown as IBackendSchemaEditor;
+      }
     }
 
     return new MigrationSchemaEditor(
