@@ -6,12 +6,10 @@
     ".": "./mod.ts",
     "./config": "./app.ts",
     "./launcher": "./launcher.ts",
-    "./bindings": "./bindings.ts",
-    "./commands": "./commands/mod.ts"
+    "./bindings": "./bindings.ts"
   },
   "imports": {
     "@alexi/core": "jsr:@alexi/core@0.43.1",
-    "@alexi/core/management": "jsr:@alexi/core@0.43.1/management",
     "@alexi/types": "jsr:@alexi/types@0.43.1",
     "@webui/deno-webui": "jsr:@webui/deno-webui@^2.5.13"
   }

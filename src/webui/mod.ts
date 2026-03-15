@@ -2,38 +2,44 @@
  * Alexi's desktop application integration for WebUI.
  *
  * `@alexi/webui` provides the pieces needed to package an Alexi application as
- * a desktop app using WebUI. The key exports are `WebUILauncher` for opening and
- * managing native windows backed by the user's installed browser engine,
- * `createDefaultBindings()` for wiring common desktop bindings, and the app
- * config used to register WebUI support with Alexi.
+ * a desktop app using WebUI. The primary entry point is
+ * {@link getWebuiApplication}, which follows the same factory pattern as
+ * `getHttpApplication()` from `@alexi/core`. Use it in `project/webui.ts` to
+ * open the web server UI in a native desktop window.
  *
- * This package is the desktop counterpart to Alexi's web stack: projects still
- * use the usual framework building blocks for URLs, views, templates, and data,
- * then use WebUI to host that experience in a local desktop shell. It is aimed
- * at desktop runtimes and local binaries rather than browser deployment.
+ * Other exports — {@link WebUILauncher} and {@link createDefaultBindings} —
+ * are available for advanced use cases such as custom window management or
+ * extending the native binding surface.
  *
- * WebUI integration is platform-specific and requires Deno environments that can
- * use FFI and launch native desktop windows.
+ * WebUI integration is platform-specific and requires Deno environments that
+ * can use FFI (`--unstable-ffi`) to launch native desktop windows.
  *
  * @module @alexi/webui
  *
- * @example Register WebUI support in desktop settings
+ * @example Minimal desktop entry point (`project/webui.ts`)
  * ```ts
- * export const INSTALLED_APPS = [
- *   () => import("@alexi/webui"),
- *   () => import("@myapp/desktop"),
- * ];
+ * import { getWebuiApplication } from "@alexi/webui";
+ *
+ * const app = await getWebuiApplication({
+ *   url: "http://localhost:8000/",
+ *   webui: { title: "MyApp", width: 1400, height: 900 },
+ * });
+ *
+ * await app.launch();
  * ```
  *
- * @example Create a launcher
+ * @example With custom bindings
  * ```ts
- * import { WebUILauncher } from "@alexi/webui";
+ * import { getWebuiApplication } from "@alexi/webui";
  *
- * const launcher = new WebUILauncher({
- *   title: "My App",
- *   width: 1400,
- *   height: 900,
+ * const app = await getWebuiApplication({
+ *   url: "http://localhost:8000/",
+ *   bindings: {
+ *     greet: (name: unknown) => `Hello, ${name}!`,
+ *   },
  * });
+ *
+ * await app.launch();
  * ```
  */
 
@@ -43,6 +49,14 @@
 
 export { default } from "./app.ts";
 export { default as appConfig } from "./app.ts";
+
+// =============================================================================
+// Factory
+// =============================================================================
+
+export { getWebuiApplication, WebuiApplication } from "./get_application.ts";
+
+export type { GetWebuiApplicationSettings } from "./get_application.ts";
 
 // =============================================================================
 // Launcher
