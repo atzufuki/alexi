@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.43.2] - 2026-03-15
+
+### Fixed
+
+- `SQLiteMigrationSchemaEditor` added and wired into `createSchemaEditor()`
+  factory so SQLite migrations correctly use the SQLite-specific schema editor
+  instead of the base implementation
+
 ## [0.43.1] - 2026-03-15
 
 ### Fixed
