@@ -20,6 +20,7 @@ import type {
   IArgumentParser,
 } from "@alexi/core/management";
 import type { AppConfig } from "@alexi/types";
+import type { StaticFilesManifest } from "./bundle.ts";
 
 // =============================================================================
 // Helper Functions
@@ -213,6 +214,11 @@ export class CollectStaticCommand extends BaseCommand {
         results.push(result);
       }
 
+      // Merge per-app staticfiles.json manifests into STATIC_ROOT/staticfiles.json
+      if (!dryRun) {
+        await this.mergeManifests(appsWithStatic, staticRoot);
+      }
+
       // Print results
       this.printResults(results, dryRun);
 
@@ -402,6 +408,47 @@ export class CollectStaticCommand extends BaseCommand {
   // ===========================================================================
   // File Operations
   // ===========================================================================
+
+  /**
+   * Merge all per-app `staticfiles.json` manifests found inside each app's
+   * `staticDir` into a single `<staticRoot>/staticfiles.json`.
+   *
+   * The bundle command writes a `staticfiles.json` manifest to the
+   * `<appDir>/static/` directory (one level above the per-namespace
+   * `outputDir`).  After copying files, collectstatic reads those manifests
+   * and merges them into a single authoritative manifest at the STATIC_ROOT
+   * level so that the template engine can resolve fingerprinted URLs
+   * regardless of which app they belong to.
+   *
+   * @param apps       - Apps collected by {@link findAppsWithStatic}
+   * @param staticRoot - Absolute path to the destination STATIC_ROOT
+   */
+  private async mergeManifests(
+    apps: Array<{ name: string; path: string; staticDir: string }>,
+    staticRoot: string,
+  ): Promise<void> {
+    const merged: StaticFilesManifest = { version: 1, files: {} };
+
+    for (const app of apps) {
+      const manifestPath = `${app.staticDir}/staticfiles.json`;
+      try {
+        const raw = await Deno.readTextFile(manifestPath);
+        const parsed = JSON.parse(raw) as StaticFilesManifest;
+        if (parsed.version === 1 && typeof parsed.files === "object") {
+          Object.assign(merged.files, parsed.files);
+        }
+      } catch {
+        // No manifest for this app — that's fine
+      }
+    }
+
+    if (Object.keys(merged.files).length === 0) {
+      return; // Nothing to write
+    }
+
+    const destPath = `${staticRoot}/staticfiles.json`;
+    await Deno.writeTextFile(destPath, JSON.stringify(merged, null, 2));
+  }
 
   /**
    * Count files in a directory recursively
