@@ -254,6 +254,16 @@ import { getWebuiApplication, WebuiApplication } from "@alexi/webui";
 import type { GetWebuiApplicationSettings } from "@alexi/webui";
 import { WebUILauncher } from "@alexi/webui/launcher";
 import { createDefaultBindings } from "@alexi/webui/bindings";
+
+// Capacitor (Mobile)
+import {
+  CapacitorApplication,
+  getCapacitorApplication,
+} from "@alexi/capacitor";
+import type {
+  CapacitorConfig,
+  GetCapacitorApplicationSettings,
+} from "@alexi/capacitor";
 ```
 
 ---
@@ -2612,6 +2622,75 @@ deno task build:webui
 | ---------- | ------------------------------------------- |
 | `launch()` | Open the window and block until it's closed |
 | `close()`  | Programmatically close the window           |
+
+---
+
+### `getCapacitorApplication()` — Mobile App Factory
+
+`getCapacitorApplication(settings)` configures the Capacitor native projects and
+returns a `CapacitorApplication`. It mirrors the factory pattern of
+`getHttpApplication()` and `getWebuiApplication()`, but targets iOS and Android
+via the [Capacitor CLI](https://capacitorjs.com/).
+
+```typescript
+import { getCapacitorApplication } from "@alexi/capacitor";
+
+const app = await getCapacitorApplication({
+  appId: "com.example.myapp",
+  appName: "MyApp",
+  webDir: "dist",
+});
+
+await app.sync(); // writes capacitor.config.json + runs `npx cap sync`
+```
+
+**`project/capacitor.ts`** is the conventional mobile entry point (scaffolded by
+`@alexi/create`):
+
+```typescript
+// project/capacitor.ts
+import { getCapacitorApplication } from "@alexi/capacitor";
+
+const app = await getCapacitorApplication({
+  appId: "com.example.myapp",
+  appName: "MyApp",
+  webDir: "dist",
+});
+
+const command = Deno.args[0];
+if (command === "sync") {
+  await app.sync();
+} else if (command === "run") {
+  const target = (Deno.args[1] ?? "ios") as "ios" | "android";
+  await app.run(target);
+}
+```
+
+Sync and run via deno tasks (scaffolded in `deno.jsonc`):
+
+```bash
+deno task mobile:sync      # npx cap sync
+deno task mobile:ios       # npx cap run ios
+deno task mobile:android   # npx cap run android
+```
+
+#### `GetCapacitorApplicationSettings` Interface
+
+| Key       | Type                      | Description                                           |
+| --------- | ------------------------- | ----------------------------------------------------- |
+| `appId`   | `string`                  | Reverse-domain bundle ID (e.g. `"com.example.myapp"`) |
+| `appName` | `string`                  | Human-readable app name shown on the home screen      |
+| `webDir`  | `string`                  | Web bundle output directory (default: `"dist"`)       |
+| `server`  | `{ url?: string }`        | Live-reload server URL (development only)             |
+| `plugins` | `Record<string, unknown>` | Capacitor plugin configuration keyed by plugin name   |
+
+#### `CapacitorApplication` Methods
+
+| Method        | Description                                                      |
+| ------------- | ---------------------------------------------------------------- |
+| `sync()`      | Write `capacitor.config.json` and run `npx cap sync`             |
+| `run(target)` | Write `capacitor.config.json` and run `npx cap run ios\|android` |
+| `getConfig()` | Return the resolved `CapacitorConfig` without writing to disk    |
 
 ---
 

@@ -26,6 +26,9 @@ export function generateDenoJsonc(name: string, version: string): string {
       webui: "deno run -A --unstable-kv --unstable-ffi project/webui.ts",
       "build:webui":
         `deno compile -A --unstable-kv --unstable-ffi -o ${name} project/webui.ts`,
+      "mobile:sync": "deno run -A project/capacitor.ts sync",
+      "mobile:ios": "deno run -A project/capacitor.ts run --target ios",
+      "mobile:android": "deno run -A project/capacitor.ts run --target android",
     },
     imports: {
       // Alexi framework
@@ -48,6 +51,7 @@ export function generateDenoJsonc(name: string, version: string): string {
       "@alexi/admin": `jsr:@alexi/admin@${versionRange}`,
       "@alexi/types": `jsr:@alexi/types@${versionRange}`,
       "@alexi/webui": `jsr:@alexi/webui@${versionRange}`,
+      "@alexi/capacitor": `jsr:@alexi/capacitor@${versionRange}`,
 
       // App imports — one entry point per app
       [`@${name}/`]: `./src/${name}/`,

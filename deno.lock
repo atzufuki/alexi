@@ -458,7 +458,6 @@
       },
       "src/capacitor": {
         "dependencies": [
-          "jsr:@alexi/core@0.43.1",
           "jsr:@alexi/types@0.43.1"
         ]
       },

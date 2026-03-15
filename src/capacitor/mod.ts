@@ -1,30 +1,34 @@
 /**
- * Alexi's placeholder package for Capacitor-based mobile support.
+ * Alexi's Capacitor integration for mobile applications.
  *
- * `@alexi/capacitor` is intended to host the framework integration for running
- * Alexi-powered web apps inside native iOS and Android shells via Capacitor. It
- * currently exposes app metadata only and serves mainly as a discovery point for
- * Alexi's planned mobile story.
+ * `@alexi/capacitor` provides the framework integration for running
+ * Alexi-powered web apps inside native iOS and Android shells via
+ * [Capacitor](https://capacitorjs.com/).
  *
- * Today this package does not provide a complete implementation of sync, run,
- * or build flows. The primary export is the app config used to register the
- * package with Alexi, while the long-term direction is to add project tooling,
- * native project generation, and plugin wrappers aligned with Capacitor's
- * platform model.
+ * Use {@link getCapacitorApplication} in `project/capacitor.ts` to configure
+ * and manage the Capacitor native projects. The factory wraps the Capacitor CLI
+ * (`npx cap sync`, `npx cap run`) so your project stays configured from a
+ * single TypeScript file.
  *
- * This is a tooling-oriented package with future dependencies on native mobile
- * build chains and the Capacitor CLI. It is not currently a complete runtime
- * integration layer.
+ * @example
+ * ```ts
+ * import { getCapacitorApplication } from "@alexi/capacitor";
+ *
+ * const app = await getCapacitorApplication({
+ *   appId: "com.example.myapp",
+ *   appName: "MyApp",
+ *   webDir: "dist",
+ * });
+ *
+ * const command = Deno.args[0];
+ * if (command === "sync") {
+ *   await app.sync();
+ * } else if (command === "run") {
+ *   await app.run((Deno.args[1] ?? "ios") as "ios" | "android");
+ * }
+ * ```
  *
  * @module @alexi/capacitor
- *
- * @example Register the package in a mobile settings module
- * ```ts
- * export const INSTALLED_APPS = [
- *   () => import("@alexi/capacitor"),
- *   () => import("@myapp/mobile"),
- * ];
- * ```
  */
 
 // =============================================================================
@@ -34,12 +38,16 @@
 export { default as appConfig } from "./app.ts";
 
 // =============================================================================
-// Note: Additional exports will be added as the module is implemented
+// Factory + Application
 // =============================================================================
 
-/**
- * Capacitor support is not yet fully implemented.
- *
- * Planned features include bundle sync, simulator and emulator launch flows,
- * production mobile builds, and wrappers for common Capacitor plugins.
- */
+export {
+  CapacitorApplication,
+  getCapacitorApplication,
+} from "./get_application.ts";
+
+export type {
+  CapacitorConfig,
+  CapacitorServerConfig,
+  GetCapacitorApplicationSettings,
+} from "./get_application.ts";
