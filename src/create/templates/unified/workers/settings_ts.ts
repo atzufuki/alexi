@@ -8,14 +8,14 @@
  * Generate workers/<name>/settings.ts content
  *
  * This is the Service Worker's settings module — the browser-side equivalent
- * of project/settings.ts. It is passed to getApplication(settings) in mod.ts.
+ * of project/settings.ts. It is passed to getWorkerApplication(settings) in the Service Worker entry point.
  */
 export function generateWorkerSettingsTs(name: string): string {
   return `/**
  * ${toPascalCase(name)} Worker Settings
  *
  * Service Worker settings module — the browser-side equivalent of
- * project/settings.ts. Passed to getApplication() in mod.ts.
+ * project/settings.ts. Passed to getWorkerApplication() in the Service Worker entry point.
  *
  * @module ${name}/workers/${name}/settings
  */

@@ -127,22 +127,21 @@ export type Handler = (request: Request) => Promise<Response> | Response;
  *
  * @example Service Worker
  * ```ts
- * import { getApplication } from "@alexi/core";
+ * import { getWorkerApplication } from "@alexi/core";
  * import * as settings from "./settings.ts";
  *
- * const app = await getApplication(settings);
+ * const app = await getWorkerApplication(settings);
  *
  * self.addEventListener("fetch", (event) => {
  *   event.respondWith(app.handler(event.request));
  * });
  * ```
  *
- * @example Deno Deploy (http.ts)
+ * @example Deno serve (http.ts)
  * ```ts
- * import { getApplication } from "@alexi/core";
- * import * as settings from "./settings.ts";
+ * import { getHttpApplication } from "@alexi/core";
  *
- * export default await getApplication(settings);
+ * export default await getHttpApplication();
  * ```
  */
 export class Application {
@@ -168,7 +167,7 @@ export class Application {
   /**
    * Deno Deploy default export compatibility.
    *
-   * Allows `export default await getApplication(settings)` to work
+   * Allows `export default await getHttpApplication()` to work
    * with Deno Deploy, which expects `{ fetch: Handler }`.
    */
   fetch: Handler = async (request: Request): Promise<Response> => {
