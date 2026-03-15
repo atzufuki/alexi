@@ -8,6 +8,52 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-03-15
+
+### Added
+
+- PostgreSQL database backend (`@alexi/db/backends/postgres`) with full CRUD,
+  bulk operations, transactions, and `partialUpdate`; marked experimental (#339)
+- `getWebuiApplication()` factory and desktop app scaffolding via `@alexi/webui`
+  and `@alexi/create` (#287)
+- `getCapacitorApplication()` factory and mobile app scaffolding via
+  `@alexi/capacitor` and `@alexi/create` (#288)
+- `loginRequired`, `permissionRequired`, and `getRequestUser` view decorators in
+  `@alexi/auth` (#355)
+- `createTokenPair` and `verifyToken` JWT utilities in `@alexi/auth` (#353)
+- `AdminRouter.asView()` to mount the admin router via `path()` so middleware
+  applies correctly (#346)
+- `DEFAULT_HOST` and `DEFAULT_PORT` settings in `GetApplicationSettings` (#344)
+- `collectstatic` now merges per-app `staticfiles.json` manifests into a single
+  output manifest (#343)
+- `migrate --test` now runs in an isolated throwaway database copy (#341)
+- `migrate <app> zero` support to roll back all migrations for an app (#342)
+- `Migration.backwards()` is now abstract; added `IrreversibleMigrationError`
+  and `DataMigration` base class (#340)
+- `makemigrations` scaffold uses `deprecateModel`/`deprecateField` and
+  `restoreModel`/`restoreField` (#349)
+- `feat(core): process INSTALLED_APPS in _buildApplication()` (#351)
+- `AuthConfig` exported as named export from `@alexi/auth` (#336)
+- `@alexi/create` scaffolded posts app upgraded with full dark-theme UI and
+  detail/publish/delete views using class-based views (#369)
+
+### Fixed
+
+- Removed circular dependency between `@alexi/core` and `@alexi/staticfiles`:
+  `@alexi/staticfiles` now ships its own `RunServerCommand` that subclasses
+  core's and shadows it via `INSTALLED_APPS` (#370)
+- Fixed `help` command protection bug in `registerCommandsFromModule` — command
+  name is now read from an instance instead of the prototype, so the `"help"`
+  guard fires correctly
+
+### Removed
+
+- `@alexi/web` package removed; `runserver` now lives in `@alexi/core` (#352)
+- `@alexi/http` compatibility shim removed (#330)
+- Deprecated `getApplication()` factory removed; use `getHttpApplication()`
+  (#347)
+- `createMiddleware()` helper removed; use the `MIDDLEWARE` array instead (#348)
+
 ## [0.43.1] - 2026-03-15
 
 ### Fixed
