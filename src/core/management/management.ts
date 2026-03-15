@@ -468,9 +468,11 @@ export class ManagementUtility {
   /**
    * Register command classes from a loaded module.
    *
-   * Built-in commands (registered before app loading) are never overwritten.
-   * This prevents app modules from accidentally replacing framework commands
-   * such as `HelpCommand`, which carry state set up during construction.
+   * App commands shadow built-in commands of the same name, mirroring Django's
+   * `get_commands()` behaviour where later apps overwrite earlier entries.
+   * Only `HelpCommand` is protected because it carries internal state (registry
+   * reference and display options) set up during construction that would be
+   * lost if replaced with a fresh instance.
    */
   private registerCommandsFromModule(
     module: Record<string, unknown>,
@@ -494,14 +496,14 @@ export class ManagementUtility {
           // Determine the command name from the prototype or class property
           const cmdName: string = proto.name ?? exportName;
 
-          // Never overwrite built-in commands that were registered before app
-          // loading. Built-ins like HelpCommand carry state (e.g. registry
-          // reference) set up during ManagementUtility construction — replacing
-          // them with a fresh instance would lose that state.
-          if (this.registry.has(cmdName)) {
+          // Only HelpCommand is protected: it carries registry state set up
+          // during ManagementUtility construction. All other built-ins can be
+          // shadowed by app commands — this is the Django shadowing mechanism.
+          const PROTECTED = ["help"];
+          if (PROTECTED.includes(cmdName)) {
             if (this.debug) {
               console.log(
-                `    Skipping ${cmdName} from ${sourceName} (built-in already registered)`,
+                `    Skipping ${cmdName} from ${sourceName} (protected built-in)`,
               );
             }
             continue;
@@ -510,7 +512,9 @@ export class ManagementUtility {
           this.registry.register(exportValue as CommandConstructor);
           if (this.debug) {
             console.log(
-              `    Registered command: ${cmdName} from ${sourceName}`,
+              `    Registered command: ${cmdName} from ${sourceName}${
+                this.registry.has(cmdName) ? " (shadowing built-in)" : ""
+              }`,
             );
           }
         } catch {

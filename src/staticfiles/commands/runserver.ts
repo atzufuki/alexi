@@ -1,383 +1,195 @@
 /**
  * Alexi Static Files RunServer Command
  *
- * A static file server for serving SPA bundles with HMR support.
- * This provides a development server for frontend work.
+ * Django-style shadowing: this `RunServerCommand` subclasses and wraps the
+ * core `RunServerCommand` from `@alexi/core`. When `StaticfilesConfig` is
+ * listed in `INSTALLED_APPS`, the management system discovers this command
+ * via `commands/mod.ts` and registers it under the name `"runserver"`,
+ * replacing the base command — exactly as `django.contrib.staticfiles` ships
+ * its own `runserver` that subclasses `django.core.management.commands.runserver`.
  *
- * The SPA connects to the web server's API for data.
- * Make sure dev:web is running for full functionality.
+ * This command adds:
+ * - Frontend bundling via `BundleCommand` (with HMR in watch mode)
+ * - Static file serving via `staticFilesMiddleware`
+ * - A `--no-bundle` flag to skip bundling
  *
  * Usage:
- *   deno task dev:ui
- *   deno run -A manage.ts runserver --settings ui
+ *   deno run -A manage.ts runserver --settings ./project/settings.ts
  *
  * @module @alexi/staticfiles/commands/runserver
  */
 
-import {
-  BaseCommand,
-  failure,
-  getSettingsModulePath,
-  pathToFileUrl,
-  success,
-} from "@alexi/core/management";
-import type {
-  CommandOptions,
-  CommandResult,
-  IArgumentParser,
-} from "@alexi/core/management";
+import { RunServerCommand as CoreRunServerCommand } from "@alexi/core/management";
+import type { IArgumentParser, RunServerConfig } from "@alexi/core/management";
+import { staticFilesMiddleware } from "../middleware.ts";
+import type { MiddlewareClass } from "@alexi/middleware";
+import { BundleCommand } from "./bundle.ts";
 
 // =============================================================================
-// RunServerCommand
+// RunServerCommand (staticfiles subclass)
 // =============================================================================
 
 /**
- * UI RunServer Command
+ * Static-files–aware `runserver` management command.
  *
- * A static file server that serves the SPA bundle with HMR support.
- * Provides SPA fallback (all routes serve index.html).
+ * Subclasses the core `RunServerCommand` and adds static file serving and
+ * frontend bundling, mirroring the Django pattern where
+ * `django.contrib.staticfiles` ships its own `runserver` that wraps the core
+ * handler with `StaticFilesHandler`.
+ *
+ * When `StaticfilesConfig` is included in `INSTALLED_APPS`, the Alexi
+ * management system discovers this command and registers it as `"runserver"`,
+ * shadowing the bare core command.
+ *
+ * Additional CLI arguments over the base command:
+ * - `--no-bundle` — skip frontend bundling (useful when assets are pre-built)
+ *
+ * @example
+ * ```bash
+ * deno run -A manage.ts runserver --settings ./project/settings.ts
+ * deno run -A manage.ts runserver --settings ./project/settings.ts --no-bundle
+ * ```
+ *
+ * @category Management
  */
-export class RunServerCommand extends BaseCommand {
-  readonly name = "runserver";
-  readonly help = "Start static file development server";
+export class RunServerCommand extends CoreRunServerCommand {
+  override readonly help = "Start web server with static files and bundling";
   override readonly description =
-    "Starts a development server for SPA applications with bundling and HMR support. " +
-    "API calls go to the web server - make sure dev:web is running.";
+    "Starts a Django-style web server that serves the REST API, admin panel, " +
+    "and static files. Frontend TypeScript is bundled via esbuild with HMR support.";
 
   override readonly examples = [
-    "manage.ts runserver --settings ui         - Start static server",
-    "manage.ts runserver --settings ui -p 3000 - Start on port 3000",
-    "manage.ts runserver --settings ui --no-bundle - Skip bundling",
+    "manage.ts runserver --settings ./project/settings.ts          - Start web server",
+    "manage.ts runserver --settings ./project/settings.ts -p 3000  - Start on port 3000",
+    "manage.ts runserver --settings ./project/settings.ts --no-bundle - Skip bundling",
   ];
-
-  private abortController: AbortController | null = null;
-  private bundler: unknown = null;
-  private projectRoot: string = Deno.cwd();
 
   // ==========================================================================
   // Arguments
   // ==========================================================================
 
   override addArguments(parser: IArgumentParser): void {
-    parser.addArgument("--settings", {
-      type: "string",
-      alias: "-s",
-      help: "Settings module name",
-    });
-
-    parser.addArgument("--port", {
-      type: "number",
-      alias: "-p",
-      help: "Port to listen on",
-    });
-
-    parser.addArgument("--host", {
-      type: "string",
-      alias: "-H",
-      help: "Host to bind to",
-    });
+    super.addArguments(parser);
 
     parser.addArgument("--no-bundle", {
       type: "boolean",
       default: false,
-      help: "Skip frontend bundling",
-    });
-
-    parser.addArgument("--no-reload", {
-      type: "boolean",
-      default: false,
-      help: "Disable HMR",
+      help: "Skip frontend bundling (useful when assets are pre-built)",
     });
   }
 
   // ==========================================================================
-  // Main Handler
+  // Extension Hooks
   // ==========================================================================
 
-  async handle(options: CommandOptions): Promise<CommandResult> {
-    const portArg = options.args.port as number | undefined;
-    const hostArg = options.args.host as string | undefined;
-    const noBundle = options.args["no-bundle"] as boolean;
-    const noReload = options.args["no-reload"] as boolean;
-    const debug = options.debug;
+  /**
+   * Start the frontend bundler and, if `--no-reload` is not set, watch for
+   * changes with HMR support.
+   *
+   * Overrides the no-op base implementation. Returns an HMR SSE response
+   * factory that the base `startServer` wires into the HMR URL endpoint.
+   *
+   * @param settings     - The loaded settings module.
+   * @param settingsPath - Absolute path to the settings file (passed through
+   *                       to `BundleCommand.bundleAndWatch` so only the active
+   *                       settings file's apps are bundled).
+   * @returns HMR response factory, or `undefined` when `--no-bundle` is set.
+   */
+  protected override async startBundler(
+    settings: Record<string, unknown>,
+    settingsPath: string,
+  ): Promise<(() => Response) | undefined> {
+    // Respect the --no-bundle flag stored on this instance.
+    // Access via the parsed options stored during handle() execution.
+    const noBundle = this._noBundle;
+    if (noBundle) {
+      return undefined;
+    }
 
-    // Get settings name from --settings argument or ALEXI_SETTINGS_MODULE env var
-    const settingsName = (options.args.settings as string | undefined) ??
-      Deno.env.get("ALEXI_SETTINGS_MODULE");
-    if (!settingsName) {
-      this.error("--settings is required (e.g., --settings ui)");
-      return failure("Settings not specified");
+    // Check SKIP_BUNDLE env var (CI-friendly opt-out)
+    if (Deno.env.get("SKIP_BUNDLE") === "1") {
+      this.info("Skipping bundling (SKIP_BUNDLE=1)");
+      return undefined;
+    }
+
+    // Check whether this settings context has anything to bundle
+    const assetfilesDirs = settings.ASSETFILES_DIRS;
+    if (!Array.isArray(assetfilesDirs) || assetfilesDirs.length === 0) {
+      return undefined;
     }
 
     try {
-      // Load settings from the specified settings file
-      const settingsPath = getSettingsModulePath(settingsName);
-      const absolutePath = settingsPath.startsWith("./")
-        ? `${this.projectRoot}/${settingsPath.slice(2)}`
-        : settingsPath;
-      const settingsUrl = pathToFileUrl(absolutePath);
-      const settings = await import(settingsUrl);
+      const bundleCmd = new BundleCommand();
+      bundleCmd.setConsole(this.stdout, this.stderr);
+      this.bundler = bundleCmd;
 
-      const port = portArg ?? settings.DEFAULT_PORT ?? 5173;
-      const host = hostArg ?? settings.DEFAULT_HOST ?? "127.0.0.1";
-      const spaRoot = settings.SPA_ROOT ??
-        "./src/myapp-ui/static/myapp-ui";
-      const apiUrl = settings.API_URL ?? "http://localhost:8000/api";
+      this.info("Bundling frontend...");
 
-      // Bundle if needed
-      let createHmrResponse: (() => Response) | undefined;
-      if (!noBundle) {
-        try {
-          const { BundleCommand } = await import("./bundle.ts");
-          this.bundler = new BundleCommand();
-          (this.bundler as BaseCommand).setConsole(this.stdout, this.stderr);
+      const result = await bundleCmd.bundleAndWatch({
+        settingsPath,
+      });
 
-          this.info("Bundling frontend...");
-
-          if (noReload) {
-            await (this.bundler as {
-              run: (args: string[], debug: boolean) => Promise<unknown>;
-            }).run([], debug);
-          } else {
-            await (this.bundler as {
-              bundleAndWatch: (
-                opts: { debug: boolean },
-              ) => Promise<{ success: boolean }>;
-            }).bundleAndWatch({ debug });
-          }
-
-          createHmrResponse = () =>
-            (this.bundler as { createHmrResponse: () => Response })
-              .createHmrResponse();
-        } catch (error) {
-          this.warn(`Bundling failed: ${error}`);
-        }
+      if (!result.success) {
+        this.warn(`Bundling failed: ${result.error}`);
+        return undefined;
       }
 
-      this.printBanner(host, port, spaRoot, apiUrl, !noReload);
-
-      // Setup signal handlers
-      this.setupSignalHandlers();
-
-      // Start the static file server
-      await this.startServer(host, port, spaRoot, apiUrl, createHmrResponse);
-
-      // Keep the process alive
-      await new Promise(() => {});
-
-      return success();
+      return () => bundleCmd.createHmrResponse();
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.error(`UI server startup failed: ${message}`);
-      return failure(message);
+      this.warn(`Bundling failed: ${error}`);
+      return undefined;
     }
   }
 
-  // ==========================================================================
-  // Server
-  // ==========================================================================
-
-  private async startServer(
-    host: string,
-    port: number,
-    spaRoot: string,
-    apiUrl: string,
-    createHmrResponse?: () => Response,
-  ): Promise<void> {
-    this.abortController = new AbortController();
-
-    const handler = async (request: Request): Promise<Response> => {
-      const url = new URL(request.url);
-      const pathname = url.pathname;
-
-      // HMR endpoint
-      if (pathname === "/hmr" && createHmrResponse) {
-        return createHmrResponse();
-      }
-
-      // Root goes to index.html
-      if (pathname === "/") {
-        return this.serveIndexHtml(spaRoot, apiUrl);
-      }
-
-      // Try to serve static file
-      const staticResponse = await this.serveStaticFile(pathname, spaRoot);
-      if (staticResponse) {
-        return staticResponse;
-      }
-
-      // SPA fallback: serve index.html for all routes
-      return this.serveIndexHtml(spaRoot, apiUrl);
-    };
-
-    Deno.serve(
-      {
-        port,
-        hostname: host,
-        signal: this.abortController.signal,
-        onListen: ({ hostname, port }) => {
-          this.success(`Server running at http://${hostname}:${port}/`);
-        },
-      },
-      handler,
-    );
-  }
-
-  private async serveStaticFile(
-    pathname: string,
-    spaRoot: string,
-  ): Promise<Response | null> {
-    // Remove leading slash
-    const filePath = pathname.slice(1);
-
-    // Security: prevent path traversal
-    if (filePath.includes("..")) {
-      return null;
+  /**
+   * Return static-file middleware to prepend to the application middleware
+   * stack, populated with the app names and paths already collected from
+   * `INSTALLED_APPS` by the base class during `loadInstalledApps()`.
+   *
+   * @param settings - The loaded settings module.
+   * @returns Array containing one `staticFilesMiddleware` instance.
+   */
+  protected override async getExtraMiddleware(
+    settings: Record<string, unknown>,
+    _config: RunServerConfig,
+  ): Promise<MiddlewareClass[]> {
+    // this.appNames / this.appPaths are populated by the base class inside
+    // startServer() → loadInstalledApps() before this hook is called.
+    if (this.appNames.length === 0) {
+      return [];
     }
 
-    const fullPath = `${spaRoot}/${filePath}`;
+    const staticUrl = (settings.STATIC_URL as string | undefined) ?? "/static/";
+    const staticRoot = settings.STATIC_ROOT as string | undefined;
+    const debug = true; // dev server is always debug
 
-    try {
-      const file = await Deno.open(fullPath, { read: true });
-      const stat = await file.stat();
-
-      if (stat.isDirectory) {
-        file.close();
-        // Try index.html in directory
-        const indexPath = `${fullPath}/index.html`;
-        try {
-          const indexFile = await Deno.open(indexPath, { read: true });
-          return new Response(indexFile.readable, {
-            headers: this.getHeaders("index.html"),
-          });
-        } catch {
-          return null;
-        }
-      }
-
-      return new Response(file.readable, {
-        headers: this.getHeaders(pathname),
-      });
-    } catch {
-      return null;
-    }
-  }
-
-  private async serveIndexHtml(
-    spaRoot: string,
-    apiUrl: string,
-  ): Promise<Response> {
-    const indexPath = `${spaRoot}/index.html`;
-
-    try {
-      let html = await Deno.readTextFile(indexPath);
-
-      // Inject API URL if placeholder exists
-      if (html.includes("{{MYAPP_API_URL}}")) {
-        html = html.replace(/\{\{MYAPP_API_URL\}\}/g, apiUrl);
-      }
-
-      return new Response(html, {
-        headers: { "Content-Type": "text/html; charset=utf-8" },
-      });
-    } catch {
-      return new Response("index.html not found", { status: 404 });
-    }
-  }
-
-  private getHeaders(pathname: string): Record<string, string> {
-    const ext = pathname.split(".").pop()?.toLowerCase() ?? "";
-    const contentTypes: Record<string, string> = {
-      html: "text/html; charset=utf-8",
-      js: "application/javascript; charset=utf-8",
-      mjs: "application/javascript; charset=utf-8",
-      css: "text/css; charset=utf-8",
-      json: "application/json; charset=utf-8",
-      png: "image/png",
-      jpg: "image/jpeg",
-      jpeg: "image/jpeg",
-      gif: "image/gif",
-      svg: "image/svg+xml",
-      ico: "image/x-icon",
-      woff: "font/woff",
-      woff2: "font/woff2",
-      ttf: "font/ttf",
-      eot: "application/vnd.ms-fontobject",
-    };
-
-    return {
-      "Content-Type": contentTypes[ext] ?? "application/octet-stream",
-      "Cache-Control": "no-cache",
-    };
-  }
-
-  // ==========================================================================
-  // Signal Handlers
-  // ==========================================================================
-
-  private setupSignalHandlers(): void {
-    let cleanupCalled = false;
-
-    const cleanup = () => {
-      if (cleanupCalled) return;
-      cleanupCalled = true;
-
-      this.info("\nShutting down static server...");
-
-      // Stop bundler watcher
-      if (this.bundler) {
-        try {
-          (this.bundler as { stopWatching: () => void }).stopWatching();
-        } catch {
-          // Ignore
-        }
-        this.bundler = null;
-      }
-
-      if (this.abortController) {
-        this.abortController.abort();
-        this.abortController = null;
-      }
-
-      this.success("Static server stopped.");
-      Deno.exit(0);
-    };
-
-    try {
-      Deno.addSignalListener("SIGINT", cleanup);
-      Deno.addSignalListener("SIGTERM", cleanup);
-    } catch {
-      // Signal listeners not available (e.g., Windows)
-    }
-  }
-
-  // ==========================================================================
-  // UI
-  // ==========================================================================
-
-  private printBanner(
-    host: string,
-    port: number,
-    spaRoot: string,
-    apiUrl: string,
-    hmrEnabled: boolean,
-  ): void {
-    const lines = [
-      "",
-      "┌─────────────────────────────────────────────┐",
-      "│       Alexi Static File Server              │",
-      "└─────────────────────────────────────────────┘",
-      "",
-      "Configuration:",
-      `  URL:        http://${host}:${port}/`,
-      `  SPA Root:   ${spaRoot}`,
-      `  API URL:    ${apiUrl}`,
-      `  HMR:        ${hmrEnabled ? "Enabled" : "Disabled"}`,
-      "",
-      "Press Ctrl+C to stop the server.",
-      "",
+    return [
+      staticFilesMiddleware({
+        installedApps: this.appNames,
+        appPaths: this.appPaths,
+        projectRoot: this.projectRoot,
+        staticUrl,
+        staticRoot,
+        debug,
+      }),
     ];
+  }
 
-    this.stdout.log(lines.join("\n"));
+  // ==========================================================================
+  // Internal state for --no-bundle flag
+  // ==========================================================================
+
+  /**
+   * Cached `--no-bundle` value from the current `handle()` invocation.
+   * Set before `super.handle()` is called so it is available in `startBundler`.
+   * @internal
+   */
+  private _noBundle = false;
+
+  override async handle(
+    options: Parameters<CoreRunServerCommand["handle"]>[0],
+  ): ReturnType<CoreRunServerCommand["handle"]> {
+    this._noBundle = (options.args["no-bundle"] as boolean) ?? false;
+    return super.handle(options);
   }
 }

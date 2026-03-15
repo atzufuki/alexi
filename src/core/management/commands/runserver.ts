@@ -5,6 +5,12 @@
  * admin panel support. Mirrors `django-admin runserver` — no separate
  * installed app is required.
  *
+ * Static file serving and frontend bundling are contributed by
+ * `@alexi/staticfiles` via its own `RunServerCommand` subclass, which shadows
+ * this command when `StaticfilesConfig` is listed in `INSTALLED_APPS`. This
+ * mirrors Django's approach: `django.contrib.staticfiles` ships its own
+ * `runserver` command that subclasses and wraps the core one.
+ *
  * Usage:
  *   deno run -A manage.ts runserver --settings ./project/settings.ts
  *   deno run -A manage.ts runserver --settings ./project/settings.ts -p 3000
@@ -29,22 +35,28 @@ import type {
 } from "../types.ts";
 import { path } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
-import type { Middleware, MiddlewareClass } from "@alexi/middleware";
+import type { MiddlewareClass } from "@alexi/middleware";
 import type { AppConfig } from "@alexi/types";
 import { templateRegistry } from "@alexi/views";
-import { staticFilesMiddleware } from "@alexi/staticfiles";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-interface ServerConfig {
+/**
+ * Server configuration for `RunServerCommand`.
+ *
+ * Passed to {@link RunServerCommand.getExtraMiddleware} so subclasses can
+ * inspect the resolved port, host, and HMR factory.
+ *
+ * @category Management
+ */
+export interface ServerConfig {
   port: number;
   host: string;
   debug: boolean;
   createHmrResponse?: () => Response;
 }
-
 /**
  * App import function type, matching INSTALLED_APPS entries.
  */
@@ -59,11 +71,15 @@ type AppImportFn = () => Promise<
 /**
  * `runserver` management command.
  *
- * Starts a Django-style HTTP development server that provides REST API,
- * admin panel, static file serving, and optional HMR bundling.
+ * Starts a Django-style HTTP development server that serves the REST API and
+ * admin panel. Static file serving and frontend bundling are **not** included
+ * in this base command — they are contributed by `@alexi/staticfiles` via its
+ * own `RunServerCommand` subclass that shadows this command when
+ * `StaticfilesConfig` is in `INSTALLED_APPS`.
  *
- * This command is built into `@alexi/core` — no additional installed app is
- * required. It is the Alexi equivalent of `django-admin runserver`.
+ * This mirrors Django's design: `django.core` provides a bare HTTP server and
+ * `django.contrib.staticfiles` provides an enhanced `runserver` that subclasses
+ * and wraps the core handler with `StaticFilesHandler`.
  *
  * @example
  * ```bash
@@ -78,22 +94,22 @@ export class RunServerCommand extends BaseCommand {
   /** Command name registered with the management CLI. */
   readonly name = "runserver";
   /** Short description shown in `help` output. */
-  readonly help = "Start web server (API + Admin)";
+  readonly help: string = "Start web server (API + Admin)";
   override readonly description =
-    "Starts a Django-style web server that provides REST API, " +
-    "admin panel, static file serving, and SPA fallback. " +
-    "Automatically bundles TypeScript frontends and supports HMR.";
+    "Starts a Django-style web server that serves the REST API and admin panel. " +
+    "Add StaticfilesConfig to INSTALLED_APPS to also serve static files and bundle frontends.";
 
   override readonly examples = [
     "manage.ts runserver --settings ./project/settings.ts         - Start web server",
     "manage.ts runserver --settings ./project/settings.ts -p 3000 - Start on port 3000",
-    "manage.ts runserver --settings ./project/settings.ts --no-bundle - Skip bundling",
   ];
 
   private serverAbortController: AbortController | null = null;
-  private bundler: unknown = null;
+  /** @internal */
+  protected bundler: unknown = null;
   private backendWatcher: Deno.FsWatcher | null = null;
-  private projectRoot: string = Deno.cwd();
+  /** @internal */
+  protected projectRoot: string = Deno.cwd();
 
   // ==========================================================================
   // Arguments
@@ -123,12 +139,6 @@ export class RunServerCommand extends BaseCommand {
       default: false,
       help: "Disable auto-reload",
     });
-
-    parser.addArgument("--no-bundle", {
-      type: "boolean",
-      default: false,
-      help: "Skip frontend bundling",
-    });
   }
 
   // ==========================================================================
@@ -147,7 +157,6 @@ export class RunServerCommand extends BaseCommand {
     const portArg = options.args.port as number | undefined;
     const hostArg = options.args.host as string | undefined;
     const noReload = options.args["no-reload"] as boolean;
-    const noBundle = options.args["no-bundle"] as boolean;
 
     try {
       // Load settings
@@ -173,34 +182,11 @@ export class RunServerCommand extends BaseCommand {
         return failure("Invalid port");
       }
 
-      // Bundle if needed
+      // Hook: subclasses (e.g. staticfiles RunServerCommand) can run the
+      // bundler here and return an HMR response factory.
       let createHmrResponse: (() => Response) | undefined;
-      if (!noBundle) {
-        try {
-          const { BundleCommand } = await import("@alexi/staticfiles/commands");
-          this.bundler = new BundleCommand();
-          (this.bundler as BaseCommand).setConsole(this.stdout, this.stderr);
-
-          this.info("Bundling frontends...");
-
-          if (noReload) {
-            await (this.bundler as {
-              run: (args: string[], debug: boolean) => Promise<unknown>;
-            }).run([], debug);
-          } else {
-            await (this.bundler as {
-              bundleAndWatch: (
-                opts: { debug: boolean; settingsPath?: string },
-              ) => Promise<{ success: boolean }>;
-            }).bundleAndWatch({ debug, settingsPath });
-          }
-
-          createHmrResponse = () =>
-            (this.bundler as { createHmrResponse: () => Response })
-              .createHmrResponse();
-        } catch {
-          // Bundle command not available or failed
-        }
+      if (!noReload) {
+        createHmrResponse = await this.startBundler(settings, settingsPath);
       }
 
       // Print banner
@@ -237,6 +223,46 @@ export class RunServerCommand extends BaseCommand {
   }
 
   // ==========================================================================
+  // Extension Hooks
+  // ==========================================================================
+
+  /**
+   * Hook called before the server starts to allow subclasses to start a
+   * bundler and return an optional HMR response factory.
+   *
+   * The base implementation does nothing. `@alexi/staticfiles`' subclass
+   * overrides this to start the frontend bundler.
+   *
+   * @param _settings - The loaded settings module.
+   * @param _settingsPath - Absolute path to the settings file.
+   * @returns An optional function that returns an HMR SSE `Response`.
+   */
+  protected async startBundler(
+    _settings: Record<string, unknown>,
+    _settingsPath: string,
+  ): Promise<(() => Response) | undefined> {
+    return undefined;
+  }
+
+  /**
+   * Hook called during server startup to collect extra middleware to prepend
+   * before the application middleware stack.
+   *
+   * The base implementation returns an empty array. `@alexi/staticfiles`'
+   * subclass overrides this to return `[staticFilesMiddleware(...)]`.
+   *
+   * @param _settings - The loaded settings module.
+   * @param _config - The resolved server configuration.
+   * @returns A (possibly empty) list of additional middleware to prepend.
+   */
+  protected async getExtraMiddleware(
+    _settings: Record<string, unknown>,
+    _config: ServerConfig,
+  ): Promise<MiddlewareClass[]> {
+    return [];
+  }
+
+  // ==========================================================================
   // Settings Resolution
   // ==========================================================================
 
@@ -249,11 +275,19 @@ export class RunServerCommand extends BaseCommand {
   // ==========================================================================
 
   /**
-   * Collected app info from INSTALLED_APPS.
-   * Used for static file serving and template loading.
+   * App names collected from INSTALLED_APPS after `loadInstalledApps()`.
+   * Available to subclasses (e.g. `@alexi/staticfiles` RunServerCommand) for
+   * wiring up static file middleware.
+   * @internal
    */
-  private appNames: string[] = [];
-  private appPaths: Record<string, string> = {};
+  protected appNames: string[] = [];
+
+  /**
+   * Map of app name → absolute app path, populated by `loadInstalledApps()`.
+   * Available to subclasses for wiring up static file middleware.
+   * @internal
+   */
+  protected appPaths: Record<string, string> = {};
 
   /**
    * Load all installed apps' configurations.
@@ -535,21 +569,22 @@ export class RunServerCommand extends BaseCommand {
   // Server
   // ==========================================================================
 
-  private async startServer(
+  /** @internal */
+  protected async startServer(
     settings: Record<string, unknown>,
     config: ServerConfig,
   ): Promise<void> {
     this.serverAbortController = new AbortController();
 
     // Load templates from all installed apps into templateRegistry and collect
-    // static file paths. Must happen before building the augmented settings so
-    // that this.appNames / this.appPaths are populated for staticFilesMiddleware.
+    // app paths. Must happen before getExtraMiddleware() so that
+    // this.appNames / this.appPaths are populated for subclass use.
     await this.loadInstalledApps(settings);
 
     // Build augmented settings for getHttpApplication():
     //   1. DEBUG is always true in dev mode
     //   2. ROOT_URLCONF is wrapped to prepend the HMR endpoint (if active)
-    //   3. MIDDLEWARE is prepended with staticFilesMiddleware
+    //   3. MIDDLEWARE is prepended with any extra middleware from the hook
     const baseSettings = settings as unknown as GetApplicationSettings;
 
     const augmentedSettings: GetApplicationSettings = {
@@ -576,18 +611,14 @@ export class RunServerCommand extends BaseCommand {
       };
     }
 
-    // Wrap middleware to prepend staticFilesMiddleware
-    if (this.appNames.length > 0) {
-      const staticMw = staticFilesMiddleware({
-        installedApps: this.appNames,
-        appPaths: this.appPaths,
-        projectRoot: this.projectRoot,
-        debug: config.debug,
-      });
-
+    // Prepend any extra middleware contributed by subclasses (e.g. staticfiles)
+    const extraMiddleware = await this.getExtraMiddleware(settings, config);
+    if (extraMiddleware.length > 0) {
       const originalMiddleware = baseSettings.MIDDLEWARE;
-
-      augmentedSettings.MIDDLEWARE = [staticMw, ...(originalMiddleware ?? [])];
+      augmentedSettings.MIDDLEWARE = [
+        ...extraMiddleware,
+        ...(originalMiddleware ?? []),
+      ];
     }
 
     // Configure global settings registry, then build the application.
