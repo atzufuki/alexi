@@ -81,7 +81,8 @@ alexi/
     │   ├── viewsets/        # ViewSet, ModelViewSet
     │   ├── authentication/  # BaseAuthentication, JWTAuthentication
     │   └── router.ts        # DefaultRouter
-    ├── auth/                # AbstractUser, loginRequired, createTokenPair
+     ├── auth/                # AbstractUser, loginRequired, createTokenPair
+     │   └── commands/        # createsuperuser (contributed via AppConfig)
     ├── core/
     │   ├── management/
     │   │   └── commands/    # runserver, test, makemigrations, migrate,
@@ -241,6 +242,7 @@ await app.launch();
 deno run -A --unstable-kv manage.ts runserver --settings ./project/settings.ts
 deno run -A --unstable-kv manage.ts makemigrations myapp --settings ./project/settings.ts
 deno run -A --unstable-kv manage.ts migrate --settings ./project/settings.ts
+deno run -A --unstable-kv manage.ts createsuperuser --settings ./project/settings.ts
 ```
 
 ---
