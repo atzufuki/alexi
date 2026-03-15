@@ -377,21 +377,24 @@ Deno.test({
       );
     });
 
-    await t.step("urls.ts includes root route with homeView", async () => {
-      const content = await Deno.readTextFile(
-        `${project.path}/src/${project.name}/urls.ts`,
-      );
-      assertEquals(
-        content.includes("homeView"),
-        true,
-        "urls.ts should import and use homeView",
-      );
-      assertEquals(
-        content.includes('path("", homeView)'),
-        true,
-        'urls.ts should have path("", homeView) for the root route',
-      );
-    });
+    await t.step(
+      "urls.ts includes root route with HomeView.as_view()",
+      async () => {
+        const content = await Deno.readTextFile(
+          `${project.path}/src/${project.name}/urls.ts`,
+        );
+        assertEquals(
+          content.includes("HomeView"),
+          true,
+          "urls.ts should import and use HomeView",
+        );
+        assertEquals(
+          content.includes('path("", HomeView.as_view())'),
+          true,
+          'urls.ts should have path("", HomeView.as_view()) for the root route',
+        );
+      },
+    );
 
     // ==========================================================================
     // Unified App — Static Files
@@ -514,25 +517,25 @@ Deno.test({
     });
 
     await t.step(
-      "worker views.ts defines homeView, postListView, postCreateView",
+      "worker views.ts defines HomeView, PostListView, PostCreateView",
       async () => {
         const content = await Deno.readTextFile(
           `${project.path}/src/${project.name}/workers/${project.name}/views.ts`,
         );
         assertEquals(
-          content.includes("homeView"),
+          content.includes("HomeView"),
           true,
-          "views.ts should define homeView",
+          "views.ts should define HomeView",
         );
         assertEquals(
-          content.includes("postListView"),
+          content.includes("PostListView"),
           true,
-          "views.ts should define postListView",
+          "views.ts should define PostListView",
         );
         assertEquals(
-          content.includes("postCreateView"),
+          content.includes("PostCreateView"),
           true,
-          "views.ts should define postCreateView",
+          "views.ts should define PostCreateView",
         );
       },
     );

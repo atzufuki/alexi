@@ -17,12 +17,12 @@ export function generateWorkerUrlsTs(name: string): string {
  */
 
 import { path } from "@alexi/urls";
-import { homeView, postCreateView, postListView } from "./views.ts";
+import { HomeView, PostListView, PostCreateView } from "./views.ts";
 
 export const urlpatterns = [
-  path("", homeView, { name: "home" }),
-  path("posts/", postListView, { name: "post-list" }),
-  path("posts/new/", postCreateView, { name: "post-create" }),
+  path("", HomeView.as_view(), { name: "home" }),
+  path("posts/", PostListView.as_view(), { name: "post-list" }),
+  path("posts/new/", PostCreateView.as_view(), { name: "post-create" }),
 ];
 `;
 }
