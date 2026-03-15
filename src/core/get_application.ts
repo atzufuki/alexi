@@ -148,6 +148,35 @@ export interface GetApplicationSettings {
    * ```
    */
   INSTALLED_APPS?: AppConfig[];
+
+  /**
+   * Default hostname the development server (`runserver`) binds to.
+   *
+   * Mirrors Django's convention of exposing the bind address in settings.
+   * CLI flags (`--host`) take precedence over this value.
+   *
+   * @default "0.0.0.0"
+   *
+   * @example
+   * ```ts
+   * export const DEFAULT_HOST = "127.0.0.1";
+   * ```
+   */
+  DEFAULT_HOST?: string;
+
+  /**
+   * Default port the development server (`runserver`) listens on.
+   *
+   * CLI flags (`--port`) take precedence over this value.
+   *
+   * @default 8000
+   *
+   * @example
+   * ```ts
+   * export const DEFAULT_PORT = 3000;
+   * ```
+   */
+  DEFAULT_PORT?: number;
 }
 
 // =============================================================================
