@@ -8,6 +8,69 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.44.0] - 2026-03-15
+
+### Added
+
+- `AdminRouter.asView()` — mount `AdminRouter` via `path()` so the full
+  middleware stack applies (#367)
+- PostgreSQL backend (`@alexi/db/backends/postgres`) with `partialUpdate`
+  support; marked experimental (#366)
+- `AuthConfig` exported as a named export from `@alexi/auth` and documented as
+  an `INSTALLED_APPS` entry (#365)
+- `DEFAULT_HOST` and `DEFAULT_PORT` settings in `GetApplicationSettings`
+  interface (#360)
+- `staticfiles.json` manifests from each app are merged by `collectstatic` into
+  a single top-level manifest (#359)
+- `setRecorder()` on `MigrationExecutor`; unit tests for `plan()` zero-target
+  (#358)
+- `IrreversibleMigrationError` and `DataMigration` base class;
+  `Migration.backwards()` is now abstract — every migration must either
+  implement it or explicitly extend `DataMigration` (#357)
+- `migrate --test` now runs forwards → backwards → forwards in a throwaway
+  database copy to verify reversibility (#358)
+- `migrate <app> zero` rolls back all migrations for an app (#358)
+- `loginRequired`, `permissionRequired`, `getRequestUser` view decorators in
+  `@alexi/auth` (#355)
+- `createTokenPair` and `verifyToken` JWT utilities in `@alexi/auth` (#353)
+- `getCapacitorApplication()` factory and mobile scaffolding in
+  `@alexi/capacitor` / `@alexi/create` (#288)
+- `getWebuiApplication()` factory and desktop scaffolding in `@alexi/webui` /
+  `@alexi/create` (#287)
+- `makemigrations` scaffold now uses `deprecateModel` / `deprecateField` and
+  `restoreModel` / `restoreField` (#364)
+- `INSTALLED_APPS` processing in `_buildApplication()` (#351)
+- Scaffolded posts app upgraded with full dark-theme UI and
+  detail/publish/delete views (#367)
+
+### Changed
+
+- `runserver` management command moved into `@alexi/core`; `@alexi/web` package
+  removed — entry point is now `http.ts` using `getHttpApplication()` (#352)
+- Scaffolded posts app converted to class-based views (#367)
+- `desktop` / `build:desktop` tasks in scaffolded projects renamed to `webui` /
+  `build:webui` (#287)
+
+### Removed
+
+- `createMiddleware()` helper removed — use the `MIDDLEWARE` array directly
+  (#363)
+- `getApplication()` factory removed — use `getHttpApplication()` (#362)
+- `@alexi/http` compatibility shim removed (#356)
+- `@alexi/web` package removed (#352)
+
+### Breaking Changes
+
+- `createMiddleware()` no longer exists — replace with a plain `MIDDLEWARE`
+  array of middleware classes (#363)
+- `getApplication()` is removed — use `getHttpApplication()` from `@alexi/core`
+  (#362)
+- `@alexi/http` is removed — update imports to `@alexi/core` or
+  `@alexi/middleware` (#356)
+- `@alexi/web` is removed — `runserver` now lives in `@alexi/core` (#352)
+- `Migration.backwards()` is now abstract — existing migrations that omit it
+  must either implement it or extend `DataMigration` (#357)
+
 ## [0.43.1] - 2026-03-15
 
 ### Fixed
