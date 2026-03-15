@@ -102,6 +102,7 @@ import {
   type Transaction,
 } from "../backend.ts";
 import { DenoKVMigrationSchemaEditor } from "../../migrations/schema/denokv.ts";
+import type { IBackendSchemaEditor } from "../../migrations/schema_editor.ts";
 
 // ============================================================================
 // DenoKV Configuration
@@ -851,6 +852,20 @@ export class DenoKVBackend extends DatabaseBackend {
     return new DenoKVMigrationSchemaEditor(
       this._kv! as any,
     ) as unknown as SchemaEditor;
+  }
+
+  /**
+   * Get a migration-aware schema editor for this backend.
+   *
+   * Returns a {@link DenoKVMigrationSchemaEditor} that implements the full
+   * {@link IBackendSchemaEditor} interface required by the migration executor.
+   * Since DenoKV is schemaless, most operations store metadata rather than
+   * altering a physical schema.
+   */
+  getMigrationSchemaEditor(): IBackendSchemaEditor {
+    this.ensureConnected();
+    // deno-lint-ignore no-explicit-any
+    return new DenoKVMigrationSchemaEditor(this._kv! as any);
   }
 
   async tableExists(tableName: string): Promise<boolean> {
