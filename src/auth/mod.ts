@@ -56,6 +56,7 @@
 
 // App configuration
 export { default } from "./app.ts";
+export { default as AuthConfig } from "./app.ts";
 export { default as config } from "./app.ts";
 
 // Abstract base user model
