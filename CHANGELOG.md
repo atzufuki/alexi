@@ -8,6 +8,29 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.48.0] - 2026-03-16
+
+### Added
+
+- `request.user` property on the global `Request` interface — set automatically
+  by `AuthenticationMiddleware`, `loginRequired`, and `permissionRequired` in
+  `@alexi/auth`, mirroring Django's `request.user` API (#392, #393)
+- `decodeToken(token)` in `@alexi/auth` — decodes JWT payload without signature
+  verification for use in Service Worker / browser environments where the secret
+  key is unavailable (#391)
+- `AuthenticatedUser` index signature `[key: string]: unknown` — extra JWT
+  claims (e.g. `firstName`, `lastName`) are accessible without casting (#393)
+
+### Changed
+
+- `AuthenticationMiddleware.call()` now sets `request.user = null` for anonymous
+  requests (previously left `request.user` undefined) (#393)
+- `_resolveUser` in both middleware and decorators now spreads all JWT payload
+  claims onto `AuthenticatedUser` so extra fields are forwarded automatically
+  (#393)
+- `verifyToken()` falls back to `decodeToken()` in Service Worker / browser
+  environments when the secret key is unavailable (#391)
+
 ## [0.47.0] - 2026-03-16
 
 ### Added
