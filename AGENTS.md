@@ -845,6 +845,36 @@ const profileView = loginRequired(async (request, params) => {
 });
 ```
 
+### AuthenticationMiddleware with AUTH_USER_MODEL
+
+`AuthenticationMiddleware.configure({ userModel })` returns a configured
+subclass that fetches the full ORM instance from the database on every
+authenticated request. The instance is available via
+`getRequestUserInstance<T>()`.
+
+```typescript
+import { AuthenticationMiddleware, getRequestUserInstance } from "@alexi/auth";
+import { UserModel } from "@myapp/models";
+
+// settings.ts
+export const MIDDLEWARE = [
+  LoggingMiddleware,
+  CorsMiddleware,
+  AuthenticationMiddleware.configure({ userModel: UserModel }),
+  ErrorHandlerMiddleware,
+];
+
+// In a view
+export async function profileView(request: Request): Promise<Response> {
+  const user = getRequestUserInstance<typeof UserModel.prototype>(request);
+  if (!user) return Response.json({ detail: "Unauthorized" }, { status: 401 });
+  return Response.json({ firstName: user.firstName.get() });
+}
+```
+
+Without `configure()`, `AuthenticationMiddleware` still attaches the JWT payload
+via `getRequestUser()` (id, email, isAdmin) but does not hit the database.
+
 ### JWT Tokens
 
 ```typescript

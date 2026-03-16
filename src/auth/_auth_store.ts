@@ -20,3 +20,13 @@ import type { AuthenticatedUser } from "./decorators.ts";
  * @internal
  */
 export const _requestUsers = new WeakMap<Request, AuthenticatedUser>();
+
+/**
+ * Maps each in-flight `Request` to the full ORM model instance fetched from
+ * the database when `AUTH_USER_MODEL` is configured on
+ * {@link AuthenticationMiddleware}.  Populated only when the middleware is
+ * configured with a `userModel` option.
+ *
+ * @internal
+ */
+export const _requestUserInstances = new WeakMap<Request, unknown>();
