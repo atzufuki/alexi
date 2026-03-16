@@ -299,3 +299,55 @@ Deno.test(
     assertEquals(capturedInstance, undefined);
   },
 );
+
+// ---------------------------------------------------------------------------
+// request.user property
+// ---------------------------------------------------------------------------
+
+Deno.test(
+  "AuthenticationMiddleware: sets request.user for authenticated request",
+  async () => {
+    const request = await requestWithToken(10, "grace@example.com", false);
+
+    const mw = new AuthenticationMiddleware(async (_req?) =>
+      new Response("ok")
+    );
+    await mw.call(request);
+
+    assertEquals(request.user?.id, 10);
+    assertEquals(request.user?.email, "grace@example.com");
+    assertEquals(request.user?.isAdmin, false);
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware: sets request.user to null for anonymous request",
+  async () => {
+    const request = new Request("http://localhost/test");
+
+    const mw = new AuthenticationMiddleware(async (_req?) =>
+      new Response("ok")
+    );
+    await mw.call(request);
+
+    assertEquals(request.user, null);
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware: request.user accessible inside next handler",
+  async () => {
+    const request = await requestWithToken(20, "hank@example.com", true);
+
+    let userInsideHandler: Request["user"];
+    const mw = new AuthenticationMiddleware(async (req?) => {
+      userInsideHandler = req?.user;
+      return new Response("ok");
+    });
+
+    await mw.call(request);
+
+    assertEquals(userInsideHandler?.id, 20);
+    assertEquals(userInsideHandler?.isAdmin, true);
+  },
+);

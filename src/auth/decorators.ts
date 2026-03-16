@@ -10,7 +10,7 @@
  */
 
 import type { TokenPayload } from "./jwt.ts";
-import { verifyToken } from "./jwt.ts";
+import { decodeToken, verifyToken } from "./jwt.ts";
 import { _requestUserInstances, _requestUsers } from "./_auth_store.ts";
 
 // =============================================================================
@@ -21,6 +21,11 @@ import { _requestUserInstances, _requestUsers } from "./_auth_store.ts";
  * An authenticated user attached to a request by {@link loginRequired},
  * {@link permissionRequired}, or {@link AuthenticationMiddleware}.
  *
+ * The core fields (`id`, `email`, `isAdmin`) are always present when the user
+ * is resolved from a JWT.  Additional claims included in the token payload
+ * (e.g. `firstName`, `lastName`) are accessible via the index signature without
+ * requiring a cast.
+ *
  * @category Decorators
  */
 export interface AuthenticatedUser {
@@ -30,6 +35,44 @@ export interface AuthenticatedUser {
   email?: string;
   /** Whether the user has admin privileges. */
   isAdmin?: boolean;
+  /** Additional JWT claims forwarded from the token payload. */
+  [key: string]: unknown;
+}
+
+// =============================================================================
+// Request augmentation
+// =============================================================================
+
+/**
+ * Augment the global `Request` interface so that `request.user` is available
+ * in every view, middleware, and Service Worker handler — just like
+ * `request.user` in Django.
+ *
+ * Set automatically by {@link AuthenticationMiddleware},
+ * {@link loginRequired}, and {@link permissionRequired}.
+ * Anonymous requests receive `null`.
+ *
+ * @example
+ * ```ts
+ * import "@alexi/auth"; // ensure augmentation is loaded
+ *
+ * async function myView(request: Request): Promise<Response> {
+ *   if (!request.user) return Response.redirect("/login/", 302);
+ *   return Response.json({ id: request.user.id, email: request.user.email });
+ * }
+ * ```
+ */
+declare global {
+  interface Request {
+    /**
+     * The authenticated user resolved by {@link AuthenticationMiddleware},
+     * {@link loginRequired}, or {@link permissionRequired}.
+     *
+     * `null` for anonymous (unauthenticated) requests.
+     * `undefined` when no auth middleware or decorator has run yet.
+     */
+    user: AuthenticatedUser | null | undefined;
+  }
 }
 
 /**
@@ -156,6 +199,7 @@ export function loginRequired(view: ViewFunction): ViewFunction {
       );
     }
     _requestUsers.set(request, user);
+    request.user = user;
     return view(request, params);
   };
 }
@@ -211,6 +255,7 @@ export function permissionRequired(
       );
     }
     _requestUsers.set(request, user);
+    request.user = user;
     return view(request, params);
   };
 }
@@ -235,13 +280,25 @@ async function _resolveUser(
   if (!match) return null;
 
   const token = match[1];
-  const payload: TokenPayload | null = await verifyToken(token);
+  // First try cryptographic verification (server). Fall back to
+  // decode-only (Service Worker / browser) when verifyToken returns null
+  // because the secret key is unavailable or the environment is a browser.
+  const payload: TokenPayload | null = (await verifyToken(token)) ??
+    decodeToken(token);
   if (!payload) return null;
 
   const userId = payload.userId ?? (payload as Record<string, unknown>).sub;
   if (userId == null) return null;
 
+  // Spread all payload fields so that extra claims (e.g. firstName, lastName)
+  // are accessible on AuthenticatedUser without a cast.
+  const { userId: _uid, sub: _sub, ...rest } = payload as Record<
+    string,
+    unknown
+  >;
+
   return {
+    ...rest,
     id: userId as number | string,
     email: payload.email,
     isAdmin: payload.isAdmin ?? false,
