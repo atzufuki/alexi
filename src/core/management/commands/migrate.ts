@@ -14,7 +14,12 @@ import type {
 } from "../types.ts";
 import { configure } from "../config.ts";
 import { MigrationExecutor, MigrationLoader } from "@alexi/db/migrations";
-import { getBackend, getBackendByName } from "@alexi/db";
+import {
+  getBackend,
+  getBackendByName,
+  getBackendNames,
+  registerBackend,
+} from "@alexi/db";
 
 // =============================================================================
 // MigrateCommand Class
@@ -235,6 +240,10 @@ export class MigrateCommand extends BaseCommand {
       // Execute migrations
       let activeBackend = backend;
       let testCopy = null;
+      // Snapshot of the global backend registry before the test run, so we
+      // can restore it afterwards (name → original backend).
+      let savedBackends: Array<[string, ReturnType<typeof getBackendByName>]> =
+        [];
 
       if (testMode) {
         if (verbosity > 0) {
@@ -246,6 +255,18 @@ export class MigrateCommand extends BaseCommand {
           this.stdout.log(
             `Using temp backend: ${activeBackend.config.name}`,
           );
+        }
+
+        // Replace every named backend in the global registry with the test
+        // copy so that data migrations calling .using("default") (or any
+        // other registered name) hit the isolated copy instead of the
+        // original database.
+        savedBackends = getBackendNames().map((name) => [
+          name,
+          getBackendByName(name),
+        ]);
+        for (const [name] of savedBackends) {
+          registerBackend(name, testCopy);
         }
       }
 
@@ -260,6 +281,14 @@ export class MigrateCommand extends BaseCommand {
         });
       } finally {
         if (testCopy) {
+          // Restore the original backends in the global registry before
+          // destroying the test copy.
+          for (const [name, original] of savedBackends) {
+            if (original) {
+              registerBackend(name, original);
+            }
+          }
+
           if (verbosity > 0) {
             this.stdout.log("Removing isolated database copy...");
           }
