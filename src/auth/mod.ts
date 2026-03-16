@@ -2,8 +2,9 @@
  * Alexi's authentication package.
  *
  * `@alexi/auth` provides the framework's authentication app configuration,
- * its Django-style `AbstractUser` base model, and JWT utilities for issuing
- * and verifying signed access and refresh tokens.
+ * its Django-style `AbstractUser` base model, JWT utilities for issuing and
+ * verifying signed access and refresh tokens, and
+ * {@link AuthenticationMiddleware} for automatic request-level user resolution.
  *
  * Most projects import `AbstractUser` from this package, extend it with
  * application-specific fields, and register the resulting model in settings as
@@ -48,6 +49,19 @@
  *   return Response.json({ id: user.id, email: user.email });
  * });
  * ```
+ *
+ * @example Use AuthenticationMiddleware for automatic user resolution
+ * ```ts
+ * import { AuthenticationMiddleware } from "@alexi/auth";
+ * import { LoggingMiddleware, CorsMiddleware, ErrorHandlerMiddleware } from "@alexi/middleware";
+ *
+ * export const MIDDLEWARE = [
+ *   LoggingMiddleware,
+ *   CorsMiddleware,
+ *   AuthenticationMiddleware,
+ *   ErrorHandlerMiddleware,
+ * ];
+ * ```
  */
 
 // =============================================================================
@@ -73,5 +87,10 @@ export {
   permissionRequired,
 } from "./decorators.ts";
 export type { AuthenticatedUser, ViewFunction } from "./decorators.ts";
+
+// Authentication middleware
+export { AuthenticationMiddleware } from "./middleware.ts";
+export { BaseMiddleware } from "@alexi/middleware";
+export type { NextFunction } from "@alexi/middleware";
 
 // Commands are loaded dynamically via app.ts commandsModule

@@ -11,14 +11,15 @@
 
 import type { TokenPayload } from "./jwt.ts";
 import { verifyToken } from "./jwt.ts";
+import { _requestUsers } from "./_auth_store.ts";
 
 // =============================================================================
 // Types
 // =============================================================================
 
 /**
- * An authenticated user attached to a request by {@link loginRequired} or
- * {@link permissionRequired}.
+ * An authenticated user attached to a request by {@link loginRequired},
+ * {@link permissionRequired}, or {@link AuthenticationMiddleware}.
  *
  * @category Decorators
  */
@@ -40,19 +41,6 @@ export type ViewFunction = (
   request: Request,
   params: Record<string, string>,
 ) => Promise<Response>;
-
-// =============================================================================
-// Internal request → user map
-// =============================================================================
-
-/**
- * Maps each in-flight `Request` to the authenticated user attached during
- * decoration.  Uses a `WeakMap` so entries are collected automatically when
- * the request object is GC'd.
- *
- * @internal
- */
-const _requestUsers = new WeakMap<Request, AuthenticatedUser>();
 
 // =============================================================================
 // Public API
