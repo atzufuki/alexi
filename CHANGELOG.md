@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.46.0] - 2026-03-16
+
+### Added
+
+- `AuthenticationMiddleware` in `@alexi/auth` automatically resolves JWT tokens
+  for every request and populates `getRequestUser()` across the entire request
+  lifecycle — not just inside ViewSets (#387)
+- `BaseMiddleware` and `NextFunction` are now re-exported from `@alexi/auth` for
+  convenience when using `AuthenticationMiddleware`
+
 ## [0.45.3] - 2026-03-16
 
 ### Fixed
