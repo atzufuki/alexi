@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.44.3] - 2026-03-16
+
+### Fixed
+
+- SQLite migration schema editor now correctly escapes double-quote characters
+  in identifier names by doubling them, preventing `no such column: ""name""`
+  errors when rolling back migrations (#374)
+
 ## [0.44.2] - 2026-03-15
 
 ### Fixed

@@ -1,13 +1,13 @@
 {
   "name": "@alexi/middleware",
-  "version": "0.44.2",
+  "version": "0.44.3",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./config": "./app.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.44.2",
-    "@alexi/urls": "jsr:@alexi/urls@0.44.2"
+    "@alexi/types": "jsr:@alexi/types@0.44.3",
+    "@alexi/urls": "jsr:@alexi/urls@0.44.3"
   }
 }
