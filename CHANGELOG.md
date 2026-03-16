@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.47.0] - 2026-03-16
+
+### Added
+
+- `AuthenticationMiddleware.configure({ userModel })` static factory in
+  `@alexi/auth` returns a configured subclass that fetches the full ORM user
+  instance from the database on every authenticated request (#389)
+- `getRequestUserInstance<T>()` helper retrieves the ORM instance attached by
+  `AuthenticationMiddleware.configure()` (#389)
+- `UserModelClass` and `AuthenticationMiddlewareOptions` exported interfaces in
+  `@alexi/auth` (#389)
+
 ## [0.46.2] - 2026-03-16
 
 ### Fixed
