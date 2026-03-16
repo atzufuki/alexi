@@ -8,6 +8,31 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-03-16
+
+### Added
+
+- Migration `backwards()` is now optional — the executor automatically derives
+  it by replaying the `forwards()` operation log in reverse, applying the safe
+  inverse of each schema operation (`createModel` → `deprecateModel`, `addField`
+  → `deprecateField`, `alterField` → restore original column, etc.) (#376)
+- New `restoreModel()` and `restoreField()` methods on `MigrationSchemaEditor`
+  for explicit rollback of deprecated items (#376)
+- `MigrationSchemaEditor.getOperationLog()` and `hasRawSQL()` expose the
+  recorded `forwards()` log to the executor (#376)
+- `DataMigration` base class for intentionally irreversible migrations; throws
+  `IrreversibleMigrationError` if rollback is attempted without an explicit
+  `backwards()` override (#376)
+- Executor integration tests covering `createModel`, `addField`, `alterField`,
+  explicit `backwards()`, and forward → backward → forward re-apply scenarios
+  against both DenoKV and SQLite in-memory backends (#377)
+
+### Fixed
+
+- `autoReverse()` for `alterField` no longer collides with the deprecated column
+  name created by `forwards()` — it now uses a `_bwd_<field>` temp slot to
+  safely swap the columns (#377)
+
 ## [0.44.3] - 2026-03-16
 
 ### Fixed
