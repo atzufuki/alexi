@@ -8,6 +8,13 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.46.2] - 2026-03-16
+
+### Fixed
+
+- Added missing `@alexi/middleware` dependency to `@alexi/auth` package imports,
+  fixing JSR publish failure "Module not found middleware/mod.ts"
+
 ## [0.46.1] - 2026-03-16
 
 ### Fixed
