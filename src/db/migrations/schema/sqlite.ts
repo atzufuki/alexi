@@ -119,7 +119,12 @@ export class SQLiteMigrationSchemaEditor implements IBackendSchemaEditor {
     let columnName = fieldName;
     let sqlType = FIELD_TYPE_MAP[fieldType];
 
-    if (!sqlType) return null;
+    if (!sqlType) {
+      console.warn(
+        `[alexi] buildColumnDefinition: unknown field type "${fieldType}" for column "${fieldName}" — column will be skipped. Add an entry to FIELD_TYPE_MAP or use executeSQL() in the migration.`,
+      );
+      return null;
+    }
 
     // ForeignKey / OneToOneField: stored as `fieldName_id INTEGER`
     if (fieldType === "ForeignKey" || fieldType === "OneToOneField") {

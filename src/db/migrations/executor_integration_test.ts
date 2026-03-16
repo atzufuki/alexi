@@ -35,6 +35,7 @@ import {
   Model,
   OnDelete,
 } from "../mod.ts";
+import { FileField, ImageField } from "../fields/mod.ts";
 import {
   getBackendByName,
   getBackendNames,
@@ -866,6 +867,91 @@ Deno.test({
       }
       await testCopy.destroyTestCopy();
       await originalBackend.disconnect();
+    }
+  },
+});
+
+// ============================================================================
+// fix #384 — SQLite FIELD_TYPE_MAP missing ImageField and FileField
+// ============================================================================
+
+/** Snapshot model with ImageField and FileField for fix #384 */
+class UserProfileModel384 extends Model {
+  id = new AutoField({ primaryKey: true });
+  username = new CharField({ maxLength: 150 });
+  avatar = new ImageField({ uploadTo: "avatars/", null: true, blank: true });
+  resume = new FileField({ uploadTo: "resumes/", null: true, blank: true });
+
+  static objects = new Manager(UserProfileModel384);
+  static override meta = { dbTable: "user_profiles_384" };
+}
+
+/** 0001 — create user_profiles_384 table with ImageField and FileField */
+class Migration384Create extends Migration {
+  name = "myapp384.0001_create";
+  override dependencies = [];
+
+  override async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(UserProfileModel384);
+  }
+
+  override async backwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.deprecateModel(UserProfileModel384);
+  }
+}
+
+Deno.test({
+  name:
+    "fix #384 — SQLite createTable includes ImageField and FileField columns",
+  async fn() {
+    const backend = new SQLiteBackend({ path: ":memory:" });
+    await backend.connect();
+
+    const loader = new MigrationLoader();
+    loader.register(new Migration384Create(), "myapp384");
+
+    const executor = new MigrationExecutor(backend, loader);
+
+    try {
+      // Apply forwards: CREATE TABLE must include avatar and resume columns
+      const fwdResults = await executor.migrate({ verbosity: 0 });
+      for (const r of fwdResults) {
+        assertEquals(r.success, true, `forwards failed: ${r.error}`);
+      }
+
+      // Inspect the created table columns
+      const db = (backend as unknown as {
+        _db: {
+          prepare: (s: string) => { all: () => Array<{ name: string }> };
+        };
+      })._db;
+      const cols: Array<{ name: string }> = db
+        .prepare(`PRAGMA table_info(user_profiles_384)`)
+        .all();
+      const colNames = cols.map((c) => c.name);
+
+      assertEquals(
+        colNames.includes("avatar"),
+        true,
+        "avatar (ImageField) column must exist in the table",
+      );
+      assertEquals(
+        colNames.includes("resume"),
+        true,
+        "resume (FileField) column must exist in the table",
+      );
+
+      // Verify the columns have TEXT affinity (file fields store paths/URLs)
+      const avatarCol = cols.find((c) => c.name === "avatar") as
+        | { name: string; type: string }
+        | undefined;
+      const resumeCol = cols.find((c) => c.name === "resume") as
+        | { name: string; type: string }
+        | undefined;
+      assertEquals(avatarCol?.type, "TEXT", "ImageField column must be TEXT");
+      assertEquals(resumeCol?.type, "TEXT", "FileField column must be TEXT");
+    } finally {
+      await backend.disconnect();
     }
   },
 });
