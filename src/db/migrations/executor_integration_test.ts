@@ -14,6 +14,8 @@
  * - `alterField`  → restore previous field (auto-reverse)
  * - Explicit `backwards()` override
  * - Re-apply after rollback (forward → backward → forward)
+ * - DataMigration in --test mode: no double-apply (fix #378)
+ * - Global registry swap for --test mode data migrations (fix #380)
  *
  * @module
  */
@@ -23,9 +25,14 @@ import { DenoKVBackend } from "../backends/denokv/mod.ts";
 import { SQLiteBackend } from "../backends/sqlite/mod.ts";
 import { MigrationExecutor } from "./executor.ts";
 import { MigrationLoader } from "./loader.ts";
-import { Migration } from "./migration.ts";
+import { DataMigration, Migration } from "./migration.ts";
 import type { MigrationSchemaEditor } from "./schema_editor.ts";
 import { AutoField, CharField, Manager, Model } from "../mod.ts";
+import {
+  getBackendByName,
+  getBackendNames,
+  registerBackend,
+} from "../setup.ts";
 
 // ============================================================================
 // Snapshot models (frozen at migration time)
@@ -578,6 +585,151 @@ Deno.test({
       assertEquals(await backend.tableExists("articles"), false);
     } finally {
       await backend.disconnect();
+    }
+  },
+});
+
+// ============================================================================
+// Fix #378 — DataMigration in --test mode must not be double-applied
+// ============================================================================
+
+// Counter to detect double-application
+let forwardsCallCount = 0;
+
+class MigrationSchema extends Migration {
+  name = "myapp.0001_create_articles_for_data";
+  override dependencies = [];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(ArticleModel);
+  }
+}
+
+class MigrationDataNonReversible extends DataMigration {
+  readonly name = "myapp.0002_data_nonreversible";
+  override dependencies = ["myapp.0001_create_articles_for_data"];
+
+  override async forwards(_schema: MigrationSchemaEditor): Promise<void> {
+    forwardsCallCount += 1;
+  }
+  // No backwards() — non-reversible DataMigration
+}
+
+Deno.test({
+  name:
+    "fix #378 — non-reversible DataMigration is not double-applied in --test mode",
+  async fn() {
+    forwardsCallCount = 0;
+
+    const backend = new DenoKVBackend({ name: "test378", path: ":memory:" });
+    await backend.connect();
+
+    const loader = buildLoader(
+      new MigrationSchema(),
+      new MigrationDataNonReversible(),
+    );
+    const executor = silentExecutor(new MigrationExecutor(backend, loader));
+
+    try {
+      const results = await executor.migrate({ verbosity: 0, testMode: true });
+
+      // All results must succeed
+      for (const r of results) {
+        assertEquals(r.success, true, `Unexpected failure: ${r.error}`);
+      }
+
+      // forwards() of the DataMigration must have been called exactly once
+      assertEquals(
+        forwardsCallCount,
+        1,
+        "DataMigration.forwards() must be called exactly once, not double-applied",
+      );
+    } finally {
+      await backend.disconnect();
+    }
+  },
+});
+
+// ============================================================================
+// Fix #380 — global registry must use testCopy during --test data migrations
+// ============================================================================
+
+// Tracks which backend instance the ORM resolved when the data migration ran
+let resolvedBackendDuringTest: unknown = null;
+
+class MigrationSchemaForRegistry extends Migration {
+  name = "myapp.0001_create_for_registry";
+  override dependencies = [];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(ArticleModel);
+  }
+}
+
+class MigrationDataRegistry extends DataMigration {
+  readonly name = "myapp.0002_data_registry";
+  override dependencies = ["myapp.0001_create_for_registry"];
+
+  override async forwards(_schema: MigrationSchemaEditor): Promise<void> {
+    // Capture whichever backend "default" resolves to at migration time
+    resolvedBackendDuringTest = getBackendByName("default") ?? null;
+  }
+}
+
+Deno.test({
+  name:
+    "fix #380 — global registry points to testCopy during --test data migration",
+  async fn() {
+    resolvedBackendDuringTest = null;
+
+    const originalBackend = new DenoKVBackend({
+      name: "original380",
+      path: ":memory:",
+    });
+    await originalBackend.connect();
+
+    // Register original backend under "default" so the data migration can
+    // look it up via getBackendByName("default")
+    registerBackend("default", originalBackend);
+
+    // Simulate what MigrateCommand does: create a testCopy and swap the registry
+    const testCopy = await originalBackend.copyForTest();
+
+    const savedBackends: Array<[string, ReturnType<typeof getBackendByName>]> =
+      getBackendNames().map((name) => [name, getBackendByName(name)]);
+    for (const [name] of savedBackends) {
+      registerBackend(name, testCopy);
+    }
+
+    const loader = buildLoader(
+      new MigrationSchemaForRegistry(),
+      new MigrationDataRegistry(),
+    );
+    const executor = silentExecutor(new MigrationExecutor(testCopy, loader));
+
+    try {
+      const results = await executor.migrate({ verbosity: 0 });
+
+      for (const r of results) {
+        assertEquals(r.success, true, `Unexpected failure: ${r.error}`);
+      }
+
+      // The data migration must have resolved "default" to the test copy, not
+      // the original backend.
+      assertEquals(
+        resolvedBackendDuringTest,
+        testCopy,
+        "Data migration must see the testCopy as 'default', not the original backend",
+      );
+    } finally {
+      // Restore original backends
+      for (const [name, original] of savedBackends) {
+        if (original) {
+          registerBackend(name, original);
+        }
+      }
+      await testCopy.destroyTestCopy();
+      await originalBackend.disconnect();
     }
   },
 });
