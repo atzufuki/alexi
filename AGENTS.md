@@ -848,12 +848,14 @@ const profileView = loginRequired(async (request, params) => {
 ### AuthenticationMiddleware with AUTH_USER_MODEL
 
 `AuthenticationMiddleware.configure({ userModel })` returns a configured
-subclass that fetches the full ORM instance from the database on every
-authenticated request. The instance is available via
+subclass that sets `request.user` to a full ORM model instance on every
+authenticated request (Django parity). The instance is also available via
 `getRequestUserInstance<T>()`.
 
+**Server mode** (default — DB lookup):
+
 ```typescript
-import { AuthenticationMiddleware, getRequestUserInstance } from "@alexi/auth";
+import { AuthenticationMiddleware } from "@alexi/auth";
 import { UserModel } from "@myapp/models";
 
 // settings.ts
@@ -864,12 +866,27 @@ export const MIDDLEWARE = [
   ErrorHandlerMiddleware,
 ];
 
-// In a view
+// In a view — request.user is a UserModel instance
 export async function profileView(request: Request): Promise<Response> {
-  const user = getRequestUserInstance<typeof UserModel.prototype>(request);
+  const user = request.user as typeof UserModel.prototype | null;
   if (!user) return Response.json({ detail: "Unauthorized" }, { status: 401 });
   return Response.json({ firstName: user.firstName.get() });
 }
+```
+
+**Service Worker mode** (no DB call — construct from JWT payload):
+
+```typescript
+import { AuthenticationMiddleware } from "@alexi/auth";
+import { UserModel } from "@myapp/models";
+
+// workers/settings.ts
+export const MIDDLEWARE = [
+  AuthenticationMiddleware.configure({
+    userModel: UserModel,
+    fromJWT: (payload) => UserModel.fromJWT(payload),
+  }),
+];
 ```
 
 Without `configure()`, `AuthenticationMiddleware` still attaches the JWT payload

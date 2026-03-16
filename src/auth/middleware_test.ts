@@ -216,6 +216,37 @@ Deno.test(
 );
 
 Deno.test(
+  "AuthenticationMiddleware.configure: sets request.user to ORM instance (server path)",
+  async () => {
+    const request = await requestWithToken(7, "carol@example.com", false);
+
+    const fakeInstance = { id: 7, name: "Carol" };
+    const FakeUserModel = {
+      objects: {
+        filter(query: Record<string, unknown>) {
+          return {
+            async first() {
+              if (query["id"] === 7) return fakeInstance;
+              return null;
+            },
+          };
+        },
+      },
+    };
+
+    const ConfiguredMW = AuthenticationMiddleware.configure({
+      userModel: FakeUserModel,
+    });
+
+    const mw = new ConfiguredMW(async (_req?) => new Response("ok"));
+    await mw.call(request);
+
+    // request.user must be the ORM instance, not plain AuthenticatedUser
+    assertEquals(request.user, fakeInstance as unknown as typeof request.user);
+  },
+);
+
+Deno.test(
   "AuthenticationMiddleware.configure: no instance for anonymous request",
   async () => {
     const request = new Request("http://localhost/test");
@@ -483,5 +514,143 @@ Deno.test(
     assertEquals(request.user?.id, 50);
     assertEquals(request.user?.["firstName"], "Extra");
     assertEquals(request.user?.["lastName"], "Claims");
+  },
+);
+
+// ---------------------------------------------------------------------------
+// AuthenticationMiddleware.configure: fromJWT (Service Worker path)
+// ---------------------------------------------------------------------------
+
+Deno.test(
+  "AuthenticationMiddleware.configure: uses fromJWT factory instead of DB lookup",
+  async () => {
+    const request = await requestWithToken(8, "sw@example.com", false);
+
+    // fromJWT is called — DB filter must NOT be called
+    let dbCalled = false;
+    const FakeUserModel = {
+      objects: {
+        filter(_query: Record<string, unknown>) {
+          dbCalled = true;
+          return {
+            async first() {
+              return null;
+            },
+          };
+        },
+      },
+    };
+
+    const fromJWTInstance = { id: 8, fromJWT: true };
+    const ConfiguredMW = AuthenticationMiddleware.configure({
+      userModel: FakeUserModel,
+      fromJWT: (_payload) => fromJWTInstance,
+    });
+
+    let capturedInstance: unknown;
+    const mw = new ConfiguredMW(async (req?) => {
+      capturedInstance = getRequestUserInstance(req!);
+      return new Response("ok");
+    });
+
+    await mw.call(request);
+
+    // fromJWT instance is stored and returned
+    assertEquals(capturedInstance, fromJWTInstance);
+    // DB must not have been called
+    assertEquals(dbCalled, false);
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware.configure: sets request.user to fromJWT instance (SW path)",
+  async () => {
+    const request = await requestWithToken(9, "sw2@example.com", true);
+
+    const fromJWTInstance = { id: 9, isAdmin: true, fromJWT: true };
+    const FakeUserModel = {
+      objects: {
+        filter(_query: Record<string, unknown>) {
+          return {
+            async first() {
+              return null;
+            },
+          };
+        },
+      },
+    };
+
+    const ConfiguredMW = AuthenticationMiddleware.configure({
+      userModel: FakeUserModel,
+      fromJWT: (_payload) => fromJWTInstance,
+    });
+
+    const mw = new ConfiguredMW(async (_req?) => new Response("ok"));
+    await mw.call(request);
+
+    // request.user must be the fromJWT instance
+    assertEquals(
+      request.user,
+      fromJWTInstance as unknown as typeof request.user,
+    );
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware.configure: fromJWT receives JWT payload",
+  async () => {
+    const request = await requestWithToken(11, "payload@example.com", false);
+
+    let receivedPayload: unknown;
+    const FakeUserModel = {
+      objects: {
+        filter(_query: Record<string, unknown>) {
+          return {
+            async first() {
+              return null;
+            },
+          };
+        },
+      },
+    };
+
+    const ConfiguredMW = AuthenticationMiddleware.configure({
+      userModel: FakeUserModel,
+      fromJWT: (payload) => {
+        receivedPayload = payload;
+        return { id: payload.id };
+      },
+    });
+
+    const mw = new ConfiguredMW(async (_req?) => new Response("ok"));
+    await mw.call(request);
+
+    // fromJWT must have received the AuthenticatedUser payload
+    assertEquals((receivedPayload as { id: unknown })?.id, 11);
+    assertEquals(
+      (receivedPayload as { email: unknown })?.email,
+      "payload@example.com",
+    );
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware.configure: request.user is plain AuthenticatedUser without userModel",
+  async () => {
+    const request = await requestWithToken(12, "plain@example.com", false);
+
+    const mw = new AuthenticationMiddleware(async (_req?) =>
+      new Response("ok")
+    );
+    await mw.call(request);
+
+    // Without configure(), request.user is plain AuthenticatedUser — no ORM methods
+    assertEquals(request.user?.id, 12);
+    assertEquals(request.user?.email, "plain@example.com");
+    // Must NOT be an ORM instance (no fromJWT field)
+    assertEquals(
+      (request.user as Record<string, unknown>)?.["fromJWT"],
+      undefined,
+    );
   },
 );

@@ -20,6 +20,7 @@
  * project (e.g. `src/types.d.ts`, which is never published to JSR) to get
  * full TypeScript support:
  *
+ * **Without `userModel`** (default — JWT payload only):
  * ```ts
  * // src/types.d.ts
  * import type { AuthenticatedUser } from "@alexi/auth";
@@ -27,6 +28,18 @@
  * declare global {
  *   interface Request {
  *     user?: AuthenticatedUser | null;
+ *   }
+ * }
+ * ```
+ *
+ * **With `userModel`** (full ORM instance):
+ * ```ts
+ * // src/types.d.ts
+ * import type { UserModel } from "@myapp/models";
+ *
+ * declare global {
+ *   interface Request {
+ *     user?: UserModel | null;
  *   }
  * }
  * ```
@@ -44,13 +57,26 @@
  * ];
  * ```
  *
- * @example With AUTH_USER_MODEL — full ORM instance via getRequestUserInstance()
+ * @example With AUTH_USER_MODEL — full ORM instance on request.user (server)
  * ```ts
  * import { AuthenticationMiddleware } from "@alexi/auth";
  * import { UserModel } from "@myapp/models";
  *
  * export const MIDDLEWARE = [
  *   AuthenticationMiddleware.configure({ userModel: UserModel }),
+ * ];
+ * ```
+ *
+ * @example With AUTH_USER_MODEL + fromJWT — model instance without DB call (Service Worker)
+ * ```ts
+ * import { AuthenticationMiddleware } from "@alexi/auth";
+ * import { UserModel } from "@myapp/models";
+ *
+ * export const MIDDLEWARE = [
+ *   AuthenticationMiddleware.configure({
+ *     userModel: UserModel,
+ *     fromJWT: (payload) => UserModel.fromJWT(payload),
+ *   }),
  * ];
  * ```
  *
@@ -93,9 +119,10 @@ export interface AuthenticationMiddlewareOptions {
   /**
    * The user model class to use for database look-ups.
    *
-   * When provided, the middleware fetches a full ORM instance from the
-   * database for every authenticated request.  The instance is then available
-   * via {@link getRequestUserInstance}.
+   * When provided without {@link fromJWT}, the middleware fetches a full ORM
+   * instance from the database for every authenticated request and sets it as
+   * `request.user`.  The instance is also available via
+   * {@link getRequestUserInstance}.
    *
    * Pass the same class as `AUTH_USER_MODEL` in your project settings:
    *
@@ -106,6 +133,25 @@ export interface AuthenticationMiddlewareOptions {
    * ```
    */
   userModel: UserModelClass;
+
+  /**
+   * Optional factory that constructs a model instance from a JWT payload
+   * **without** making a database call.
+   *
+   * Use this in Service Worker / browser environments where ORM database
+   * access is unavailable (e.g. the `RestBackend` would make a recursive HTTP
+   * call).  When provided, `fromJWT(payload)` is called instead of
+   * `userModel.objects.filter({ id }).first()`, and the returned value is set
+   * as `request.user`.
+   *
+   * ```ts
+   * AuthenticationMiddleware.configure({
+   *   userModel: UserModel,
+   *   fromJWT: (payload) => UserModel.fromJWT(payload),
+   * });
+   * ```
+   */
+  fromJWT?: (payload: AuthenticatedUser) => unknown;
 }
 
 // =============================================================================
@@ -121,8 +167,10 @@ export interface AuthenticationMiddlewareOptions {
  * downstream — in views, other middleware, and ViewSet permission checks.
  *
  * When configured with a `userModel` via {@link AuthenticationMiddleware.configure},
- * the middleware additionally fetches the full ORM instance from the database
- * and stores it so it can be retrieved with {@link getRequestUserInstance}.
+ * the middleware additionally sets `request.user` to the full ORM model instance.
+ * On the server, the instance is fetched from the database; in a Service Worker,
+ * it is constructed from the JWT payload via the optional `fromJWT` callback.
+ * The instance is also available via {@link getRequestUserInstance}.
  *
  * Anonymous requests (missing or invalid token) pass through unchanged with no
  * user attached.  The middleware never rejects a request on its own; use
@@ -145,7 +193,7 @@ export interface AuthenticationMiddlewareOptions {
  * ];
  * ```
  *
- * @example Add to MIDDLEWARE with AUTH_USER_MODEL
+ * @example Add to MIDDLEWARE with AUTH_USER_MODEL (server — DB lookup)
  * ```ts
  * import { AuthenticationMiddleware } from "@alexi/auth";
  * import { UserModel } from "@myapp/models";
@@ -155,7 +203,20 @@ export interface AuthenticationMiddlewareOptions {
  * ];
  * ```
  *
- * @example Read the authenticated user in a plain view
+ * @example Add to MIDDLEWARE with fromJWT (Service Worker — no DB call)
+ * ```ts
+ * import { AuthenticationMiddleware } from "@alexi/auth";
+ * import { UserModel } from "@myapp/models";
+ *
+ * export const MIDDLEWARE = [
+ *   AuthenticationMiddleware.configure({
+ *     userModel: UserModel,
+ *     fromJWT: (payload) => UserModel.fromJWT(payload),
+ *   }),
+ * ];
+ * ```
+ *
+ * @example Read the authenticated user in a plain view (without userModel)
  * ```ts
  * import { getRequestUser } from "@alexi/auth";
  *
@@ -168,14 +229,12 @@ export interface AuthenticationMiddlewareOptions {
  *
  * @example Read the full ORM instance (requires configure({ userModel }))
  * ```ts
- * import { getRequestUser, getRequestUserInstance } from "@alexi/auth";
  * import type { UserModel } from "@myapp/models";
  *
  * export async function profileView(request: Request): Promise<Response> {
- *   const user = getRequestUser(request);
+ *   const user = request.user as UserModel | null;
  *   if (!user) return Response.json({ detail: "Unauthorized" }, { status: 401 });
- *   const instance = getRequestUserInstance<UserModel>(request);
- *   return Response.json({ name: instance?.firstName.get() });
+ *   return Response.json({ name: user.firstName.get() });
  * }
  * ```
  *
@@ -191,6 +250,17 @@ export class AuthenticationMiddleware extends BaseMiddleware {
   protected static _userModel: UserModelClass | null = null;
 
   /**
+   * Optional factory that constructs a model instance from a JWT payload
+   * without making a DB call (Service Worker path).
+   * Set by {@link configure} on the subclass; `null` on the base class.
+   *
+   * @internal
+   */
+  protected static _fromJWT:
+    | ((payload: AuthenticatedUser) => unknown)
+    | null = null;
+
+  /**
    * Create a new AuthenticationMiddleware instance.
    *
    * @param getResponse - The next layer in the middleware chain.
@@ -200,25 +270,45 @@ export class AuthenticationMiddleware extends BaseMiddleware {
   }
 
   /**
-   * Return a configured subclass of `AuthenticationMiddleware` that fetches a
-   * full ORM user instance on every authenticated request.
+   * Return a configured subclass of `AuthenticationMiddleware` that sets
+   * `request.user` to a full ORM model instance on every authenticated request.
    *
-   * Use this factory when you want the middleware to load the complete user
-   * object from the database, not just the JWT payload.  The fetched instance
-   * is stored alongside the JWT payload and can be retrieved with
-   * {@link getRequestUserInstance}.
+   * **Server mode** (default — `fromJWT` not provided): the middleware fetches
+   * the user from the database via `userModel.objects.filter({ id }).first()`.
    *
-   * @param options - Configuration options, including the `userModel` class.
+   * **Service Worker mode** (`fromJWT` provided): the middleware calls
+   * `fromJWT(payload)` to construct an instance from the JWT payload without
+   * making a database call.  Use this to avoid recursive HTTP calls from a
+   * Service Worker that uses `RestBackend`.
+   *
+   * In both cases the instance is also accessible via
+   * {@link getRequestUserInstance} for backward compatibility.
+   *
+   * @param options - Configuration options, including the `userModel` class
+   *   and an optional `fromJWT` factory for the Service Worker path.
    * @returns A new middleware class (not an instance) ready to be included in
    *   the `MIDDLEWARE` setting.
    *
-   * @example
+   * @example Server — DB lookup
    * ```ts
    * import { AuthenticationMiddleware } from "@alexi/auth";
    * import { UserModel } from "@myapp/models";
    *
    * export const MIDDLEWARE = [
    *   AuthenticationMiddleware.configure({ userModel: UserModel }),
+   * ];
+   * ```
+   *
+   * @example Service Worker — construct from JWT payload
+   * ```ts
+   * import { AuthenticationMiddleware } from "@alexi/auth";
+   * import { UserModel } from "@myapp/models";
+   *
+   * export const MIDDLEWARE = [
+   *   AuthenticationMiddleware.configure({
+   *     userModel: UserModel,
+   *     fromJWT: (payload) => UserModel.fromJWT(payload),
+   *   }),
    * ];
    * ```
    *
@@ -230,6 +320,9 @@ export class AuthenticationMiddleware extends BaseMiddleware {
     class ConfiguredAuthenticationMiddleware extends AuthenticationMiddleware {
       protected static override _userModel: UserModelClass | null =
         options.userModel;
+      protected static override _fromJWT:
+        | ((payload: AuthenticatedUser) => unknown)
+        | null = options.fromJWT ?? null;
     }
     return ConfiguredAuthenticationMiddleware;
   }
@@ -237,6 +330,11 @@ export class AuthenticationMiddleware extends BaseMiddleware {
   /**
    * Resolve the authenticated user and attach it to the request, then pass
    * the request to the next middleware or view.
+   *
+   * When a `userModel` is configured, `request.user` is set to the full ORM
+   * model instance (fetched from DB or constructed via `fromJWT`).  When no
+   * `userModel` is configured, `request.user` is set to the plain
+   * {@link AuthenticatedUser} JWT payload object.
    *
    * @param request - The incoming HTTP request.
    * @returns The HTTP response from the next layer.
@@ -246,17 +344,25 @@ export class AuthenticationMiddleware extends BaseMiddleware {
     const req = request as unknown as Record<string, unknown>;
     if (user) {
       _requestUsers.set(request, user);
-      req["user"] = user;
+      req["user"] = user; // default: plain AuthenticatedUser
 
-      // If a userModel is configured, fetch the full ORM instance.
-      const userModel = (this.constructor as typeof AuthenticationMiddleware)
-        ._userModel;
-      if (userModel) {
-        const instance = await userModel.objects
-          .filter({ id: user.id })
-          .first();
+      // If a userModel is configured, resolve the full ORM instance and
+      // use it as request.user (Django parity).
+      const Ctor = this.constructor as typeof AuthenticationMiddleware;
+      if (Ctor._userModel) {
+        let instance: unknown = null;
+        if (Ctor._fromJWT) {
+          // Service Worker path: construct from payload, no DB call.
+          instance = Ctor._fromJWT(user);
+        } else {
+          // Server path: fetch from database.
+          instance = await Ctor._userModel.objects
+            .filter({ id: user.id })
+            .first();
+        }
         if (instance != null) {
           _requestUserInstances.set(request, instance);
+          req["user"] = instance; // override with ORM instance
         }
       }
     } else {
