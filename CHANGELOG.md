@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.48.3] - 2026-03-16
+
+### Added
+
+- `WebUIConfig` now accepts an optional
+  `profile?: { name: string; path: string }` field to enable persistent browser
+  profiles in desktop apps (#396)
+  - When set, `WebUILauncher` calls `window.setProfile(name, path)` before
+    opening the window, so IndexedDB, localStorage, cookies, etc. survive
+    between sessions
+  - When omitted, the existing behaviour (WebUI default temporary profile) is
+    unchanged
+
 ## [0.48.2] - 2026-03-16
 
 ### Added
