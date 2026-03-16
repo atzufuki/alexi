@@ -139,7 +139,17 @@ export async function verifyToken(
   token: string,
   secretKey?: string,
 ): Promise<TokenPayload | null> {
-  const key = secretKey ?? Deno.env.get("SECRET_KEY") ?? "";
+  let key: string;
+  if (secretKey !== undefined) {
+    key = secretKey;
+  } else {
+    try {
+      key = Deno.env.get("SECRET_KEY") ?? "";
+    } catch {
+      // Deno is not available (e.g. Service Worker / browser environment)
+      key = "";
+    }
+  }
   const raw = await verifyJWT(token, key);
   if (!raw) return null;
 
@@ -147,6 +157,60 @@ export async function verifyToken(
   if (userId == null) return null;
 
   return raw as TokenPayload;
+}
+
+/**
+ * Decode a JWT token and return its payload **without verifying the signature**.
+ *
+ * Use this in environments where the secret key is not available, such as
+ * Service Workers running in the browser.  The token is still checked for
+ * structural validity and expiry, but the HMAC signature is not verified.
+ *
+ * > **Security note:** Never use this on the server side.  The decoded payload
+ * > must be treated as untrusted — it is only suitable for UX purposes (e.g.
+ * > reading the user's name or redirecting to `/login/` when the token is
+ * > absent or expired).  All security-sensitive operations must use
+ * > {@link verifyToken} on the server.
+ *
+ * @param token - The JWT string to decode.
+ * @returns The decoded {@link TokenPayload}, or `null` if the token is
+ *   structurally invalid or expired.
+ *
+ * @example
+ * ```ts
+ * // In a Service Worker middleware — no SECRET_KEY available
+ * import { decodeToken } from "@alexi/auth";
+ *
+ * const payload = decodeToken(authHeader.slice(7));
+ * if (payload) {
+ *   // Use payload for UX only — not for security decisions
+ * }
+ * ```
+ *
+ * @category JWT
+ */
+export function decodeToken(token: string): TokenPayload | null {
+  const parts = token.split(".");
+  if (parts.length !== 3) return null;
+
+  const [, payloadB64] = parts;
+
+  let payload: Record<string, unknown>;
+  try {
+    payload = JSON.parse(base64UrlDecode(payloadB64));
+  } catch {
+    return null;
+  }
+
+  // Check expiry
+  if (typeof payload.exp === "number" && payload.exp < Date.now() / 1000) {
+    return null;
+  }
+
+  const userId = payload.userId ?? payload.sub;
+  if (userId == null) return null;
+
+  return payload as TokenPayload;
 }
 
 // =============================================================================

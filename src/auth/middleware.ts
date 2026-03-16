@@ -40,7 +40,7 @@
 
 import { BaseMiddleware } from "@alexi/middleware";
 import type { NextFunction } from "@alexi/middleware";
-import { verifyToken } from "./jwt.ts";
+import { decodeToken, verifyToken } from "./jwt.ts";
 import { _requestUserInstances, _requestUsers } from "./_auth_store.ts";
 import type { AuthenticatedUser } from "./decorators.ts";
 
@@ -264,7 +264,10 @@ async function _resolveUser(
   if (!match) return null;
 
   const token = match[1];
-  const payload = await verifyToken(token);
+  // First try cryptographic verification (server). Fall back to
+  // decode-only (Service Worker / browser) when verifyToken returns null
+  // because the secret key is unavailable or the environment is a browser.
+  const payload = (await verifyToken(token)) ?? decodeToken(token);
   if (!payload) return null;
 
   const userId = payload.userId ?? (payload as Record<string, unknown>).sub;

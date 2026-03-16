@@ -78,7 +78,7 @@ export { default as config } from "./app.ts";
 export { AbstractUser } from "./models/mod.ts";
 
 // JWT utilities
-export { createTokenPair, verifyToken } from "./jwt.ts";
+export { createTokenPair, decodeToken, verifyToken } from "./jwt.ts";
 export type { TokenPair, TokenPayload } from "./jwt.ts";
 
 // View decorators
