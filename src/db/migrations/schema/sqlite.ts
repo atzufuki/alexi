@@ -96,7 +96,7 @@ export class SQLiteMigrationSchemaEditor implements IBackendSchemaEditor {
   // ==========================================================================
 
   private quote(name: string): string {
-    return `"${name}"`;
+    return `"${name.replaceAll('"', '""')}"`;
   }
 
   private execute(sql: string): void {
