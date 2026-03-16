@@ -8,6 +8,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.45.1] - 2026-03-16
+
+### Fixed
+
+- `migrate --test` no longer double-applies non-reversible `DataMigration`s: the
+  executor now tracks which migrations were actually rolled back and re-applies
+  only those in the forward re-apply phase (#378)
+- `migrate --test` data migrations can now use ORM queries reliably — the global
+  backend registry is temporarily replaced with the test copy for the duration
+  of the test cycle, preventing `no such table` errors (#380)
+
+### Documentation
+
+- Added documentation for snapshot model rules, `DataMigration + --test`
+  behavior, ORM queries inside data migrations, and a `no such table`
+  troubleshooting section in `docs/db/migrations.md` (#379)
+
 ## [0.45.0] - 2026-03-16
 
 ### Added
