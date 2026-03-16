@@ -40,7 +40,7 @@
 
 import { BaseMiddleware } from "@alexi/middleware";
 import type { NextFunction } from "@alexi/middleware";
-import { verifyToken } from "./jwt.ts";
+import { decodeToken, verifyToken } from "./jwt.ts";
 import { _requestUserInstances, _requestUsers } from "./_auth_store.ts";
 import type { AuthenticatedUser } from "./decorators.ts";
 
@@ -226,6 +226,7 @@ export class AuthenticationMiddleware extends BaseMiddleware {
     const user = await _resolveUser(request);
     if (user) {
       _requestUsers.set(request, user);
+      request.user = user;
 
       // If a userModel is configured, fetch the full ORM instance.
       const userModel = (this.constructor as typeof AuthenticationMiddleware)
@@ -238,6 +239,8 @@ export class AuthenticationMiddleware extends BaseMiddleware {
           _requestUserInstances.set(request, instance);
         }
       }
+    } else {
+      request.user = null;
     }
     return this.getResponse(request);
   }
@@ -264,13 +267,24 @@ async function _resolveUser(
   if (!match) return null;
 
   const token = match[1];
-  const payload = await verifyToken(token);
+  // First try cryptographic verification (server). Fall back to
+  // decode-only (Service Worker / browser) when verifyToken returns null
+  // because the secret key is unavailable or the environment is a browser.
+  const payload = (await verifyToken(token)) ?? decodeToken(token);
   if (!payload) return null;
 
   const userId = payload.userId ?? (payload as Record<string, unknown>).sub;
   if (userId == null) return null;
 
+  // Spread all payload fields so that extra claims (e.g. firstName, lastName)
+  // are accessible on AuthenticatedUser without a cast.
+  const { userId: _uid, sub: _sub, ...rest } = payload as Record<
+    string,
+    unknown
+  >;
+
   return {
+    ...rest,
     id: userId as number | string,
     email: payload.email,
     isAdmin: payload.isAdmin ?? false,
