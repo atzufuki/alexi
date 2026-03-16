@@ -5,6 +5,7 @@
  * its Django-style `AbstractUser` base model, JWT utilities for issuing and
  * verifying signed access and refresh tokens, and
  * {@link AuthenticationMiddleware} for automatic request-level user resolution.
+ * `BaseMiddleware` and `NextFunction` are available from `@alexi/middleware`.
  *
  * Most projects import `AbstractUser` from this package, extend it with
  * application-specific fields, and register the resulting model in settings as
@@ -90,7 +91,5 @@ export type { AuthenticatedUser, ViewFunction } from "./decorators.ts";
 
 // Authentication middleware
 export { AuthenticationMiddleware } from "./middleware.ts";
-export { BaseMiddleware } from "@alexi/middleware";
-export type { NextFunction } from "@alexi/middleware";
 
 // Commands are loaded dynamically via app.ts commandsModule
