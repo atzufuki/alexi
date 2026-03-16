@@ -5,7 +5,7 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { AuthenticationMiddleware } from "./middleware.ts";
 import { getRequestUser, getRequestUserInstance } from "./decorators.ts";
-import { createTokenPair } from "./jwt.ts";
+import { createTokenPair, signJWT } from "./jwt.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -349,5 +349,138 @@ Deno.test(
 
     assertEquals(userInsideHandler?.id, 20);
     assertEquals(userInsideHandler?.isAdmin, true);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Service Worker mode: decodeToken fallback (no SECRET_KEY)
+//
+// In a SW / browser environment verifyToken() returns null because either
+// Deno.env is unavailable or the secret key is not set. The middleware and
+// decorators must fall back to decodeToken() so that request.user is still
+// populated from the JWT payload.
+//
+// We simulate SW mode by:
+//   1. Creating an HS256-signed token with a specific secret ("sw-secret").
+//   2. Ensuring SECRET_KEY is NOT set in the test env (default in tests).
+//      verifyToken() → null  (HS256 token but no secret → rejected)
+//      decodeToken() → payload  (no signature check)
+// ---------------------------------------------------------------------------
+
+/** Build a Request carrying an HS256-signed token whose secret is NOT the
+ *  active SECRET_KEY, simulating a SW environment where only decodeToken()
+ *  can decode the token. */
+async function swRequestWithToken(
+  userId: number,
+  email: string,
+  isAdmin = false,
+  extra: Record<string, unknown> = {},
+): Promise<Request> {
+  const now = Math.floor(Date.now() / 1000);
+  const payload = {
+    userId,
+    email,
+    isAdmin,
+    exp: now + 3600,
+    iat: now,
+    ...extra,
+  };
+  // Sign with a secret that won't match Deno.env SECRET_KEY (which is unset
+  // in tests), so verifyToken() returns null and decodeToken() is the only
+  // path that succeeds.
+  const token = await signJWT(payload, "sw-only-secret");
+  return new Request("http://localhost/test", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+Deno.test(
+  "AuthenticationMiddleware (SW mode): sets request.user via decodeToken fallback",
+  async () => {
+    const request = await swRequestWithToken(30, "sw@example.com", false);
+
+    const mw = new AuthenticationMiddleware(async (_req?) =>
+      new Response("ok")
+    );
+    await mw.call(request);
+
+    // Must be populated via decodeToken() fallback
+    assertEquals(request.user?.id, 30);
+    assertEquals(request.user?.email, "sw@example.com");
+    assertEquals(request.user?.isAdmin, false);
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware (SW mode): extra JWT claims available on request.user",
+  async () => {
+    const request = await swRequestWithToken(
+      31,
+      "sw2@example.com",
+      false,
+      { firstName: "Service", lastName: "Worker" },
+    );
+
+    const mw = new AuthenticationMiddleware(async (_req?) =>
+      new Response("ok")
+    );
+    await mw.call(request);
+
+    assertEquals(request.user?.id, 31);
+    // Extra claims spread from JWT payload — accessible via index signature
+    assertEquals(request.user?.["firstName"], "Service");
+    assertEquals(request.user?.["lastName"], "Worker");
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware (SW mode): request.user null for missing token",
+  async () => {
+    const request = new Request("http://localhost/test");
+
+    const mw = new AuthenticationMiddleware(async (_req?) =>
+      new Response("ok")
+    );
+    await mw.call(request);
+
+    assertEquals(request.user, null);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Extra JWT claims via spread (server mode)
+// ---------------------------------------------------------------------------
+
+Deno.test(
+  "AuthenticationMiddleware: extra JWT claims spread onto request.user (server mode)",
+  async () => {
+    // createTokenPair only includes standard fields; test spread via signJWT
+    // with an unsigned token (empty secret → alg:none accepted in dev mode).
+    const now = Math.floor(Date.now() / 1000);
+    const token = await signJWT(
+      {
+        userId: 50,
+        email: "extra@example.com",
+        isAdmin: false,
+        firstName: "Extra",
+        lastName: "Claims",
+        exp: now + 3600,
+        iat: now,
+      },
+      "", // unsigned — accepted when SECRET_KEY is not set
+    );
+
+    const request = new Request("http://localhost/test", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const mw = new AuthenticationMiddleware(async (_req?) =>
+      new Response("ok")
+    );
+    await mw.call(request);
+
+    assertEquals(request.user?.id, 50);
+    assertEquals(request.user?.["firstName"], "Extra");
+    assertEquals(request.user?.["lastName"], "Claims");
   },
 );
