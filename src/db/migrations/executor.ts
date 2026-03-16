@@ -450,6 +450,11 @@ export class MigrationExecutor {
 
   /**
    * Test reversibility by running forward -> backward -> forward
+   *
+   * Only migrations that were actually rolled back in the backward pass are
+   * re-applied in the forward pass. Non-reversible migrations (DataMigration
+   * subclasses without a custom `backwards()`) are skipped in both passes to
+   * avoid double-applying them.
    */
   private async _testReversibility(
     migrations: LoadedMigration[],
@@ -458,6 +463,10 @@ export class MigrationExecutor {
     const results: MigrationResult[] = [];
 
     console.log("\nTesting reversibility...");
+
+    // Track which migrations were actually rolled back so the forward re-apply
+    // pass only re-applies those — not ones that were skipped.
+    const rolledBack: LoadedMigration[] = [];
 
     // Roll back in reverse order
     for (const loaded of [...migrations].reverse()) {
@@ -478,10 +487,13 @@ export class MigrationExecutor {
         console.error("  Reversibility test failed!");
         return results;
       }
+
+      // Prepend so the list stays in forward (dependency) order.
+      rolledBack.unshift(loaded);
     }
 
-    // Apply again
-    for (const loaded of migrations) {
+    // Re-apply only the migrations that were actually rolled back.
+    for (const loaded of rolledBack) {
       const result = await this._applyMigration(loaded, {
         ...options,
         verbosity: 2,

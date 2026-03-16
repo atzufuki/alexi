@@ -267,7 +267,13 @@ omit the `backwards()` method:
 
 ```typescript
 import { DataMigration, MigrationSchemaEditor } from "@alexi/db/migrations";
-import { UserModel } from "../models.ts";
+
+// ✅ Use a snapshot model inside the migration file — never import the live model
+class UserModel extends Model {
+  static meta = { dbTable: "users" };
+  id = new AutoField({ primaryKey: true });
+  email = new EmailField({ unique: true });
+}
 
 export default class Migration0003 extends DataMigration {
   name = "0003_normalize_emails";
@@ -290,7 +296,75 @@ export default class Migration0003 extends DataMigration {
 >
 > - Show a warning when applying the migration
 > - Block rollback with an error (cannot reverse)
-> - Skip the migration during `--test` mode with a warning
+> - Skip the migration **in both the backward and forward re-apply passes**
+>   during `--test` mode — see
+>   [DataMigration and --test](#datamigration-and---test)
+
+### ORM Queries Inside Data Migrations
+
+Use **snapshot models** (defined in the migration file) for all ORM calls inside
+`forwards()` and `backwards()`. Never import the live model from the
+application:
+
+```typescript
+// ✅ Good: snapshot model with Manager
+import { AutoField, CharField, Manager, Model } from "@alexi/db";
+import { DataMigration } from "@alexi/db/migrations";
+import type { MigrationSchemaEditor } from "@alexi/db/migrations";
+
+class ArticleModel extends Model {
+  static meta = { dbTable: "articles" };
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+
+  static objects = new Manager(ArticleModel);
+}
+
+export default class Migration0004 extends DataMigration {
+  name = "0004_uppercase_titles";
+  dependencies = ["0003_normalize_emails"];
+
+  async forwards(_schema: MigrationSchemaEditor): Promise<void> {
+    const articles = await ArticleModel.objects.all().fetch();
+    for (const article of articles.array()) {
+      article.title.set(article.title.get().toUpperCase());
+      await article.save({ updateFields: ["title"] });
+    }
+  }
+}
+```
+
+> **Important:** Snapshot models inside data migrations **do** need
+> `static objects = new Manager(...)` because they perform live ORM queries.
+> Schema-only migrations (`createModel`, `addField`, etc.) do not.
+
+### DataMigration and `--test`
+
+When you run `migrate --test`, the executor verifies every migration can be
+applied → rolled back → re-applied. Non-reversible `DataMigration` subclasses
+(those without a `backwards()` method) are **skipped in both the backward and
+the forward re-apply passes**:
+
+```
+Applying users.0003_normalize_emails...         ← normal forward pass
+  Applied users.0003_normalize_emails (12ms)
+
+Testing reversibility...
+  Skipping users.0003_normalize_emails (no backwards() method)
+  ← backward pass: skipped, data is NOT rolled back
+  ← forward pass:  skipped, migration is NOT re-applied
+  Reversibility test passed!
+```
+
+This means:
+
+- **The migration is not double-applied.** The data it wrote in the first
+  forward pass is preserved as-is.
+- **The skip is intentional.** If your data migration is truly irreversible,
+  there is nothing safe to roll back or re-apply.
+- Only reversible `DataMigration` subclasses (those with an explicit
+  `backwards()` override) participate in the full forward → backward → forward
+  cycle.
 
 ### Reversible Data Migration
 
@@ -504,14 +578,16 @@ class Migration0002 extends Migration {
 
 ### 2. Include Model Snapshots
 
-Always include the model definition as it was at migration time:
+Always include the model definition as it was at migration time. Never import
+the live model class — it changes over time and will drift from what the
+migration needs.
 
 ```typescript
-// ✅ Good: Snapshot of model at this point
+// ✅ Good: Frozen snapshot — only the fields that existed at this point in time
 class UserModel extends Model {
   static meta = { dbTable: "users" };
   id = new AutoField({ primaryKey: true });
-  email = new EmailField(); // Only fields that existed at this point
+  email = new EmailField();
 }
 
 export default class Migration0001 extends Migration {
@@ -520,6 +596,30 @@ export default class Migration0001 extends Migration {
   }
 }
 ```
+
+```typescript
+// ❌ Bad: Importing the live model — it will grow new fields over time
+import { UserModel } from "../models.ts";
+
+export default class Migration0001 extends Migration {
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(UserModel); // breaks when the live model changes
+  }
+}
+```
+
+#### Snapshot model rules
+
+- **`static meta = { dbTable: "..." }` is required.** The value must match the
+  actual database table name exactly — it does not default to the class name.
+- **Only include fields that existed at this point in time.** Adding a field
+  that was introduced later will cause the snapshot to be out of sync.
+- **No `Manager`, no application logic.** Snapshot models are used only for
+  schema operations; they do not need `static objects` or any methods.
+- **`dbTable` is the source of truth for raw SQL.** Any raw SQL strings in
+  `forwards()` or `backwards()` must reference this exact value, not the class
+  name. To find the correct `dbTable` for an existing table, check the snapshot
+  model in the migration that created it.
 
 ### 3. Always Implement backwards()
 
@@ -570,6 +670,36 @@ Check that:
 1. The file exists in `src/users/migrations/`
 2. The file has a default export extending `Migration`
 3. The `name` property matches the expected name
+
+### no such table (during --test with data migrations)
+
+```
+Error: no such table: users
+```
+
+If a data migration calls `Model.objects.using("default")` (or uses the default
+backend implicitly) during `--test` mode, it may hit the **original** database
+instead of the isolated test copy — where the schema migration has not yet been
+applied.
+
+**Root cause:** `--test` runs migrations against an isolated in-memory copy of
+the backend. If the global backend registry still points to the original
+backend, ORM calls inside `forwards()` will use the wrong connection.
+
+**Fix (framework-side):** `migrate --test` automatically replaces every
+registered backend in the global registry with the test copy for the duration of
+the run, and restores originals afterwards. This is handled transparently — no
+changes are needed in your migration code.
+
+**If you still see the error:**
+
+1. Make sure you are on a recent version of `@alexi/core` (the fix shipped in
+   the same release that resolved issue #380).
+2. Confirm your snapshot model uses `static meta = { dbTable: "..." }` with the
+   correct table name — a wrong `dbTable` will also produce a "no such table"
+   error.
+3. Ensure the migration that creates the table is listed in `dependencies`
+   before the data migration.
 
 ### Circular Dependencies
 
