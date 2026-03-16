@@ -8,6 +8,19 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.48.1] - 2026-03-16
+
+### Fixed
+
+- Removed `declare global { interface Request }` from `@alexi/auth` published
+  code — JSR prohibits `declare global` in packages. Projects that need
+  `request.user` typed should add the augmentation to their own non-published
+  `src/types.d.ts` (see `@alexi/auth` README for the snippet).
+- Added `src/auth/test_types.ts` with the `declare global` augmentation for use
+  in Alexi's own test suite only (not exported from `mod.ts`).
+- Updated JSDoc on `decorators.ts` and `middleware.ts` to document the required
+  project-side augmentation pattern.
+
 ## [0.48.0] - 2026-03-16
 
 ### Added

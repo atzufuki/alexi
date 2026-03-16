@@ -6,6 +6,27 @@
  * is stored on the request object via a `WeakMap` and can be retrieved inside
  * the decorated view with {@link getRequestUser}.
  *
+ * ## `request.user` property
+ *
+ * At runtime the decorators and {@link AuthenticationMiddleware} attach the
+ * resolved user to the request as `request.user` so that view code can access
+ * it without importing a separate helper.  Because JSR prohibits
+ * `declare global` in published packages, the type augmentation is **not**
+ * included here.  Add the following to your own project (e.g.
+ * `src/types.d.ts`, which is never published to JSR) to get full TypeScript
+ * support:
+ *
+ * ```ts
+ * // src/types.d.ts
+ * import type { AuthenticatedUser } from "@alexi/auth";
+ *
+ * declare global {
+ *   interface Request {
+ *     user?: AuthenticatedUser | null;
+ *   }
+ * }
+ * ```
+ *
  * @module
  */
 
@@ -37,42 +58,6 @@ export interface AuthenticatedUser {
   isAdmin?: boolean;
   /** Additional JWT claims forwarded from the token payload. */
   [key: string]: unknown;
-}
-
-// =============================================================================
-// Request augmentation
-// =============================================================================
-
-/**
- * Augment the global `Request` interface so that `request.user` is available
- * in every view, middleware, and Service Worker handler — just like
- * `request.user` in Django.
- *
- * Set automatically by {@link AuthenticationMiddleware},
- * {@link loginRequired}, and {@link permissionRequired}.
- * Anonymous requests receive `null`.
- *
- * @example
- * ```ts
- * import "@alexi/auth"; // ensure augmentation is loaded
- *
- * async function myView(request: Request): Promise<Response> {
- *   if (!request.user) return Response.redirect("/login/", 302);
- *   return Response.json({ id: request.user.id, email: request.user.email });
- * }
- * ```
- */
-declare global {
-  interface Request {
-    /**
-     * The authenticated user resolved by {@link AuthenticationMiddleware},
-     * {@link loginRequired}, or {@link permissionRequired}.
-     *
-     * `null` for anonymous (unauthenticated) requests.
-     * `undefined` when no auth middleware or decorator has run yet.
-     */
-    user: AuthenticatedUser | null | undefined;
-  }
 }
 
 /**
@@ -199,7 +184,7 @@ export function loginRequired(view: ViewFunction): ViewFunction {
       );
     }
     _requestUsers.set(request, user);
-    request.user = user;
+    (request as unknown as Record<string, unknown>)["user"] = user;
     return view(request, params);
   };
 }
@@ -255,7 +240,7 @@ export function permissionRequired(
       );
     }
     _requestUsers.set(request, user);
-    request.user = user;
+    (request as unknown as Record<string, unknown>)["user"] = user;
     return view(request, params);
   };
 }

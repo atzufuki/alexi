@@ -12,6 +12,25 @@
  * `MIDDLEWARE` setting to make authentication available in plain views, other
  * middleware, and service-worker handlers — not just in ViewSets.
  *
+ * ## `request.user` property
+ *
+ * At runtime the middleware attaches the resolved user to `request.user`.
+ * Because JSR prohibits `declare global` in published packages, the type
+ * augmentation is **not** included here.  Add the following to your own
+ * project (e.g. `src/types.d.ts`, which is never published to JSR) to get
+ * full TypeScript support:
+ *
+ * ```ts
+ * // src/types.d.ts
+ * import type { AuthenticatedUser } from "@alexi/auth";
+ *
+ * declare global {
+ *   interface Request {
+ *     user?: AuthenticatedUser | null;
+ *   }
+ * }
+ * ```
+ *
  * @example Basic usage (JWT payload only)
  * ```ts
  * import { AuthenticationMiddleware } from "@alexi/auth";
@@ -224,9 +243,10 @@ export class AuthenticationMiddleware extends BaseMiddleware {
    */
   override async call(request: Request): Promise<Response> {
     const user = await _resolveUser(request);
+    const req = request as unknown as Record<string, unknown>;
     if (user) {
       _requestUsers.set(request, user);
-      request.user = user;
+      req["user"] = user;
 
       // If a userModel is configured, fetch the full ORM instance.
       const userModel = (this.constructor as typeof AuthenticationMiddleware)
@@ -240,7 +260,7 @@ export class AuthenticationMiddleware extends BaseMiddleware {
         }
       }
     } else {
-      request.user = null;
+      req["user"] = null;
     }
     return this.getResponse(request);
   }

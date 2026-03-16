@@ -6,6 +6,7 @@ import { assertEquals } from "jsr:@std/assert@1";
 import { AuthenticationMiddleware } from "./middleware.ts";
 import { getRequestUser, getRequestUserInstance } from "./decorators.ts";
 import { createTokenPair, signJWT } from "./jwt.ts";
+import "./test_types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers

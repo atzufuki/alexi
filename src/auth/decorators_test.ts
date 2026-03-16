@@ -5,6 +5,7 @@ import {
   permissionRequired,
 } from "./decorators.ts";
 import { createTokenPair, signJWT } from "./jwt.ts";
+import "./test_types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
