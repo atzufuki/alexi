@@ -669,7 +669,7 @@ export class MigrationSchemaEditor {
    * | `deprecateModel` | `restoreModel` |
    * | `addField` | `deprecateField` |
    * | `deprecateField` | `restoreField` |
-   * | `alterField(new)` | `alterField(old)` — restores deprecated column |
+   * | `alterField(new)` | restores original column from deprecated slot |
    * | `createIndex` | `dropIndex` |
    * | `dropIndex` | *(skipped — index definition not available)* |
    * | `executeSQL` | *(skipped — cannot auto-reverse raw SQL)* |
@@ -705,13 +705,46 @@ export class MigrationSchemaEditor {
           await this.restoreField(op.model, op.fieldName, this._migrationName);
           break;
 
-        case "alterField":
-          // The deprecated column holds the old data; restore it.
-          // Step 1: deprecate the current (new-type) column
-          await this.deprecateField(op.model, op.fieldName);
-          // Step 2: restore the old column from the deprecated slot created by forwards()
-          await this.restoreField(op.model, op.fieldName, this._migrationName);
+        case "alterField": {
+          // forwards() did:
+          //   addColumn(_temp_X, newField)
+          //   copyData X → _temp_X
+          //   renameColumn X → _deprecated_<mig>_X   (original is now deprecated)
+          //   renameColumn _temp_X → X               (new column is now X)
+          //
+          // backwards() must:
+          //   1. Rename current X → another temp slot (so the name is free)
+          //   2. Rename _deprecated_<mig>_X → X      (restore original)
+          //   3. Deprecate the new-type column under a distinguishable name
+          //
+          // We use _bwd_<X> as the temp slot.
+          const tableName = this._getTableName(op.model);
+          const deprecatedName = this._getDeprecatedName(op.fieldName);
+          const bwdTempName = `_bwd_${op.fieldName}`;
+
+          // Step 1: park the current (new-type) column aside
+          if (!this._recordOnly) {
+            await this._backendEditor.renameColumn(
+              tableName,
+              op.fieldName,
+              bwdTempName,
+            );
+            // Step 2: restore the original column from its deprecated slot
+            await this._backendEditor.renameColumn(
+              tableName,
+              deprecatedName,
+              op.fieldName,
+            );
+            // Step 3: rename the parked new-type column to the deprecated slot
+            //         (keeps the data accessible, frees _bwd_ name)
+            await this._backendEditor.renameColumn(
+              tableName,
+              bwdTempName,
+              deprecatedName,
+            );
+          }
           break;
+        }
 
         case "createIndex":
           if (op.resolvedIndexName) {
