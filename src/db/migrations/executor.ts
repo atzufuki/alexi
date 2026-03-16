@@ -363,7 +363,7 @@ export class MigrationExecutor {
     const fullName = migration.getFullName();
     const startTime = Date.now();
 
-    // Error if migration cannot be reversed
+    // Error if migration cannot be reversed (DataMigration without override)
     if (!migration.canReverse()) {
       const errorMessage =
         `Cannot rollback ${fullName}: migration has no backwards() method`;
@@ -383,15 +383,36 @@ export class MigrationExecutor {
     }
 
     try {
-      // Create schema editor
+      // Create schema editor for actual execution
       const schemaEditor = this._createSchemaEditor(
         migration.name,
         options,
       );
 
-      // Run backwards
       if (!options?.dryRun) {
-        await migration.backwards!(schemaEditor);
+        if (migration.backwards) {
+          // Explicit backwards() — use it directly
+          await migration.backwards(schemaEditor);
+        } else {
+          // Auto-reversal: record the forwards() operation log without
+          // executing SQL, then replay in reverse using autoReverse()
+          const recordingEditor = this._createSchemaEditor(migration.name, {
+            ...options,
+            recordOnly: true,
+            verbosity: 0,
+          });
+          await migration.forwards(recordingEditor);
+          const log = recordingEditor.getOperationLog();
+
+          if (recordingEditor.hasRawSQL()) {
+            throw new Error(
+              `Cannot auto-reverse ${fullName}: forwards() contains executeSQL() calls. ` +
+                `Override backwards() manually or use DataMigration.`,
+            );
+          }
+
+          await schemaEditor.autoReverse(log);
+        }
 
         // Remove the migration record
         await this._recorder.recordUnapplied(fullName);
@@ -482,7 +503,7 @@ export class MigrationExecutor {
    */
   private _createSchemaEditor(
     migrationName: string,
-    options?: MigrationOptions,
+    options?: MigrationOptions & { recordOnly?: boolean },
   ): MigrationSchemaEditor {
     // Get backend schema editor
     let backendEditor: IBackendSchemaEditor;
