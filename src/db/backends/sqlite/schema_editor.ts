@@ -143,7 +143,12 @@ export class SQLiteSchemaEditor implements SchemaEditor {
     let columnName = fieldName;
     let sqlType = FIELD_TYPE_MAP[fieldType];
 
-    if (!sqlType) return null;
+    if (!sqlType) {
+      console.warn(
+        `[alexi] buildColumnDefinition: unknown field type "${fieldType}" for column "${fieldName}" — column will be skipped. Add an entry to FIELD_TYPE_MAP or use executeRaw() to create the column manually.`,
+      );
+      return null;
+    }
 
     // ForeignKey and OneToOneField columns are stored as `fieldName_id INTEGER`.
     if (fieldType === "ForeignKey" || fieldType === "OneToOneField") {

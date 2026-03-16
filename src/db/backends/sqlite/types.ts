@@ -83,6 +83,8 @@ export const FIELD_TYPE_MAP: Record<string, string> = {
   UUIDField: "TEXT",
   JSONField: "TEXT", // JSON-serialized string
   BinaryField: "BLOB",
+  FileField: "TEXT", // stores file path or URL
+  ImageField: "TEXT", // stores file path or URL
   ForeignKey: "INTEGER",
   OneToOneField: "INTEGER UNIQUE",
 };
