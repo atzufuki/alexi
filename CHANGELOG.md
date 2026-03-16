@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.45.2] - 2026-03-16
+
+### Fixed
+
+- `autoReverse()` now correctly resolves the SQLite column name for `ForeignKey`
+  and `OneToOneField` fields: the actual column is `<fieldName>_id` (e.g.
+  `category_id`), not the bare field name. Previously, rolling back an
+  `addField` migration for a FK/O2O field would fail with `no such column`
+  (#382)
+
 ## [0.45.1] - 2026-03-16
 
 ### Fixed
