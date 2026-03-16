@@ -63,25 +63,33 @@ export interface MigrationOptions {
 /**
  * Abstract base class for schema migrations.
  *
- * Every migration **must** implement both `forwards()` and `backwards()`.
- * This is enforced at compile time — there is no optional `backwards()`.
+ * Every migration **must** implement `forwards()`. The `backwards()` method
+ * is **optional** — if omitted, the executor automatically derives it by
+ * replaying the `forwards()` operation log in reverse order using the inverse
+ * of each schema operation.
+ *
+ * Auto-reversal works because Alexi's deprecation model never deletes data —
+ * it only renames columns and tables. Every schema operation therefore has a
+ * deterministic, safe inverse.
+ *
+ * Override `backwards()` only when:
+ * - The migration calls `schema.executeSQL()` (raw SQL cannot be auto-reversed)
+ * - Custom rollback logic is required
  *
  * For migrations where backwards is genuinely impossible (e.g. irreversible
- * data transformations), use {@link DataMigration} instead, which documents
- * the intent explicitly and throws {@link IrreversibleMigrationError} at
- * runtime if a rollback is attempted.
+ * data transformations with external side-effects), use {@link DataMigration}
+ * instead, which documents the intent explicitly and throws
+ * {@link IrreversibleMigrationError} at runtime if a rollback is attempted.
  *
- * @example
+ * @example Auto-reversed migration (no backwards() needed)
  * ```ts
  * import { Migration } from "@alexi/db/migrations";
  * import type { MigrationSchemaEditor } from "@alexi/db/migrations";
- * import { Model, AutoField, CharField, EmailField } from "@alexi/db";
+ * import { Model, AutoField, CharField } from "@alexi/db";
  *
- * // Snapshot model - frozen at this migration's point in time
  * class UserModel extends Model {
  *   static meta = { dbTable: "users" };
  *   id = new AutoField({ primaryKey: true });
- *   email = new CharField({ maxLength: 255 });
  *   name = new CharField({ maxLength: 100 });
  * }
  *
@@ -91,12 +99,26 @@ export interface MigrationOptions {
  *
  *   async forwards(schema: MigrationSchemaEditor): Promise<void> {
  *     await schema.createModel(UserModel);
- *     await schema.createIndex(UserModel, ["email"]);
+ *   }
+ *   // backwards() is auto-generated: deprecateModel(UserModel)
+ * }
+ * ```
+ *
+ * @example Manual backwards() override
+ * ```ts
+ * export default class Migration0002 extends Migration {
+ *   name = "0002_add_email";
+ *   dependencies = ["0001_create_users"];
+ *
+ *   async forwards(schema: MigrationSchemaEditor): Promise<void> {
+ *     await schema.addField(UserModel, "email", new EmailField());
+ *     await schema.executeSQL("CREATE UNIQUE INDEX idx_users_email ON users(email)");
  *   }
  *
+ *   // Manual backwards() required because executeSQL() cannot be auto-reversed
  *   async backwards(schema: MigrationSchemaEditor): Promise<void> {
- *     await schema.dropIndex(UserModel, "idx_users_email");
- *     await schema.deprecateModel(UserModel);
+ *     await schema.executeSQL("DROP INDEX IF EXISTS idx_users_email");
+ *     await schema.deprecateField(UserModel, "email");
  *   }
  * }
  * ```
@@ -170,24 +192,30 @@ export abstract class Migration {
   /**
    * Reverse the migration.
    *
-   * Implement this method to undo the changes made in `forwards()`.
-   * Use deprecation methods instead of hard deletion for safety.
+   * This method is **optional**. When omitted, the executor automatically
+   * derives `backwards()` by replaying the operation log recorded during
+   * `forwards()` in reverse order, applying the inverse of each schema
+   * operation.
    *
-   * This method is **abstract** — every migration must provide an
-   * implementation. If a rollback is genuinely impossible, use
-   * {@link DataMigration} which documents that intent explicitly.
+   * Override this method when:
+   * - `forwards()` contains `schema.executeSQL()` calls (raw SQL is not
+   *   auto-reversible)
+   * - Custom rollback logic is required beyond simple schema inversion
+   *
+   * If a rollback is genuinely impossible, use {@link DataMigration} which
+   * documents that intent explicitly.
    *
    * @param schema - Schema editor for making changes
    *
    * @example
    * ```ts
    * async backwards(schema: MigrationSchemaEditor): Promise<void> {
+   *   await schema.executeSQL("DROP INDEX IF EXISTS idx_users_email");
    *   await schema.deprecateField(UserModel, "email");
-   *   await schema.deprecateModel(UserModel);
    * }
    * ```
    */
-  abstract backwards(schema: MigrationSchemaEditor): Promise<void>;
+  backwards?(schema: MigrationSchemaEditor): Promise<void>;
 
   // ==========================================================================
   // Utility Methods
@@ -233,9 +261,12 @@ export abstract class Migration {
   /**
    * Check if this migration can be reversed.
    *
-   * Always returns `true` for {@link Migration} subclasses since
-   * `backwards()` is required. {@link DataMigration} overrides this to
-   * return `false`.
+   * Always returns `true` for {@link Migration} subclasses — either because
+   * the subclass provides an explicit `backwards()`, or because the executor
+   * will auto-derive it from the `forwards()` operation log.
+   *
+   * {@link DataMigration} overrides this to return `false` when no
+   * `backwards()` is provided.
    *
    * @returns `true` if the migration can be safely rolled back
    */
@@ -252,7 +283,7 @@ export abstract class Migration {
  * Base class for data migrations — migrations that transform data rather
  * than schema, and where rollback is genuinely not possible.
  *
- * `DataMigration` satisfies the abstract `backwards()` contract by providing
+ * `DataMigration` satisfies the optional `backwards()` contract by providing
  * an implementation that throws {@link IrreversibleMigrationError} at runtime.
  * This makes the non-reversibility explicit and intentional rather than
  * accidental.
@@ -300,11 +331,12 @@ export abstract class DataMigration extends Migration {
   /**
    * {@inheritDoc Migration.canReverse}
    *
-   * Always returns `false` for `DataMigration` unless `backwards()` is
+   * Returns `false` for `DataMigration` unless `backwards()` is explicitly
    * overridden in a subclass.
    */
   override canReverse(): boolean {
-    return false;
+    // If the subclass has overridden backwards(), it is reversible
+    return this.backwards !== DataMigration.prototype.backwards;
   }
 
   /**

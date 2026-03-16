@@ -251,33 +251,41 @@ export class MakemigrationsCommand extends BaseCommand {
   //
 ${detectedChanges.map((c) => `  // ${formatChange(c)}`).join("\n")}
   //
-  // For forwards():
+   // For forwards():
   // - Add new models with: await schema.createModel(ModelClass)
   // - Add fields with: await schema.addField(Model, "fieldName", new FieldType())
   // - Alter fields with: await schema.alterField(Model, "fieldName", new FieldType())
   // - Create indexes with: await schema.createIndex(Model, ["field1", "field2"])
+  // - Remove models with: await schema.deprecateModel("table_name")
+  // - Remove fields with: await schema.deprecateField(Model, "fieldName")
   //
-  // For backwards():
-  // - Use schema.deprecateModel() instead of dropping tables
-  // - Use schema.deprecateField() instead of removing columns
-  // - Use schema.restoreModel() / schema.restoreField() to undo deprecations
+  // backwards() is auto-generated from the forwards() operation log:
+  // - createModel  → deprecateModel  |  deprecateModel  → restoreModel
+  // - addField     → deprecateField  |  deprecateField  → restoreField
+  // - alterField   → restore previous field definition
+  // - createIndex  → dropIndex
+  // Override backwards() only if forwards() uses schema.executeSQL().
   //
   // See: https://alexi.dev/docs/migrations
 \`;
     } else if (!isEmpty) {
       changesComment = \`
   // TODO: Implement this migration
-  // 
-  // For forwards():
+  //
+   // For forwards():
   // - Add new models with: await schema.createModel(ModelClass)
   // - Add fields with: await schema.addField(Model, "fieldName", new FieldType())
   // - Alter fields with: await schema.alterField(Model, "fieldName", new FieldType())
   // - Create indexes with: await schema.createIndex(Model, ["field1", "field2"])
+  // - Remove models with: await schema.deprecateModel("table_name")
+  // - Remove fields with: await schema.deprecateField(Model, "fieldName")
   //
-  // For backwards():
-  // - Use schema.deprecateModel() instead of dropping tables
-  // - Use schema.deprecateField() instead of removing columns
-  // - Use schema.restoreModel() / schema.restoreField() to undo deprecations
+  // backwards() is auto-generated from the forwards() operation log:
+  // - createModel  → deprecateModel  |  deprecateModel  → restoreModel
+  // - addField     → deprecateField  |  deprecateField  → restoreField
+  // - alterField   → restore previous field definition
+  // - createIndex  → dropIndex
+  // Override backwards() only if forwards() uses schema.executeSQL().
   //
   // See: https://alexi.dev/docs/migrations
 `;
@@ -285,7 +293,6 @@ ${detectedChanges.map((c) => `  // ${formatChange(c)}`).join("\n")}
 
     // Generate forwards() implementation hints based on changes
     const forwardsHints = this._generateForwardsHints(detectedChanges);
-    const backwardsHints = this._generateBackwardsHints(detectedChanges);
 
     return `/**
  * Migration: ${migrationName}
@@ -294,7 +301,8 @@ ${detectedChanges.map((c) => `  // ${formatChange(c)}`).join("\n")}
  * Created: ${new Date().toISOString()}
  */
 
-import { Migration, MigrationSchemaEditor } from "@alexi/db/migrations";
+import { Migration } from "@alexi/db/migrations";
+import type { MigrationSchemaEditor } from "@alexi/db/migrations";
 // import { Model, AutoField, CharField, ... } from "@alexi/db";
 
 // ============================================================================
@@ -324,9 +332,8 @@ ${changesComment}
 ${forwardsHints}
   }
 
-  async backwards(schema: MigrationSchemaEditor): Promise<void> {
-${backwardsHints}
-  }
+  // backwards() is auto-generated from the forwards() operation log.
+  // Override this method only if forwards() calls schema.executeSQL().
 }
 `;
   }

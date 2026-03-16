@@ -16,6 +16,49 @@ type AnyField = Field<any>;
 import type { DatabaseBackend } from "../backends/backend.ts";
 
 // ============================================================================
+// Operation Log Types
+// ============================================================================
+
+/**
+ * Represents a single schema operation recorded during `forwards()`.
+ *
+ * The executor uses this log to automatically derive `backwards()` by
+ * replaying operations in reverse order with their inverse counterparts.
+ *
+ * @category Migrations
+ */
+export type ForwardsOp =
+  | { type: "createModel"; model: typeof Model }
+  | {
+    type: "deprecateModel";
+    model: typeof Model;
+    tableName: string;
+  }
+  | {
+    type: "addField";
+    model: typeof Model;
+    fieldName: string;
+    field: AnyField;
+  }
+  | { type: "deprecateField"; model: typeof Model; fieldName: string }
+  | {
+    type: "alterField";
+    model: typeof Model;
+    fieldName: string;
+    newField: AnyField;
+    options?: AlterFieldOptions;
+  }
+  | {
+    type: "createIndex";
+    model: typeof Model;
+    fields: string[];
+    options?: CreateIndexOptions;
+    resolvedIndexName?: string;
+  }
+  | { type: "dropIndex"; model: typeof Model; indexName: string }
+  | { type: "executeSQL"; sql: string; params?: unknown[] };
+
+// ============================================================================
 // Types
 // ============================================================================
 
@@ -190,20 +233,23 @@ export class MigrationSchemaEditor {
   private _backendEditor: IBackendSchemaEditor;
   private _migrationName: string;
   private _dryRun: boolean;
+  private _recordOnly: boolean;
   private _verbosity: number;
   private _deprecations: DeprecationInfo[] = [];
   private _statements: SQLStatement[] = [];
+  private _operationLog: ForwardsOp[] = [];
 
   constructor(
     backend: DatabaseBackend,
     backendEditor: IBackendSchemaEditor,
     migrationName: string,
-    options?: { dryRun?: boolean; verbosity?: number },
+    options?: { dryRun?: boolean; verbosity?: number; recordOnly?: boolean },
   ) {
     this._backend = backend;
     this._backendEditor = backendEditor;
     this._migrationName = migrationName;
     this._dryRun = options?.dryRun ?? false;
+    this._recordOnly = options?.recordOnly ?? false;
     this._verbosity = options?.verbosity ?? 1;
   }
 
@@ -220,7 +266,10 @@ export class MigrationSchemaEditor {
    */
   async createModel(model: typeof Model): Promise<void> {
     this._log(`Creating table for ${model.name}...`);
-    await this._backendEditor.createTable(model);
+    if (!this._recordOnly) {
+      await this._backendEditor.createTable(model);
+    }
+    this._operationLog.push({ type: "createModel", model });
     this._logVerbose(`  Created table: ${this._getTableName(model)}`);
   }
 
@@ -238,7 +287,9 @@ export class MigrationSchemaEditor {
 
     this._log(`Deprecating model ${model.name}...`);
 
-    await this._backendEditor.renameTable(tableName, deprecatedName);
+    if (!this._recordOnly) {
+      await this._backendEditor.renameTable(tableName, deprecatedName);
+    }
 
     const info: DeprecationInfo = {
       type: "model",
@@ -250,6 +301,7 @@ export class MigrationSchemaEditor {
     };
 
     this._deprecations.push(info);
+    this._operationLog.push({ type: "deprecateModel", model, tableName });
     this._logVerbose(`  Renamed ${tableName} → ${deprecatedName}`);
 
     return info;
@@ -272,15 +324,17 @@ export class MigrationSchemaEditor {
 
     this._log(`Restoring model ${originalTableName}...`);
 
-    // Check if deprecated table exists
-    const exists = await this._backendEditor.tableExists(deprecatedName);
-    if (!exists) {
-      throw new Error(
-        `Cannot restore: deprecated table '${deprecatedName}' does not exist`,
-      );
-    }
+    if (!this._recordOnly) {
+      // Check if deprecated table exists
+      const exists = await this._backendEditor.tableExists(deprecatedName);
+      if (!exists) {
+        throw new Error(
+          `Cannot restore: deprecated table '${deprecatedName}' does not exist`,
+        );
+      }
 
-    await this._backendEditor.renameTable(deprecatedName, originalTableName);
+      await this._backendEditor.renameTable(deprecatedName, originalTableName);
+    }
     this._logVerbose(`  Renamed ${deprecatedName} → ${originalTableName}`);
   }
 
@@ -303,7 +357,10 @@ export class MigrationSchemaEditor {
     const tableName = this._getTableName(model);
 
     this._log(`Adding field ${fieldName} to ${model.name}...`);
-    await this._backendEditor.addColumn(tableName, fieldName, field);
+    if (!this._recordOnly) {
+      await this._backendEditor.addColumn(tableName, fieldName, field);
+    }
+    this._operationLog.push({ type: "addField", model, fieldName, field });
     this._logVerbose(`  Added column: ${fieldName}`);
   }
 
@@ -323,7 +380,9 @@ export class MigrationSchemaEditor {
     const tableName = this._getTableName(model);
 
     this._log(`Dropping field ${fieldName} from ${model.name}...`);
-    await this._backendEditor.dropColumn(tableName, fieldName);
+    if (!this._recordOnly) {
+      await this._backendEditor.dropColumn(tableName, fieldName);
+    }
     this._logVerbose(`  Dropped column: ${fieldName}`);
   }
 
@@ -345,11 +404,13 @@ export class MigrationSchemaEditor {
 
     this._log(`Deprecating field ${fieldName} on ${model.name}...`);
 
-    await this._backendEditor.renameColumn(
-      tableName,
-      fieldName,
-      deprecatedName,
-    );
+    if (!this._recordOnly) {
+      await this._backendEditor.renameColumn(
+        tableName,
+        fieldName,
+        deprecatedName,
+      );
+    }
 
     const info: DeprecationInfo = {
       type: "field",
@@ -361,6 +422,7 @@ export class MigrationSchemaEditor {
     };
 
     this._deprecations.push(info);
+    this._operationLog.push({ type: "deprecateField", model, fieldName });
     this._logVerbose(`  Renamed ${fieldName} → ${deprecatedName}`);
 
     return info;
@@ -386,11 +448,13 @@ export class MigrationSchemaEditor {
 
     this._log(`Restoring field ${originalFieldName} on ${model.name}...`);
 
-    await this._backendEditor.renameColumn(
-      tableName,
-      deprecatedName,
-      originalFieldName,
-    );
+    if (!this._recordOnly) {
+      await this._backendEditor.renameColumn(
+        tableName,
+        deprecatedName,
+        originalFieldName,
+      );
+    }
     this._logVerbose(`  Renamed ${deprecatedName} → ${originalFieldName}`);
   }
 
@@ -419,43 +483,53 @@ export class MigrationSchemaEditor {
 
     this._log(`Altering field ${fieldName} on ${model.name}...`);
 
-    // Step 1: Add new column with temporary name
-    this._logVerbose(`  Step 1: Adding temp column ${tempName}`);
-    await this._backendEditor.addColumn(tableName, tempName, newField);
+    if (!this._recordOnly) {
+      // Step 1: Add new column with temporary name
+      this._logVerbose(`  Step 1: Adding temp column ${tempName}`);
+      await this._backendEditor.addColumn(tableName, tempName, newField);
 
-    // Step 2: Copy data from old column to new column
-    this._logVerbose(`  Step 2: Copying data ${fieldName} → ${tempName}`);
-    const transform = options?.transform
-      ? this._buildTransformExpression(options.transform)
-      : undefined;
-    await this._backendEditor.copyColumnData(
-      tableName,
+      // Step 2: Copy data from old column to new column
+      this._logVerbose(`  Step 2: Copying data ${fieldName} → ${tempName}`);
+      const transform = options?.transform
+        ? this._buildTransformExpression(options.transform)
+        : undefined;
+      await this._backendEditor.copyColumnData(
+        tableName,
+        fieldName,
+        tempName,
+        transform,
+      );
+
+      // Step 3: Deprecate old column
+      this._logVerbose(`  Step 3: Deprecating old column ${fieldName}`);
+      const deprecatedName = this._getDeprecatedName(fieldName);
+      await this._backendEditor.renameColumn(
+        tableName,
+        fieldName,
+        deprecatedName,
+      );
+
+      this._deprecations.push({
+        type: "field",
+        originalName: fieldName,
+        deprecatedName,
+        migrationName: this._migrationName,
+        tableName,
+        deprecatedAt: new Date(),
+      });
+
+      // Step 4: Rename temp column to original name
+      this._logVerbose(`  Step 4: Renaming ${tempName} → ${fieldName}`);
+      await this._backendEditor.renameColumn(tableName, tempName, fieldName);
+    }
+
+    this._operationLog.push({
+      type: "alterField",
+      model,
       fieldName,
-      tempName,
-      transform,
-    );
-
-    // Step 3: Deprecate old column
-    this._logVerbose(`  Step 3: Deprecating old column ${fieldName}`);
-    const deprecatedName = this._getDeprecatedName(fieldName);
-    await this._backendEditor.renameColumn(
-      tableName,
-      fieldName,
-      deprecatedName,
-    );
-
-    this._deprecations.push({
-      type: "field",
-      originalName: fieldName,
-      deprecatedName,
-      migrationName: this._migrationName,
-      tableName,
-      deprecatedAt: new Date(),
+      newField,
+      options,
     });
-
-    // Step 4: Rename temp column to original name
-    this._logVerbose(`  Step 4: Renaming ${tempName} → ${fieldName}`);
-    await this._backendEditor.renameColumn(tableName, tempName, fieldName);
   }
 
   // ==========================================================================
@@ -477,7 +551,20 @@ export class MigrationSchemaEditor {
     const tableName = this._getTableName(model);
 
     this._log(`Creating index on ${model.name}(${fields.join(", ")})...`);
-    await this._backendEditor.createIndex(tableName, fields, options);
+    if (!this._recordOnly) {
+      await this._backendEditor.createIndex(tableName, fields, options);
+    }
+
+    // Resolve the index name the same way the backend would
+    const resolvedIndexName = options?.name ??
+      `idx_${tableName}_${fields.join("_")}`;
+    this._operationLog.push({
+      type: "createIndex",
+      model,
+      fields,
+      options,
+      resolvedIndexName,
+    });
   }
 
   /**
@@ -488,7 +575,10 @@ export class MigrationSchemaEditor {
    */
   async dropIndex(_model: typeof Model, indexName: string): Promise<void> {
     this._log(`Dropping index ${indexName}...`);
-    await this._backendEditor.dropIndex(indexName);
+    if (!this._recordOnly) {
+      await this._backendEditor.dropIndex(indexName);
+    }
+    this._operationLog.push({ type: "dropIndex", model: _model, indexName });
   }
 
   // ==========================================================================
@@ -505,7 +595,10 @@ export class MigrationSchemaEditor {
    */
   async executeSQL(sql: string, params?: unknown[]): Promise<void> {
     this._logVerbose(`Executing SQL: ${sql}`);
-    await this._backendEditor.executeRaw(sql, params);
+    if (!this._recordOnly) {
+      await this._backendEditor.executeRaw(sql, params);
+    }
+    this._operationLog.push({ type: "executeSQL", sql, params });
   }
 
   // ==========================================================================
@@ -542,6 +635,135 @@ export class MigrationSchemaEditor {
    */
   getDeprecations(): DeprecationInfo[] {
     return [...this._deprecations];
+  }
+
+  /**
+   * Get the operation log recorded during `forwards()`.
+   *
+   * The executor uses this to automatically derive `backwards()` when
+   * the migration does not override it.
+   */
+  getOperationLog(): ForwardsOp[] {
+    return [...this._operationLog];
+  }
+
+  /**
+   * Returns `true` if the operation log contains any `executeSQL` entries.
+   *
+   * Raw SQL cannot be automatically reversed. When present, the executor
+   * will warn and skip auto-reversal unless `backwards()` is overridden.
+   */
+  hasRawSQL(): boolean {
+    return this._operationLog.some((op) => op.type === "executeSQL");
+  }
+
+  /**
+   * Automatically reverse all recorded `forwards()` operations.
+   *
+   * Replays the operation log in reverse order, applying the inverse of
+   * each operation:
+   *
+   * | `forwards()` | auto `backwards()` |
+   * |---|---|
+   * | `createModel` | `deprecateModel` |
+   * | `deprecateModel` | `restoreModel` |
+   * | `addField` | `deprecateField` |
+   * | `deprecateField` | `restoreField` |
+   * | `alterField(new)` | restores original column from deprecated slot |
+   * | `createIndex` | `dropIndex` |
+   * | `dropIndex` | *(skipped — index definition not available)* |
+   * | `executeSQL` | *(skipped — cannot auto-reverse raw SQL)* |
+   *
+   * @param log - The operation log from the corresponding `forwards()` run.
+   * @throws {Error} If the log contains `executeSQL` entries (raw SQL cannot be auto-reversed).
+   */
+  async autoReverse(log: ForwardsOp[]): Promise<void> {
+    const hasSql = log.some((op) => op.type === "executeSQL");
+    if (hasSql) {
+      throw new Error(
+        "Cannot auto-reverse: migration contains executeSQL() calls. " +
+          "Override backwards() manually or use DataMigration.",
+      );
+    }
+
+    // Replay in reverse order
+    for (const op of [...log].reverse()) {
+      switch (op.type) {
+        case "createModel":
+          await this.deprecateModel(op.model);
+          break;
+
+        case "deprecateModel":
+          await this.restoreModel(op.tableName, this._migrationName);
+          break;
+
+        case "addField":
+          await this.deprecateField(op.model, op.fieldName);
+          break;
+
+        case "deprecateField":
+          await this.restoreField(op.model, op.fieldName, this._migrationName);
+          break;
+
+        case "alterField": {
+          // forwards() did:
+          //   addColumn(_temp_X, newField)
+          //   copyData X → _temp_X
+          //   renameColumn X → _deprecated_<mig>_X   (original is now deprecated)
+          //   renameColumn _temp_X → X               (new column is now X)
+          //
+          // backwards() must:
+          //   1. Rename current X → another temp slot (so the name is free)
+          //   2. Rename _deprecated_<mig>_X → X      (restore original)
+          //   3. Deprecate the new-type column under a distinguishable name
+          //
+          // We use _bwd_<X> as the temp slot.
+          const tableName = this._getTableName(op.model);
+          const deprecatedName = this._getDeprecatedName(op.fieldName);
+          const bwdTempName = `_bwd_${op.fieldName}`;
+
+          // Step 1: park the current (new-type) column aside
+          if (!this._recordOnly) {
+            await this._backendEditor.renameColumn(
+              tableName,
+              op.fieldName,
+              bwdTempName,
+            );
+            // Step 2: restore the original column from its deprecated slot
+            await this._backendEditor.renameColumn(
+              tableName,
+              deprecatedName,
+              op.fieldName,
+            );
+            // Step 3: rename the parked new-type column to the deprecated slot
+            //         (keeps the data accessible, frees _bwd_ name)
+            await this._backendEditor.renameColumn(
+              tableName,
+              bwdTempName,
+              deprecatedName,
+            );
+          }
+          break;
+        }
+
+        case "createIndex":
+          if (op.resolvedIndexName) {
+            await this.dropIndex(op.model, op.resolvedIndexName);
+          }
+          break;
+
+        case "dropIndex":
+          // Index definition is not stored — cannot auto-recreate.
+          this._logVerbose(
+            `  Skipping auto-reverse of dropIndex(${op.indexName}) — index definition not available`,
+          );
+          break;
+
+        case "executeSQL":
+          // Should never reach here due to the guard above, but satisfies exhaustiveness.
+          break;
+      }
+    }
   }
 
   /**
