@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.48.2] - 2026-03-16
+
+### Added
+
+- `AuthenticationMiddleware.configure()` now sets `request.user` to the full ORM
+  model instance (Django parity) instead of a plain `AuthenticatedUser` JWT
+  payload object (#394, #395)
+  - **Server path** (default): instance fetched from DB via
+    `userModel.objects.filter({ id }).first()`
+  - **Service Worker path**: instance constructed from JWT payload via the new
+    optional `fromJWT(payload)` callback — no DB call
+  - Without `configure()`: `request.user` remains a plain `AuthenticatedUser`
+    (backward compatible)
+  - `getRequestUserInstance()` continues to work unchanged
+- New `fromJWT` option on `AuthenticationMiddlewareOptions` for the SW path
+
 ## [0.48.1] - 2026-03-16
 
 ### Fixed
