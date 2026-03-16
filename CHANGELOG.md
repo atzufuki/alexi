@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.45.3] - 2026-03-16
+
+### Fixed
+
+- `ImageField` and `FileField` columns are now correctly created as `TEXT` in
+  SQLite tables; previously they were missing from `FIELD_TYPE_MAP`, causing
+  `CREATE TABLE` to silently skip the columns and ORM `INSERT`s to fail with
+  `table has no column named <field>` (#384)
+- `buildColumnDefinition()` in both the migration schema editor and the backend
+  schema editor now emits a `console.warn()` for unknown field types instead of
+  silently dropping the column (#384)
+
 ## [0.45.2] - 2026-03-16
 
 ### Fixed
