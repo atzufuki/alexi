@@ -49,6 +49,26 @@ export interface WebUIConfig {
    * @default false
    */
   devTools?: boolean;
+
+  /**
+   * Persistent browser profile configuration.
+   *
+   * When set, WebUI calls `window.setProfile(name, path)` before opening the
+   * window so that browser storage (IndexedDB, localStorage, cookies, etc.) is
+   * preserved between sessions.  When omitted the WebUI default — a temporary,
+   * private profile — is used.
+   *
+   * @example
+   * ```ts
+   * profile: { name: "myapp", path: "./data/profile" }
+   * ```
+   */
+  profile?: {
+    /** Profile name passed to `window.setProfile()`. */
+    name: string;
+    /** Directory path where the profile is stored. */
+    path: string;
+  };
 }
 
 /**
@@ -98,6 +118,7 @@ export interface WebUILauncherOptions {
 interface WebUIWindow {
   setSize(width: number, height: number): void;
   setKiosk(enable: boolean): void;
+  setProfile(name: string, path: string): void;
   show(content: string): Promise<void>;
   bind(name: string, callback: (...args: unknown[]) => unknown): void;
   close(): void;
@@ -324,6 +345,14 @@ export class WebUILauncher {
     }
 
     this.window = new this.WebUI();
+
+    // Set persistent profile if configured
+    if (this.config.profile) {
+      this.window.setProfile(
+        this.config.profile.name,
+        this.config.profile.path,
+      );
+    }
 
     // Set size
     this.window.setSize(this.config.width!, this.config.height!);
