@@ -11,7 +11,7 @@
 
 import type { TokenPayload } from "./jwt.ts";
 import { verifyToken } from "./jwt.ts";
-import { _requestUsers } from "./_auth_store.ts";
+import { _requestUserInstances, _requestUsers } from "./_auth_store.ts";
 
 // =============================================================================
 // Types
@@ -74,6 +74,47 @@ export function getRequestUser(
   request: Request,
 ): AuthenticatedUser | undefined {
   return _requestUsers.get(request);
+}
+
+/**
+ * Return the full ORM model instance attached to `request` by
+ * {@link AuthenticationMiddleware} when it is configured with a `userModel`.
+ *
+ * Returns `undefined` when the middleware was not configured with a
+ * `userModel`, when the request is anonymous, or when the user was not found
+ * in the database.
+ *
+ * Use a type parameter to cast the result to your project's user model type
+ * without importing it in this package:
+ *
+ * ```ts
+ * import { getRequestUserInstance } from "@alexi/auth";
+ * import type { UserModel } from "@myapp/models";
+ *
+ * const user = getRequestUserInstance<UserModel>(request);
+ * ```
+ *
+ * @param request - The current HTTP request.
+ * @returns The ORM instance, or `undefined` if not available.
+ *
+ * @example
+ * ```ts
+ * import { getRequestUserInstance } from "@alexi/auth";
+ * import type { UserModel } from "@myapp/models";
+ *
+ * export async function profileView(request: Request): Promise<Response> {
+ *   const user = getRequestUserInstance<UserModel>(request);
+ *   if (!user) return Response.json({ detail: "Unauthorized" }, { status: 401 });
+ *   return Response.json({ name: user.firstName.get() });
+ * }
+ * ```
+ *
+ * @category Decorators
+ */
+export function getRequestUserInstance<T = unknown>(
+  request: Request,
+): T | undefined {
+  return _requestUserInstances.get(request) as T | undefined;
 }
 
 /**

@@ -4,7 +4,7 @@
 
 import { assertEquals } from "jsr:@std/assert@1";
 import { AuthenticationMiddleware } from "./middleware.ts";
-import { getRequestUser } from "./decorators.ts";
+import { getRequestUser, getRequestUserInstance } from "./decorators.ts";
 import { createTokenPair } from "./jwt.ts";
 
 // ---------------------------------------------------------------------------
@@ -171,5 +171,131 @@ Deno.test(
     const user = getRequestUser(request);
     assertEquals(user?.id, 42);
     assertEquals(user?.email, "bob@example.com");
+  },
+);
+
+// ---------------------------------------------------------------------------
+// AuthenticationMiddleware.configure: userModel integration
+// ---------------------------------------------------------------------------
+
+Deno.test(
+  "AuthenticationMiddleware.configure: fetches user instance from userModel",
+  async () => {
+    const request = await requestWithToken(7, "carol@example.com", false);
+
+    // Minimal fake user model that returns a stub instance for id=7
+    const fakeInstance = { id: 7, name: "Carol" };
+    const FakeUserModel = {
+      objects: {
+        filter(query: Record<string, unknown>) {
+          return {
+            async first() {
+              if (query["id"] === 7) return fakeInstance;
+              return null;
+            },
+          };
+        },
+      },
+    };
+
+    const ConfiguredMW = AuthenticationMiddleware.configure({
+      userModel: FakeUserModel,
+    });
+
+    let capturedInstance: unknown;
+    const mw = new ConfiguredMW(async (req?) => {
+      capturedInstance = getRequestUserInstance(req!);
+      return new Response("ok");
+    });
+
+    await mw.call(request);
+
+    assertEquals(capturedInstance, fakeInstance);
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware.configure: no instance for anonymous request",
+  async () => {
+    const request = new Request("http://localhost/test");
+
+    const FakeUserModel = {
+      objects: {
+        filter(_query: Record<string, unknown>) {
+          return {
+            async first() {
+              return null;
+            },
+          };
+        },
+      },
+    };
+
+    const ConfiguredMW = AuthenticationMiddleware.configure({
+      userModel: FakeUserModel,
+    });
+
+    let capturedInstance: unknown = "sentinel";
+    const mw = new ConfiguredMW(async (req?) => {
+      capturedInstance = getRequestUserInstance(req!);
+      return new Response("ok");
+    });
+
+    await mw.call(request);
+
+    assertEquals(capturedInstance, undefined);
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware.configure: no instance when user not found in DB",
+  async () => {
+    const request = await requestWithToken(999, "ghost@example.com", false);
+
+    // Always returns null — user 999 doesn't exist
+    const FakeUserModel = {
+      objects: {
+        filter(_query: Record<string, unknown>) {
+          return {
+            async first() {
+              return null;
+            },
+          };
+        },
+      },
+    };
+
+    const ConfiguredMW = AuthenticationMiddleware.configure({
+      userModel: FakeUserModel,
+    });
+
+    let capturedInstance: unknown = "sentinel";
+    const mw = new ConfiguredMW(async (req?) => {
+      capturedInstance = getRequestUserInstance(req!);
+      return new Response("ok");
+    });
+
+    await mw.call(request);
+
+    assertEquals(capturedInstance, undefined);
+  },
+);
+
+Deno.test(
+  "AuthenticationMiddleware.configure: base class still works without userModel",
+  async () => {
+    // Ensure configure() doesn't affect the undecorated base class
+    const request = await requestWithToken(5, "dave@example.com", false);
+
+    let capturedInstance: unknown = "sentinel";
+    const mw = new AuthenticationMiddleware(async (req?) => {
+      capturedInstance = getRequestUserInstance(req!);
+      return new Response("ok");
+    });
+
+    await mw.call(request);
+
+    // Base class has no userModel → instance should always be undefined
+    assertEquals(capturedInstance, undefined);
   },
 );

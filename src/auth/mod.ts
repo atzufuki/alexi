@@ -84,6 +84,7 @@ export type { TokenPair, TokenPayload } from "./jwt.ts";
 // View decorators
 export {
   getRequestUser,
+  getRequestUserInstance,
   loginRequired,
   permissionRequired,
 } from "./decorators.ts";
@@ -91,5 +92,9 @@ export type { AuthenticatedUser, ViewFunction } from "./decorators.ts";
 
 // Authentication middleware
 export { AuthenticationMiddleware } from "./middleware.ts";
+export type {
+  AuthenticationMiddlewareOptions,
+  UserModelClass,
+} from "./middleware.ts";
 
 // Commands are loaded dynamically via app.ts commandsModule
