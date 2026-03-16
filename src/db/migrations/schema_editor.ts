@@ -698,7 +698,10 @@ export class MigrationSchemaEditor {
           break;
 
         case "addField":
-          await this.deprecateField(op.model, op.fieldName);
+          await this.deprecateField(
+            op.model,
+            this._resolveColumnName(op.fieldName, op.field),
+          );
           break;
 
         case "deprecateField":
@@ -818,6 +821,23 @@ export class MigrationSchemaEditor {
       "Custom transform functions are not yet supported. " +
         "Use executeSQL() for complex transformations.",
     );
+  }
+
+  /**
+   * Resolve the actual database column name for a field.
+   *
+   * `ForeignKey` and `OneToOneField` are stored with an `_id` suffix
+   * (e.g. field name `"category"` → column `"category_id"`).
+   * All other fields use the field name directly.
+   */
+  private _resolveColumnName(fieldName: string, field: AnyField): string {
+    const typeName = (field as unknown as { _type?: string })._type ??
+      (field as unknown as { constructor?: { name?: string } }).constructor
+        ?.name;
+    if (typeName === "ForeignKey" || typeName === "OneToOneField") {
+      return `${fieldName}_id`;
+    }
+    return fieldName;
   }
 
   private _log(message: string): void {

@@ -27,7 +27,14 @@ import { MigrationExecutor } from "./executor.ts";
 import { MigrationLoader } from "./loader.ts";
 import { DataMigration, Migration } from "./migration.ts";
 import type { MigrationSchemaEditor } from "./schema_editor.ts";
-import { AutoField, CharField, Manager, Model } from "../mod.ts";
+import {
+  AutoField,
+  CharField,
+  ForeignKey,
+  Manager,
+  Model,
+  OnDelete,
+} from "../mod.ts";
 import {
   getBackendByName,
   getBackendNames,
@@ -651,8 +658,137 @@ Deno.test({
 });
 
 // ============================================================================
-// Fix #380 — global registry must use testCopy during --test data migrations
+// Fix #382 — autoReverse() must use column name "field_id" for FK/OneToOne
 // ============================================================================
+
+class CategoryModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(CategoryModel);
+  static override meta = { dbTable: "categories" };
+}
+
+class ServiceModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 200 });
+
+  static objects = new Manager(ServiceModel);
+  static override meta = { dbTable: "services" };
+}
+
+/** 0001 — create categories and services tables */
+class Migration382Base extends Migration {
+  name = "myapp382.0001_base";
+  override dependencies = [];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(CategoryModel);
+    await schema.createModel(ServiceModel);
+  }
+}
+
+/** 0002 — add ForeignKey field "category" to services (column: category_id) */
+class Migration382AddFK extends Migration {
+  name = "myapp382.0002_add_fk";
+  override dependencies = ["myapp382.0001_base"];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.addField(
+      ServiceModel,
+      "category",
+      new ForeignKey<CategoryModel>("CategoryModel", {
+        onDelete: OnDelete.SET_NULL,
+        null: true,
+        blank: true,
+      }),
+    );
+  }
+  // backwards() intentionally omitted — auto-generated via autoReverse()
+}
+
+Deno.test({
+  name:
+    "fix #382 — autoReverse() correctly uses category_id column for ForeignKey addField",
+  async fn() {
+    const backend = new SQLiteBackend({ path: ":memory:" });
+    await backend.connect();
+
+    const loader = new MigrationLoader();
+    loader.register(new Migration382Base(), "myapp382");
+    loader.register(new Migration382AddFK(), "myapp382");
+
+    const executor = new MigrationExecutor(backend, loader);
+
+    try {
+      // Apply forwards: creates tables + adds category_id column
+      const fwdResults = await executor.migrate({ verbosity: 0 });
+      for (const r of fwdResults) {
+        assertEquals(r.success, true, `forwards failed: ${r.error}`);
+      }
+
+      // Verify category_id column exists
+      const db = (backend as unknown as {
+        _db: {
+          prepare: (s: string) => { all: () => Array<{ name: string }> };
+        };
+      })._db;
+      const colsAfterFwd: Array<{ name: string }> = db
+        .prepare(`PRAGMA table_info(services)`)
+        .all();
+      const hasCategoryId = colsAfterFwd.some((c) => c.name === "category_id");
+      assertEquals(
+        hasCategoryId,
+        true,
+        "category_id column must exist after forwards()",
+      );
+
+      // Roll back only migration 0002: auto-reverse must deprecate category_id
+      // (not "category") — that is the exact bug in #382.
+      const bwdResults = await executor.migrate({
+        to: "myapp382.0001_base",
+        verbosity: 0,
+      });
+      for (const r of bwdResults) {
+        assertEquals(
+          r.success,
+          true,
+          `backwards failed (fix #382 — wrong column name?): ${r.error}`,
+        );
+      }
+
+      // The services table still exists (only 0002 was rolled back).
+      // Verify that category_id was deprecated (renamed) rather than failing.
+      const colsAfterBwd: Array<{ name: string }> = db
+        .prepare(`PRAGMA table_info(services)`)
+        .all();
+
+      // The original category_id column must be gone (renamed to _deprecated_*)
+      const hasCategoryIdAfterBwd = colsAfterBwd.some(
+        (c) => c.name === "category_id",
+      );
+      assertEquals(
+        hasCategoryIdAfterBwd,
+        false,
+        "category_id column must be renamed (deprecated) after backwards()",
+      );
+
+      // A deprecated column with the _id suffix must be present
+      const hasDeprecatedCategoryId = colsAfterBwd.some(
+        (c) =>
+          c.name.startsWith("_deprecated_") &&
+          c.name.endsWith("_category_id"),
+      );
+      assertEquals(
+        hasDeprecatedCategoryId,
+        true,
+        "deprecated category_id column must exist after backwards()",
+      );
+    } finally {
+      await backend.disconnect();
+    }
+  },
+});
 
 // Tracks which backend instance the ORM resolved when the data migration ran
 let resolvedBackendDuringTest: unknown = null;
