@@ -11,6 +11,8 @@ import { join, toFileUrl } from "@std/path";
 import {
   buildSWBundle,
   collectTemplatesFromConfig,
+  createBinaryAssetsPlugin,
+  DEFAULT_ASSET_LOADERS,
   generateTemplatesModule,
   isServiceWorkerFilename,
   resolveTemplatesDir,
@@ -969,6 +971,300 @@ Deno.test({
         false,
         `Output filename must not contain "__alexi_sw_entry__", got: ${hashedValue}`,
       );
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
+
+// =============================================================================
+// createBinaryAssetsPlugin — unit tests
+//
+// Verifies that the plugin factory:
+//   1. Returns a named plugin with name "alexi-binary-assets".
+//   2. Returns a no-op plugin when no binary loaders are configured.
+//   3. Builds the correct filter regex from the loaders map.
+//   4. Only intercepts extensions whose loader value is "binary".
+//   5. Does NOT intercept extensions mapped to other loaders ("file", "text").
+//
+// Regression for https://github.com/atzufuki/alexi/issues/403
+// =============================================================================
+
+Deno.test(
+  "createBinaryAssetsPlugin: returns plugin named alexi-binary-assets",
+  () => {
+    const plugin = createBinaryAssetsPlugin(DEFAULT_ASSET_LOADERS);
+    assertEquals(plugin.name, "alexi-binary-assets");
+  },
+);
+
+Deno.test(
+  "createBinaryAssetsPlugin: returns no-op plugin when loaders map is empty",
+  () => {
+    const plugin = createBinaryAssetsPlugin({});
+    assertEquals(plugin.name, "alexi-binary-assets");
+    // setup must be a function that accepts a build object without throwing
+    // (it should be a no-op — no onResolve/onLoad hooks registered)
+    let setupCalled = false;
+    plugin.setup({
+      // deno-lint-ignore no-explicit-any
+      onResolve: (_opts: any, _cb: any) => {
+        throw new Error("onResolve must not be called for no-op plugin");
+      },
+      // deno-lint-ignore no-explicit-any
+      onLoad: (_opts: any, _cb: any) => {
+        throw new Error("onLoad must not be called for no-op plugin");
+      },
+      // deno-lint-ignore no-explicit-any
+    } as any);
+    setupCalled = true;
+    assertEquals(setupCalled, true);
+  },
+);
+
+Deno.test(
+  "createBinaryAssetsPlugin: returns no-op plugin when no loader is binary",
+  () => {
+    // All loaders are "file", not "binary" — nothing should be intercepted
+    const plugin = createBinaryAssetsPlugin({ ".svg": "file", ".txt": "text" });
+    let onResolveCalled = false;
+    plugin.setup({
+      // deno-lint-ignore no-explicit-any
+      onResolve: (_opts: any, _cb: any) => {
+        onResolveCalled = true;
+      },
+      // deno-lint-ignore no-explicit-any
+      onLoad: (_opts: any, _cb: any) => {},
+      // deno-lint-ignore no-explicit-any
+    } as any);
+    assertEquals(onResolveCalled, false, "onResolve must not be registered");
+  },
+);
+
+Deno.test(
+  "createBinaryAssetsPlugin: registers onResolve hook when binary loaders exist",
+  () => {
+    const plugin = createBinaryAssetsPlugin({ ".png": "binary" });
+    const registeredFilters: RegExp[] = [];
+    plugin.setup({
+      // deno-lint-ignore no-explicit-any
+      onResolve: (opts: any, _cb: any) => {
+        registeredFilters.push(opts.filter);
+      },
+      // deno-lint-ignore no-explicit-any
+      onLoad: (_opts: any, _cb: any) => {},
+      // deno-lint-ignore no-explicit-any
+    } as any);
+    assertEquals(registeredFilters.length, 1);
+    // The filter must match ".png" paths
+    assertEquals(registeredFilters[0].test("image.png"), true);
+    assertEquals(registeredFilters[0].test("image.jpg"), false);
+  },
+);
+
+Deno.test(
+  "createBinaryAssetsPlugin: filter matches all DEFAULT_ASSET_LOADERS extensions",
+  () => {
+    const plugin = createBinaryAssetsPlugin(DEFAULT_ASSET_LOADERS);
+    const registeredFilters: RegExp[] = [];
+    plugin.setup({
+      // deno-lint-ignore no-explicit-any
+      onResolve: (opts: any, _cb: any) => {
+        registeredFilters.push(opts.filter);
+      },
+      // deno-lint-ignore no-explicit-any
+      onLoad: (_opts: any, _cb: any) => {},
+      // deno-lint-ignore no-explicit-any
+    } as any);
+    assertEquals(registeredFilters.length, 1);
+    const filter = registeredFilters[0];
+    const expectedMatching = [
+      "a.png",
+      "b.jpg",
+      "c.jpeg",
+      "d.gif",
+      "e.webp",
+      "f.ico",
+      "g.svg",
+      "h.wasm",
+      "i.ttf",
+      "j.otf",
+      "k.woff",
+      "l.woff2",
+    ];
+    for (const filename of expectedMatching) {
+      assertEquals(
+        filter.test(filename),
+        true,
+        `Expected filter to match "${filename}"`,
+      );
+    }
+    // TypeScript files must NOT match
+    assertEquals(filter.test("module.ts"), false);
+    assertEquals(filter.test("module.js"), false);
+    assertEquals(filter.test("style.css"), false);
+  },
+);
+
+Deno.test(
+  "createBinaryAssetsPlugin: only intercepts binary-mapped extensions, not file/text",
+  () => {
+    const plugin = createBinaryAssetsPlugin({
+      ".png": "binary",
+      ".svg": "file", // non-binary — must NOT be intercepted
+      ".csv": "text", // non-binary — must NOT be intercepted
+    });
+    const registeredFilters: RegExp[] = [];
+    plugin.setup({
+      // deno-lint-ignore no-explicit-any
+      onResolve: (opts: any, _cb: any) => {
+        registeredFilters.push(opts.filter);
+      },
+      // deno-lint-ignore no-explicit-any
+      onLoad: (_opts: any, _cb: any) => {},
+      // deno-lint-ignore no-explicit-any
+    } as any);
+    assertEquals(registeredFilters.length, 1);
+    const filter = registeredFilters[0];
+    assertEquals(filter.test("a.png"), true, ".png must match");
+    assertEquals(filter.test("b.svg"), false, ".svg must NOT match");
+    assertEquals(filter.test("c.csv"), false, ".csv must NOT match");
+  },
+);
+
+// =============================================================================
+// buildSWBundle — binary asset import integration tests
+//
+// Verifies that importing a binary file (e.g. a PNG) via
+//   import bytes from "./image.png" with { type: "bytes" };
+// does NOT crash the bundler and produces a bundle that contains the raw
+// bytes inline as a Uint8Array.
+//
+// Before https://github.com/atzufuki/alexi/issues/403 was fixed, this test
+// would fail with:
+//   ✘ [ERROR] [unreachable] Not an ESM module. [plugin deno-loader]
+//
+// Regression for https://github.com/atzufuki/alexi/issues/403
+// =============================================================================
+
+Deno.test({
+  name:
+    "buildSWBundle: bundles a PNG import (with { type: 'bytes' }) without crashing (regression #403)",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      // Write a minimal 8-byte fake PNG (just enough to be a non-empty binary)
+      const pngPath = join(tmpDir, "image.png");
+      await Deno.writeFile(
+        pngPath,
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      );
+
+      // Entry point imports the PNG using Deno's bytes import attribute
+      const entryPath = join(tmpDir, "sw.ts");
+      const pngImportPath = pngPath.replace(/\\/g, "/");
+      await Deno.writeTextFile(
+        entryPath,
+        `import imageBytes from ${
+          JSON.stringify(pngImportPath)
+        } with { type: "bytes" };\n` +
+          `export const IMAGE_BYTES = imageBytes;\n`,
+      );
+
+      const outputPath = join(tmpDir, "dist", "sw.js").replace(/\\/g, "/");
+      await Deno.mkdir(join(tmpDir, "dist"), { recursive: true });
+
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      // This must NOT throw — previously crashed with [unreachable] Not an ESM module.
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [],
+        cwd: tmpDir,
+        configPath,
+      });
+
+      const outFile = await Deno.readTextFile(join(tmpDir, "dist", "sw.js"));
+
+      // esbuild's binary loader base64-encodes the contents and emits a
+      // Uint8Array decoder expression.  Verify the bundle references the
+      // variable and contains the binary-loader marker.
+      assertStringIncludes(
+        outFile,
+        "IMAGE_BYTES",
+        "Expected bundle to export IMAGE_BYTES",
+      );
+      assertStringIncludes(
+        outFile,
+        "Uint8Array",
+        "Expected bundle to contain Uint8Array (binary loader output)",
+      );
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name:
+    "buildSWBundle: bundles a PNG import alongside templates without crashing (regression #403)",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      // Write a minimal fake PNG
+      const pngPath = join(tmpDir, "logo.png");
+      await Deno.writeFile(
+        pngPath,
+        new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      );
+
+      // Entry point imports the PNG (tests that the plugin works even when the
+      // alexi-sw-entry virtual wrapper is active)
+      const entryPath = join(tmpDir, "document.ts");
+      const pngImportPath = pngPath.replace(/\\/g, "/");
+      await Deno.writeTextFile(
+        entryPath,
+        `import logoBytes from ${
+          JSON.stringify(pngImportPath)
+        } with { type: "bytes" };\n` +
+          `export const LOGO = logoBytes;\n`,
+      );
+
+      const outputPath = join(tmpDir, "dist", "document.js").replace(
+        /\\/g,
+        "/",
+      );
+      await Deno.mkdir(join(tmpDir, "dist"), { recursive: true });
+
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      // Bundling WITH templates activates the virtual alexi-sw-entry wrapper.
+      // The alexi-binary-assets plugin must still intercept the PNG correctly
+      // even though it is now behind the virtual entry layer.
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [{ name: "my-app/index.html", source: "<h1>Test</h1>" }],
+        cwd: tmpDir,
+        configPath,
+      });
+
+      const outFile = await Deno.readTextFile(
+        join(tmpDir, "dist", "document.js"),
+      );
+      assertStringIncludes(outFile, "LOGO");
+      assertStringIncludes(outFile, "Uint8Array");
+      // Template must also be present
+      assertStringIncludes(outFile, "my-app/index.html");
     } finally {
       await Deno.remove(tmpDir, { recursive: true });
     }

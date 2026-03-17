@@ -479,6 +479,88 @@ export const DEFAULT_ASSET_LOADERS: Record<string, string> = {
 };
 
 /**
+ * Creates an esbuild plugin that intercepts binary asset imports **before**
+ * `@luca/esbuild-deno-loader` can reject them as non-ESM modules.
+ *
+ * ## Why this is necessary
+ *
+ * `denoPlugins()` registers an `onLoad` hook with a catch-all filter and
+ * `namespace: "file"` that intercepts every file-system import.  When it
+ * encounters a `.png` (or other binary asset), it calls `deno info` on it,
+ * receives `mediaType: "Unknown"`, and then tries to open it as an ESM module
+ * — which throws `[unreachable] Not an ESM module.`.
+ *
+ * The `loader` map passed to `esbuild.build()` only applies to files that
+ * esbuild itself loads (i.e. files *not* handled by any plugin).  Because
+ * `denoPlugins` hooks in first, the `loader` map is never reached for binary
+ * files.
+ *
+ * This plugin solves the problem by registering its own `onResolve` hook that
+ * runs **before** `denoPlugins`.  It routes all known binary extensions to a
+ * dedicated `"alexi-binary"` namespace, then serves them via a matching
+ * `onLoad` hook that reads the raw bytes with `Deno.readFile()` and returns
+ * `loader: "binary"` — identical to what esbuild's built-in binary loader
+ * produces.  Because the file is already claimed by this plugin's namespace,
+ * `denoPlugins` never sees it.
+ *
+ * @param loaders - Extension-to-loader map (e.g. `DEFAULT_ASSET_LOADERS`).
+ *   Only extensions whose loader value is `"binary"` are handled; others are
+ *   ignored by this plugin and left for esbuild / denoPlugins to process.
+ * @returns An esbuild {@link esbuild.Plugin} ready to be prepended to the
+ *   plugins array.
+ *
+ * @example
+ * ```ts
+ * plugins.unshift(createBinaryAssetsPlugin(effectiveLoaders));
+ * plugins.push(...denoPlugins({ configPath }));
+ * ```
+ */
+export function createBinaryAssetsPlugin(
+  loaders: Record<string, string>,
+): import("esbuild").Plugin {
+  // Build a regex that matches only extensions with loader === "binary".
+  const binaryExts = Object.entries(loaders)
+    .filter(([, loader]) => loader === "binary")
+    .map(([ext]) => ext.replace(".", "\\."));
+
+  // If no binary extensions are configured, return a no-op plugin.
+  if (binaryExts.length === 0) {
+    return {
+      name: "alexi-binary-assets",
+      setup(_build) {},
+    };
+  }
+
+  const filter = new RegExp(`(${binaryExts.join("|")})$`);
+
+  return {
+    name: "alexi-binary-assets",
+    setup(build) {
+      // Intercept all imports whose path ends with a known binary extension.
+      // We resolve to an absolute path so that onLoad receives a stable key.
+      // On Windows, args.path may already be absolute (e.g. "C:/..."), so we
+      // must guard against double-joining with resolveDir.
+      build.onResolve({ filter }, (args) => {
+        const resolvedPath = isAbsolute(args.path)
+          ? args.path
+          : join(args.resolveDir, args.path);
+        return { path: resolvedPath, namespace: "alexi-binary" };
+      });
+
+      // Load the file as raw bytes and hand it back to esbuild with the
+      // "binary" loader, which inlines it as a base64-decoded Uint8Array.
+      build.onLoad(
+        { filter: /.*/, namespace: "alexi-binary" },
+        async (args) => ({
+          contents: await Deno.readFile(args.path),
+          loader: "binary",
+        }),
+      );
+    },
+  };
+}
+
+/**
  * Options for {@link buildSWBundle}.
  */
 export interface BuildSWBundleOptions {
@@ -597,7 +679,24 @@ export async function buildSWBundle(
     : (options.entryNames ?? outputName.replace(".js", ""));
   const useHash = !isSW && effectiveEntryNames.includes("[hash]");
 
-  const plugins: esbuild.Plugin[] = [];
+  // Merge default binary asset loaders with any caller-supplied overrides.
+  // effectiveLoaders must be computed before building the plugins array because
+  // createBinaryAssetsPlugin consumes it to know which extensions to intercept.
+  const effectiveLoaders: Record<string, esbuild.Loader> = {
+    ...DEFAULT_ASSET_LOADERS,
+    ...(options.loaders ?? {}),
+  } as Record<string, esbuild.Loader>;
+
+  // alexi-binary-assets MUST be the first plugin in the array so that it runs
+  // before @luca/esbuild-deno-loader.  denoPlugins registers an onLoad hook
+  // for { filter: /.*/, namespace: "file" } that intercepts every file-system
+  // import — including binary files — before esbuild's built-in loader map is
+  // ever consulted.  By claiming binary extensions in onResolve here (routing
+  // them to the "alexi-binary" namespace) we prevent denoPlugins from ever
+  // seeing those files.  See https://github.com/atzufuki/alexi/issues/403.
+  const plugins: esbuild.Plugin[] = [
+    createBinaryAssetsPlugin(effectiveLoaders),
+  ];
 
   // Inject templates virtual module plugin when templates are available
   if (templates.length > 0) {
@@ -682,15 +781,6 @@ export async function buildSWBundle(
 
     effectiveEntryPoint = { in: virtualEntryIn, out: originalBasename };
   }
-
-  // Merge default binary asset loaders with any caller-supplied overrides.
-  // This ensures that extensions like .png, .wasm, etc. are handled by
-  // esbuild's "binary" loader (emitting raw bytes as Uint8Array) before
-  // @luca/esbuild-deno-loader has a chance to reject them as non-ESM modules.
-  const effectiveLoaders: Record<string, esbuild.Loader> = {
-    ...DEFAULT_ASSET_LOADERS,
-    ...(options.loaders ?? {}),
-  } as Record<string, esbuild.Loader>;
 
   const result = await esbuild.build({
     entryPoints: [effectiveEntryPoint] as
