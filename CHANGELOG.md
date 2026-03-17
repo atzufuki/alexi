@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.48.5] - 2026-03-17
+
+### Fixed
+
+- Bundler no longer crashes when a module uses Deno's raw-bytes import attribute
+  (e.g. `import bytes from "./image.png" with { type: "bytes" }`); binary asset
+  extensions are now mapped to esbuild's `"binary"` loader automatically (#401,
+  #402)
+
 ## [0.48.4] - 2026-03-17
 
 ### Fixed
