@@ -538,8 +538,12 @@ export function createBinaryAssetsPlugin(
     setup(build) {
       // Intercept all imports whose path ends with a known binary extension.
       // We resolve to an absolute path so that onLoad receives a stable key.
+      // On Windows, args.path may already be absolute (e.g. "C:/..."), so we
+      // must guard against double-joining with resolveDir.
       build.onResolve({ filter }, (args) => {
-        const resolvedPath = join(args.resolveDir, args.path);
+        const resolvedPath = isAbsolute(args.path)
+          ? args.path
+          : join(args.resolveDir, args.path);
         return { path: resolvedPath, namespace: "alexi-binary" };
       });
 
