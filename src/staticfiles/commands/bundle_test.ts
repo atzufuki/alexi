@@ -907,3 +907,70 @@ Deno.test({
     }
   },
 });
+
+// =============================================================================
+// buildSWBundle — virtual entry name regression (#399)
+//
+// When templates are embedded, the virtual esbuild entry must be named after
+// the original source file so that esbuild resolves [name] correctly in
+// entryNames.  Previously the virtual entry was always called
+// "__alexi_sw_entry__", causing output like `__alexi_sw_entry__-<hash>.js`
+// instead of `<original>-<hash>.js`.
+// =============================================================================
+
+Deno.test({
+  name:
+    "buildSWBundle: [name] token resolves to original filename when templates are embedded (regression #399)",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const tmpDir = await Deno.makeTempDir();
+    try {
+      // Non-SW entry named "myapp.ts"
+      const entryPath = join(tmpDir, "myapp.ts");
+      await Deno.writeTextFile(
+        entryPath,
+        `export const APP_VERSION = "1";\n`,
+      );
+
+      const outputDir = join(tmpDir, "dist", "my-app");
+      await Deno.mkdir(outputDir, { recursive: true });
+      const outputPath = join(outputDir, "myapp.js").replace(/\\/g, "/");
+
+      const configPath = join(Deno.cwd(), "deno.json");
+      const entryUrl = toFileUrl(entryPath).href;
+
+      await buildSWBundle({
+        entryPoint: entryUrl,
+        outputPath,
+        minify: false,
+        templates: [
+          { name: "my-app/index.html", source: "<h1>Hello</h1>" },
+        ],
+        cwd: tmpDir,
+        configPath,
+        entryNames: "[name]-[hash]",
+      });
+
+      // The manifest must map the logical key to a hashed file whose stem is
+      // "myapp", NOT "__alexi_sw_entry__".
+      const manifestPath = join(tmpDir, "dist", "staticfiles.json");
+      const raw = await Deno.readTextFile(manifestPath);
+      const parsed = JSON.parse(raw);
+
+      const hashedValue: string = parsed.files["my-app/myapp.js"];
+      assertStringIncludes(
+        hashedValue,
+        "myapp-",
+        `Expected hashed filename to start with "myapp-", got: ${hashedValue}`,
+      );
+      assertEquals(
+        hashedValue.includes("__alexi_sw_entry__"),
+        false,
+        `Output filename must not contain "__alexi_sw_entry__", got: ${hashedValue}`,
+      );
+    } finally {
+      await Deno.remove(tmpDir, { recursive: true });
+    }
+  },
+});

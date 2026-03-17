@@ -583,7 +583,7 @@ export async function buildSWBundle(
   // Deno plugins must come last
   plugins.push(...denoPlugins({ configPath }));
 
-  let effectiveEntryPoint = entryPoint;
+  let effectiveEntryPoint: string | { in: string; out: string } = entryPoint;
   if (templates.length > 0) {
     // Use an absolute file:// URL so deno-resolver handles it correctly on all
     // platforms.  A relative path fails on Windows because deno-resolver
@@ -602,16 +602,30 @@ export async function buildSWBundle(
     };\n`;
 
     const cwdNorm = cwd.replace(/\\/g, "/");
-    const virtualEntryPath = "__alexi_sw_entry__.ts";
+    // Name the virtual entry after the original source file so that esbuild
+    // derives the correct [name] token when entryNames contains "[name]".
+    // Using "__alexi_sw_entry__" here would cause esbuild to produce output
+    // like `__alexi_sw_entry__-<hash>.js` instead of `<original>-<hash>.js`.
+    // See https://github.com/atzufuki/alexi/issues/399
+    //
+    // We use esbuild's `{ in, out }` entryPoints form: the `in` value is a
+    // uniquely-prefixed virtual path (preventing filesystem collisions with a
+    // real file of the same name in absWorkingDir) while `out` is the bare
+    // original stem, which esbuild substitutes for [name] in entryNames.
+    const originalBasename = entryPoint
+      .replace(/^.*[\\/]/, "") // strip directory (works for both paths and file:// URLs)
+      .replace(/\.[^.]+$/, "") // strip extension
+      .replace(/[^a-zA-Z0-9_\-]/g, "_"); // sanitise for use as a filename
+    const virtualEntryIn = `__alexi_virtual__${originalBasename}.ts`;
     const virtualEntryNamespace = "alexi-sw-entry-virtual";
 
     plugins.unshift({
       name: "alexi-sw-entry",
       setup(build) {
         build.onResolve(
-          { filter: /^__alexi_sw_entry__\.ts$/ },
+          { filter: /^__alexi_virtual__/ },
           (args) => ({
-            path: virtualEntryPath,
+            path: args.path,
             namespace: virtualEntryNamespace,
             pluginData: args,
           }),
@@ -627,11 +641,13 @@ export async function buildSWBundle(
       },
     });
 
-    effectiveEntryPoint = "__alexi_sw_entry__.ts";
+    effectiveEntryPoint = { in: virtualEntryIn, out: originalBasename };
   }
 
   const result = await esbuild.build({
-    entryPoints: [effectiveEntryPoint],
+    entryPoints: [effectiveEntryPoint] as
+      | [string]
+      | [{ in: string; out: string }],
     bundle: true,
     splitting: true,
     format: "esm",
