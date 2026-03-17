@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.48.4] - 2026-03-17
+
+### Fixed
+
+- Bundler no longer produces `__alexi_sw_entry__-<hash>.js` output filenames
+  when `entryNames: "[name]-[hash]"` is used with a non-SW entrypoint that has
+  templates embedded; `[name]` now correctly resolves to the original source
+  filename (#399, #400)
+
 ## [0.48.3] - 2026-03-16
 
 ### Added
