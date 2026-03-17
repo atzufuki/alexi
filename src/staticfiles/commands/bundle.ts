@@ -454,6 +454,31 @@ export async function rewriteHtmlReferences(
 // =============================================================================
 
 /**
+ * Default binary asset loaders used by {@link buildSWBundle}.
+ *
+ * Maps common binary/asset file extensions to esbuild's `"binary"` loader,
+ * which emits the raw bytes as a `Uint8Array` — matching Deno's
+ * `with { type: "bytes" }` import-attribute semantics.
+ *
+ * Callers can override individual entries or add new ones via the
+ * {@link BuildSWBundleOptions.loaders} option.
+ */
+export const DEFAULT_ASSET_LOADERS: Record<string, string> = {
+  ".png": "binary",
+  ".jpg": "binary",
+  ".jpeg": "binary",
+  ".gif": "binary",
+  ".webp": "binary",
+  ".ico": "binary",
+  ".svg": "binary",
+  ".wasm": "binary",
+  ".ttf": "binary",
+  ".otf": "binary",
+  ".woff": "binary",
+  ".woff2": "binary",
+};
+
+/**
  * Options for {@link buildSWBundle}.
  */
 export interface BuildSWBundleOptions {
@@ -494,6 +519,21 @@ export interface BuildSWBundleOptions {
    * When `true`, `entryNames` is ignored and `[name]` is always used.
    */
   isServiceWorker?: boolean;
+  /**
+   * Additional or override esbuild loader mappings for binary/asset file
+   * extensions.
+   *
+   * These are merged on top of {@link DEFAULT_ASSET_LOADERS}, so you only need
+   * to supply the entries you want to add or change.  Setting an extension to
+   * `"file"` opts that type out of inline binary embedding.
+   *
+   * @example
+   * ```ts
+   * // Treat .mp4 as binary and opt .svg out of the default binary loader
+   * loaders: { ".mp4": "binary", ".svg": "file" }
+   * ```
+   */
+  loaders?: Record<string, string>;
 }
 
 /**
@@ -525,7 +565,6 @@ export async function buildSWBundle(
     minify = false,
     templates = [],
   } = options;
-
   const cwd = options.cwd ?? Deno.cwd();
 
   // Lazy-import esbuild and esbuild-deno-loader to prevent these server-only
@@ -644,6 +683,15 @@ export async function buildSWBundle(
     effectiveEntryPoint = { in: virtualEntryIn, out: originalBasename };
   }
 
+  // Merge default binary asset loaders with any caller-supplied overrides.
+  // This ensures that extensions like .png, .wasm, etc. are handled by
+  // esbuild's "binary" loader (emitting raw bytes as Uint8Array) before
+  // @luca/esbuild-deno-loader has a chance to reject them as non-ESM modules.
+  const effectiveLoaders: Record<string, esbuild.Loader> = {
+    ...DEFAULT_ASSET_LOADERS,
+    ...(options.loaders ?? {}),
+  } as Record<string, esbuild.Loader>;
+
   const result = await esbuild.build({
     entryPoints: [effectiveEntryPoint] as
       | [string]
@@ -663,6 +711,7 @@ export async function buildSWBundle(
     external: [],
     treeShaking: true,
     keepNames: true,
+    loader: effectiveLoaders,
     // Bound node_modules resolution to the project root so esbuild does not
     // walk up to the filesystem root (e.g. C:\) on Windows.
     absWorkingDir: cwd,
