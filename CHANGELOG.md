@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.48.6] - 2026-03-17
+
+### Fixed
+
+- Bundler no longer crashes with `[unreachable] Not an ESM module.` when
+  importing binary assets (PNG, JPG, WASM, fonts, etc.) using Deno's
+  `with { type: "bytes" }` import attribute; a dedicated `alexi-binary-assets`
+  esbuild plugin is now inserted before `denoPlugins()` to intercept binary file
+  imports before `@luca/esbuild-deno-loader` can reject them (#403, #404)
+
 ## [0.48.5] - 2026-03-17
 
 ### Fixed
