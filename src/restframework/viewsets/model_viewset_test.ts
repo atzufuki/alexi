@@ -3,11 +3,12 @@
  *
  * Tests for `ModelViewSet.getQueryset(context)` — verifying that the context
  * is correctly passed to overrides so that user-scoped filtering works.
+ * Also tests `parseRequestData()` for JSON and multipart/form-data requests.
  *
  * @module @alexi/restframework/viewsets/model_viewset_test
  */
 
-import { assertEquals } from "jsr:@std/assert@1";
+import { assertEquals, assertInstanceOf } from "jsr:@std/assert@1";
 import { setup } from "@alexi/core";
 import {
   AutoField,
@@ -21,7 +22,7 @@ import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { Serializer } from "../serializers/serializer.ts";
 import type { SerializerClass } from "./model_viewset.ts";
 import type { ViewSetContext } from "./viewset.ts";
-import { ModelViewSet } from "./model_viewset.ts";
+import { ModelViewSet, parseRequestData } from "./model_viewset.ts";
 
 // =============================================================================
 // Test model
@@ -185,5 +186,77 @@ Deno.test({
     } finally {
       await teardown(backend);
     }
+  },
+});
+
+// =============================================================================
+// parseRequestData tests
+// =============================================================================
+
+Deno.test({
+  name: "parseRequestData: parses application/json body",
+  async fn() {
+    const request = new Request("http://localhost/api/notes/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: "Hello", authorId: 1 }),
+    });
+
+    const data = await parseRequestData(request);
+    assertEquals(data, { body: "Hello", authorId: 1 });
+  },
+});
+
+Deno.test({
+  name: "parseRequestData: parses multipart/form-data body with string fields",
+  async fn() {
+    const formData = new FormData();
+    formData.append("body", "Hello multipart");
+    formData.append("authorId", "42");
+
+    const request = new Request("http://localhost/api/notes/", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await parseRequestData(request);
+    assertEquals(data["body"], "Hello multipart");
+    assertEquals(data["authorId"], "42");
+  },
+});
+
+Deno.test({
+  name: "parseRequestData: keeps File objects from multipart/form-data",
+  async fn() {
+    const formData = new FormData();
+    formData.append("title", "My upload");
+    const file = new File(["hello world"], "test.txt", {
+      type: "text/plain",
+    });
+    formData.append("attachment", file);
+
+    const request = new Request("http://localhost/api/upload/", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await parseRequestData(request);
+    assertEquals(data["title"], "My upload");
+    assertInstanceOf(data["attachment"], File);
+    const attachment = data["attachment"] as File;
+    assertEquals(attachment.name, "test.txt");
+  },
+});
+
+Deno.test({
+  name: "parseRequestData: falls back to JSON when no content-type header",
+  async fn() {
+    const request = new Request("http://localhost/api/notes/", {
+      method: "POST",
+      body: JSON.stringify({ body: "No content-type" }),
+    });
+
+    const data = await parseRequestData(request);
+    assertEquals(data["body"], "No content-type");
   },
 });
