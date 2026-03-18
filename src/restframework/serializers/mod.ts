@@ -50,7 +50,10 @@ export {
   // Date/time fields
   DateTimeField,
   EmailField,
+  // File fields
+  FileField,
   FloatField,
+  ImageField,
   // Numeric fields
   IntegerField,
   JSONField,
@@ -72,6 +75,7 @@ export type {
   CharFieldOptions,
   ChoiceFieldOptions,
   FieldValidationResult,
+  FileFieldOptions,
   FloatFieldOptions,
   IntegerFieldOptions,
   ListFieldOptions,

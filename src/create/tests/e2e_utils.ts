@@ -168,6 +168,11 @@ async function patchProjectForLocalAlexi(projectPath: string): Promise<void> {
     "@alexi/auth": `${alexiRoot}src/auth/mod.ts`,
     "@alexi/auth/jwt": `${alexiRoot}src/auth/jwt.ts`,
     "@alexi/admin": `${alexiRoot}src/admin/mod.ts`,
+    "@alexi/storage": `${alexiRoot}src/storage/mod.ts`,
+    "@alexi/storage/backends/firebase":
+      `${alexiRoot}src/storage/backends/firebase.ts`,
+    "@alexi/storage/backends/memory":
+      `${alexiRoot}src/storage/backends/memory.ts`,
     "@alexi/capacitor": `${alexiRoot}src/capacitor/mod.ts`,
     "@alexi/types": `${alexiRoot}src/types/mod.ts`,
   };
