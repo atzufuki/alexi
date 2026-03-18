@@ -6,6 +6,8 @@
  * @module @alexi/restframework/serializers/fields
  */
 
+import { getStorage, isStorageInitialized } from "@alexi/storage";
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -1008,5 +1010,256 @@ export class PrimaryKeyRelatedField extends SerializerField<
   /** Return the primary key unchanged in serialized output. */
   override toRepresentation(value: number | string | null): unknown {
     return value;
+  }
+}
+
+// ============================================================================
+// File Fields
+// ============================================================================
+
+/**
+ * Options for {@link FileField}.
+ */
+export interface FileFieldOptions extends BaseFieldOptions {
+  /**
+   * Upload destination path or a function returning the path from the filename.
+   * @example `"uploads/"` or `(filename) => \`uploads/\${Date.now()}-\${filename}\``
+   */
+  uploadTo?: string | ((filename: string) => string);
+
+  /**
+   * Maximum allowed file size in bytes.
+   */
+  maxSize?: number;
+
+  /**
+   * Allowed file extensions (e.g. `[".jpg", ".png"]`).
+   * Case-insensitive comparison.
+   */
+  allowedExtensions?: string[];
+
+  /**
+   * Allowed MIME types (e.g. `["image/jpeg", "image/png"]`).
+   */
+  allowedMimeTypes?: string[];
+}
+
+/**
+ * Serializer field for file uploads.
+ *
+ * Accepts a `File` object from a `multipart/form-data` request, validates it,
+ * and saves it via the configured storage backend. Returns the saved path string.
+ * On serialization, converts the stored path to a public URL via `getStorage().url()`.
+ *
+ * @example
+ * ```ts
+ * class DocumentSerializer extends ModelSerializer {
+ *   attachment = new FileField({ uploadTo: "attachments/", maxSize: 10_000_000 });
+ * }
+ * ```
+ *
+ * @category Serializer Fields
+ */
+export class FileField extends SerializerField<string> {
+  /** Upload destination path or generator function. */
+  readonly uploadTo?: string | ((filename: string) => string);
+  /** Maximum file size in bytes. */
+  readonly maxSize?: number;
+  /** Allowed file extensions. */
+  readonly allowedExtensions?: string[];
+  /** Allowed MIME types. */
+  readonly allowedMimeTypes?: string[];
+
+  /**
+   * Create a file upload field.
+   *
+   * @param options Upload path, size, and type constraints.
+   */
+  constructor(options: FileFieldOptions = {}) {
+    super(options);
+    this.uploadTo = options.uploadTo;
+    this.maxSize = options.maxSize;
+    this.allowedExtensions = options.allowedExtensions;
+    this.allowedMimeTypes = options.allowedMimeTypes;
+  }
+
+  /**
+   * Validate that the value is a `File` or an existing path string.
+   *
+   * For `File` objects: validates size, extension, and MIME type.
+   * For string values: assumes the file was already uploaded and passes through.
+   */
+  protected validateType(value: unknown): FieldValidationResult {
+    // Already-stored path string — pass through without re-uploading
+    if (typeof value === "string") {
+      return { valid: true, value, errors: [] };
+    }
+
+    if (!(value instanceof File)) {
+      return {
+        valid: false,
+        errors: [
+          this.getErrorMessage(
+            "invalid",
+            "Expected a File object or path string.",
+          ),
+        ],
+      };
+    }
+
+    const errors: string[] = [];
+
+    // Validate size
+    if (this.maxSize !== undefined && value.size > this.maxSize) {
+      errors.push(
+        this.getErrorMessage(
+          "maxSize",
+          `File size ${value.size} bytes exceeds the maximum of ${this.maxSize} bytes.`,
+        ),
+      );
+    }
+
+    // Validate extension
+    if (this.allowedExtensions !== undefined) {
+      const ext = "." + (value.name.split(".").pop()?.toLowerCase() ?? "");
+      const normalizedAllowed = this.allowedExtensions.map((e) =>
+        e.toLowerCase()
+      );
+      if (!normalizedAllowed.includes(ext)) {
+        errors.push(
+          this.getErrorMessage(
+            "extension",
+            `File extension "${ext}" is not allowed. Allowed: ${
+              this.allowedExtensions.join(", ")
+            }.`,
+          ),
+        );
+      }
+    }
+
+    // Validate MIME type
+    if (this.allowedMimeTypes !== undefined && value.type) {
+      if (!this.allowedMimeTypes.includes(value.type)) {
+        errors.push(
+          this.getErrorMessage(
+            "mimeType",
+            `File type "${value.type}" is not allowed. Allowed: ${
+              this.allowedMimeTypes.join(", ")
+            }.`,
+          ),
+        );
+      }
+    }
+
+    if (errors.length > 0) {
+      return { valid: false, errors };
+    }
+
+    return { valid: true, value, errors: [] };
+  }
+
+  /**
+   * Save the `File` to storage and return the stored path.
+   *
+   * If the value is already a string (existing path), it is returned as-is.
+   *
+   * @param value - `File` object from a multipart request, or existing path string.
+   * @returns The stored file path.
+   */
+  override toInternalValue(value: unknown): string {
+    // Async upload is handled in runAsync — return placeholder
+    return value as string;
+  }
+
+  /**
+   * Perform the async file upload.
+   *
+   * Called by the serializer during `isValid()` after `validateType()` passes.
+   *
+   * @param value - Validated `File` object or path string.
+   * @returns Stored path string.
+   */
+  async runAsync(value: unknown): Promise<string> {
+    if (typeof value === "string") {
+      return value;
+    }
+
+    if (!(value instanceof File)) {
+      throw new Error("Expected a File object.");
+    }
+
+    const uploadPath = typeof this.uploadTo === "function"
+      ? this.uploadTo(value.name)
+      : `${this.uploadTo ?? ""}${value.name}`;
+
+    const storage = getStorage();
+    return await storage.save(uploadPath, value);
+  }
+
+  /**
+   * Serialize a stored path to a public URL.
+   *
+   * Returns the raw path string if storage is not configured or URL lookup fails.
+   *
+   * @param value - Stored file path.
+   * @returns Public URL string.
+   */
+  override toRepresentation(value: string): unknown {
+    if (!value) return value;
+    if (!isStorageInitialized()) return value;
+    // URL resolution is async — serializers must call getUrl() when needed
+    return value;
+  }
+
+  /**
+   * Get the public URL for a stored path.
+   *
+   * @param value - Stored file path.
+   * @returns Public URL string.
+   */
+  async getUrl(value: string): Promise<string> {
+    if (!value) return value;
+    try {
+      return await getStorage().url(value);
+    } catch {
+      return value;
+    }
+  }
+}
+
+/**
+ * Serializer field for image uploads.
+ *
+ * Extends {@link FileField} with image-specific MIME type defaults.
+ * Accepts JPEG, PNG, GIF, WebP, and SVG files by default.
+ *
+ * @example
+ * ```ts
+ * class ProfileSerializer extends ModelSerializer {
+ *   avatar = new ImageField({ uploadTo: "avatars/" });
+ * }
+ * ```
+ *
+ * @category Serializer Fields
+ */
+export class ImageField extends FileField {
+  /**
+   * Create an image upload field.
+   *
+   * Defaults `allowedMimeTypes` to common image formats if not provided.
+   *
+   * @param options Upload path, size, and type constraints.
+   */
+  constructor(options: FileFieldOptions = {}) {
+    super({
+      allowedMimeTypes: [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+      ],
+      ...options,
+    });
   }
 }

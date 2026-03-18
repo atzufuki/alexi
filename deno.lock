@@ -386,6 +386,7 @@
           "jsr:@alexi/auth@0.48.6",
           "jsr:@alexi/db@0.48.6",
           "jsr:@alexi/middleware@0.48.6",
+          "jsr:@alexi/storage@0.48.6",
           "jsr:@alexi/urls@0.48.6",
           "jsr:@std/assert@1"
         ]

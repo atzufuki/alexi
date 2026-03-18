@@ -12,7 +12,9 @@ import {
   CharField,
   DateField,
   DateTimeField,
+  FileField,
   FloatField,
+  ImageField,
   IntegerField,
   JSONField,
   TextField,
@@ -295,6 +297,28 @@ export abstract class ModelSerializer extends Serializer {
       case "OneToOneField":
         // For relations, use integer field for the ID
         return new IntegerField(baseOptions);
+
+      case "FileField":
+        return new FileField({
+          ...baseOptions,
+          uploadTo: (fieldOptions as { uploadTo?: string }).uploadTo,
+          allowedExtensions: (fieldOptions as { allowedExtensions?: string[] })
+            .allowedExtensions,
+          allowedMimeTypes: (fieldOptions as { allowedMimeTypes?: string[] })
+            .allowedMimeTypes,
+          maxSize: (fieldOptions as { maxSize?: number }).maxSize,
+        });
+
+      case "ImageField":
+        return new ImageField({
+          ...baseOptions,
+          uploadTo: (fieldOptions as { uploadTo?: string }).uploadTo,
+          allowedExtensions: (fieldOptions as { allowedExtensions?: string[] })
+            .allowedExtensions,
+          allowedMimeTypes: (fieldOptions as { allowedMimeTypes?: string[] })
+            .allowedMimeTypes,
+          maxSize: (fieldOptions as { maxSize?: number }).maxSize,
+        });
 
       default:
         // Default to CharField for unknown types
