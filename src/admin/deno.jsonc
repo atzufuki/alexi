@@ -15,6 +15,7 @@
     "@alexi/types": "jsr:@alexi/types@0.48.6",
     "@alexi/urls": "jsr:@alexi/urls@0.48.6",
     "@alexi/core": "jsr:@alexi/core@0.48.6",
+    "@alexi/storage": "jsr:@alexi/storage@0.48.6",
     "@std/assert": "jsr:@std/assert@^1.0.19"
   }
 }
