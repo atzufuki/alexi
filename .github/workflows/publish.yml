@@ -50,18 +50,9 @@ jobs:
         env:
           HEADLESS: "true"
 
-      - name: Find workspace packages
-        id: find-packages
-        run: |
-          # Get workspace members from deno.json
-          WORKSPACES=$(jq -r '.workspace[]' deno.json)
-          echo "Found workspace packages:"
-          echo "$WORKSPACES"
-          echo "$WORKSPACES" > /tmp/packages.txt
-
       - name: Publish packages
         run: |
-          echo "## 🚀 Publishing to JSR" >> $GITHUB_STEP_SUMMARY
+          echo "## Publishing to JSR" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Version:** ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "**Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
@@ -118,10 +109,27 @@ jobs:
             FAIL_COUNT=$((FAIL_COUNT + 1))
           }
 
-          # Publish each workspace package in order
-          while IFS= read -r PKG_DIR; do
-            publish_package "$PKG_DIR"
-          done < /tmp/packages.txt
+          # Publish in explicit topological dependency order.
+          # Each package must be listed AFTER all packages it depends on.
+          # Layer 0 — Primitives (no @alexi/* deps)
+          publish_package "src/types"
+          publish_package "src/urls"
+          # Layer 1 — Data & Transport (depend on types/urls)
+          publish_package "src/middleware"
+          publish_package "src/db"
+          publish_package "src/views"
+          publish_package "src/storage"
+          # Layer 2 — Application Logic (depend on layer 0/1)
+          # @alexi/core depends on @alexi/storage — must come after storage
+          publish_package "src/core"
+          publish_package "src/staticfiles"
+          publish_package "src/auth"
+          publish_package "src/restframework"
+          # Layer 3+ — Runtime Hosts & Infrastructure
+          publish_package "src/webui"
+          publish_package "src/admin"
+          publish_package "src/capacitor"
+          publish_package "src/create"
 
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
