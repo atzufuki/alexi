@@ -5,6 +5,7 @@
   "exports": {
     ".": "./mod.ts",
     "./backends/firebase": "./backends/firebase.ts",
+    "./backends/filesystem": "./backends/filesystem.ts",
     "./backends/memory": "./backends/memory.ts"
   },
   "imports": {
