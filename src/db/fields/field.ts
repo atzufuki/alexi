@@ -14,6 +14,41 @@ export interface ValidationResult {
 }
 
 /**
+ * Error thrown when a field's value fails validation during model save.
+ *
+ * Raised by {@link FileField.validate} (and subclasses) when the assigned
+ * value does not satisfy the field's constraints (e.g. disallowed file
+ * extension, file too large, or blank value on a required field).
+ *
+ * @example
+ * ```ts
+ * try {
+ *   await document.save();
+ * } catch (err) {
+ *   if (err instanceof FieldValidationError) {
+ *     console.error(err.fieldName, err.message);
+ *   }
+ * }
+ * ```
+ */
+export class FieldValidationError extends Error {
+  /** The model field name that failed validation. */
+  readonly fieldName: string;
+
+  /**
+   * Create a FieldValidationError.
+   *
+   * @param fieldName - Name of the field that failed validation.
+   * @param message - Human-readable error message.
+   */
+  constructor(fieldName: string, message: string) {
+    super(message);
+    this.name = "FieldValidationError";
+    this.fieldName = fieldName;
+  }
+}
+
+/**
  * Validator function type
  */
 export type Validator<T> = (value: T | null) => {

@@ -7,7 +7,7 @@
  */
 
 // Base field class and types
-export { Field } from "./field.ts";
+export { Field, FieldValidationError } from "./field.ts";
 export type { FieldOptions, ValidationResult, Validator } from "./field.ts";
 
 // Concrete field types
