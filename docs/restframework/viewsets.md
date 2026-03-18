@@ -444,9 +444,117 @@ export const urlpatterns = router.urls;
 // POST   /api/projects/                  # Create a project
 // GET    /api/projects/:id/              # Get a project
 // PUT    /api/projects/:id/              # Update a project
-// PATCH  /api/projects/:id/              # Partial update
+// PATCH  /api/projects/:id/             # Partial update
 // DELETE /api/projects/:id/              # Delete a project
 // POST   /api/projects/:id/archive/      # Archive a project
 // GET    /api/projects/:id/stats/        # Get project stats
 // POST   /api/projects/activate_all/     # Activate all projects
 ```
+
+## File Uploads
+
+ViewSets handle file uploads by reading `multipart/form-data` from the request,
+saving the file via the storage backend, and then passing the stored path to the
+serializer.
+
+### Model with ImageField
+
+```typescript
+// models.ts
+import { AutoField, CharField, ImageField, Manager, Model } from "@alexi/db";
+
+export class PostModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  cover = new ImageField({ uploadTo: "covers/", null: true, blank: true });
+
+  static objects = new Manager(PostModel);
+  static meta = { dbTable: "posts" };
+}
+```
+
+### Serializer
+
+Include the file field by name — `ModelSerializer` maps it to a string field
+automatically:
+
+```typescript
+// serializers.ts
+import { ModelSerializer } from "@alexi/restframework";
+import { PostModel } from "./models.ts";
+
+export class PostSerializer extends ModelSerializer {
+  static override Meta = {
+    model: PostModel,
+    fields: ["id", "title", "cover"],
+    readOnlyFields: ["id"],
+  };
+}
+```
+
+### ViewSet with file upload handling
+
+Override `create()` (and optionally `update()`) to extract the file from
+`FormData`, save it, and inject the path into the validated data before calling
+`super.create()`:
+
+```typescript
+// viewsets.ts
+import { getStorage } from "@alexi/storage";
+import { ModelViewSet } from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
+import { PostModel } from "./models.ts";
+import { PostSerializer } from "./serializers.ts";
+
+export class PostViewSet extends ModelViewSet {
+  override model = PostModel;
+  override serializer_class = PostSerializer;
+
+  override async create(context: ViewSetContext): Promise<Response> {
+    const formData = await context.request.formData();
+
+    // Extract scalar fields
+    const data: Record<string, unknown> = {
+      title: formData.get("title"),
+    };
+
+    // Handle file upload
+    const coverFile = formData.get("cover") as File | null;
+    if (coverFile && coverFile.size > 0) {
+      const storage = getStorage();
+      const instance = new PostModel();
+      const uploadPath = instance.cover.getUploadPath(coverFile.name);
+      data.cover = await storage.save(uploadPath, coverFile);
+    }
+
+    const serializer = new PostSerializer({ data });
+    if (!serializer.isValid()) {
+      return Response.json({ errors: serializer.errors }, { status: 400 });
+    }
+
+    const post = await serializer.save();
+    return Response.json(
+      await new PostSerializer({ instance: post }).toRepresentation(post),
+      { status: 201 },
+    );
+  }
+}
+```
+
+### HTML form
+
+Forms that include file inputs must set `enctype="multipart/form-data"`:
+
+```html
+<form method="POST" action="/api/posts/" enctype="multipart/form-data">
+  <input type="text" name="title" required />
+  <input type="file" name="cover" accept="image/*" />
+  <button type="submit">Create Post</button>
+</form>
+```
+
+### Serving uploaded files
+
+Add a route that reads from the storage backend and streams the file back. See
+[File Storage — FileSystemStorage](../storage/storage.md#filesystemstorage) for
+a complete example.

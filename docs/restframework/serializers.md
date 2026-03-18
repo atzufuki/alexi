@@ -293,6 +293,27 @@ metadata = new JSONField();
 settings = new JSONField({ required: false });
 ```
 
+### FileField / ImageField
+
+Serializes a `FileField` or `ImageField` value as a string (the storage-relative
+file path). When included in `ModelSerializer.Meta.fields`, the field is
+automatically derived from the model.
+
+```typescript
+class PostSerializer extends ModelSerializer {
+  static Meta = {
+    model: PostModel,
+    fields: ["id", "title", "cover"],
+    readOnlyFields: ["id"],
+  };
+}
+// Serialized output: { id: 1, title: "Hello", cover: "covers/photo.png" }
+```
+
+For write operations the serializer accepts the raw string path (already
+uploaded). File upload itself must be handled in the view before calling the
+serializer — see [File Uploads in ViewSets](./viewsets.md#file-uploads).
+
 ### PrimaryKeyRelatedField
 
 Related object by primary key:
