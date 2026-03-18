@@ -8,6 +8,34 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.49.0] - 2026-03-18
+
+### Added
+
+- `@alexi/storage`: `FileSystemStorage` backend for local development and
+  self-hosted deployments (`location`, `baseUrl`, `allowOverwrite` options)
+  (#417)
+- `@alexi/storage`: `S3Storage` backend with AWS Signature V4 authentication
+  (#412)
+- `@alexi/storage`: `DEFAULT_FILE_STORAGE` setting — core now calls
+  `setStorage()` automatically on startup (#415)
+- `@alexi/db`: `FileField` and `ImageField` now call `validateFile()`
+  automatically during `Model.save()` (#418)
+- `@alexi/db`: `FileField`, `ImageField`, and `FileFieldOptions` are now
+  exported from the top-level `@alexi/db` entrypoint (#421)
+- `@alexi/restframework`: `FileField` and `ImageField` serializer fields for
+  handling file paths in serializers (#413)
+- `@alexi/restframework`: `ModelViewSet` now handles `multipart/form-data`
+  requests, enabling file uploads via the REST API (#414)
+- `@alexi/admin`: admin panel supports `FileField` and `ImageField` — display
+  and upload in the auto-generated admin (#416)
+- `@alexi/create`: scaffolded posts app now includes a cover `ImageField`,
+  `FileSystemStorage` configuration, an uploads route, and a multipart form
+  (#421)
+- Documentation: new `docs/storage/storage.md` covering the full storage API,
+  all backends, upload patterns, and testing; updated models, serializers, and
+  viewsets docs with file upload examples (#422)
+
 ## [0.48.6] - 2026-03-17
 
 ### Fixed
