@@ -24,10 +24,13 @@ import type { Middleware, MiddlewareClass } from "@alexi/middleware";
 import type { AppConfig, TemplatesConfig } from "@alexi/types";
 import { appRegistrationHooks } from "@alexi/types";
 import { registerTemplateDir } from "@alexi/views";
+import { setStorage } from "@alexi/storage";
+import type { Storage } from "@alexi/storage";
 
 export type { Middleware, MiddlewareClass } from "@alexi/middleware";
 export type { URLPattern } from "@alexi/urls";
 export type { AppConfig, TemplatesConfig } from "@alexi/types";
+export type { Storage } from "@alexi/storage";
 
 // =============================================================================
 // Types
@@ -167,6 +170,28 @@ export interface GetApplicationSettings {
    * ```
    */
   DEFAULT_PORT?: number;
+
+  /**
+   * Default file storage backend used for all file/image field uploads.
+   *
+   * Mirrors Django's `DEFAULT_FILE_STORAGE` setting.
+   * The provided backend instance is registered via `setStorage()` during
+   * application startup so that `getStorage()` is available everywhere in
+   * the running application.
+   *
+   * @example
+   * ```ts
+   * import { S3Storage } from "@alexi/storage/backends/s3";
+   *
+   * export const DEFAULT_FILE_STORAGE = new S3Storage({
+   *   bucket: "my-bucket",
+   *   region: "us-east-1",
+   *   accessKeyId: Deno.env.get("AWS_ACCESS_KEY_ID")!,
+   *   secretAccessKey: Deno.env.get("AWS_SECRET_ACCESS_KEY")!,
+   * });
+   * ```
+   */
+  DEFAULT_FILE_STORAGE?: Storage;
 }
 
 // =============================================================================
@@ -261,7 +286,12 @@ async function _buildApplication(
     await setup({ DATABASES: settings.DATABASES });
   }
 
-  // 2. Process INSTALLED_APPS and TEMPLATES
+  // 2. Initialise default file storage (if configured)
+  if (settings.DEFAULT_FILE_STORAGE) {
+    setStorage(settings.DEFAULT_FILE_STORAGE);
+  }
+
+  // 3. Process INSTALLED_APPS and TEMPLATES
   if (settings.INSTALLED_APPS || settings.TEMPLATES) {
     await _processInstalledApps(
       settings.INSTALLED_APPS ?? [],
@@ -269,14 +299,14 @@ async function _buildApplication(
     );
   }
 
-  // 3. Resolve URL patterns
+  // 4. Resolve URL patterns
   const urls = await _resolveUrlPatterns(settings);
 
-  // 4. Build middleware
+  // 5. Build middleware
   const debug = settings.DEBUG ?? false;
   const middleware = _resolveMiddleware(settings, debug);
 
-  // 5. Create and return Application
+  // 6. Create and return Application
   const options: ApplicationOptions = {
     urls,
     middleware,

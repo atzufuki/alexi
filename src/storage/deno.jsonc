@@ -6,7 +6,8 @@
     ".": "./mod.ts",
     "./backends/firebase": "./backends/firebase.ts",
     "./backends/filesystem": "./backends/filesystem.ts",
-    "./backends/memory": "./backends/memory.ts"
+    "./backends/memory": "./backends/memory.ts",
+    "./backends/s3": "./backends/s3.ts"
   },
   "imports": {
     "@alexi/types": "jsr:@alexi/types@0.48.6"

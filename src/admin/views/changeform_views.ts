@@ -24,6 +24,7 @@ import {
 } from "../introspection.ts";
 import { baseTemplate } from "../templates/mpa/base.ts";
 import { verifyAdminToken } from "./auth_guard.ts";
+import { getStorage, isStorageInitialized } from "@alexi/storage";
 
 // =============================================================================
 // Types
@@ -200,6 +201,45 @@ function renderWidget(
     }" value="${
       escapeHtml(String(rawId ?? ""))
     }" class="admin-input" placeholder="ID"${req}>`;
+  } else if (
+    widget === "admin-input[type=file]" ||
+    widget === "admin-input[type=file][accept='image/*']"
+  ) {
+    // FileField / ImageField → file input with optional existing value display
+    const req = required ? " required" : "";
+    const accept = widget.includes("accept=") ? ` accept="image/*"` : "";
+    const isImage = fieldInfo.type === "ImageField";
+    const existingPath = typeof value === "string" && value ? value : null;
+
+    let existingHtml = "";
+    if (existingPath) {
+      if (isImage) {
+        // Show thumbnail and link for ImageField
+        existingHtml = `
+        <div class="admin-file-current">
+          <img src="${escapeHtml(existingPath)}" alt="${
+          escapeHtml(existingPath)
+        }" class="admin-file-thumbnail" style="max-height:80px;max-width:200px;">
+          <a href="${
+          escapeHtml(existingPath)
+        }" target="_blank" rel="noopener">${escapeHtml(existingPath)}</a>
+          <br><small>Change:</small>
+        </div>`;
+      } else {
+        // Show link for FileField
+        existingHtml = `
+        <div class="admin-file-current">
+          <a href="${
+          escapeHtml(existingPath)
+        }" target="_blank" rel="noopener">${escapeHtml(existingPath)}</a>
+          <br><small>Change:</small>
+        </div>`;
+      }
+    }
+
+    inputHtml = `${existingHtml}<input type="file" name="${
+      escapeHtml(name)
+    }" id="id_${escapeHtml(name)}" class="admin-input"${req}${accept}>`;
   } else {
     // Default text input
     const req = required ? " required" : "";
@@ -234,14 +274,13 @@ function renderWidget(
 
 async function parseFormData(
   request: Request,
-): Promise<Record<string, string>> {
-  const data: Record<string, string> = {};
+): Promise<Record<string, string | File>> {
+  const data: Record<string, string | File> = {};
   try {
     const formData = await request.formData();
     for (const [key, value] of formData.entries()) {
-      if (typeof value === "string") {
-        data[key] = value;
-      }
+      // Keep File objects for FileField/ImageField handling
+      data[key] = value;
     }
   } catch {
     // Unable to parse body
@@ -259,11 +298,11 @@ interface ValidationResult {
   isValid: boolean;
 }
 
-function validateFormData(
+async function validateFormData(
   fields: FieldInfo[],
-  formData: Record<string, string>,
+  formData: Record<string, string | File>,
   readonlyFields: string[] = [],
-): ValidationResult {
+): Promise<ValidationResult> {
   const data: Record<string, unknown> = {};
   const errors: Record<string, string[]> = {};
 
@@ -280,8 +319,44 @@ function validateFormData(
       continue;
     }
 
+    // FileField / ImageField — upload via storage backend
+    if (field.type === "FileField" || field.type === "ImageField") {
+      if (raw instanceof File && raw.size > 0) {
+        // Upload file and store the returned path
+        if (isStorageInitialized()) {
+          try {
+            const path = await getStorage().save(raw.name, raw);
+            data[field.name] = path;
+          } catch (err) {
+            fieldErrors.push(`Failed to upload file: ${String(err)}`);
+            errors[field.name] = fieldErrors;
+          }
+        } else {
+          // No storage configured: store raw file name as fallback
+          data[field.name] = raw.name;
+        }
+      } else if (typeof raw === "string" && raw !== "") {
+        // Existing path submitted as string (e.g. hidden field retention)
+        data[field.name] = raw;
+      } else {
+        // No file uploaded
+        if (field.isRequired) {
+          fieldErrors.push("This field is required.");
+          errors[field.name] = fieldErrors;
+        } else {
+          data[field.name] = field.options.null
+            ? null
+            : (field.options.default ?? "");
+        }
+      }
+      continue;
+    }
+
+    // For all other fields, only string values are valid at this point
+    const rawStr = typeof raw === "string" ? raw : undefined;
+
     // Empty value handling
-    if (raw === undefined || raw === "") {
+    if (rawStr === undefined || rawStr === "") {
       if (field.isRequired) {
         fieldErrors.push("This field is required.");
         errors[field.name] = fieldErrors;
@@ -301,7 +376,7 @@ function validateFormData(
       field.type === "ForeignKey" ||
       field.type === "OneToOneField"
     ) {
-      const num = parseInt(raw, 10);
+      const num = parseInt(rawStr, 10);
       if (isNaN(num)) {
         fieldErrors.push("Enter a whole number.");
         errors[field.name] = fieldErrors;
@@ -309,7 +384,7 @@ function validateFormData(
       }
       data[field.name] = num;
     } else if (field.type === "FloatField" || field.type === "DecimalField") {
-      const num = parseFloat(raw);
+      const num = parseFloat(rawStr);
       if (isNaN(num)) {
         fieldErrors.push("Enter a number.");
         errors[field.name] = fieldErrors;
@@ -320,7 +395,7 @@ function validateFormData(
       field.type === "DateTimeField" ||
       field.type === "DateField"
     ) {
-      const d = new Date(raw);
+      const d = new Date(rawStr);
       if (isNaN(d.getTime())) {
         fieldErrors.push("Enter a valid date/time.");
         errors[field.name] = fieldErrors;
@@ -329,7 +404,7 @@ function validateFormData(
       data[field.name] = d;
     } else if (field.type === "JSONField") {
       try {
-        data[field.name] = JSON.parse(raw);
+        data[field.name] = JSON.parse(rawStr);
       } catch {
         fieldErrors.push("Enter valid JSON.");
         errors[field.name] = fieldErrors;
@@ -339,7 +414,7 @@ function validateFormData(
       // CharField, TextField, UUIDField, etc.
       if (
         field.options.maxLength !== undefined &&
-        raw.length > field.options.maxLength
+        rawStr.length > field.options.maxLength
       ) {
         fieldErrors.push(
           `Ensure this value has at most ${field.options.maxLength} characters.`,
@@ -347,7 +422,7 @@ function validateFormData(
         errors[field.name] = fieldErrors;
         continue;
       }
-      data[field.name] = raw;
+      data[field.name] = rawStr;
     }
   }
 
@@ -549,6 +624,11 @@ export async function renderChangeForm(
     return true;
   });
 
+  // Whether the form needs multipart/form-data encoding
+  const hasFileFields = editableFields.some(
+    (f) => f.type === "FileField" || f.type === "ImageField",
+  );
+
   const isAdd = !objectId;
   const listUrl = modelAdmin.getListUrl();
   const formAction = isAdd
@@ -606,6 +686,7 @@ export async function renderChangeForm(
       modelAdmin,
       modelName,
       urlPrefix,
+      hasFileFields,
     });
 
     const html = baseTemplate({
@@ -629,7 +710,7 @@ export async function renderChangeForm(
 
   if (request.method === "POST") {
     const formData = await parseFormData(request);
-    const validation = validateFormData(
+    const validation = await validateFormData(
       editableFields,
       formData,
       readonlyFields,
@@ -659,6 +740,7 @@ export async function renderChangeForm(
         modelName,
         urlPrefix,
         globalError: "Please correct the errors below.",
+        hasFileFields,
       });
 
       const html = baseTemplate({
@@ -706,6 +788,7 @@ export async function renderChangeForm(
         modelName,
         urlPrefix,
         globalError: result.error ?? "An error occurred while saving.",
+        hasFileFields,
       });
 
       const html = baseTemplate({
@@ -749,6 +832,8 @@ interface PageContentOptions {
   modelName: string;
   urlPrefix: string;
   globalError?: string;
+  /** Whether the form contains FileField or ImageField widgets */
+  hasFileFields?: boolean;
 }
 
 function buildPageContent(opts: PageContentOptions): string {
@@ -763,6 +848,7 @@ function buildPageContent(opts: PageContentOptions): string {
     modelName,
     urlPrefix,
     globalError,
+    hasFileFields,
   } = opts;
 
   const globalErrorHtml = globalError
@@ -783,6 +869,8 @@ function buildPageContent(opts: PageContentOptions): string {
     ? `<input type="submit" name="_saveasnew" value="Save as new" class="admin-btn admin-btn-default">`
     : "";
 
+  const enctype = hasFileFields ? ` enctype="multipart/form-data"` : "";
+
   return `
   ${breadcrumbs}
   <div class="admin-changeform">
@@ -792,7 +880,9 @@ function buildPageContent(opts: PageContentOptions): string {
 
     ${globalErrorHtml}
 
-    <form method="post" action="${escapeHtml(formAction)}" id="changeform">
+    <form method="post" action="${
+    escapeHtml(formAction)
+  }" id="changeform"${enctype}>
       <div class="admin-form-fields">
         ${formHtml}
       </div>
