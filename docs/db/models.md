@@ -130,6 +130,73 @@ birthDate = new DateField();
 dueDate = new DateField({ null: true });
 ```
 
+### FileField
+
+Stores the storage-relative path of an uploaded file. The file itself is
+persisted via the configured `@alexi/storage` backend.
+
+```typescript
+import { FileField } from "@alexi/db";
+import { getStorage } from "@alexi/storage";
+
+export class DocumentModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 255 });
+  file = new FileField({ uploadTo: "documents/" });
+
+  static objects = new Manager(DocumentModel);
+  static meta = { dbTable: "documents" };
+}
+
+// Saving an uploaded file
+const storage = getStorage();
+const uploadPath = doc.file.getUploadPath(file.name);
+const savedName = await storage.save(uploadPath, file);
+doc.file.set(savedName);
+await doc.save();
+
+// Retrieving the public URL
+const url = await storage.url(doc.file.get());
+```
+
+Options:
+
+- `uploadTo` — Upload directory or callback: `"documents/"` or
+  `(instance, filename) => \`users/${instance.id}/${filename}\``
+- `maxSize` — Maximum file size in bytes
+- `allowedExtensions` — Allowed file extensions, e.g. `[".pdf", ".docx"]`
+- `allowedMimeTypes` — Allowed MIME types, e.g. `["application/pdf"]`
+
+`FileField` defaults to `blank: true` because the stored value is populated
+after upload.
+
+### ImageField
+
+Extends `FileField` with image-specific extension and MIME type validation
+pre-configured (`jpg`, `jpeg`, `png`, `gif`, `webp`, `svg`).
+
+```typescript
+import { ImageField } from "@alexi/db";
+
+export class PostModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  cover = new ImageField({
+    uploadTo: "covers/",
+    maxSize: 5 * 1024 * 1024, // 5 MB
+    null: true,
+    blank: true,
+  });
+
+  static objects = new Manager(PostModel);
+  static meta = { dbTable: "posts" };
+}
+```
+
+Options are the same as `FileField`. The `allowedExtensions` and
+`allowedMimeTypes` default to common image formats; pass your own values to
+override them.
+
 ### ForeignKey
 
 Relationship to another model:

@@ -165,7 +165,7 @@ differences, and features unique to Alexi.
 | Storage API       | ✅               | ✅           | Django-style interface |
 | FileField         | ✅               | ✅           | File upload field      |
 | ImageField        | ✅               | ✅           | Image-specific field   |
-| FileSystemStorage | ✅               | ❌ (planned) | Local filesystem       |
+| FileSystemStorage | ✅               | ✅           | Local filesystem       |
 | S3Storage         | ✅ (via package) | ❌ (planned) | AWS S3                 |
 | Firebase Storage  | ❌               | ✅           | Firebase Cloud Storage |
 | MemoryStorage     | ❌               | ✅           | In-memory for testing  |
