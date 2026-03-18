@@ -8,6 +8,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.50.0] - 2026-03-18
+
+### Added
+
+- `@alexi/staticfiles`: `MEDIA_ROOT` and `MEDIA_URL` settings — mirrors Django's
+  media file configuration (#423)
+- `@alexi/staticfiles`: `MediaFilesMiddleware` class and
+  `mediaFilesMiddleware()` factory for serving user-uploaded files in
+  development (#423)
+- `@alexi/staticfiles`: `mediaServe()` helper for serving a single file from a
+  directory with ETag support and path-traversal protection (#423)
+- `@alexi/core`: `MEDIA_ROOT` and `MEDIA_URL` fields added to
+  `GetApplicationSettings` interface (#423)
+- `@alexi/staticfiles`: `runserver` automatically injects `MediaFilesMiddleware`
+  when `MEDIA_ROOT` is present in settings (#423)
+- `@alexi/admin`: admin change form renders `FileField` / `ImageField`
+  existing-file links and thumbnails using `MEDIA_URL` when configured (#423)
+
 ## [0.49.0] - 2026-03-18
 
 ### Added
