@@ -25,7 +25,7 @@ import { PostModel } from "@${name}/models.ts";
 export class PostSerializer extends ModelSerializer {
   static override Meta = {
     model: PostModel,
-    fields: ["id", "title", "content", "published", "createdAt", "updatedAt"],
+    fields: ["id", "title", "content", "cover", "published", "createdAt", "updatedAt"],
     readOnlyFields: ["id", "createdAt", "updatedAt"],
   };
 }
