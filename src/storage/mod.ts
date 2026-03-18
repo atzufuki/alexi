@@ -46,5 +46,6 @@ export {
 } from "./setup.ts";
 
 // Backends are exported from subpaths:
+// - @alexi/storage/backends/filesystem
 // - @alexi/storage/backends/firebase
 // - @alexi/storage/backends/memory
