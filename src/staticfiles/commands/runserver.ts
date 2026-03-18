@@ -21,7 +21,7 @@
 
 import { RunServerCommand as CoreRunServerCommand } from "@alexi/core/management";
 import type { IArgumentParser, RunServerConfig } from "@alexi/core/management";
-import { staticFilesMiddleware } from "../middleware.ts";
+import { mediaFilesMiddleware, staticFilesMiddleware } from "../middleware.ts";
 import type { MiddlewareClass } from "@alexi/middleware";
 import { BundleCommand } from "./bundle.ts";
 
@@ -163,7 +163,7 @@ export class RunServerCommand extends CoreRunServerCommand {
     const staticRoot = settings.STATIC_ROOT as string | undefined;
     const debug = true; // dev server is always debug
 
-    return [
+    const middleware: MiddlewareClass[] = [
       staticFilesMiddleware({
         installedApps: this.appNames,
         appPaths: this.appPaths,
@@ -173,6 +173,15 @@ export class RunServerCommand extends CoreRunServerCommand {
         debug,
       }),
     ];
+
+    // Automatically serve MEDIA_URL → MEDIA_ROOT in development
+    const mediaRoot = settings.MEDIA_ROOT as string | undefined;
+    if (mediaRoot) {
+      const mediaUrl = (settings.MEDIA_URL as string | undefined) ?? "/media/";
+      middleware.push(mediaFilesMiddleware({ mediaRoot, mediaUrl }));
+    }
+
+    return middleware;
   }
 
   // ==========================================================================

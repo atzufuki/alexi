@@ -76,9 +76,21 @@ export type {
 // =============================================================================
 
 export {
+  MediaFilesMiddleware,
+  mediaFilesMiddleware,
+  mediaServe,
   serveBundleMiddleware,
+  StaticFilesMiddleware,
   staticFilesMiddleware,
   staticServe,
 } from "./middleware.ts";
 
-export type { StaticServeOptions } from "./middleware.ts";
+export type { MediaServeOptions, StaticServeOptions } from "./middleware.ts";
+
+// Re-export middleware base types so that symbols from this package that
+// extend / return them satisfy deno doc --lint's public-type-ref requirement.
+export type {
+  BaseMiddleware,
+  MiddlewareClass,
+  NextFunction,
+} from "@alexi/middleware";
