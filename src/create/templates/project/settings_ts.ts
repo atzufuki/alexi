@@ -53,6 +53,7 @@ import {
   errorHandlerMiddleware,
   loggingMiddleware,
 } from "@alexi/middleware";
+import { FileSystemStorage } from "@alexi/storage/backends/filesystem";
 
 // =============================================================================
 // Environment
@@ -84,6 +85,20 @@ export const DATABASES = {
     path: Deno.env.get("DENO_KV_PATH"),
   }),
 };
+
+// =============================================================================
+// File Storage
+// =============================================================================
+
+/**
+ * Default file storage backend.
+ * Files are stored in ./uploads/ and served at /uploads/.
+ * Swap for S3Storage or FirebaseStorage in production.
+ */
+export const DEFAULT_FILE_STORAGE = new FileSystemStorage({
+  location: "./uploads",
+  baseUrl: "/uploads/",
+});
 
 // =============================================================================
 // Installed Apps

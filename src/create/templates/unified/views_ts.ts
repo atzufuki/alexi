@@ -77,8 +77,9 @@ export class PostCreateView extends View {
     const formData = await request.formData();
     const title = (formData.get("title") as string | null) ?? "";
     const content = (formData.get("content") as string | null) ?? "";
+    const cover = (formData.get("cover") as File | null) ?? null;
     const published = formData.get("published") === "true";
-    await PostModel.objects.create({ title, content, published });
+    await PostModel.objects.create({ title, content, cover, published });
     return Response.redirect(new URL("/posts/", request.url), 303);
   }
 }
@@ -108,6 +109,30 @@ export function healthView(_request: Request): Response {
     status: "ok",
     timestamp: new Date().toISOString(),
   });
+}
+
+/** Serves uploaded media files from the ./uploads directory. */
+export async function uploadsView(
+  _request: Request,
+  params: Record<string, string>,
+): Promise<Response> {
+  const filePath = \`./uploads/\${params["path"]}\`;
+  try {
+    const file = await Deno.readFile(filePath);
+    const ext = filePath.split(".").pop()?.toLowerCase() ?? "";
+    const contentTypes: Record<string, string> = {
+      jpg: "image/jpeg",
+      jpeg: "image/jpeg",
+      png: "image/png",
+      gif: "image/gif",
+      webp: "image/webp",
+      svg: "image/svg+xml",
+    };
+    const contentType = contentTypes[ext] ?? "application/octet-stream";
+    return new Response(file, { headers: { "content-type": contentType } });
+  } catch {
+    return new Response("Not found", { status: 404 });
+  }
 }
 `;
 }

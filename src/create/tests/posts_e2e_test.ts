@@ -255,6 +255,109 @@ Deno.test({
 });
 
 Deno.test({
+  name: "API: POST /api/posts/ creates a post with a cover image (multipart)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    // Create a minimal 1×1 PNG as a cover image
+    const pngBytes = new Uint8Array([
+      137,
+      80,
+      78,
+      71,
+      13,
+      10,
+      26,
+      10, // PNG signature
+      0,
+      0,
+      0,
+      13,
+      73,
+      72,
+      68,
+      82, // IHDR chunk length + type
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      1, // width=1, height=1
+      8,
+      2,
+      0,
+      0,
+      0,
+      144,
+      119,
+      83,
+      222, // bit depth, color type, etc.
+      0,
+      0,
+      0,
+      12,
+      73,
+      68,
+      65,
+      84, // IDAT chunk
+      8,
+      215,
+      99,
+      248,
+      207,
+      192,
+      0,
+      0,
+      0,
+      2,
+      0,
+      1,
+      226,
+      33,
+      188,
+      51, // IDAT data + CRC
+      0,
+      0,
+      0,
+      0,
+      73,
+      69,
+      78,
+      68,
+      174,
+      66,
+      96,
+      130, // IEND chunk
+    ]);
+    const coverFile = new File([pngBytes], "cover.png", { type: "image/png" });
+
+    const formData = new FormData();
+    formData.append("title", "Post with Cover");
+    formData.append("content", "This post has a cover image.");
+    formData.append("published", "false");
+    formData.append("cover", coverFile);
+
+    const response = await fetch(`${apiUrl}/posts/`, {
+      method: "POST",
+      body: formData,
+    });
+
+    assertEquals(response.status, 201);
+    const data = await response.json();
+    assertExists(data.id);
+    assertEquals(data.title, "Post with Cover");
+    assertExists(data.cover, "cover field must be present in response");
+    assertEquals(
+      typeof data.cover === "string" && data.cover.length > 0,
+      true,
+      "cover must be a non-empty string (file path)",
+    );
+  },
+});
+
+Deno.test({
   name: "API: DELETE /api/posts/:id/ deletes a post",
   sanitizeOps: false,
   sanitizeResources: false,

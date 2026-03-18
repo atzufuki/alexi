@@ -22,6 +22,7 @@ import {
   BooleanField,
   CharField,
   DateTimeField,
+  ImageField,
   Manager,
   Model,
   TextField,
@@ -30,12 +31,14 @@ import {
 /**
  * Post model - represents a blog post
  *
- * A simple blog post with title, content, published flag, and timestamps.
+ * A simple blog post with title, content, optional cover image,
+ * published flag, and timestamps.
  */
 export class PostModel extends Model {
   id = new AutoField({ primaryKey: true });
   title = new CharField({ maxLength: 200 });
   content = new TextField({ blank: true });
+  cover = new ImageField({ uploadTo: "covers/", null: true, blank: true });
   published = new BooleanField({ default: false });
   createdAt = new DateTimeField({ autoNowAdd: true });
   updatedAt = new DateTimeField({ autoNow: true });

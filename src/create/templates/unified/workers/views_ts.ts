@@ -76,8 +76,9 @@ export class PostCreateView extends View {
     const formData = await request.formData();
     const title = (formData.get("title") as string | null) ?? "";
     const content = (formData.get("content") as string | null) ?? "";
+    const cover = (formData.get("cover") as File | null) ?? null;
     const published = formData.get("published") === "true";
-    await PostModel.objects.create({ title, content, published });
+    await PostModel.objects.create({ title, content, cover, published });
     return Response.redirect("/posts/", 303);
   }
 }

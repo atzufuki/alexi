@@ -25,6 +25,7 @@ import {
   PostPublishView,
   PostDeleteView,
   healthView,
+  uploadsView,
 } from "@${name}/views.ts";
 
 // Create router and register viewsets
@@ -48,6 +49,8 @@ export const urlpatterns = [
   path("posts/:id/publish/", PostPublishView.as_view()),
   path("posts/:id/delete/", PostDeleteView.as_view()),
   path("api/", include(apiPatterns)),
+  // Serve uploaded files at /uploads/<path>
+  path("uploads/:path", uploadsView),
 ];
 `;
 }

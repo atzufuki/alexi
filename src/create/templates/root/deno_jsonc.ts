@@ -47,6 +47,13 @@ export function generateDenoJsonc(name: string, version: string): string {
       "@alexi/restframework": `jsr:@alexi/restframework@${versionRange}`,
       "@alexi/auth": `jsr:@alexi/auth@${versionRange}`,
       "@alexi/admin": `jsr:@alexi/admin@${versionRange}`,
+      "@alexi/storage": `jsr:@alexi/storage@${versionRange}`,
+      "@alexi/storage/backends/filesystem":
+        `jsr:@alexi/storage@${versionRange}/backends/filesystem`,
+      "@alexi/storage/backends/memory":
+        `jsr:@alexi/storage@${versionRange}/backends/memory`,
+      "@alexi/storage/backends/firebase":
+        `jsr:@alexi/storage@${versionRange}/backends/firebase`,
       "@alexi/types": `jsr:@alexi/types@${versionRange}`,
       "@alexi/webui": `jsr:@alexi/webui@${versionRange}`,
       "@alexi/capacitor": `jsr:@alexi/capacitor@${versionRange}`,

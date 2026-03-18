@@ -28,7 +28,7 @@ export function generateWorkerPostFormHtml(name: string): string {
 
   <div class="form-card">
     <h2>New Post</h2>
-    <form method="post" action="/posts/new/">
+    <form method="post" action="/posts/new/" enctype="multipart/form-data">
       <div class="form-group">
         <label class="form-label" for="title">Title</label>
         <input class="form-input" type="text" id="title" name="title"
@@ -38,6 +38,11 @@ export function generateWorkerPostFormHtml(name: string): string {
         <label class="form-label" for="content">Content</label>
         <textarea class="form-textarea" id="content" name="content"
                   placeholder="Start writing…"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="cover">Cover image</label>
+        <input class="form-input" type="file" id="cover" name="cover"
+               accept="image/*">
       </div>
       <label class="form-check">
         <input type="checkbox" name="published" value="true">
