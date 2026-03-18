@@ -192,6 +192,39 @@ export interface GetApplicationSettings {
    * ```
    */
   DEFAULT_FILE_STORAGE?: Storage;
+
+  /**
+   * Absolute filesystem path to the directory that will hold user-uploaded files.
+   *
+   * Mirrors Django's `MEDIA_ROOT` setting. When set alongside `MEDIA_URL`, the
+   * development server (`runserver`) automatically serves files from this
+   * directory at the configured URL prefix.
+   *
+   * **Production note:** Do not serve media files through Alexi in production.
+   * Use a dedicated web server (nginx, Caddy) or a cloud storage service instead.
+   *
+   * @example
+   * ```ts
+   * export const MEDIA_ROOT = "./media";
+   * ```
+   */
+  MEDIA_ROOT?: string;
+
+  /**
+   * URL prefix that the browser uses to access uploaded files.
+   *
+   * Mirrors Django's `MEDIA_URL` setting. Must include a trailing slash.
+   * When `MEDIA_ROOT` is also set, `runserver` serves files from `MEDIA_ROOT`
+   * at this prefix automatically.
+   *
+   * @default "/media/"
+   *
+   * @example
+   * ```ts
+   * export const MEDIA_URL = "/media/";
+   * ```
+   */
+  MEDIA_URL?: string;
 }
 
 // =============================================================================

@@ -155,6 +155,9 @@ differences, and features unique to Alexi.
 | `collectstatic`     | ✅          | ✅    | Production                 |
 | Finders             | ✅          | ✅    | AppDirectoriesFinder, etc. |
 | Storage backends    | ✅          | ✅    | Firebase, Memory, custom   |
+| `MEDIA_ROOT`        | ✅          | ✅    | User-upload directory      |
+| `MEDIA_URL`         | ✅          | ✅    | URL prefix for media files |
+| Media file serving  | ✅          | ✅    | Dev only (`runserver`)     |
 | ManifestStaticFiles | ✅          | ❌    | —                          |
 | CDN support         | ✅ (config) | ❌    | —                          |
 

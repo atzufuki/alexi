@@ -434,6 +434,215 @@ export function serveBundleMiddleware(options: {
 }
 
 // =============================================================================
+// MediaFilesMiddleware — user-uploaded file serving (MEDIA_ROOT / MEDIA_URL)
+// =============================================================================
+
+/**
+ * Configuration options for {@link MediaFilesMiddleware} and
+ * {@link mediaFilesMiddleware}.
+ *
+ * @category Media
+ */
+export interface MediaServeOptions {
+  /**
+   * Absolute filesystem path to the directory holding uploaded files.
+   *
+   * Mirrors Django's `MEDIA_ROOT` setting.
+   */
+  mediaRoot: string;
+
+  /**
+   * URL prefix used to access uploaded files.
+   *
+   * Must include a trailing slash. Mirrors Django's `MEDIA_URL` setting.
+   *
+   * @default "/media/"
+   */
+  mediaUrl?: string;
+
+  /**
+   * Cache-Control header sent with each media response.
+   *
+   * @default "private, no-cache"
+   */
+  cacheControl?: string;
+}
+
+/**
+ * Serve a single user-uploaded file from `mediaRoot`.
+ *
+ * Handles `If-None-Match` / ETag conditional requests and returns `404` for
+ * missing or empty paths. Path traversal segments are stripped before the file
+ * is resolved, so the resolved path always stays within `mediaRoot`.
+ *
+ * @param mediaRoot - Absolute filesystem path to the uploads directory.
+ * @param filePath  - Relative file path extracted from the request URL.
+ * @param request   - The original HTTP request (used for ETag negotiation).
+ * @param cacheControl - Optional Cache-Control header value.
+ * @returns A `Response` with the file contents, `304 Not Modified`, or `404 Not Found`.
+ *
+ * @category Media
+ *
+ * @example
+ * ```ts
+ * const res = await mediaServe("/var/media", "avatars/user-1.png", request);
+ * ```
+ */
+export async function mediaServe(
+  mediaRoot: string,
+  filePath: string,
+  request: Request,
+  cacheControl = "private, no-cache",
+): Promise<Response> {
+  const clean = sanitizePath(filePath);
+
+  if (!clean) {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  const absolutePath = `${mediaRoot}/${clean}`;
+
+  let content: Uint8Array;
+  try {
+    content = await Deno.readFile(absolutePath);
+  } catch {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  const contentType = getContentType(clean);
+  const etag = generateETag(content);
+
+  const ifNoneMatch = request.headers.get("If-None-Match");
+  if (ifNoneMatch === etag) {
+    return new Response(null, {
+      status: 304,
+      headers: { ETag: etag, "Cache-Control": cacheControl },
+    });
+  }
+
+  return new Response(content as unknown as BodyInit, {
+    status: 200,
+    headers: {
+      "Content-Type": contentType,
+      "Content-Length": content.length.toString(),
+      "Cache-Control": cacheControl,
+      ETag: etag,
+    },
+  });
+}
+
+/**
+ * Django-style class-based middleware for serving user-uploaded media files.
+ *
+ * Intercepts requests whose path starts with `MEDIA_URL` and reads the
+ * corresponding file from `MEDIA_ROOT`. Requests that do not match, or for
+ * which no file is found, are forwarded to the next middleware layer unchanged.
+ *
+ * **Development only.** In production, media files should be served by a
+ * dedicated web server or cloud storage service.
+ *
+ * Use the {@link mediaFilesMiddleware} factory for a one-liner.
+ *
+ * @example
+ * ```ts
+ * import { MediaFilesMiddleware } from "@alexi/staticfiles";
+ *
+ * export const MIDDLEWARE = [
+ *   class extends MediaFilesMiddleware {
+ *     constructor(next: NextFunction) {
+ *       super(next, { mediaRoot: "./media", mediaUrl: "/media/" });
+ *     }
+ *   },
+ * ];
+ * ```
+ *
+ * @category Media
+ */
+export class MediaFilesMiddleware extends BaseMiddleware {
+  /** Resolved options for media file serving. */
+  protected mediaOptions: Required<MediaServeOptions>;
+
+  /**
+   * Create a new MediaFilesMiddleware.
+   *
+   * @param getResponse - The next layer in the middleware chain.
+   * @param options     - Media file serving options.
+   */
+  constructor(getResponse: NextFunction, options: MediaServeOptions) {
+    super(getResponse);
+    this.mediaOptions = {
+      mediaRoot: options.mediaRoot,
+      mediaUrl: options.mediaUrl ?? "/media/",
+      cacheControl: options.cacheControl ?? "private, no-cache",
+    };
+  }
+
+  /**
+   * Serve media files or forward to the next middleware layer.
+   *
+   * @param request - The incoming HTTP request.
+   */
+  override async call(request: Request): Promise<Response> {
+    const { mediaRoot, mediaUrl, cacheControl } = this.mediaOptions;
+    const pathname = new URL(request.url).pathname;
+
+    if (!pathname.startsWith(mediaUrl)) {
+      return this.getResponse(request);
+    }
+
+    const filePath = pathname.slice(mediaUrl.length);
+
+    if (!filePath) {
+      return this.getResponse(request);
+    }
+
+    const response = await mediaServe(
+      mediaRoot,
+      filePath,
+      request,
+      cacheControl,
+    );
+
+    if (response.status === 404) {
+      return this.getResponse(request);
+    }
+
+    return response;
+  }
+}
+
+/**
+ * Create a media files middleware class configured with the given options.
+ *
+ * Returns a {@link MiddlewareClass} constructor that can be added directly
+ * to the `MIDDLEWARE` setting. This is the preferred way to enable media file
+ * serving during development.
+ *
+ * @param options - Media file serving options.
+ * @returns A middleware class constructor configured with the given options.
+ *
+ * @category Media
+ *
+ * @example
+ * ```ts
+ * import { mediaFilesMiddleware } from "@alexi/staticfiles";
+ *
+ * export const MIDDLEWARE = [
+ *   mediaFilesMiddleware({ mediaRoot: "./media", mediaUrl: "/media/" }),
+ * ];
+ * ```
+ */
+export function mediaFilesMiddleware(
+  options: MediaServeOptions,
+): MiddlewareClass {
+  return class extends MediaFilesMiddleware {
+    constructor(getResponse: NextFunction) {
+      super(getResponse, options);
+    }
+  };
+}
+
+// =============================================================================
 // Utility Functions
 // =============================================================================
 

@@ -111,6 +111,7 @@ function renderWidget(
   fieldInfo: FieldInfo,
   value: unknown,
   errors: string[],
+  mediaUrl?: string,
 ): string {
   const name = fieldInfo.name;
   const label = fieldInfo.options.verboseName ?? humanize(name);
@@ -211,27 +212,35 @@ function renderWidget(
     const isImage = fieldInfo.type === "ImageField";
     const existingPath = typeof value === "string" && value ? value : null;
 
+    // Build a public URL using MEDIA_URL when available, otherwise fall back
+    // to the raw stored path (legacy behaviour preserved for compatibility).
+    const publicUrl = existingPath
+      ? mediaUrl
+        ? `${mediaUrl.replace(/\/$/, "")}/${existingPath.replace(/^\//, "")}`
+        : existingPath
+      : null;
+
     let existingHtml = "";
-    if (existingPath) {
+    if (publicUrl && existingPath) {
       if (isImage) {
         // Show thumbnail and link for ImageField
         existingHtml = `
         <div class="admin-file-current">
-          <img src="${escapeHtml(existingPath)}" alt="${
+          <img src="${escapeHtml(publicUrl)}" alt="${
           escapeHtml(existingPath)
         }" class="admin-file-thumbnail" style="max-height:80px;max-width:200px;">
-          <a href="${
+          <a href="${escapeHtml(publicUrl)}" target="_blank" rel="noopener">${
           escapeHtml(existingPath)
-        }" target="_blank" rel="noopener">${escapeHtml(existingPath)}</a>
+        }</a>
           <br><small>Change:</small>
         </div>`;
       } else {
         // Show link for FileField
         existingHtml = `
         <div class="admin-file-current">
-          <a href="${
+          <a href="${escapeHtml(publicUrl)}" target="_blank" rel="noopener">${
           escapeHtml(existingPath)
-        }" target="_blank" rel="noopener">${escapeHtml(existingPath)}</a>
+        }</a>
           <br><small>Change:</small>
         </div>`;
       }
@@ -555,10 +564,11 @@ function renderFormHtml(
   values: Record<string, unknown>,
   errors: Record<string, string[]>,
   readonlyFields: string[] = [],
+  mediaUrl?: string,
 ): string {
   return fields
     .filter((f) => f.isEditable && !readonlyFields.includes(f.name))
-    .map((f) => renderWidget(f, values[f.name], errors[f.name] ?? []))
+    .map((f) => renderWidget(f, values[f.name], errors[f.name] ?? [], mediaUrl))
     .join("\n");
 }
 
@@ -581,6 +591,10 @@ export async function renderChangeForm(
   const { request, adminSite, backend, settings } = context;
   let urlPrefix = adminSite.urlPrefix.replace(/\/$/, "");
   if (!urlPrefix.startsWith("/")) urlPrefix = `/${urlPrefix}`;
+
+  const mediaUrl = typeof settings?.MEDIA_URL === "string"
+    ? settings.MEDIA_URL
+    : undefined;
 
   // --- Auth guard ---
   const authResult = await verifyAdminToken(request, settings);
@@ -671,7 +685,13 @@ export async function renderChangeForm(
       }
     }
 
-    const formHtml = renderFormHtml(editableFields, values, {}, readonlyFields);
+    const formHtml = renderFormHtml(
+      editableFields,
+      values,
+      {},
+      readonlyFields,
+      mediaUrl,
+    );
     const title = isAdd
       ? `Add ${meta.verboseName}`
       : `Change ${meta.verboseName}`;
@@ -724,6 +744,7 @@ export async function renderChangeForm(
         displayValues,
         validation.errors,
         readonlyFields,
+        mediaUrl,
       );
       const title = isAdd
         ? `Add ${meta.verboseName}`
@@ -772,6 +793,7 @@ export async function renderChangeForm(
         displayValues,
         {},
         readonlyFields,
+        mediaUrl,
       );
       const title = isAdd
         ? `Add ${meta.verboseName}`
