@@ -56,6 +56,8 @@ export {
   ModelViewSet,
   // Errors
   NotFoundError,
+  // Utilities
+  parseRequestData,
   // Read-only variant
   ReadOnlyModelViewSet,
   RetrieveModelMixin,

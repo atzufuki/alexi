@@ -529,6 +529,10 @@ export abstract class ModelViewSet extends ViewSet
   /**
    * Create a new object (POST /).
    *
+   * Accepts both `application/json` and `multipart/form-data` request bodies.
+   * File fields included in a multipart body are passed as {@link File}
+   * instances to the serializer.
+   *
    * @param context Current request context.
    * @returns `201 Created` response with the serialized object, or `400` when
    * request validation fails.
@@ -537,10 +541,10 @@ export abstract class ModelViewSet extends ViewSet
     let data: Record<string, unknown>;
 
     try {
-      data = await context.request.json();
+      data = await parseRequestData(context.request);
     } catch {
       return Response.json(
-        { error: "Invalid JSON in request body" },
+        { error: "Invalid request body" },
         { status: 400 },
       );
     }
@@ -649,10 +653,10 @@ export abstract class ModelViewSet extends ViewSet
 
     let data: Record<string, unknown>;
     try {
-      data = await context.request.json();
+      data = await parseRequestData(context.request);
     } catch {
       return Response.json(
-        { error: "Invalid JSON in request body" },
+        { error: "Invalid request body" },
         { status: 400 },
       );
     }
@@ -760,6 +764,43 @@ export abstract class ModelViewSet extends ViewSet
 // ============================================================================
 // Errors
 // ============================================================================
+
+/**
+ * Parse the request body as either JSON or multipart/form-data.
+ *
+ * - Requests with `Content-Type: application/json` (or no content type) are
+ *   parsed with `request.json()`.
+ * - Requests with `Content-Type: multipart/form-data` are parsed with
+ *   `request.formData()`.  Each entry is included in the returned object:
+ *   string fields are kept as strings, {@link File} objects are kept as `File`
+ *   instances so that serializer {@link FileField} / {@link ImageField} fields
+ *   can validate and upload them.
+ *
+ * @param request The incoming HTTP request.
+ * @returns A plain object suitable for passing as `data` to a serializer.
+ * @throws {SyntaxError} If the JSON body is malformed.
+ * @throws {Error} If parsing the multipart body fails.
+ *
+ * @category ViewSets
+ */
+export async function parseRequestData(
+  request: Request,
+): Promise<Record<string, unknown>> {
+  const contentType = request.headers.get("content-type") ?? "";
+
+  if (contentType.includes("multipart/form-data")) {
+    const formData = await request.formData();
+    const data: Record<string, unknown> = {};
+    for (const [key, value] of formData.entries()) {
+      // Keep File objects as-is so serializer FileField can handle them
+      data[key] = value;
+    }
+    return data;
+  }
+
+  // Default: parse as JSON (covers application/json and empty content-type)
+  return request.json() as Promise<Record<string, unknown>>;
+}
 
 /**
  * Error thrown when a detail lookup does not match any object.

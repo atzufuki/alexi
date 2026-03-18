@@ -114,6 +114,7 @@ export {
   // ViewSet classes
   ModelViewSet,
   NotFoundError,
+  parseRequestData,
   ReadOnlyModelViewSet,
   RetrieveModelMixin,
   UpdateModelMixin,
