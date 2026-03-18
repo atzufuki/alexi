@@ -4,7 +4,12 @@
  */
 
 import { Field } from "../fields/field.ts";
-import { AutoField, DateField, DateTimeField } from "../fields/types.ts";
+import {
+  AutoField,
+  DateField,
+  DateTimeField,
+  FileField,
+} from "../fields/types.ts";
 import {
   ForeignKey,
   ManyToManyField,
@@ -824,6 +829,11 @@ export abstract class Model {
    * Creates a new record if the instance has no primary key,
    * otherwise updates the existing record.
    *
+   * File fields are validated before the record is written: if any
+   * {@link FileField} holds a `File` object whose extension, size, or MIME
+   * type violates the field's constraints, a `FieldValidationError` is thrown
+   * and the record is **not** persisted.
+   *
    * @param options - Options including which backend to use and optional field list
    *
    * @example
@@ -843,6 +853,9 @@ export abstract class Model {
    */
   async save(options?: ModelOperationOptions): Promise<this> {
     this._ensureFieldsInitialized();
+
+    // Validate file fields before persisting
+    this._validateFileFields();
 
     const backend = this._resolveBackend(options?.using);
     const pk = this.pk;
@@ -887,6 +900,24 @@ export abstract class Model {
 
     const backend = this._resolveBackend(options?.using);
     await backend.delete(this);
+  }
+
+  /**
+   * Validate all FileField instances on this model.
+   *
+   * Iterates the model's fields and calls `field.validate(field.get())` for
+   * every {@link FileField}. If validation fails a `FieldValidationError` is
+   * thrown, preventing the record from being persisted.
+   *
+   * Called automatically by {@link save} before any database write.
+   */
+  private _validateFileFields(): void {
+    const fields = this.getFields();
+    for (const field of Object.values(fields)) {
+      if (field instanceof FileField) {
+        field.validate(field.get() as string | null);
+      }
+    }
   }
 
   /**

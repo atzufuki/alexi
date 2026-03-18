@@ -3,10 +3,16 @@
  * @module
  */
 
-import { Field, FieldOptions, ValidationResult } from "./field.ts";
+import {
+  Field,
+  FieldOptions,
+  FieldValidationError,
+  ValidationResult,
+} from "./field.ts";
 
 export { Field } from "./field.ts";
 export type { FieldOptions, ValidationResult } from "./field.ts";
+export { FieldValidationError } from "./field.ts";
 
 // ============================================================================
 // String Fields
@@ -822,6 +828,54 @@ export class FileField extends Field<string> {
     const lastDot = filename.lastIndexOf(".");
     if (lastDot === -1) return "";
     return filename.slice(lastDot).toLowerCase();
+  }
+
+  /**
+   * Validate the field value before saving.
+   *
+   * - If the current value is a `File` instance, delegates to
+   *   {@link validateFile} and throws {@link FieldValidationError} on failure.
+   * - If the value is a non-empty string (an already-persisted path), validation
+   *   is skipped — the file was validated when it was first uploaded.
+   * - If the value is `null` / `undefined` / empty and the field is not
+   *   `blank`, throws {@link FieldValidationError}.
+   *
+   * This override is called automatically by {@link Model.save} so that
+   * developers do not need to call {@link validateFile} manually.
+   *
+   * @param value - The current field value (may be a `File`, string path, or `null`).
+   * @returns `ValidationResult` — always `valid: true` on success.
+   * @throws {FieldValidationError} When the file fails validation constraints.
+   */
+  override validate(value: string | null): ValidationResult {
+    // Check if the stored value is actually a File object (set via .set(file as never))
+    const rawValue: unknown = value;
+
+    if (rawValue instanceof File) {
+      const result = this.validateFile(rawValue);
+      if (!result.valid) {
+        throw new FieldValidationError(this.name, result.errors.join("; "));
+      }
+      return { valid: true, errors: [] };
+    }
+
+    // Already-persisted string path — skip file validation
+    if (typeof rawValue === "string" && rawValue.length > 0) {
+      return { valid: true, errors: [] };
+    }
+
+    // null / undefined / empty — check blank constraint
+    if (
+      !this.options.blank &&
+      (rawValue === null || rawValue === undefined || rawValue === "")
+    ) {
+      throw new FieldValidationError(
+        this.name,
+        `${this.name} may not be blank.`,
+      );
+    }
+
+    return { valid: true, errors: [] };
   }
 
   /** Store the file path/name as-is. */

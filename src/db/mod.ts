@@ -65,7 +65,7 @@ export {
 // Fields
 // ============================================================================
 
-export { Field } from "./fields/mod.ts";
+export { Field, FieldValidationError } from "./fields/mod.ts";
 export type {
   FieldOptions,
   ValidationResult,
