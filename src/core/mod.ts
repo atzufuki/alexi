@@ -61,7 +61,13 @@ export type {
 // =============================================================================
 
 export { getHttpApplication, getWorkerApplication } from "./get_application.ts";
-export type { GetApplicationSettings } from "./get_application.ts";
+export type { GetApplicationSettings, Storage } from "./get_application.ts";
+export type {
+  FileMetadata,
+  ListResult,
+  SaveOptions,
+  SignedUrlOptions,
+} from "@alexi/storage";
 export type { AppConfig } from "@alexi/types";
 
 // =============================================================================
