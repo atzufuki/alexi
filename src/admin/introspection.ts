@@ -195,6 +195,8 @@ const FIELD_WIDGET_MAP: Record<string, string> = {
   UUIDField: "admin-input",
   JSONField: "admin-textarea",
   BinaryField: "admin-input[type=file]",
+  FileField: "admin-input[type=file]",
+  ImageField: "admin-input[type=file][accept='image/*']",
   ForeignKey: "admin-foreign-key-select",
   ManyToManyField: "admin-many-to-many-select",
   OneToOneField: "admin-foreign-key-select",
@@ -329,6 +331,15 @@ export function getDisplayValue(
     if (choice) {
       return choice[1];
     }
+  }
+
+  // Handle FileField / ImageField — render as link or thumbnail
+  if (fieldInfo.type === "FileField" || fieldInfo.type === "ImageField") {
+    const path = String(value);
+    if (fieldInfo.type === "ImageField") {
+      return `<img src="${path}" alt="${path}" style="max-height:40px;max-width:100px;vertical-align:middle;"> <a href="${path}" target="_blank" rel="noopener">${path}</a>`;
+    }
+    return `<a href="${path}" target="_blank" rel="noopener">${path}</a>`;
   }
 
   // Default: convert to string
