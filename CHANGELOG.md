@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.51.0] - 2026-03-20
+
+### Added
+
+- `@alexi/create`: scaffolded posts app now includes a working `/admin/` panel
+  with `PostAdmin`, `AdminSite`, and `@register` decorator out of the box (#425)
+- `@alexi/create`: scaffolded `settings.ts` now wires `AuthConfig`,
+  `AdminConfig`, `AUTH_USER_MODEL`, and `AuthenticationMiddleware` automatically
+  (#425)
+- `@alexi/admin`: `AdminConfig` named export added to top-level `mod.ts` for use
+  in `INSTALLED_APPS` (#425)
+- `@alexi/urls`: `lazyChildren` field on `URLPattern` and `CompiledPattern` —
+  children are resolved at request time instead of at import time (#425)
+
+### Fixed
+
+- `@alexi/admin`: `include(adminSite.urls)` no longer returns placeholder
+  `{"message":"Admin placeholder"}` responses; admin routes are now resolved
+  lazily after all backends are connected (#425)
+
 ## [0.50.0] - 2026-03-18
 
 ### Added
