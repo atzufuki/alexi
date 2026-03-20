@@ -63,7 +63,10 @@ function compilePatterns<TContext = Request, TReturn = Response>(
     original: pattern.pattern,
     segments: compilePattern(pattern.pattern),
     view: pattern.view,
-    children: pattern.children ? compilePatterns(pattern.children) : undefined,
+    children: pattern.children && !pattern.lazyChildren
+      ? compilePatterns(pattern.children)
+      : undefined,
+    lazyChildren: pattern.lazyChildren,
     name: pattern.name,
   }));
 }
@@ -126,6 +129,18 @@ function matchPattern<TContext = Request, TReturn = Response>(
       };
     }
     // Has remaining segments but no children - no match
+    return null;
+  }
+
+  // If this pattern has lazily-evaluated children, resolve them now and match
+  if (pattern.lazyChildren) {
+    const lazyResolved = compilePatterns(pattern.lazyChildren());
+    for (const child of lazyResolved) {
+      const result = matchPattern(remainingSegments, child, newParams);
+      if (result) {
+        return result;
+      }
+    }
     return null;
   }
 

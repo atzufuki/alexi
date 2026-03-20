@@ -18,6 +18,9 @@ export function generateModelsTs(name: string): string {
  */
 
 import {
+  AbstractUser,
+} from "@alexi/auth";
+import {
   AutoField,
   BooleanField,
   CharField,
@@ -27,6 +30,19 @@ import {
   Model,
   TextField,
 } from "@alexi/db";
+
+/**
+ * User model - extends AbstractUser with project-specific fields.
+ *
+ * Used for authentication and as AUTH_USER_MODEL in settings.
+ */
+export class UserModel extends AbstractUser {
+  static objects = new Manager(UserModel);
+
+  static override meta = {
+    dbTable: "users",
+  };
+}
 
 /**
  * Post model - represents a blog post

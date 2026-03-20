@@ -7,7 +7,6 @@
  * @module
  */
 
-import { getBackend, hasBackend } from "@alexi/db";
 import type { Model } from "@alexi/db";
 import type { URLPattern } from "@alexi/urls";
 import { ModelAdmin } from "./model_admin.ts";
@@ -17,7 +16,7 @@ import type {
   ModelClass,
 } from "./options.ts";
 import { DEFAULT_ADMIN_SITE_OPTIONS } from "./options.ts";
-import { getAdminUrls } from "./urls.ts";
+import { AdminRouter } from "./urls.ts";
 
 // =============================================================================
 // AdminSite Class
@@ -208,21 +207,25 @@ export class AdminSite {
    * The `urlPrefix` of the AdminSite must match the mount path chosen here
    * so that redirect URLs, breadcrumbs, and reverse resolution stay correct.
    *
-   * Note: The returned patterns use placeholder view handlers when no
-   * backend has been registered yet. A real `AdminRouter` or
-   * `getAdminUrls(site, backend)` call should be used when a backend is
-   * needed at pattern-generation time.
+   * Implementation note: The getter returns a single entry with a
+   * `lazyChildren` factory that is evaluated on every request. This mirrors
+   * Django's lazy URLconf loading — the backend is resolved at request time
+   * (not at module-evaluation time), so `include(adminSite.urls)` works
+   * correctly even when the database backend is registered after the URLconf
+   * module is first imported.
    */
   get urls(): URLPattern[] {
-    // Dynamic import to avoid a circular dependency at module-evaluation time.
-    // urls.ts imports `AdminSite` as a *type*, so this is safe at runtime.
-    // The dynamic import is synchronous in practice because the module has
-    // already been evaluated by the time this getter is called.
-    //
-    // Pass the globally registered default backend (if available) so that the
-    // returned patterns use real SSR handlers instead of placeholders.
-    const backend = hasBackend("default") ? getBackend() : undefined;
-    return getAdminUrls(this, backend);
+    // Build a lazy AdminRouter once per AdminSite instance (not per request).
+    // The router itself defers backend resolution to the first request, so
+    // it is safe to construct here at URLconf evaluation time.
+    const router = new AdminRouter(this);
+    return [
+      {
+        pattern: "",
+        lazyChildren: () => router.getPatterns(),
+        name: undefined,
+      } as URLPattern,
+    ];
   }
 
   /**

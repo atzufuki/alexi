@@ -13,6 +13,7 @@ import { reset } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import { setup } from "@alexi/core";
 import { AutoField, CharField, Manager, Model } from "@alexi/db";
+import { include, path, resolve } from "@alexi/urls";
 import type { URLPattern } from "@alexi/urls";
 
 // Import admin classes
@@ -480,6 +481,82 @@ Deno.test({
       assertEquals(
         res.headers.get("Content-Type"),
         "text/css; charset=utf-8",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});
+
+// =============================================================================
+// include(adminSite.urls) lazy resolution regression test (#228)
+// =============================================================================
+
+Deno.test({
+  name:
+    "AdminSite.urls + include(): resolve() finds admin handlers when backend registered after URLconf evaluation",
+  async fn() {
+    // This is the exact scenario that caused the original bug:
+    //
+    //   1. URLconf is evaluated (module-load time) — adminSite.urls getter is
+    //      called and the result is passed to include() → path(). At this point
+    //      hasBackend("default") is false.
+    //   2. setup() registers the backend globally (mirrors getHttpApplication).
+    //   3. An HTTP request arrives — resolve() is called for the first time.
+    //      With the old eager implementation the placeholder handlers had already
+    //      been frozen into the children array.  With the new lazyChildren fix,
+    //      the children are resolved fresh at step 3 and the SSR handlers are used.
+
+    const backend = new DenoKVBackend({
+      name: "include_lazy_test",
+      path: ":memory:",
+    });
+    await backend.connect();
+
+    try {
+      const site = new AdminSite({ urlPrefix: "/admin" });
+      site.register(TestArticle);
+
+      // Step 1: Build URL conf — mirrors module evaluation in user projects.
+      // adminSite.urls is captured here, BEFORE setup() is called.
+      const urlpatterns = [
+        path("admin/", include(site.urls)),
+      ];
+
+      // Step 2: Register backend (mirrors getHttpApplication / setup).
+      await setup({ DATABASES: { default: backend } });
+
+      // Step 3: Resolve — must use SSR handlers, not placeholder handlers.
+      const result = resolve("/admin/testarticle/", urlpatterns);
+
+      // The route must be found and return a real view function.
+      assertExists(result, "resolve() should find a matching handler");
+      assertEquals(typeof result.view, "function");
+
+      // Invoke the view to confirm it uses the real SSR handler, not the placeholder.
+      // Without auth the SSR changelist view redirects to /admin/login/ (302).
+      // The placeholder would return 200 application/json {"message":"Admin placeholder"}.
+      const req = new Request("http://localhost/admin/testarticle/");
+      const res = await result.view(req, result.params);
+
+      // Placeholder: 200 + Content-Type: application/json
+      // Real SSR:    302 redirect to login (no JSON body)
+      const contentType = res.headers.get("Content-Type") ?? "";
+      assertEquals(
+        contentType.includes("application/json"),
+        false,
+        `Got placeholder JSON response instead of real SSR handler (Content-Type: ${contentType})`,
+      );
+      // The SSR auth guard redirects unauthenticated requests to the login page.
+      assertEquals(
+        res.status,
+        302,
+        `Expected 302 redirect from SSR auth guard, got status ${res.status}`,
+      );
+      assertStringIncludes(
+        res.headers.get("Location") ?? "",
+        "/admin/login/",
       );
     } finally {
       await reset();

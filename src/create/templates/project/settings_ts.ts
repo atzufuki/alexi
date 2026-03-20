@@ -49,11 +49,17 @@ function _generateSettingsContent(name: string): string {
 
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import {
+  AuthenticationMiddleware,
+  AuthConfig,
+} from "@alexi/auth";
+import { AdminConfig } from "@alexi/admin";
+import {
   corsMiddleware,
   errorHandlerMiddleware,
   loggingMiddleware,
 } from "@alexi/middleware";
 import { FileSystemStorage } from "@alexi/storage/backends/filesystem";
+import { UserModel } from "@${name}/models.ts";
 
 // =============================================================================
 // Environment
@@ -114,8 +120,20 @@ export const INSTALLED_APPS = [
   () => import("@alexi/staticfiles"),
   () => import("@alexi/db"),
   () => import("@alexi/restframework"),
+  AuthConfig,
+  AdminConfig,
   () => import("@${name}/mod.ts"),
 ];
+
+// =============================================================================
+// Auth
+// =============================================================================
+
+/**
+ * The user model used for authentication.
+ * Change this to a custom model that extends AbstractUser if needed.
+ */
+export const AUTH_USER_MODEL = UserModel;
 
 // =============================================================================
 // URL Configuration
@@ -201,6 +219,7 @@ export const CORS_ORIGINS = Deno.env.get("CORS_ORIGINS")?.split(",") ?? [
 export const MIDDLEWARE = [
   loggingMiddleware(),
   corsMiddleware({ origins: CORS_ORIGINS }),
+  AuthenticationMiddleware.configure({ userModel: UserModel }),
   errorHandlerMiddleware(),
 ];
 `
@@ -237,10 +256,16 @@ function _generateProductionSettingsContent(name: string): string {
 
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
 import {
+  AuthenticationMiddleware,
+  AuthConfig,
+} from "@alexi/auth";
+import { AdminConfig } from "@alexi/admin";
+import {
   corsMiddleware,
   errorHandlerMiddleware,
   loggingMiddleware,
 } from "@alexi/middleware";
+import { UserModel } from "@${name}/models.ts";
 
 // =============================================================================
 // Environment
@@ -294,8 +319,19 @@ export const INSTALLED_APPS = [
   () => import("@alexi/staticfiles"),
   () => import("@alexi/db"),
   () => import("@alexi/restframework"),
+  AuthConfig,
+  AdminConfig,
   () => import("@${name}/mod.ts"),
 ];
+
+// =============================================================================
+// Auth
+// =============================================================================
+
+/**
+ * The user model used for authentication.
+ */
+export const AUTH_USER_MODEL = UserModel;
 
 // =============================================================================
 // URL Configuration
@@ -356,6 +392,7 @@ export const CORS_ORIGINS = Deno.env.get("CORS_ORIGINS")?.split(",") ?? [];
 export const MIDDLEWARE = [
   loggingMiddleware(),
   corsMiddleware({ origins: CORS_ORIGINS }),
+  AuthenticationMiddleware.configure({ userModel: UserModel }),
   errorHandlerMiddleware(),
 ];
 `

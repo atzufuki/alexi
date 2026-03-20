@@ -100,6 +100,20 @@ export interface URLPattern<TContext = Request, TReturn = Response> {
   /** Nested URL patterns from include() (mutually exclusive with view) */
   children?: URLPattern<TContext, TReturn>[];
 
+  /**
+   * Lazily-evaluated nested URL patterns.
+   *
+   * When set, the resolver calls this function on every request to obtain the
+   * current set of children instead of reading a static `children` array.
+   * This enables patterns whose sub-routes are determined at request time
+   * (e.g. admin routes that depend on a database backend being registered
+   * after the URLconf module was first evaluated).
+   *
+   * Mutually exclusive with `children` — if both are present `lazyChildren`
+   * takes precedence.
+   */
+  lazyChildren?: () => URLPattern<TContext, TReturn>[];
+
   /** Named route for reverse URL lookup */
   name?: string;
 }
@@ -178,6 +192,13 @@ export interface CompiledPattern<TContext = Request, TReturn = Response> {
 
   /** Nested compiled patterns (if branch pattern) */
   children?: CompiledPattern<TContext, TReturn>[];
+
+  /**
+   * Lazily-evaluated nested patterns (called on every resolve attempt).
+   * Takes precedence over `children` when present.
+   * @internal
+   */
+  lazyChildren?: () => URLPattern<TContext, TReturn>[];
 
   /** Named route */
   name?: string;
