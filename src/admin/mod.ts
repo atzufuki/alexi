@@ -37,6 +37,7 @@
 
 export { AdminSite, register } from "./site.ts";
 export { ModelAdmin } from "./model_admin.ts";
+export { default as AdminConfig, default as config } from "./app.ts";
 
 // =============================================================================
 // Options & Configuration

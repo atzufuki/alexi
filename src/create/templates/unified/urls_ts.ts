@@ -27,6 +27,7 @@ import {
   healthView,
   uploadsView,
 } from "@${name}/views.ts";
+import { adminSite } from "@${name}/admin.ts";
 
 // Create router and register viewsets
 const router = new DefaultRouter();
@@ -49,6 +50,7 @@ export const urlpatterns = [
   path("posts/:id/publish/", PostPublishView.as_view()),
   path("posts/:id/delete/", PostDeleteView.as_view()),
   path("api/", include(apiPatterns)),
+  path("admin/", include(adminSite.urls)),
   // Serve uploaded files at /uploads/<path>
   path("uploads/:path", uploadsView),
 ];

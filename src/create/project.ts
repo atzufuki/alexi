@@ -24,6 +24,7 @@ import {
 
 // Template imports - Unified app (server-side)
 import { generateAppTs } from "./templates/unified/app_ts.ts";
+import { generateAdminTs } from "./templates/unified/admin_ts.ts";
 import { generateModTs } from "./templates/unified/mod_ts.ts";
 import { generateModelsTs } from "./templates/unified/models_ts.ts";
 import { generateSerializersTs } from "./templates/unified/serializers_ts.ts";
@@ -183,6 +184,10 @@ async function generateFiles(name: string, version: string): Promise<void> {
     {
       path: `${name}/src/${name}/app.ts`,
       content: generateAppTs(name),
+    },
+    {
+      path: `${name}/src/${name}/admin.ts`,
+      content: generateAdminTs(name),
     },
     {
       path: `${name}/src/${name}/mod.ts`,
