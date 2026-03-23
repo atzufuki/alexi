@@ -48,19 +48,19 @@ deno run -A --unstable-kv manage.ts runserver
 deno run -A --unstable-kv manage.ts runserver --port 3000 --host 127.0.0.1
 
 # With specific settings
-deno run -A --unstable-kv manage.ts runserver --settings web
+deno run -A --unstable-kv manage.ts runserver --settings ./project/settings.ts
 
 # Debug mode
 deno run -A --unstable-kv manage.ts runserver --debug
 ```
 
-| Option           | Type      | Default   | Description          |
-| ---------------- | --------- | --------- | -------------------- |
-| `--port, -p`     | `number`  | `8000`    | Port to listen on    |
-| `--host, -H`     | `string`  | `0.0.0.0` | Host to bind to      |
-| `--settings, -s` | `string`  | `web`     | Settings module name |
-| `--no-reload`    | `boolean` | `false`   | Disable auto-reload  |
-| `--debug`        | `boolean` | `false`   | Enable debug mode    |
+| Option           | Type      | Default                 | Description          |
+| ---------------- | --------- | ----------------------- | -------------------- |
+| `--port, -p`     | `number`  | `8000`                  | Port to listen on    |
+| `--host, -H`     | `string`  | `0.0.0.0`               | Host to bind to      |
+| `--settings, -s` | `string`  | `./project/settings.ts` | Settings module path |
+| `--no-reload`    | `boolean` | `false`                 | Disable auto-reload  |
+| `--debug`        | `boolean` | `false`                 | Enable debug mode    |
 
 ### test
 
@@ -83,15 +83,15 @@ deno run -A --unstable-kv manage.ts test --failfast
 deno run -A --unstable-kv manage.ts test --keepdb
 ```
 
-| Option           | Type      | Default         | Description                    |
-| ---------------- | --------- | --------------- | ------------------------------ |
-| `--port, -p`     | `number`  | `8001`          | Port for test server           |
-| `--host, -H`     | `string`  | `127.0.0.1`     | Host for test server           |
-| `--settings, -s` | `string`  | `web`           | Settings module                |
-| `--pattern`      | `string`  | (from settings) | Test file glob pattern         |
-| `--filter`       | `string`  | -               | Filter tests by name           |
-| `--failfast`     | `boolean` | `false`         | Stop at first failure          |
-| `--keepdb`       | `boolean` | `false`         | Keep test database after tests |
+| Option           | Type      | Default                 | Description                    |
+| ---------------- | --------- | ----------------------- | ------------------------------ |
+| `--port, -p`     | `number`  | `8001`                  | Port for test server           |
+| `--host, -H`     | `string`  | `127.0.0.1`             | Host for test server           |
+| `--settings, -s` | `string`  | `./project/settings.ts` | Settings module                |
+| `--pattern`      | `string`  | (from settings)         | Test file glob pattern         |
+| `--filter`       | `string`  | -                       | Filter tests by name           |
+| `--failfast`     | `boolean` | `false`                 | Stop at first failure          |
+| `--keepdb`       | `boolean` | `false`                 | Keep test database after tests |
 
 The test command:
 
@@ -105,29 +105,29 @@ The test command:
 Create a new application within your project.
 
 ```bash
-# Interactive mode
-deno run -A manage.ts startapp myapp
-
-# With app type
-deno run -A manage.ts startapp myapp --type web
-
-# Skip prompts
-deno run -A manage.ts startapp myapp --type web --no-input
+deno run -A manage.ts startapp myapp --settings ./project/settings.ts
 ```
 
-| Option       | Type      | Default  | Description                                       |
-| ------------ | --------- | -------- | ------------------------------------------------- |
-| `--type, -t` | `string`  | (prompt) | App type: web, ui, desktop, mobile, cli, combined |
-| `--no-input` | `boolean` | `false`  | Skip interactive prompts                          |
+| Option       | Type      | Default  | Description              |
+| ------------ | --------- | -------- | ------------------------ |
+| `--settings` | `string`  | (prompt) | Settings module path     |
+| `--no-input` | `boolean` | `false`  | Skip interactive prompts |
 
-App types:
+The command generates a unified app with server-side files under `src/myapp/`
+and Service Worker files under `src/myapp/workers/myapp/`. It also exports a
+named `MyappConfig` from `src/myapp/mod.ts` ready to add to `INSTALLED_APPS`.
 
-- **web**: Backend server app (views, models, REST API)
-- **ui**: Browser SPA (components, client-side routing)
-- **desktop**: Desktop app using WebUI
-- **mobile**: Mobile app using Capacitor
-- **cli**: Command-line tool
-- **combined**: Full-stack (web + ui)
+After running `startapp`, add the config to your settings:
+
+```ts
+// project/settings.ts
+import { MyappConfig } from "@myapp/mod.ts";
+
+export const INSTALLED_APPS = [
+  // ...existing apps...
+  MyappConfig,
+];
+```
 
 ### flush
 
@@ -337,12 +337,12 @@ The app must export these from its main module:
 // src/myapp/mod.ts
 import type { AppConfig } from "@alexi/types";
 
-export * from "./commands/mod.ts";
-
-export default {
+export const MyappConfig: AppConfig = {
   name: "myapp",
-  verbose_name: "My Application",
-} as AppConfig;
+  verboseName: "My Application",
+};
+
+export * from "./commands/mod.ts";
 ```
 
 ### Manual Registration

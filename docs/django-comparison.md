@@ -240,10 +240,10 @@ Features available in Django that Alexi does not currently provide:
 
 ### Settings Configuration
 
-| Django                      | Alexi                                    |
-| --------------------------- | ---------------------------------------- |
-| `INSTALLED_APPS = ["app"]`  | `INSTALLED_APPS = [() => import("app")]` |
-| String-based app references | Import function references               |
+| Django                      | Alexi                                          |
+| --------------------------- | ---------------------------------------------- |
+| `INSTALLED_APPS = ["app"]`  | `INSTALLED_APPS = [AppConfig]`                 |
+| String-based app references | Named `AppConfig` object imports from `mod.ts` |
 
 ### Async Support
 
