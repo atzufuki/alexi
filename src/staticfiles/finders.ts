@@ -11,6 +11,7 @@
  * @module alexi_staticfiles/finders
  */
 
+import { fromFileUrl } from "@std/path";
 import { onAppRegistered } from "@alexi/types";
 
 // =============================================================================
@@ -251,7 +252,12 @@ export class AppDirectoriesFinder implements StaticFileFinder {
     if (path.startsWith("./")) {
       return `${this.projectRoot}/${path.slice(2)}`;
     }
+    // Unix absolute path
     if (path.startsWith("/")) {
+      return path;
+    }
+    // Windows absolute path (e.g. C:\... or C:/...)
+    if (/^[A-Za-z]:[\\/]/.test(path)) {
       return path;
     }
     return `${this.projectRoot}/${path}`;
@@ -378,7 +384,12 @@ export class FileSystemFinder implements StaticFileFinder {
     if (path.startsWith("./")) {
       return `${this.projectRoot}/${path.slice(2)}`;
     }
+    // Unix absolute path
     if (path.startsWith("/")) {
+      return path;
+    }
+    // Windows absolute path (e.g. C:\... or C:/...)
+    if (/^[A-Za-z]:[\\/]/.test(path)) {
       return path;
     }
     return `${this.projectRoot}/${path}`;
@@ -482,8 +493,8 @@ export function registerStaticAppPath(
   let resolvedPath = appPath;
   if (appPath.startsWith("file://")) {
     try {
-      // Remove trailing slash so static/ is appended correctly
-      resolvedPath = new URL(appPath).pathname.replace(/\/$/, "");
+      // fromFileUrl handles Windows paths correctly (e.g. file:///C:/... → C:\...)
+      resolvedPath = fromFileUrl(appPath).replace(/[/\\]$/, "");
     } catch {
       resolvedPath = appPath;
     }

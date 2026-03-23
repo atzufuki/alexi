@@ -14,6 +14,7 @@
  * @module @alexi/core/get_application
  */
 
+import { fromFileUrl } from "@std/path";
 import { Application } from "./application.ts";
 import type { ApplicationOptions } from "./application.ts";
 import { conf, configureSettings } from "./conf.ts";
@@ -398,11 +399,12 @@ async function _processInstalledApps(
 
     // 2. Register template directory when APP_DIRS is true
     if (appDirs && appPath) {
-      // Normalise: convert file:// URL to path and strip trailing slash
+      // Normalise: convert file:// URL to OS path and strip trailing slash
       let resolvedPath = appPath;
       if (appPath.startsWith("file://")) {
         try {
-          resolvedPath = new URL(appPath).pathname.replace(/\/$/, "");
+          // fromFileUrl handles Windows paths correctly (e.g. file:///C:/... → C:\...)
+          resolvedPath = fromFileUrl(appPath).replace(/[/\\]$/, "");
         } catch {
           // keep original
         }

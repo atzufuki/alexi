@@ -33,6 +33,7 @@ import type { AppConfig } from "@alexi/types";
 export const ${appName}Config: AppConfig = {
   name: "${name}",
   verboseName: "${appName}",
+  appPath: new URL("./", import.meta.url).href,
 };
 
 export * from "./models.ts";
