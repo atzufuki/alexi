@@ -304,28 +304,35 @@ export class RunServerCommand extends BaseCommand {
     settings: Record<string, unknown>,
   ): Promise<void> {
     const installedApps = settings.INSTALLED_APPS as
-      | Array<AppImportFn>
+      | Array<AppImportFn | AppConfig>
       | undefined;
 
     if (!installedApps || !Array.isArray(installedApps)) return;
 
     // Collect app paths first (needed for APP_DIRS discovery)
     const appPathMap: Record<string, string> = {};
-    for (const importFn of installedApps) {
-      if (typeof importFn !== "function") continue;
-      try {
-        const module = await importFn();
-        const config = module.default as AppConfig | undefined;
-        if (!config?.name) continue;
-
-        const appPath = this.resolveAppPath(config);
-        if (appPath) {
-          this.appNames.push(config.name);
-          this.appPaths[config.name] = appPath;
-          appPathMap[config.name] = appPath;
+    for (const entry of installedApps) {
+      // Resolve entry to AppConfig — supports both plain objects and import fns
+      let config: AppConfig | undefined;
+      if (typeof entry === "function") {
+        try {
+          const module = await (entry as AppImportFn)();
+          config = module.default as AppConfig | undefined;
+        } catch {
+          // Skip apps that fail to load
+          continue;
         }
-      } catch {
-        // Skip apps that fail to load
+      } else if (entry && typeof entry === "object" && "name" in entry) {
+        config = entry as AppConfig;
+      }
+
+      if (!config?.name) continue;
+
+      const appPath = this.resolveAppPath(config);
+      if (appPath) {
+        this.appNames.push(config.name);
+        this.appPaths[config.name] = appPath;
+        appPathMap[config.name] = appPath;
       }
     }
 
@@ -377,32 +384,20 @@ export class RunServerCommand extends BaseCommand {
       }
     } else {
       // Convention-based: `<appPath>/templates/` auto-discovery
-      for (const importFn of installedApps) {
-        if (typeof importFn !== "function") continue;
-
+      // appPathMap was already populated above — iterate over it directly
+      for (const [, appPath] of Object.entries(appPathMap)) {
+        const absAppDir = appPath.startsWith("/")
+          ? appPath
+          : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
+        const conventionDir = `${absAppDir}/templates`;
         try {
-          const module = await importFn();
-          const config = module.default as AppConfig | undefined;
-          if (!config?.name) continue;
-
-          const appPath = appPathMap[config.name];
-          if (!appPath) continue;
-
-          const absAppDir = appPath.startsWith("/")
-            ? appPath
-            : `${this.projectRoot}/${appPath.replace(/^\.\//, "")}`;
-          const conventionDir = `${absAppDir}/templates`;
-          try {
-            const stat = await Deno.stat(conventionDir);
-            if (stat.isDirectory) {
-              await this.scanAndRegisterTemplates(conventionDir);
-              templatesRegistered++;
-            }
-          } catch {
-            // No templates dir by convention, skip
+          const stat = await Deno.stat(conventionDir);
+          if (stat.isDirectory) {
+            await this.scanAndRegisterTemplates(conventionDir);
+            templatesRegistered++;
           }
         } catch {
-          // Skip apps that fail to load or have unreadable template dirs
+          // No templates dir by convention, skip
         }
       }
     }
@@ -481,11 +476,8 @@ export class RunServerCommand extends BaseCommand {
         const url = new URL(config.appPath);
         let pathname = url.pathname.replace(/\/$/, "");
         // Remove leading slash on Windows absolute paths (/C:/...)
-        if (/^\/[a-zA-Z]:\//.test(pathname)) {
+        if (/^\/[a-zA-Z]:[\\/]/.test(pathname)) {
           pathname = pathname.slice(1);
-        }
-        if (/^[a-zA-Z]:\//.test(pathname)) {
-          return `/${pathname}`;
         }
         return pathname;
       } catch {
