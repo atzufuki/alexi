@@ -1,16 +1,16 @@
-# Tutorial: Build a Todo App
+# Tutorial: Build a Blog App
 
-This step-by-step tutorial guides you through building a complete Todo
-application with Alexi. You'll create a REST API backend and a frontend SPA that
-work together.
+This step-by-step tutorial guides you through building a complete blog
+application with Alexi. You'll create a REST API backend, server-side rendered
+views, and a Service Worker-powered frontend.
 
 **What you'll learn:**
 
 - Setting up an Alexi project
 - Creating models with the ORM
 - Building REST APIs with ViewSets
-- Creating a frontend with client-side routing
-- Connecting frontend to backend with RestBackend
+- Server-side rendered views with templates
+- Connecting the frontend with RestBackend via a Service Worker
 
 **Prerequisites:**
 
@@ -29,54 +29,91 @@ work together.
 Use `@alexi/create` to scaffold a new project:
 
 ```bash
-deno run -A jsr:@alexi/create todo-app
-cd todo-app
+deno run -A jsr:@alexi/create my-blog
+cd my-blog
 ```
 
-This creates a complete project structure with web, UI, and desktop apps.
+This creates a unified full-stack project with a server app, Service Worker, and
+frontend assets all in one directory.
 
 ### Step 2: Explore the Structure
 
 ```
-todo-app/
-├── manage.ts                 # CLI entry point
-├── deno.jsonc                # Workspace config
-├── project/                  # Settings
-│   ├── settings.ts
-│   ├── web.settings.ts
-│   ├── ui.settings.ts
-│   └── desktop.settings.ts
+my-blog/
+├── manage.ts                    # CLI entry point
+├── deno.jsonc                   # Workspace config & import map
+├── project/
+│   ├── http.ts                  # Production entry point
+│   ├── settings.ts              # Development settings
+│   └── production.ts            # Production settings
 └── src/
-    ├── todo-app-web/         # Backend (we'll modify this)
-    ├── todo-app-ui/          # Frontend (we'll modify this)
-    └── todo-app-desktop/     # Desktop wrapper
+    └── my-blog/                 # Unified app
+        ├── mod.ts               # Exports + MyBlogConfig
+        ├── models.ts            # PostModel
+        ├── serializers.ts       # PostSerializer
+        ├── viewsets.ts          # PostViewSet
+        ├── urls.ts              # Server URL routing
+        ├── views.ts             # Server-side views
+        ├── migrations/          # Database migrations
+        ├── tests/               # Tests
+        ├── templates/my-blog/   # HTML templates
+        ├── assets/my-blog/      # Frontend TypeScript
+        └── workers/my-blog/     # Service Worker
 ```
 
-### Step 3: Start the Development Servers
+### Step 3: Start the Development Server
 
 ```bash
 deno task dev
 ```
 
-This starts:
-
-- Web server on `http://localhost:8000`
-- UI server on `http://localhost:5173`
-- Desktop window (WebUI)
-
-Open `http://localhost:5173` in your browser. You should see the default Todo
-app.
+Open `http://localhost:8000` in your browser. You should see the default blog
+home page.
 
 ---
 
 ## Part 2: Understanding the Backend
 
-The scaffolded project already has a working Todo API. Let's understand how it
+The scaffolded project already has a working Post API. Let's understand how it
 works.
 
-### Step 4: Examine the Model
+### Step 4: Examine the App Config
 
-Open `src/todo-app-web/models.ts`:
+Open `src/my-blog/mod.ts`:
+
+```ts
+import type { AppConfig } from "@alexi/types";
+
+export const MyBlogConfig: AppConfig = {
+  name: "my-blog",
+  verboseName: "MyBlog",
+};
+
+export * from "./models.ts";
+export * from "./views.ts";
+export * from "./urls.ts";
+export * from "./serializers.ts";
+export * from "./viewsets.ts";
+```
+
+The named `MyBlogConfig` export is what gets added to `INSTALLED_APPS` in
+`project/settings.ts`:
+
+```ts
+import { MyBlogConfig } from "@my-blog/mod.ts";
+
+export const INSTALLED_APPS = [
+  StaticfilesConfig,
+  DbConfig,
+  AuthConfig,
+  AdminConfig,
+  MyBlogConfig,
+];
+```
+
+### Step 5: Examine the Model
+
+Open `src/my-blog/models.ts`:
 
 ```ts
 import {
@@ -86,19 +123,21 @@ import {
   DateTimeField,
   Manager,
   Model,
+  TextField,
 } from "@alexi/db";
 
-export class TodoModel extends Model {
+export class PostModel extends Model {
   id = new AutoField({ primaryKey: true });
   title = new CharField({ maxLength: 200 });
-  completed = new BooleanField({ default: false });
+  content = new TextField({ blank: true });
+  published = new BooleanField({ default: false });
   createdAt = new DateTimeField({ autoNowAdd: true });
   updatedAt = new DateTimeField({ autoNow: true });
 
-  static objects = new Manager(TodoModel);
+  static objects = new Manager(PostModel);
 
   static meta = {
-    dbTable: "todos",
+    dbTable: "posts",
     ordering: ["-createdAt"],
   };
 }
@@ -111,18 +150,18 @@ export class TodoModel extends Model {
 - `Manager` — Provides query methods like `objects.all()`, `objects.filter()`
 - `meta` — Model configuration (table name, default ordering)
 
-### Step 5: Examine the Serializer
+### Step 6: Examine the Serializer
 
-Open `src/todo-app-web/serializers.ts`:
+Open `src/my-blog/serializers.ts`:
 
 ```ts
 import { ModelSerializer } from "@alexi/restframework";
-import { TodoModel } from "./models.ts";
+import { PostModel } from "./models.ts";
 
-export class TodoSerializer extends ModelSerializer {
-  static Meta = {
-    model: TodoModel,
-    fields: ["id", "title", "completed", "createdAt", "updatedAt"],
+export class PostSerializer extends ModelSerializer {
+  static override Meta = {
+    model: PostModel,
+    fields: ["id", "title", "content", "published", "createdAt", "updatedAt"],
     readOnlyFields: ["id", "createdAt", "updatedAt"],
   };
 }
@@ -134,18 +173,18 @@ export class TodoSerializer extends ModelSerializer {
 - `fields` — Which fields to include in API responses
 - `readOnlyFields` — Fields that can't be set via API
 
-### Step 6: Examine the ViewSet
+### Step 7: Examine the ViewSet
 
-Open `src/todo-app-web/viewsets.ts`:
+Open `src/my-blog/viewsets.ts`:
 
 ```ts
 import { ModelViewSet } from "@alexi/restframework";
-import { TodoModel } from "./models.ts";
-import { TodoSerializer } from "./serializers.ts";
+import { PostModel } from "./models.ts";
+import { PostSerializer } from "./serializers.ts";
 
-export class TodoViewSet extends ModelViewSet {
-  model = TodoModel;
-  serializer_class = TodoSerializer;
+export class PostViewSet extends ModelViewSet {
+  model = PostModel;
+  serializer_class = PostSerializer;
 }
 ```
 
@@ -154,29 +193,29 @@ export class TodoViewSet extends ModelViewSet {
 - `ModelViewSet` — Provides full CRUD operations automatically
 - Just point it at a model and serializer — that's it!
 
-### Step 7: Test the API
+### Step 8: Test the API
 
 With the server running, test the API:
 
 ```bash
-# List all todos
-curl http://localhost:8000/api/todos/
+# List all posts
+curl http://localhost:8000/api/posts/
 
-# Create a todo
-curl -X POST http://localhost:8000/api/todos/ \
+# Create a post
+curl -X POST http://localhost:8000/api/posts/ \
   -H "Content-Type: application/json" \
-  -d '{"title": "Learn Alexi", "completed": false}'
+  -d '{"title": "Hello Alexi", "content": "My first post.", "published": true}'
 
-# Get a specific todo
-curl http://localhost:8000/api/todos/1/
+# Get a specific post
+curl http://localhost:8000/api/posts/1/
 
-# Update a todo
-curl -X PUT http://localhost:8000/api/todos/1/ \
+# Update a post
+curl -X PATCH http://localhost:8000/api/posts/1/ \
   -H "Content-Type: application/json" \
-  -d '{"title": "Learn Alexi", "completed": true}'
+  -d '{"published": true}'
 
-# Delete a todo
-curl -X DELETE http://localhost:8000/api/todos/1/
+# Delete a post
+curl -X DELETE http://localhost:8000/api/posts/1/
 ```
 
 ---
@@ -185,9 +224,9 @@ curl -X DELETE http://localhost:8000/api/todos/1/
 
 Let's add some features to our API.
 
-### Step 8: Add a Priority Field
+### Step 9: Add an Author Field
 
-Update `src/todo-app-web/models.ts`:
+Update `src/my-blog/models.ts` to add an author name:
 
 ```ts
 import {
@@ -195,48 +234,54 @@ import {
   BooleanField,
   CharField,
   DateTimeField,
-  IntegerField, // Add this
   Manager,
   Model,
+  TextField,
 } from "@alexi/db";
 
-export class TodoModel extends Model {
+export class PostModel extends Model {
   id = new AutoField({ primaryKey: true });
   title = new CharField({ maxLength: 200 });
-  completed = new BooleanField({ default: false });
-  priority = new IntegerField({ default: 0 }); // Add this
+  content = new TextField({ blank: true });
+  author = new CharField({ maxLength: 100, blank: true }); // Add this
+  published = new BooleanField({ default: false });
   createdAt = new DateTimeField({ autoNowAdd: true });
   updatedAt = new DateTimeField({ autoNow: true });
 
-  static objects = new Manager(TodoModel);
+  static objects = new Manager(PostModel);
 
   static meta = {
-    dbTable: "todos",
-    ordering: ["-priority", "-createdAt"], // Sort by priority first
+    dbTable: "posts",
+    ordering: ["-createdAt"],
   };
 }
 ```
 
-### Step 9: Update the Serializer
+### Step 10: Update the Serializer
 
-Update `src/todo-app-web/serializers.ts`:
+Update `src/my-blog/serializers.ts`:
 
 ```ts
-import { ModelSerializer } from "@alexi/restframework";
-import { TodoModel } from "./models.ts";
-
-export class TodoSerializer extends ModelSerializer {
-  static Meta = {
-    model: TodoModel,
-    fields: ["id", "title", "completed", "priority", "createdAt", "updatedAt"],
+export class PostSerializer extends ModelSerializer {
+  static override Meta = {
+    model: PostModel,
+    fields: [
+      "id",
+      "title",
+      "content",
+      "author",
+      "published",
+      "createdAt",
+      "updatedAt",
+    ],
     readOnlyFields: ["id", "createdAt", "updatedAt"],
   };
 }
 ```
 
-### Step 10: Add Filtering
+### Step 11: Add Filtering
 
-Update `src/todo-app-web/viewsets.ts`:
+Update `src/my-blog/viewsets.ts`:
 
 ```ts
 import {
@@ -245,56 +290,41 @@ import {
   QueryParamFilterBackend,
   SearchFilter,
 } from "@alexi/restframework";
-import { TodoModel } from "./models.ts";
-import { TodoSerializer } from "./serializers.ts";
+import { PostModel } from "./models.ts";
+import { PostSerializer } from "./serializers.ts";
 
-export class TodoViewSet extends ModelViewSet {
-  model = TodoModel;
-  serializer_class = TodoSerializer;
+export class PostViewSet extends ModelViewSet {
+  model = PostModel;
+  serializer_class = PostSerializer;
 
-  // Enable filtering
   filterBackends = [
     new QueryParamFilterBackend(),
     new OrderingFilter(),
     new SearchFilter(),
   ];
 
-  // Which fields can be filtered
-  filtersetFields = ["completed", "priority"];
-
-  // Which fields can be used for ordering
-  orderingFields = ["createdAt", "priority", "title"];
-
-  // Which fields are searched
-  searchFields = ["title"];
-
-  // Default ordering
-  ordering = ["-priority", "-createdAt"];
+  filtersetFields = ["published", "author"];
+  orderingFields = ["createdAt", "title"];
+  searchFields = ["title", "content"];
 }
 ```
 
-### Step 11: Test Filtering
+### Step 12: Test Filtering
 
 ```bash
-# Get only completed todos
-curl "http://localhost:8000/api/todos/?completed=true"
+# Get only published posts
+curl "http://localhost:8000/api/posts/?published=true"
 
-# Get high priority todos
-curl "http://localhost:8000/api/todos/?priority=2"
-
-# Search todos
-curl "http://localhost:8000/api/todos/?search=learn"
+# Search posts
+curl "http://localhost:8000/api/posts/?search=alexi"
 
 # Sort by title
-curl "http://localhost:8000/api/todos/?ordering=title"
-
-# Sort by priority descending
-curl "http://localhost:8000/api/todos/?ordering=-priority"
+curl "http://localhost:8000/api/posts/?ordering=title"
 ```
 
-### Step 12: Add a Custom Action
+### Step 13: Add a Custom Action
 
-Let's add a "toggle" action that flips the completed status:
+Add a "publish" action that sets published to true:
 
 ```ts
 import {
@@ -305,12 +335,12 @@ import {
   SearchFilter,
 } from "@alexi/restframework";
 import type { ViewSetContext } from "@alexi/restframework";
-import { TodoModel } from "./models.ts";
-import { TodoSerializer } from "./serializers.ts";
+import { PostModel } from "./models.ts";
+import { PostSerializer } from "./serializers.ts";
 
-export class TodoViewSet extends ModelViewSet {
-  model = TodoModel;
-  serializer_class = TodoSerializer;
+export class PostViewSet extends ModelViewSet {
+  model = PostModel;
+  serializer_class = PostSerializer;
 
   filterBackends = [
     new QueryParamFilterBackend(),
@@ -318,19 +348,18 @@ export class TodoViewSet extends ModelViewSet {
     new SearchFilter(),
   ];
 
-  filtersetFields = ["completed", "priority"];
-  orderingFields = ["createdAt", "priority", "title"];
-  searchFields = ["title"];
-  ordering = ["-priority", "-createdAt"];
+  filtersetFields = ["published", "author"];
+  orderingFields = ["createdAt", "title"];
+  searchFields = ["title", "content"];
 
-  // Custom action: POST /api/todos/:id/toggle/
+  // Custom action: POST /api/posts/:id/publish/
   @action({ detail: true, methods: ["POST"] })
-  async toggle(context: ViewSetContext): Promise<Response> {
-    const todo = await this.getObject(context);
-    todo.completed.set(!todo.completed.get());
-    await todo.save();
+  async publish(context: ViewSetContext): Promise<Response> {
+    const post = await this.getObject(context);
+    post.published.set(true);
+    await post.save({ updateFields: ["published"] });
 
-    const serializer = new TodoSerializer({ instance: todo });
+    const serializer = new PostSerializer({ instance: post });
     return Response.json(await serializer.data);
   }
 }
@@ -339,259 +368,143 @@ export class TodoViewSet extends ModelViewSet {
 Test it:
 
 ```bash
-# Toggle a todo's completed status
-curl -X POST http://localhost:8000/api/todos/1/toggle/
+# Publish a post
+curl -X POST http://localhost:8000/api/posts/1/publish/
 ```
 
 ---
 
-## Part 4: Understanding the Frontend
+## Part 4: Server-Side Views and Templates
 
-Now let's look at how the frontend works.
+The scaffolded project also includes server-side rendered HTML views.
 
-### Step 13: Examine the Frontend Model
+### Step 14: Examine the Views
 
-Open `src/todo-app-ui/models.ts`:
+Open `src/my-blog/views.ts`:
 
 ```ts
-import {
-  AutoField,
-  BooleanField,
-  CharField,
-  DateTimeField,
-  Manager,
-  Model,
-} from "@alexi/db";
+import { TemplateView } from "@alexi/views";
+import { PostModel } from "./models.ts";
 
-export class TodoModel extends Model {
-  id = new AutoField({ primaryKey: true });
-  title = new CharField({ maxLength: 200 });
-  completed = new BooleanField({ default: false });
-  createdAt = new DateTimeField({ autoNowAdd: true });
-  updatedAt = new DateTimeField({ autoNow: true });
+export class HomeView extends TemplateView {
+  templateName = "my-blog/index.html";
 
-  static objects = new Manager(TodoModel);
-
-  static meta = {
-    dbTable: "todos",
-  };
+  override async getContext(request: Request) {
+    const posts = await PostModel.objects
+      .filter({ published: true })
+      .fetch();
+    return { posts };
+  }
 }
 ```
 
-Notice: The frontend model mirrors the backend model. This allows the same query
-syntax on both sides.
+### Step 15: Examine the Templates
 
-### Step 14: Examine the REST Backend Setup
+Templates live in `src/my-blog/templates/my-blog/` and use Django Template
+Language syntax:
 
-Open `src/todo-app-ui/settings.ts`:
+```html
+{# src/my-blog/templates/my-blog/post_list.html #} {% extends
+"my-blog/base.html" %} {% block content %}
+<h1>Posts</h1>
+{% for post in posts %}
+<article>
+  <h2><a href="/posts/{{ post.id }}/">{{ post.title }}</a></h2>
+  <p>{{ post.content }}</p>
+</article>
+{% empty %}
+<p>No posts yet.</p>
+{% endfor %} {% endblock %}
+```
+
+---
+
+## Part 5: Service Worker Frontend
+
+The Service Worker intercepts fetch requests and renders templates in the
+browser using the same ORM and templates as the server.
+
+### Step 16: Examine the Worker Settings
+
+Open `src/my-blog/workers/my-blog/settings.ts`:
 
 ```ts
 import { RestBackend } from "@alexi/db/backends/rest";
-import { setBackend } from "@alexi/db";
-import { TodoEndpoint } from "./endpoints.ts";
+import { PostEndpoint } from "./endpoints.ts";
+import { urlpatterns } from "./urls.ts";
 
-const API_URL = "http://localhost:8000/api";
+export const DATABASES = {
+  default: new RestBackend({
+    apiUrl: "/api",
+    endpoints: [PostEndpoint],
+  }),
+};
 
-export const restBackend = new RestBackend({
-  apiUrl: API_URL,
-  endpoints: [TodoEndpoint],
-});
+export const ROOT_URLCONF = urlpatterns;
 
-export async function initializeApp() {
-  await restBackend.connect();
-  setBackend(restBackend);
-}
+export const TEMPLATES = [{ APP_DIRS: true, DIRS: [] as string[] }];
 ```
 
 The `RestBackend` maps ORM queries to REST API calls:
 
 | ORM Operation                                | REST API Call          |
 | -------------------------------------------- | ---------------------- |
-| `TodoModel.objects.all().fetch()`            | `GET /api/todos/`      |
-| `TodoModel.objects.get({ id: 1 })`           | `GET /api/todos/1/`    |
-| `TodoModel.objects.create({ title: "..." })` | `POST /api/todos/`     |
-| `todo.save()`                                | `PUT /api/todos/1/`    |
-| `todo.delete()`                              | `DELETE /api/todos/1/` |
-
-### Step 15: Update Frontend Model
-
-Add the priority field to `src/todo-app-ui/models.ts`:
-
-```ts
-import {
-  AutoField,
-  BooleanField,
-  CharField,
-  DateTimeField,
-  IntegerField, // Add this
-  Manager,
-  Model,
-} from "@alexi/db";
-
-export class TodoModel extends Model {
-  id = new AutoField({ primaryKey: true });
-  title = new CharField({ maxLength: 200 });
-  completed = new BooleanField({ default: false });
-  priority = new IntegerField({ default: 0 }); // Add this
-  createdAt = new DateTimeField({ autoNowAdd: true });
-  updatedAt = new DateTimeField({ autoNow: true });
-
-  static objects = new Manager(TodoModel);
-
-  static meta = {
-    dbTable: "todos",
-  };
-}
-```
-
----
-
-## Part 5: Building the UI
-
-Let's customize the todo list UI.
-
-### Step 16: Update the Home Template
-
-Open `src/todo-app-ui/templates/home.ts` and customize the todo display to show
-priority:
-
-```ts
-// Find the todo item rendering and add priority indicator
-// The exact implementation depends on your UI framework
-// Here's the concept:
-
-function renderTodoItem(todo: TodoModel) {
-  const priorityColors = {
-    0: "gray",
-    1: "blue",
-    2: "orange",
-    3: "red",
-  };
-
-  const priority = todo.priority.get();
-  const color = priorityColors[priority] || "gray";
-
-  return `
-    <div class="todo-item" data-id="${todo.id.get()}">
-      <span class="priority-dot" style="color: ${color}">●</span>
-      <input type="checkbox" ${todo.completed.get() ? "checked" : ""}>
-      <span class="title">${todo.title.get()}</span>
-    </div>
-  `;
-}
-```
-
-### Step 17: Add Priority Selection to the Form
-
-When creating a new todo, allow selecting priority:
-
-```ts
-// Add to your todo creation form
-const priorityOptions = [
-  { value: 0, label: "Low" },
-  { value: 1, label: "Normal" },
-  { value: 2, label: "High" },
-  { value: 3, label: "Urgent" },
-];
-
-// Create todo with priority
-async function createTodo(title: string, priority: number) {
-  const todo = await TodoModel.objects.create({
-    title,
-    priority,
-    completed: false,
-  });
-  return todo;
-}
-```
-
-### Step 18: Add Filtering UI
-
-Add filter controls to show only certain todos:
-
-```ts
-// Filter functions
-async function showAllTodos() {
-  const todos = await TodoModel.objects.all().fetch();
-  renderTodoList(todos);
-}
-
-async function showActiveTodos() {
-  const todos = await TodoModel.objects
-    .filter({ completed: false })
-    .fetch();
-  renderTodoList(todos);
-}
-
-async function showCompletedTodos() {
-  const todos = await TodoModel.objects
-    .filter({ completed: true })
-    .fetch();
-  renderTodoList(todos);
-}
-
-async function showHighPriority() {
-  const todos = await TodoModel.objects
-    .filter({ priority__gte: 2 })
-    .fetch();
-  renderTodoList(todos);
-}
-```
+| `PostModel.objects.all().fetch()`            | `GET /api/posts/`      |
+| `PostModel.objects.get({ id: 1 })`           | `GET /api/posts/1/`    |
+| `PostModel.objects.create({ title: "..." })` | `POST /api/posts/`     |
+| `post.save()`                                | `PUT /api/posts/1/`    |
+| `post.delete()`                              | `DELETE /api/posts/1/` |
 
 ---
 
 ## Part 6: Adding Tests
 
-### Step 19: Write Backend Tests
+### Step 17: Write Backend Tests
 
-Create/update `src/todo-app-web/tests/todo_test.ts`:
+Create/update `src/my-blog/tests/post_test.ts`:
 
 ```ts
 import { assertEquals, assertExists } from "jsr:@std/assert@1";
 import { reset, setup } from "@alexi/db";
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
-import { TodoModel } from "../models.ts";
+import { PostModel } from "../models.ts";
 
 Deno.test({
-  name: "TodoModel: CRUD operations",
+  name: "PostModel: CRUD operations",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
-    // Setup in-memory database
     const backend = new DenoKVBackend({ name: "test", path: ":memory:" });
     await backend.connect();
     await setup({ backend });
 
     try {
       // Create
-      const todo = await TodoModel.objects.create({
-        title: "Test Todo",
-        completed: false,
-        priority: 1,
+      const post = await PostModel.objects.create({
+        title: "Hello Alexi",
+        content: "My first post.",
+        published: true,
       });
 
-      assertExists(todo.id.get());
-      assertEquals(todo.title.get(), "Test Todo");
-      assertEquals(todo.completed.get(), false);
-      assertEquals(todo.priority.get(), 1);
+      assertExists(post.id.get());
+      assertEquals(post.title.get(), "Hello Alexi");
+      assertEquals(post.published.get(), true);
 
       // Read
-      const fetched = await TodoModel.objects.get({ id: todo.id.get() });
-      assertEquals(fetched.title.get(), "Test Todo");
+      const fetched = await PostModel.objects.get({ id: post.id.get() });
+      assertEquals(fetched.title.get(), "Hello Alexi");
 
       // Update
-      todo.completed.set(true);
-      todo.priority.set(2);
-      await todo.save();
+      post.title.set("Updated Title");
+      await post.save({ updateFields: ["title"] });
 
-      const updated = await TodoModel.objects.get({ id: todo.id.get() });
-      assertEquals(updated.completed.get(), true);
-      assertEquals(updated.priority.get(), 2);
+      const updated = await PostModel.objects.get({ id: post.id.get() });
+      assertEquals(updated.title.get(), "Updated Title");
 
       // Delete
-      await todo.delete();
-      const deleted = await TodoModel.objects
-        .filter({ id: todo.id.get() })
+      await post.delete();
+      const deleted = await PostModel.objects
+        .filter({ id: post.id.get() })
         .first();
       assertEquals(deleted, null);
     } finally {
@@ -602,7 +515,7 @@ Deno.test({
 });
 
 Deno.test({
-  name: "TodoModel: filtering",
+  name: "PostModel: filtering",
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
@@ -611,27 +524,14 @@ Deno.test({
     await setup({ backend });
 
     try {
-      // Create test data
-      await TodoModel.objects.create({ title: "Low priority", priority: 0 });
-      await TodoModel.objects.create({ title: "High priority", priority: 2 });
-      await TodoModel.objects.create({
-        title: "Completed",
-        priority: 1,
-        completed: true,
-      });
+      await PostModel.objects.create({ title: "Draft", published: false });
+      await PostModel.objects.create({ title: "Live", published: true });
 
-      // Filter by priority
-      const highPriority = await TodoModel.objects
-        .filter({ priority__gte: 2 })
+      const published = await PostModel.objects
+        .filter({ published: true })
         .fetch();
-      assertEquals(highPriority.length, 1);
-      assertEquals(highPriority.array()[0].title.get(), "High priority");
-
-      // Filter by completed
-      const active = await TodoModel.objects
-        .filter({ completed: false })
-        .fetch();
-      assertEquals(active.length, 2);
+      assertEquals(published.length, 1);
+      assertEquals(published[0].title.get(), "Live");
     } finally {
       await reset();
       await backend.disconnect();
@@ -640,7 +540,7 @@ Deno.test({
 });
 ```
 
-### Step 20: Run Tests
+### Step 18: Run Tests
 
 ```bash
 deno task test
@@ -650,63 +550,48 @@ deno task test
 
 ## Part 7: Next Steps
 
-Congratulations! You've built a complete Todo application. Here are some ideas
+Congratulations! You've built a complete blog application. Here are some ideas
 for extending it:
 
 ### Add Authentication
 
 ```ts
-// Protect the API
-import { loginRequired } from "@alexi/auth";
+// Protect the publish action with JWT
+import { JWTAuthentication } from "@alexi/restframework/authentication";
+import { IsAuthenticated } from "@alexi/restframework";
 
-export const urlpatterns = [
-  path("api/todos/", loginRequired(include(router.urls))),
-];
+export class PostViewSet extends ModelViewSet {
+  // ...
+  authentication_classes = [JWTAuthentication];
+  permission_classes = [IsAuthenticated];
+}
 ```
 
-### Add Categories/Tags
+### Add Categories
 
 ```ts
-// Add a Category model
 export class CategoryModel extends Model {
   id = new AutoField({ primaryKey: true });
   name = new CharField({ maxLength: 100 });
-  color = new CharField({ maxLength: 7, default: "#3b82f6" });
+  slug = new CharField({ maxLength: 120 });
 
   static objects = new Manager(CategoryModel);
 }
 
-// Add ForeignKey to TodoModel
-export class TodoModel extends Model {
+export class PostModel extends Model {
   // ...existing fields...
-  category = new ForeignKey<CategoryModel>("CategoryModel", {
+  category = new ForeignKey("CategoryModel", {
     onDelete: OnDelete.SET_NULL,
     null: true,
+    relatedName: "posts",
   });
 }
-```
-
-### Add Due Dates
-
-```ts
-export class TodoModel extends Model {
-  // ...existing fields...
-  dueDate = new DateTimeField({ null: true, blank: true });
-}
-
-// Query overdue todos
-const overdue = await TodoModel.objects
-  .filter({
-    completed: false,
-    dueDate__lt: new Date(),
-  })
-  .fetch();
 ```
 
 ### Deploy to Deno Deploy
 
 See the [Deployment Guide](./deployment.md) for instructions on deploying your
-app.
+app to Deno Deploy.
 
 ---
 
@@ -714,14 +599,16 @@ app.
 
 In this tutorial, you learned:
 
-1. **Project Setup** — Using `@alexi/create` to scaffold projects
-2. **Models** — Defining data with fields and managers
-3. **Serializers** — Controlling API input/output
-4. **ViewSets** — Building REST APIs with minimal code
-5. **Filtering** — Query parameter filtering, ordering, and search
-6. **Custom Actions** — Adding custom endpoints to ViewSets
-7. **Frontend** — Connecting to the API with RestBackend
-8. **Testing** — Writing tests for models and APIs
+1. **Project Setup** — Using `@alexi/create` to scaffold a unified project
+2. **AppConfig** — Named export pattern for `INSTALLED_APPS`
+3. **Models** — Defining data with fields and managers
+4. **Serializers** — Controlling API input/output
+5. **ViewSets** — Building REST APIs with minimal code
+6. **Filtering** — Query parameter filtering, ordering, and search
+7. **Custom Actions** — Adding custom endpoints to ViewSets
+8. **Templates** — Server-side HTML rendering
+9. **Service Worker** — Connecting the frontend with RestBackend
+10. **Testing** — Writing tests for models and APIs
 
 For more details, see the full documentation:
 
@@ -729,3 +616,4 @@ For more details, see the full documentation:
 - [REST Framework](./restframework/viewsets.md)
 - [Database Backends](./db/backends.md)
 - [Authentication](./auth/authentication.md)
+- [Scaffolding](./create/scaffolding.md)

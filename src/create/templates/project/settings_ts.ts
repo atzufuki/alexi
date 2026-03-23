@@ -4,6 +4,13 @@
  * @module @alexi/create/templates/project/settings_ts
  */
 
+function toPascalCase(str: string): string {
+  return str
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+}
+
 /**
  * Generate settings.ts content for a new project
  *
@@ -48,6 +55,8 @@ function _generateSettingsContent(name: string): string {
  */
 
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { DbConfig } from "@alexi/db";
+import { StaticfilesConfig } from "@alexi/staticfiles";
 import {
   AuthenticationMiddleware,
   AuthConfig,
@@ -59,6 +68,7 @@ import {
   loggingMiddleware,
 } from "@alexi/middleware";
 import { FileSystemStorage } from "@alexi/storage/backends/filesystem";
+import { ${toPascalCase(name)}Config } from "@${name}/mod.ts";
 import { UserModel } from "@${name}/models.ts";
 
 // =============================================================================
@@ -111,18 +121,17 @@ export const DEFAULT_FILE_STORAGE = new FileSystemStorage({
 // =============================================================================
 
 /**
- * INSTALLED_APPS contains import functions for each app.
+ * INSTALLED_APPS lists every app configuration for this project.
  *
- * Using import functions ensures the import happens in this module's context,
- * so import maps defined in deno.jsonc work correctly.
+ * Import the named AppConfig from each package and add it directly —
+ * no wrapping in import functions needed.
  */
 export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@alexi/db"),
-  () => import("@alexi/restframework"),
+  StaticfilesConfig,
+  DbConfig,
   AuthConfig,
   AdminConfig,
-  () => import("@${name}/mod.ts"),
+  ${toPascalCase(name)}Config,
 ];
 
 // =============================================================================
@@ -255,6 +264,8 @@ function _generateProductionSettingsContent(name: string): string {
  */
 
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { DbConfig } from "@alexi/db";
+import { StaticfilesConfig } from "@alexi/staticfiles";
 import {
   AuthenticationMiddleware,
   AuthConfig,
@@ -266,6 +277,7 @@ import {
   loggingMiddleware,
 } from "@alexi/middleware";
 import { UserModel } from "@${name}/models.ts";
+import { ${toPascalCase(name)}Config } from "@${name}/mod.ts";
 
 // =============================================================================
 // Environment
@@ -310,18 +322,17 @@ export const DATABASES = {
 // =============================================================================
 
 /**
- * INSTALLED_APPS contains import functions for each app.
+ * INSTALLED_APPS lists every app configuration for this project.
  *
- * Using import functions ensures the import happens in this module's context,
- * so import maps defined in deno.jsonc work correctly.
+ * Import the named AppConfig from each package and add it directly —
+ * no wrapping in import functions needed.
  */
 export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@alexi/db"),
-  () => import("@alexi/restframework"),
+  StaticfilesConfig,
+  DbConfig,
   AuthConfig,
   AdminConfig,
-  () => import("@${name}/mod.ts"),
+  ${toPascalCase(name)}Config,
 ];
 
 // =============================================================================

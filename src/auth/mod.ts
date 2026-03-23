@@ -70,9 +70,28 @@
 // =============================================================================
 
 // App configuration
-export { default } from "./app.ts";
-export { default as AuthConfig } from "./app.ts";
-export { default as config } from "./app.ts";
+import type { AppConfig } from "@alexi/types";
+
+/**
+ * App configuration for `@alexi/auth`.
+ *
+ * Add to `INSTALLED_APPS` in your project settings to enable the authentication
+ * system and the `createsuperuser` management command.
+ *
+ * @example
+ * ```ts
+ * import { AuthConfig } from "@alexi/auth";
+ *
+ * export const INSTALLED_APPS = [AuthConfig];
+ * ```
+ *
+ * @category Configuration
+ */
+export const AuthConfig: AppConfig = {
+  name: "alexi_auth",
+  verboseName: "Alexi Authentication",
+  appPath: new URL("./", import.meta.url).href,
+};
 
 // Abstract base user model
 export { AbstractUser } from "./models/mod.ts";
@@ -97,4 +116,5 @@ export type {
   UserModelClass,
 } from "./middleware.ts";
 
-// Commands are loaded dynamically via app.ts commandsModule
+// Commands are contributed via AuthConfig.appPath — the management loader
+// discovers commands/mod.ts relative to the app directory.

@@ -10,7 +10,7 @@
 import { setup } from "../setup.ts";
 import type { DatabasesConfig } from "../setup.ts";
 import { toImportUrl } from "./settings_utils.ts";
-import type { AppConfig } from "@alexi/types";
+import type { AppConfig, InstalledApp } from "@alexi/types";
 
 // =============================================================================
 // Types
@@ -28,6 +28,9 @@ export interface DatabaseConfig {
 /**
  * Import function type for apps.
  * User provides these in INSTALLED_APPS to ensure correct import context.
+ *
+ * @deprecated Use a plain {@link AppConfig} object as an `INSTALLED_APPS` entry
+ * instead. Import functions are still accepted for backwards compatibility.
  */
 export type AppImportFn = () => Promise<
   { default?: AppConfig; [key: string]: unknown }
@@ -49,8 +52,8 @@ export interface AlexiSettings {
   DEBUG: boolean;
   SECRET_KEY?: string;
 
-  // Apps - array of import functions
-  INSTALLED_APPS: AppImportFn[];
+  // Apps - array of AppConfig objects or import functions
+  INSTALLED_APPS: InstalledApp[];
 
   // URL Configuration - import function
   ROOT_URLCONF?: UrlImportFn;
@@ -242,10 +245,12 @@ export function getSettingsModuleName(): string | null {
 // =============================================================================
 
 /**
- * Load all installed apps by calling their import functions.
+ * Load all installed apps.
  *
- * This executes the user-provided import functions in INSTALLED_APPS,
- * which ensures imports happen in the user's context (import maps work).
+ * Accepts both plain {@link AppConfig} objects and async import factory
+ * functions. Plain objects are used directly; factory functions are called so
+ * that imports happen in the user's module context (important for import-map
+ * resolution).
  *
  * @param settings - Settings object (optional, uses global settings if not provided)
  */
@@ -255,18 +260,23 @@ export async function loadInstalledApps(
   const config = settings ?? getSettings();
   const apps: LoadedApp[] = [];
 
-  for (const importFn of config.INSTALLED_APPS) {
+  for (const entry of config.INSTALLED_APPS) {
     try {
-      // Call user's import function - this runs in user's context
-      const module = await importFn();
+      let appConfig: AppConfig | undefined;
+      let moduleRecord: Record<string, unknown> = {};
 
-      // Get AppConfig from default export
-      const appConfig = module.default as AppConfig | undefined;
+      if (typeof entry === "function") {
+        // Dynamic import factory — runs in user's import-map context
+        const module = await (entry as AppImportFn)();
+        appConfig = module.default as AppConfig | undefined;
+        moduleRecord = module as Record<string, unknown>;
+      } else if (entry && typeof entry === "object" && "name" in entry) {
+        // Plain AppConfig object
+        appConfig = entry as AppConfig;
+      }
+
       if (appConfig) {
-        apps.push({
-          config: appConfig,
-          module: module as Record<string, unknown>,
-        });
+        apps.push({ config: appConfig, module: moduleRecord });
       }
     } catch (error) {
       console.warn(`Failed to load app: ${error}`);

@@ -39,7 +39,27 @@
 // App Configuration
 // ============================================================================
 
-export { default } from "./app.ts";
+import type { AppConfig } from "@alexi/types";
+
+/**
+ * App configuration for `@alexi/db`.
+ *
+ * Add to `INSTALLED_APPS` in your project settings to enable the ORM and
+ * database migration commands.
+ *
+ * @example
+ * ```ts
+ * import { DbConfig } from "@alexi/db";
+ *
+ * export const INSTALLED_APPS = [DbConfig];
+ * ```
+ *
+ * @category Configuration
+ */
+export const DbConfig: AppConfig = {
+  name: "alexi_db",
+  verboseName: "Alexi Database",
+};
 
 // ============================================================================
 // Models

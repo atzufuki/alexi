@@ -320,7 +320,7 @@ export type {
 // Authentication
 // =============================================================================
 
-export { default as authConfig } from "./auth/app.ts";
+export { AuthConfig } from "./auth/mod.ts";
 
 // =============================================================================
 // Admin

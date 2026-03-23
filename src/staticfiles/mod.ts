@@ -32,7 +32,28 @@
 // App Configuration
 // =============================================================================
 
-export { default } from "./app.ts";
+import type { AppConfig } from "@alexi/types";
+
+/**
+ * App configuration for `@alexi/staticfiles`.
+ *
+ * Add to `INSTALLED_APPS` in your project settings to enable static file
+ * discovery and serving via `AppDirectoriesFinder`.
+ *
+ * @example
+ * ```ts
+ * import { StaticfilesConfig } from "@alexi/staticfiles";
+ *
+ * export const INSTALLED_APPS = [StaticfilesConfig];
+ * ```
+ *
+ * @category Configuration
+ */
+export const StaticfilesConfig: AppConfig = {
+  name: "alexi_staticfiles",
+  verboseName: "Alexi Static Files",
+  appPath: new URL("./", import.meta.url).href,
+};
 
 // =============================================================================
 // Finders

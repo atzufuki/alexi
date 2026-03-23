@@ -1042,8 +1042,9 @@ deno test -A --unstable-kv src/db/models/model_test.ts
 5. **No `@alexi/web`**: `runserver` lives in `@alexi/core/management`. Entry
    point is `http.ts` using `getHttpApplication()`.
 6. **Import function in settings**: `ROOT_URLCONF` uses `() => import(...)` so
-   the project's import map is in scope. `INSTALLED_APPS` uses direct class
-   references imported at the top of `settings.ts`.
+   the project's import map is in scope. `INSTALLED_APPS` uses named `AppConfig`
+   object exports (e.g. `StaticfilesConfig`, `DbConfig`) imported at the top of
+   `settings.ts` — never default exports or factory functions.
 7. **Layer discipline**: never import upward in the layer hierarchy.
 8. **`context.user.id`**: the `AuthenticatedUser` type exposes `id`, `email`,
    and `isAdmin` — no other fields unless you extend it.

@@ -143,7 +143,6 @@ Deno.test({
       const appDir = join(dir, "src/my-app");
 
       const expectedFiles = [
-        join(appDir, "app.ts"),
         join(appDir, "mod.ts"),
         join(appDir, "models.ts"),
         join(appDir, "views.ts"),
@@ -197,7 +196,6 @@ Deno.test({
       const appDir = join(dir, "src/my-app");
 
       const workerFiles = [
-        join(appDir, "workers/my-app/app.ts"),
         join(appDir, "workers/my-app/mod.ts"),
         join(appDir, "workers/my-app/models.ts"),
         join(appDir, "workers/my-app/endpoints.ts"),
@@ -265,15 +263,15 @@ Deno.test({
 });
 
 Deno.test({
-  name: "startapp: app.ts has correct name and staticDir",
+  name: "startapp: mod.ts exports named AppConfig",
   async fn() {
     await withTempDir(async (dir) => {
       await runStartapp(dir, ["my-app"]);
 
-      const appTs = await readFile(join(dir, "src/my-app/app.ts"));
+      const modTs = await readFile(join(dir, "src/my-app/mod.ts"));
 
-      assertMatch(appTs, /name: "my-app"/);
-      assertMatch(appTs, /staticDir:/);
+      assertMatch(modTs, /export const MyAppConfig: AppConfig/);
+      assertMatch(modTs, /name: "my-app"/);
     });
   },
   sanitizeResources: false,
@@ -302,33 +300,33 @@ Deno.test({
 
 Deno.test({
   name:
-    "startapp: worker app.ts has staticfiles config with worker and asset entries",
+    "startapp: worker mod.ts has staticfiles config with worker and asset entries",
   async fn() {
     await withTempDir(async (dir) => {
       await runStartapp(dir, ["my-app"]);
 
-      const workerAppTs = await readFile(
-        join(dir, "src/my-app/workers/my-app/app.ts"),
+      const workerModTs = await readFile(
+        join(dir, "src/my-app/workers/my-app/mod.ts"),
       );
 
-      assertMatch(workerAppTs, /staticfiles:/);
+      assertMatch(workerModTs, /staticfiles:/);
       assertMatch(
-        workerAppTs,
+        workerModTs,
         /entrypoint: "\.\/workers\/my-app\/mod\.ts"/,
       );
       assertMatch(
-        workerAppTs,
+        workerModTs,
         /outputFile: "\.\/static\/my-app\/worker\.js"/,
       );
       assertMatch(
-        workerAppTs,
+        workerModTs,
         /entrypoint: "\.\/assets\/my-app\/mod\.ts"/,
       );
       assertMatch(
-        workerAppTs,
+        workerModTs,
         /outputFile: "\.\/static\/my-app\/my-app\.js"/,
       );
-      assertMatch(workerAppTs, /templatesDir:/);
+      assertMatch(workerModTs, /templatesDir:/);
     });
   },
   sanitizeResources: false,

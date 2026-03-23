@@ -16,11 +16,9 @@ The fastest way to get started is using `@alexi/create`:
 deno run -A jsr:@alexi/create my-project
 ```
 
-This creates a full-stack Todo application with:
-
-- **Web** — REST API backend
-- **UI** — Frontend SPA with HTML Props
-- **Desktop** — Native desktop app via WebUI
+This creates a full-stack application with a REST API backend, server-side
+rendered templates, a Service Worker for offline support, and a bundled frontend
+asset.
 
 ### Start Development
 
@@ -29,45 +27,54 @@ cd my-project
 deno task dev
 ```
 
-This starts three servers:
-
-| App     | URL                   | Description           |
-| ------- | --------------------- | --------------------- |
-| Web     | http://localhost:8000 | REST API backend      |
-| UI      | http://localhost:5173 | Frontend application  |
-| Desktop | (window)              | Native desktop window |
+Open `http://localhost:8000` in your browser.
 
 ## Project Structure
 
 ```
 my-project/
 ├── manage.ts                    # Management CLI entry point
-├── deno.jsonc                   # Workspace configuration
+├── deno.jsonc                   # Workspace configuration & import map
 ├── project/
-│   ├── settings.ts              # Shared settings
-│   ├── web.settings.ts          # Web server settings
-│   ├── ui.settings.ts           # UI settings
-│   └── desktop.settings.ts      # Desktop settings
+│   ├── http.ts                  # Production entry point (deno serve)
+│   ├── settings.ts              # Development settings
+│   └── production.ts            # Production settings (Deno Deploy)
 └── src/
-    ├── my-project-web/          # Backend REST API
-    │   ├── app.ts               # Application entry
-    │   ├── models.ts            # Database models
-    │   ├── serializers.ts       # API serializers
-    │   ├── viewsets.ts          # API viewsets
-    │   └── urls.ts              # URL routing
-    ├── my-project-ui/           # Frontend SPA
-    │   ├── main.ts              # Entry point
-    │   ├── models.ts            # Client-side models
-    │   ├── views.ts             # View functions
-    │   ├── templates/           # Page templates
-    │   └── components/          # UI components
-    └── my-project-desktop/      # Desktop app
-        └── app.ts               # Desktop entry
+    └── my-project/              # Unified app
+        ├── mod.ts               # Exports + MyProjectConfig
+        ├── models.ts            # Database models
+        ├── serializers.ts       # REST serializers
+        ├── viewsets.ts          # REST viewsets
+        ├── urls.ts              # Server URL routing
+        ├── views.ts             # Server-side views
+        ├── migrations/          # Database migrations
+        ├── tests/               # Tests
+        ├── templates/           # HTML templates
+        ├── assets/              # Frontend TypeScript source
+        └── workers/             # Service Worker source
 ```
 
 ## Core Concepts
 
-Alexi follows Django's MVT (Model-View-Template) pattern adapted for TypeScript:
+Alexi follows Django's MVT (Model-View-Template) pattern adapted for TypeScript.
+
+### App Configuration
+
+Every Alexi app exports a named `AppConfig` from its `mod.ts`. Register it
+directly in `INSTALLED_APPS` — no factory functions needed:
+
+```typescript
+// project/settings.ts
+import { DbConfig } from "@alexi/db";
+import { AuthConfig } from "@alexi/auth";
+import { MyProjectConfig } from "@my-project/mod.ts";
+
+export const INSTALLED_APPS = [
+  DbConfig,
+  AuthConfig,
+  MyProjectConfig,
+];
+```
 
 ### Models
 
@@ -76,15 +83,15 @@ Models define your data structure and provide an ORM for database operations:
 ```typescript
 import { AutoField, BooleanField, CharField, Manager, Model } from "@alexi/db";
 
-export class TodoModel extends Model {
+export class PostModel extends Model {
   id = new AutoField({ primaryKey: true });
   title = new CharField({ maxLength: 200 });
-  completed = new BooleanField({ default: false });
+  published = new BooleanField({ default: false });
 
-  static objects = new Manager(TodoModel);
+  static objects = new Manager(PostModel);
 
   static meta = {
-    dbTable: "todos",
+    dbTable: "posts",
   };
 }
 ```
@@ -95,12 +102,12 @@ Serializers handle conversion between model instances and JSON:
 
 ```typescript
 import { ModelSerializer } from "@alexi/restframework";
-import { TodoModel } from "./models.ts";
+import { PostModel } from "./models.ts";
 
-export class TodoSerializer extends ModelSerializer {
-  static Meta = {
-    model: TodoModel,
-    fields: ["id", "title", "completed"],
+export class PostSerializer extends ModelSerializer {
+  static override Meta = {
+    model: PostModel,
+    fields: ["id", "title", "published"],
     readOnlyFields: ["id"],
   };
 }
@@ -112,12 +119,12 @@ ViewSets provide CRUD operations for your API:
 
 ```typescript
 import { ModelViewSet } from "@alexi/restframework";
-import { TodoModel } from "./models.ts";
-import { TodoSerializer } from "./serializers.ts";
+import { PostModel } from "./models.ts";
+import { PostSerializer } from "./serializers.ts";
 
-export class TodoViewSet extends ModelViewSet {
-  model = TodoModel;
-  serializerClass = TodoSerializer;
+export class PostViewSet extends ModelViewSet {
+  model = PostModel;
+  serializer_class = PostSerializer;
 }
 ```
 
@@ -127,10 +134,10 @@ Routers automatically generate URL patterns for ViewSets:
 
 ```typescript
 import { DefaultRouter } from "@alexi/restframework";
-import { TodoViewSet } from "./viewsets.ts";
+import { PostViewSet } from "./viewsets.ts";
 
 const router = new DefaultRouter();
-router.register("todos", TodoViewSet);
+router.register("posts", PostViewSet);
 
 export const urlpatterns = router.urls;
 ```
@@ -139,35 +146,22 @@ export const urlpatterns = router.urls;
 
 Alexi supports multiple database backends:
 
-| Backend   | Use Case                 | Engine      |
-| --------- | ------------------------ | ----------- |
-| SQLite    | Server-side persistence  | `sqlite`    |
-| IndexedDB | Browser-side caching     | `indexeddb` |
-| REST      | Remote API communication | `rest`      |
+| Backend   | Use Case                          |
+| --------- | --------------------------------- |
+| DenoKV    | Server-side persistence (default) |
+| SQLite    | Server-side relational storage    |
+| IndexedDB | Browser-side caching              |
+| REST      | Browser → REST API proxy          |
 
 ### Configuration
 
 ```typescript
-import { setup } from "@alexi/db";
+// project/settings.ts
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
 
-setup({
-  databases: {
-    default: { engine: "sqlite", name: "db.sqlite" },
-    cache: { engine: "indexeddb", name: "app-cache" },
-    api: { engine: "rest", name: "https://api.example.com" },
-  },
-});
-```
-
-### Using Different Backends
-
-```typescript
-// Use default backend
-const todos = await TodoModel.objects.all().fetch();
-
-// Use specific backend
-const cached = await TodoModel.objects.using("cache").all().fetch();
-const remote = await TodoModel.objects.using("api").all().fetch();
+export const DATABASES = {
+  default: new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" }),
+};
 ```
 
 ## Management Commands
@@ -178,12 +172,14 @@ Alexi provides Django-style management commands via `manage.ts`:
 # Run development server
 deno task dev
 
-# Run specific app
-deno run -A manage.ts runserver web
-deno run -A manage.ts runserver ui
+# Run with custom settings
+deno run -A --unstable-kv manage.ts runserver --settings ./project/settings.ts
 
-# Create superuser (if auth is configured)
-deno run -A manage.ts createsuperuser
+# Create superuser (requires @alexi/auth)
+deno run -A --unstable-kv manage.ts createsuperuser --settings ./project/settings.ts
+
+# Run migrations
+deno run -A --unstable-kv manage.ts migrate --settings ./project/settings.ts
 ```
 
 ## Next Steps
@@ -191,8 +187,8 @@ deno run -A manage.ts createsuperuser
 - [Models and ORM](./db/models.md) — Learn about model fields, queries, and
   relationships
 - [REST Framework](./restframework/viewsets.md) — Build powerful APIs
-- [Filtering](./restframework/filtering.md) — Add query parameter filtering to
-  your API
+- [Filtering](./restframework/filtering.md) — Add query parameter filtering
+- [Scaffolding](./create/scaffolding.md) — Create new projects and apps
 
 ## Common Tasks
 
@@ -201,23 +197,22 @@ deno run -A manage.ts createsuperuser
 1. Define the model in `models.ts`:
 
 ```typescript
-export class ProjectModel extends Model {
+export class CategoryModel extends Model {
   id = new AutoField({ primaryKey: true });
   name = new CharField({ maxLength: 100 });
-  description = new TextField({ blank: true });
 
-  static objects = new Manager(ProjectModel);
-  static meta = { dbTable: "projects" };
+  static objects = new Manager(CategoryModel);
+  static meta = { dbTable: "categories" };
 }
 ```
 
 2. Create a serializer in `serializers.ts`:
 
 ```typescript
-export class ProjectSerializer extends ModelSerializer {
-  static Meta = {
-    model: ProjectModel,
-    fields: ["id", "name", "description"],
+export class CategorySerializer extends ModelSerializer {
+  static override Meta = {
+    model: CategoryModel,
+    fields: ["id", "name"],
   };
 }
 ```
@@ -225,56 +220,61 @@ export class ProjectSerializer extends ModelSerializer {
 3. Create a ViewSet in `viewsets.ts`:
 
 ```typescript
-export class ProjectViewSet extends ModelViewSet {
-  model = ProjectModel;
-  serializerClass = ProjectSerializer;
+export class CategoryViewSet extends ModelViewSet {
+  model = CategoryModel;
+  serializer_class = CategorySerializer;
 }
 ```
 
 4. Register in `urls.ts`:
 
 ```typescript
-router.register("projects", ProjectViewSet);
+router.register("categories", CategoryViewSet);
 ```
 
 ### Add Filtering to an Endpoint
 
 ```typescript
-import { OrderingFilter, QueryParamFilterBackend } from "@alexi/restframework";
+import {
+  ModelViewSet,
+  OrderingFilter,
+  QueryParamFilterBackend,
+} from "@alexi/restframework";
 
-export class ProjectViewSet extends ModelViewSet {
-  model = ProjectModel;
-  serializerClass = ProjectSerializer;
+export class PostViewSet extends ModelViewSet {
+  model = PostModel;
+  serializer_class = PostSerializer;
 
   filterBackends = [new QueryParamFilterBackend(), new OrderingFilter()];
-  filtersetFields = ["id", "name"];
-  orderingFields = ["name", "createdAt"];
+  filtersetFields = ["published"];
+  orderingFields = ["title", "createdAt"];
 }
 ```
 
 Now you can filter:
 
 ```
-GET /api/projects/?name__contains=alexi
-GET /api/projects/?ordering=-createdAt
+GET /api/posts/?published=true
+GET /api/posts/?ordering=-createdAt
 ```
 
 ### Add a Custom Action
 
 ```typescript
-import { action } from "@alexi/restframework";
+import { action, ModelViewSet } from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
 
-export class TodoViewSet extends ModelViewSet {
+export class PostViewSet extends ModelViewSet {
   // ... standard config ...
 
   @action({ detail: true, methods: ["POST"] })
-  async toggle(context: ViewSetContext): Promise<Response> {
-    const todo = await this.getObject(context);
-    todo.completed.set(!todo.completed.get());
-    await todo.save();
-    return Response.json({ success: true });
+  async publish(context: ViewSetContext): Promise<Response> {
+    const post = await this.getObject(context);
+    post.published.set(true);
+    await post.save({ updateFields: ["published"] });
+    return Response.json({ status: "published" });
   }
 }
 ```
 
-This creates: `POST /api/todos/:id/toggle/`
+This creates: `POST /api/posts/:id/publish/`
