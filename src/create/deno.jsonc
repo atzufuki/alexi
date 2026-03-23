@@ -1,6 +1,6 @@
 {
   "name": "@alexi/create",
-  "version": "0.51.0",
+  "version": "0.51.1",
   "license": "MIT",
   "exports": {
     ".": "./main.ts",

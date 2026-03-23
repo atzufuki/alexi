@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.51.1] - 2026-03-23
+
+### Fixed
+
+- `@alexi/core`: `INSTALLED_APPS` now accepts plain named `AppConfig` exports
+  alongside import functions — previously plain objects were silently skipped,
+  causing `staticFilesMiddleware` to never be registered and `/static/` requests
+  to return 404 (#428)
+- `@alexi/core`: convention-based template auto-discovery no longer performs a
+  redundant second async import pass over `INSTALLED_APPS` (#428)
+- `@alexi/core`: `resolveAppPath()` no longer produces a double leading slash on
+  Windows `file://` URLs (e.g. `/C:/…` was incorrectly returned as `//C:/…`)
+  (#428)
+- `@alexi/staticfiles`: `AppDirectoriesFinder` correctly resolves `file://` URLs
+  to filesystem paths on Windows (#428)
+
 ## [0.51.0] - 2026-03-20
 
 ### Added
