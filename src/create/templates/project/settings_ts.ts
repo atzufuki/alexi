@@ -4,6 +4,13 @@
  * @module @alexi/create/templates/project/settings_ts
  */
 
+function toPascalCase(str: string): string {
+  return str
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join("");
+}
+
 /**
  * Generate settings.ts content for a new project
  *
@@ -61,6 +68,7 @@ import {
   loggingMiddleware,
 } from "@alexi/middleware";
 import { FileSystemStorage } from "@alexi/storage/backends/filesystem";
+import { ${toPascalCase(name)}Config } from "@${name}/mod.ts";
 import { UserModel } from "@${name}/models.ts";
 
 // =============================================================================
@@ -123,7 +131,7 @@ export const INSTALLED_APPS = [
   DbConfig,
   AuthConfig,
   AdminConfig,
-  () => import("@\${name}/mod.ts"),
+  ${toPascalCase(name)}Config,
 ];
 
 // =============================================================================
@@ -269,6 +277,7 @@ import {
   loggingMiddleware,
 } from "@alexi/middleware";
 import { UserModel } from "@${name}/models.ts";
+import { ${toPascalCase(name)}Config } from "@${name}/mod.ts";
 
 // =============================================================================
 // Environment
@@ -323,7 +332,7 @@ export const INSTALLED_APPS = [
   DbConfig,
   AuthConfig,
   AdminConfig,
-  () => import("@\${name}/mod.ts"),
+  ${toPascalCase(name)}Config,
 ];
 
 // =============================================================================

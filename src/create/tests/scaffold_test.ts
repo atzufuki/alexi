@@ -328,7 +328,6 @@ Deno.test({
 
     await t.step("creates unified app server-side files", async () => {
       const appFiles = [
-        `src/${project.name}/app.ts`,
         `src/${project.name}/mod.ts`,
         `src/${project.name}/models.ts`,
         `src/${project.name}/serializers.ts`,
