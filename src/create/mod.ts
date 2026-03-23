@@ -52,7 +52,6 @@ export { generateReadme } from "./templates/root/readme.ts";
 export { generateSettings } from "./templates/project/settings_ts.ts";
 
 // Unified app template generators
-export { generateAppTs } from "./templates/unified/app_ts.ts";
 export { generateModTs } from "./templates/unified/mod_ts.ts";
 export { generateModelsTs } from "./templates/unified/models_ts.ts";
 export { generateSerializersTs } from "./templates/unified/serializers_ts.ts";

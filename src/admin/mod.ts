@@ -37,7 +37,34 @@
 
 export { AdminSite, register } from "./site.ts";
 export { ModelAdmin } from "./model_admin.ts";
-export { default as AdminConfig, default as config } from "./app.ts";
+
+// =============================================================================
+// App Configuration
+// =============================================================================
+
+import type { AppConfig } from "@alexi/types";
+
+/**
+ * App configuration for `@alexi/admin`.
+ *
+ * Add to `INSTALLED_APPS` in your project settings to enable the auto-generated
+ * admin panel. Also requires `@alexi/auth` to be installed.
+ *
+ * @example
+ * ```ts
+ * import { AdminConfig } from "@alexi/admin";
+ * import { AuthConfig } from "@alexi/auth";
+ *
+ * export const INSTALLED_APPS = [AuthConfig, AdminConfig];
+ * ```
+ *
+ * @category Configuration
+ */
+export const AdminConfig: AppConfig = {
+  name: "alexi_admin",
+  verboseName: "Alexi Admin",
+  appPath: new URL("./", import.meta.url).href,
+};
 
 // =============================================================================
 // Options & Configuration

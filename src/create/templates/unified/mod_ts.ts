@@ -16,8 +16,24 @@ export function generateModTs(name: string): string {
  * @module ${name}
  */
 
-// App configuration (default export required for INSTALLED_APPS)
-export { default } from "./app.ts";
+import type { AppConfig } from "@alexi/types";
+
+/**
+ * App configuration for the ${appName} app.
+ *
+ * Add to \`INSTALLED_APPS\` in your project settings.
+ *
+ * @example
+ * \`\`\`ts
+ * import { ${appName}Config } from "@${name}/mod.ts";
+ *
+ * export const INSTALLED_APPS = [${appName}Config];
+ * \`\`\`
+ */
+export const ${appName}Config: AppConfig = {
+  name: "${name}",
+  verboseName: "${appName}",
+};
 
 export * from "./models.ts";
 export * from "./views.ts";

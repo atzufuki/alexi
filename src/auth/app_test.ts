@@ -8,12 +8,10 @@
  */
 
 import { assertEquals, assertExists } from "@std/assert";
-import AuthConfigDefault, { AuthConfig, config } from "./mod.ts";
+import { AuthConfig } from "./mod.ts";
 
-Deno.test("auth mod: AuthConfig is a named export identical to config", () => {
+Deno.test("auth mod: AuthConfig is a named export", () => {
   assertExists(AuthConfig);
-  assertEquals(AuthConfig, config);
-  assertEquals(AuthConfig, AuthConfigDefault);
 });
 
 Deno.test("auth mod: AuthConfig has required AppConfig fields", () => {

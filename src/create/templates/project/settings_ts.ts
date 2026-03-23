@@ -48,6 +48,8 @@ function _generateSettingsContent(name: string): string {
  */
 
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { DbConfig } from "@alexi/db";
+import { StaticfilesConfig } from "@alexi/staticfiles";
 import {
   AuthenticationMiddleware,
   AuthConfig,
@@ -111,18 +113,17 @@ export const DEFAULT_FILE_STORAGE = new FileSystemStorage({
 // =============================================================================
 
 /**
- * INSTALLED_APPS contains import functions for each app.
+ * INSTALLED_APPS lists every app configuration for this project.
  *
- * Using import functions ensures the import happens in this module's context,
- * so import maps defined in deno.jsonc work correctly.
+ * Import the named AppConfig from each package and add it directly —
+ * no wrapping in import functions needed.
  */
 export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@alexi/db"),
-  () => import("@alexi/restframework"),
+  StaticfilesConfig,
+  DbConfig,
   AuthConfig,
   AdminConfig,
-  () => import("@${name}/mod.ts"),
+  () => import("@\${name}/mod.ts"),
 ];
 
 // =============================================================================
@@ -255,6 +256,8 @@ function _generateProductionSettingsContent(name: string): string {
  */
 
 import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { DbConfig } from "@alexi/db";
+import { StaticfilesConfig } from "@alexi/staticfiles";
 import {
   AuthenticationMiddleware,
   AuthConfig,
@@ -310,18 +313,17 @@ export const DATABASES = {
 // =============================================================================
 
 /**
- * INSTALLED_APPS contains import functions for each app.
+ * INSTALLED_APPS lists every app configuration for this project.
  *
- * Using import functions ensures the import happens in this module's context,
- * so import maps defined in deno.jsonc work correctly.
+ * Import the named AppConfig from each package and add it directly —
+ * no wrapping in import functions needed.
  */
 export const INSTALLED_APPS = [
-  () => import("@alexi/staticfiles"),
-  () => import("@alexi/db"),
-  () => import("@alexi/restframework"),
+  StaticfilesConfig,
+  DbConfig,
   AuthConfig,
   AdminConfig,
-  () => import("@${name}/mod.ts"),
+  () => import("@\${name}/mod.ts"),
 ];
 
 // =============================================================================

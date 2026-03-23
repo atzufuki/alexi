@@ -114,10 +114,17 @@ export class StartAppCommand extends BaseCommand {
         `  2. Add to INSTALLED_APPS in your settings:`,
       );
       this.stdout.log(
-        `     () => import("@${appName}/mod.ts"),     // server app`,
+        `     import { ${
+          this.toPascalCase(appName)
+        }Config } from "@${appName}/mod.ts";`,
       );
       this.stdout.log(
-        `     () => import("@${appName}/workers"),    // worker app (for bundling)`,
+        `     import { ${
+          this.toPascalCase(appName)
+        }WorkerConfig } from "@${appName}/workers";`,
+      );
+      this.stdout.log(
+        `     // then add both to INSTALLED_APPS array`,
       );
       this.stdout.log(
         `  3. Include URLs in ROOT_URLCONF`,
@@ -187,10 +194,6 @@ export class StartAppCommand extends BaseCommand {
       // Root app files (server-side, Deno context)
       // ========================================================================
       {
-        path: `${appDir}/app.ts`,
-        content: this.generateAppTs(name),
-      },
-      {
         path: `${appDir}/mod.ts`,
         content: this.generateModTs(name),
       },
@@ -234,10 +237,6 @@ export class StartAppCommand extends BaseCommand {
       // ========================================================================
       // Service Worker (bundled → static/<app>/worker.js)
       // ========================================================================
-      {
-        path: `${appDir}/workers/${name}/app.ts`,
-        content: this.generateWorkerAppTs(name),
-      },
       {
         path: `${appDir}/workers/${name}/mod.ts`,
         content: this.generateWorkerModTs(name),
@@ -295,33 +294,33 @@ export class StartAppCommand extends BaseCommand {
   // Template Generators — Root (Server-side)
   // ===========================================================================
 
-  private generateAppTs(name: string): string {
+  private generateModTs(name: string): string {
     const className = this.toPascalCase(name);
 
     return `/**
- * ${className} App Configuration
+ * ${className} Module Exports
  *
- * @module ${name}/app
+ * @module ${name}
  */
 
 import type { AppConfig } from "@alexi/types";
 
-const config: AppConfig = {
+/**
+ * App configuration for the ${className} app.
+ *
+ * Add to \`INSTALLED_APPS\` in your project settings.
+ *
+ * @example
+ * \`\`\`ts
+ * import { ${className}Config } from "@${name}/mod.ts";
+ *
+ * export const INSTALLED_APPS = [${className}Config];
+ * \`\`\`
+ */
+export const ${className}Config: AppConfig = {
   name: "${name}",
   verboseName: "${className}",
-  staticDir: "static",
 };
-
-export default config;
-`;
-  }
-
-  private generateModTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Module Exports
- *
- * @module ${name}
- */
 
 export * from "./models.ts";
 export * from "./views.ts";
@@ -492,21 +491,39 @@ console.log("${this.toPascalCase(name)} frontend loaded");
   // Template Generators — Workers (Service Worker)
   // ===========================================================================
 
-  private generateWorkerAppTs(name: string): string {
+  private generateWorkerModTs(name: string): string {
     const className = this.toPascalCase(name);
 
     return `/**
- * ${className} Worker App Configuration
+ * ${className} Worker Entry Point
  *
- * This is itself a valid Alexi app listed in INSTALLED_APPS
- * so the bundler can discover and bundle it.
+ * Service Worker entry point — bundled into static/${name}/worker.js.
+ * Runs in the browser's Service Worker context, never on the Deno server.
  *
- * @module ${name}/workers/${name}/app
+ * Also exports \`${className}WorkerConfig\` for listing in \`INSTALLED_APPS\`
+ * so the bundler can discover and bundle this worker's static assets.
+ *
+ * @module ${name}/workers/${name}/mod
  */
 
+import { getWorkerApplication } from "@alexi/core";
 import type { AppConfig } from "@alexi/types";
+import * as settings from "./settings.ts";
 
-const config: AppConfig = {
+/**
+ * App configuration for the ${className} worker.
+ *
+ * Add to \`INSTALLED_APPS\` in your project settings so the bundler
+ * discovers and bundles this worker's static assets.
+ *
+ * @example
+ * \`\`\`ts
+ * import { ${className}WorkerConfig } from "@${name}/workers";
+ *
+ * export const INSTALLED_APPS = [${className}WorkerConfig];
+ * \`\`\`
+ */
+export const ${className}WorkerConfig: AppConfig = {
   name: "${name}-worker",
   verboseName: "${className} Worker",
   staticfiles: [
@@ -524,26 +541,6 @@ const config: AppConfig = {
   staticDir: "static",
   templatesDir: "src/${name}/workers/${name}/templates",
 };
-
-export default config;
-`;
-  }
-
-  private generateWorkerModTs(name: string): string {
-    return `/**
- * ${this.toPascalCase(name)} Worker Entry Point
- *
- * Service Worker entry point — bundled into static/${name}/worker.js.
- * Runs in the browser's Service Worker context, never on the Deno server.
- *
- * Analogous to Django's wsgi.py / asgi.py — a thin shell that calls
- * getWorkerApplication(settings) and wires it to the SW lifecycle events.
- *
- * @module ${name}/workers/${name}/mod
- */
-
-import { getWorkerApplication } from "@alexi/core";
-import * as settings from "./settings.ts";
 
 declare const self: ServiceWorkerGlobalScope;
 

@@ -21,7 +21,7 @@ import { setup } from "./setup.ts";
 import type { DatabasesConfig } from "./setup.ts";
 import type { URLPattern } from "@alexi/urls";
 import type { Middleware, MiddlewareClass } from "@alexi/middleware";
-import type { AppConfig, TemplatesConfig } from "@alexi/types";
+import type { AppConfig, InstalledApp, TemplatesConfig } from "@alexi/types";
 import { appRegistrationHooks } from "@alexi/types";
 import { registerTemplateDir } from "@alexi/views";
 import { setStorage } from "@alexi/storage";
@@ -29,7 +29,7 @@ import type { Storage } from "@alexi/storage";
 
 export type { Middleware, MiddlewareClass } from "@alexi/middleware";
 export type { URLPattern } from "@alexi/urls";
-export type { AppConfig, TemplatesConfig } from "@alexi/types";
+export type { AppConfig, InstalledApp, TemplatesConfig } from "@alexi/types";
 export type { Storage } from "@alexi/storage";
 
 // =============================================================================
@@ -122,9 +122,10 @@ export interface GetApplicationSettings {
   /**
    * List of installed application configurations.
    *
-   * Mirrors Django's `INSTALLED_APPS`. Each entry is a plain `AppConfig`
-   * object (not an import function). The framework calls `appConfig.ready()`
-   * on each entry during application startup, after databases are initialised.
+   * Mirrors Django's `INSTALLED_APPS`. Each entry is either a plain
+   * {@link AppConfig} object (recommended) or an async import factory function
+   * whose `default` export is an `AppConfig`. Plain objects are the preferred,
+   * ergonomic pattern and avoid the need for dynamic imports.
    *
    * When `TEMPLATES[0].APP_DIRS` is `true`, each app's `<appPath>/templates/`
    * directory is automatically registered as a template search directory.
@@ -140,7 +141,7 @@ export interface GetApplicationSettings {
    * ];
    * ```
    */
-  INSTALLED_APPS?: AppConfig[];
+  INSTALLED_APPS?: InstalledApp[];
 
   /**
    * Default hostname the development server (`runserver`) binds to.
@@ -350,10 +351,11 @@ async function _buildApplication(
 }
 
 /**
- * Process INSTALLED_APPS: call ready(), register template dirs, and notify
- * app-registration hooks (e.g. static file registration).
+ * Process INSTALLED_APPS: resolve each entry, call ready(), register template
+ * dirs, and notify app-registration hooks (e.g. static file registration).
  *
- * For each app:
+ * Accepts both plain {@link AppConfig} objects and async import factory
+ * functions. For each resolved app:
  * 1. All registered `appRegistrationHooks` are called with the app name and
  *    resolved path (e.g. `@alexi/staticfiles` uses this to populate the
  *    global `AppDirectoriesFinder`).
@@ -362,7 +364,7 @@ async function _buildApplication(
  * 3. `app.ready()` is called (if defined).
  */
 async function _processInstalledApps(
-  installedApps: AppConfig[],
+  installedApps: InstalledApp[],
   templates?: TemplatesConfig[],
 ): Promise<void> {
   const appDirs = templates?.[0]?.APP_DIRS === true;
@@ -373,7 +375,20 @@ async function _processInstalledApps(
     registerTemplateDir(dir);
   }
 
-  for (const app of installedApps) {
+  for (const entry of installedApps) {
+    // Resolve entry to AppConfig
+    let app: AppConfig;
+    if (typeof entry === "function") {
+      const module = await (entry as () => Promise<
+        { default?: AppConfig; [key: string]: unknown }
+      >)();
+      const resolved = module.default as AppConfig | undefined;
+      if (!resolved) continue;
+      app = resolved;
+    } else {
+      app = entry as AppConfig;
+    }
+
     const appPath = app.appPath;
 
     // 1. Notify all app-registration hooks (e.g. static file registration)

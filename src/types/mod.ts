@@ -220,6 +220,32 @@ export interface TemplatesConfig {
 }
 
 /**
+ * An entry in the `INSTALLED_APPS` setting.
+ *
+ * Either a plain {@link AppConfig} object (static import, recommended) or an
+ * async factory function that returns a module whose `default` export is an
+ * `AppConfig` (dynamic import, use when import-map context matters).
+ *
+ * @example Plain object (recommended)
+ * ```ts
+ * import { AuthConfig } from "@alexi/auth";
+ * import { DbConfig } from "@alexi/db";
+ *
+ * export const INSTALLED_APPS = [DbConfig, AuthConfig];
+ * ```
+ *
+ * @example Dynamic import factory
+ * ```ts
+ * export const INSTALLED_APPS = [
+ *   () => import("@alexi/auth"),
+ * ];
+ * ```
+ */
+export type InstalledApp =
+  | AppConfig
+  | (() => Promise<{ default?: AppConfig; [key: string]: unknown }>);
+
+/**
  * App configuration.
  *
  * Django-style app configuration that tells the framework what the app is.
