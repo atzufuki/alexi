@@ -16,11 +16,16 @@ cd my-project
 deno task dev
 ```
 
-This scaffolds a complete Todo application with:
+This scaffolds a full-stack blog application (inspired by the Django tutorial)
+with:
 
-- **Web** — REST API backend on `http://localhost:8000`
-- **UI** — Frontend SPA on `http://localhost:5173`
-- **Desktop** — Native desktop app via WebUI
+- **Server** — SSR + REST API on `http://localhost:8000`
+- **Service Worker** — same templates rendered in the browser via
+  offline-capable SW
+- **Admin panel** — auto-generated at `/admin/`
+- **Desktop** — native window via `deno task webui`
+- **Mobile** — iOS/Android via `deno task mobile:ios` /
+  `deno task mobile:android`
 
 ## Features
 
@@ -46,7 +51,7 @@ deno run -A jsr:@alexi/create my-project
 ### Add to Existing Project
 
 ```bash
-deno add jsr:@alexi/db jsr:@alexi/restframework jsr:@alexi/http
+deno add jsr:@alexi/db jsr:@alexi/restframework jsr:@alexi/core
 ```
 
 Or import directly:
@@ -85,7 +90,7 @@ import { ModelSerializer } from "@alexi/restframework";
 import { TodoModel } from "./models.ts";
 
 export class TodoSerializer extends ModelSerializer {
-  static Meta = {
+  static override Meta = {
     model: TodoModel,
     fields: ["id", "title", "completed"],
     readOnlyFields: ["id"],
@@ -103,7 +108,7 @@ import { TodoSerializer } from "./serializers.ts";
 
 export class TodoViewSet extends ModelViewSet {
   model = TodoModel;
-  serializerClass = TodoSerializer;
+  serializer_class = TodoSerializer;
 
   // Enable query parameter filtering
   filterBackends = [new QueryParamFilterBackend()];
@@ -124,29 +129,44 @@ router.register("todos", TodoViewSet);
 export const urlpatterns = router.urls;
 ```
 
+### Configure Settings
+
+```typescript
+// settings.ts
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { DbConfig } from "@alexi/db";
+import { TodoAppConfig } from "./web.ts";
+
+export const INSTALLED_APPS = [DbConfig, TodoAppConfig];
+export const ROOT_URLCONF = () => import("./urls.ts");
+
+export const DATABASES = {
+  default: new DenoKVBackend({ name: "todos", path: "./data/todos.db" }),
+};
+```
+
 ### Start the Server
 
 ```typescript
-// app.ts
-import { Application } from "@alexi/http";
-import { urlpatterns } from "./urls.ts";
+// http.ts
+import { getHttpApplication } from "@alexi/core";
 
-const app = new Application({
-  urls: urlpatterns,
-});
+export default await getHttpApplication();
+```
 
-Deno.serve({ port: 8000 }, app.handler);
+```bash
+deno serve -A --unstable-kv http.ts
 ```
 
 Now you have a full REST API:
 
 ```
-GET    /api/todos/           # List all todos
-POST   /api/todos/           # Create a todo
-GET    /api/todos/:id/       # Get a todo
-PUT    /api/todos/:id/       # Update a todo
-DELETE /api/todos/:id/       # Delete a todo
-GET    /api/todos/?completed=true  # Filter by completed
+GET    /api/todos/                    # List all todos
+POST   /api/todos/                    # Create a todo
+GET    /api/todos/:id/                # Get a todo
+PUT    /api/todos/:id/                # Update a todo
+DELETE /api/todos/:id/                # Delete a todo
+GET    /api/todos/?completed=true     # Filter by completed
 ```
 
 ## Modules
@@ -154,16 +174,19 @@ GET    /api/todos/?completed=true  # Filter by completed
 | Module                 | Description                                                  |
 | ---------------------- | ------------------------------------------------------------ |
 | `@alexi/create`        | Project scaffolding CLI                                      |
-| `@alexi/db`            | ORM with SQLite, IndexedDB, and REST backends                |
+| `@alexi/db`            | ORM with DenoKV, SQLite, IndexedDB, and REST backends        |
 | `@alexi/restframework` | REST API framework (Serializers, ViewSets, Routers, Filters) |
-| `@alexi/http`          | HTTP application and middleware                              |
+| `@alexi/core`          | HTTP application, management commands, and utilities         |
 | `@alexi/admin`         | Auto-generated admin panel                                   |
 | `@alexi/auth`          | JWT authentication                                           |
-| `@alexi/core`          | Management commands and utilities                            |
+| `@alexi/middleware`    | CORS, logging, and error handling middleware                 |
 | `@alexi/urls`          | URL routing utilities                                        |
+| `@alexi/views`         | Template engine and class-based views                        |
+| `@alexi/storage`       | File storage backends                                        |
 | `@alexi/staticfiles`   | Static file handling and bundling                            |
 | `@alexi/webui`         | Desktop app support via WebUI                                |
 | `@alexi/capacitor`     | Mobile app support via Capacitor                             |
+| `@alexi/types`         | Shared TypeScript type definitions                           |
 
 ## ORM
 
@@ -205,19 +228,16 @@ await todo.delete();
 ### Multiple Backends
 
 ```typescript
-import { setup } from "@alexi/db";
+// settings.ts
+import { DenoKVBackend } from "@alexi/db/backends/denokv";
+import { RestBackend } from "@alexi/db/backends/rest";
 
-// Configure backends
-setup({
-  databases: {
-    default: { engine: "sqlite", name: "db.sqlite" },
-    cache: { engine: "indexeddb", name: "app-cache" },
-    api: { engine: "rest", name: "https://api.example.com" },
-  },
-});
+export const DATABASES = {
+  default: new DenoKVBackend({ name: "myapp", path: "./data/myapp.db" }),
+  api: new RestBackend({ apiUrl: "https://api.example.com/api" }),
+};
 
 // Use specific backend
-const cached = await TodoModel.objects.using("cache").all().fetch();
 const remote = await TodoModel.objects.using("api").all().fetch();
 ```
 
@@ -235,7 +255,7 @@ import {
 
 class ArticleViewSet extends ModelViewSet {
   model = ArticleModel;
-  serializerClass = ArticleSerializer;
+  serializer_class = ArticleSerializer;
 
   filterBackends = [
     new QueryParamFilterBackend(),
@@ -260,10 +280,11 @@ class ArticleViewSet extends ModelViewSet {
 
 ```typescript
 import { action, ModelViewSet } from "@alexi/restframework";
+import type { ViewSetContext } from "@alexi/restframework";
 
 class TodoViewSet extends ModelViewSet {
   model = TodoModel;
-  serializerClass = TodoSerializer;
+  serializer_class = TodoSerializer;
 
   @action({ detail: true, methods: ["POST"] })
   async toggle(context: ViewSetContext): Promise<Response> {
@@ -307,10 +328,19 @@ my-project/
         └── app.ts
 ```
 
+## Management Commands
+
+```bash
+deno run -A --unstable-kv manage.ts runserver --settings ./project/settings.ts
+deno run -A --unstable-kv manage.ts makemigrations myapp --settings ./project/settings.ts
+deno run -A --unstable-kv manage.ts migrate --settings ./project/settings.ts
+deno run -A --unstable-kv manage.ts createsuperuser --settings ./project/settings.ts
+```
+
 ## Requirements
 
 - Deno 2.0+
-- `--unstable-kv` flag for DenoKV backend (SQLite)
+- `--unstable-kv` flag for DenoKV backend
 
 ## Documentation
 
@@ -344,7 +374,6 @@ See the [docs/](./docs/) directory for detailed guides:
 
 ### Additional Modules
 
-- [HTTP Application](./docs/http/application.md)
 - [Static Files](./docs/staticfiles/staticfiles.md)
 - [Authentication](./docs/auth/authentication.md)
 - [Admin Panel](./docs/admin/admin.md)
