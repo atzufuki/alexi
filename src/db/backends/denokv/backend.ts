@@ -356,6 +356,29 @@ export class DenoKVBackend extends DatabaseBackend {
   }
 
   // ============================================================================
+  // Flush
+  // ============================================================================
+
+  /**
+   * Delete all key-value pairs from this DenoKV store.
+   *
+   * Iterates over every key with an empty prefix and deletes each entry.
+   *
+   * @returns The number of deleted entries.
+   */
+  async flush(): Promise<number> {
+    this.ensureConnected();
+    const kv = this.kv;
+    let deleted = 0;
+    const entries = kv.list({ prefix: [] });
+    for await (const entry of entries) {
+      await kv.delete(entry.key);
+      deleted++;
+    }
+    return deleted;
+  }
+
+  // ============================================================================
   // Test Isolation
   // ============================================================================
 

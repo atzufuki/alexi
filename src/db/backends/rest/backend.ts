@@ -1409,6 +1409,27 @@ export class RestBackend extends DatabaseBackend {
   }
 
   // ===========================================================================
+  // Flush
+  // ===========================================================================
+
+  /**
+   * Not supported for REST backends.
+   *
+   * The `flush` management command operates directly on a server-side database
+   * backend. REST backends proxy ORM calls over HTTP and have no way to perform
+   * a database-level truncation through the REST API.
+   *
+   * @throws {Error} Always — use the server-side backend directly.
+   */
+  async flush(): Promise<number> {
+    throw new Error(
+      "flush() is not supported on RestBackend. " +
+        "Run the flush command against a server-side backend (DenoKV, " +
+        "SQLite, or PostgreSQL) instead.",
+    );
+  }
+
+  // ===========================================================================
   // Query Compilation
   // ===========================================================================
 

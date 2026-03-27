@@ -234,7 +234,7 @@ await app.launch();
 | `createsuperuser` | `django-admin createsuperuser` | Create admin user (contributed by `@alexi/auth`) |
 | `collectstatic`   | `django-admin collectstatic`   | Collect static files                             |
 | `bundle`          | —                              | Bundle frontend assets                           |
-| `flush`           | `django-admin flush`           | Clear database                                   |
+| `flush`           | `django-admin flush`           | Clear database (all configured backends)         |
 | `test`            | `django-admin test`            | Run tests                                        |
 | `startapp`        | `django-admin startapp`        | Scaffold new app                                 |
 | `help`            | `django-admin help`            | Show available commands                          |

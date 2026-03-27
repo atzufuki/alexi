@@ -275,6 +275,19 @@ export abstract class DatabaseBackend {
    */
   abstract deleteMany<T extends Model>(state: QueryState<T>): Promise<number>;
 
+  /**
+   * Delete **all** data from the database, preserving the schema.
+   *
+   * Equivalent to Django's `management.call_command("flush")`.
+   * Returns the number of deleted rows / entries.
+   *
+   * Implementations should remove every user-data row from every table (or
+   * every key from a key-value store) while keeping table definitions intact.
+   * The `_migrations` bookkeeping table (if present) should also be cleared so
+   * that migrations can be re-applied from scratch.
+   */
+  abstract flush(): Promise<number>;
+
   // ============================================================================
   // Aggregation
   // ============================================================================

@@ -850,6 +850,49 @@ export class PostgresBackend extends DatabaseBackend {
   }
 
   // ============================================================================
+  // Flush
+  // ============================================================================
+
+  /**
+   * Delete all rows from every user table in the configured schema.
+   *
+   * Truncates all tables (except `_migrations`) using
+   * `TRUNCATE … RESTART IDENTITY CASCADE` so that auto-increment sequences
+   * are reset and FK constraints are respected.
+   *
+   * @returns The number of tables truncated.
+   */
+  async flush(): Promise<number> {
+    this.ensureConnected();
+
+    const result = await this._pool!.query(
+      `SELECT table_name
+         FROM information_schema.tables
+        WHERE table_schema = $1
+          AND table_type = 'BASE TABLE'`,
+      [this._schema],
+    );
+
+    const tables: string[] = result.rows.map(
+      (r: Record<string, string>) => r.table_name,
+    );
+
+    if (tables.length === 0) {
+      return 0;
+    }
+
+    const quoted = tables
+      .map((t) => `"${this._schema}"."${t}"`)
+      .join(", ");
+
+    await this._pool!.query(
+      `TRUNCATE ${quoted} RESTART IDENTITY CASCADE`,
+    );
+
+    return tables.length;
+  }
+
+  // ============================================================================
   // Query Compilation
   // ============================================================================
 
