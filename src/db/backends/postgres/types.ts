@@ -155,6 +155,8 @@ export const FIELD_TYPE_MAP: Record<string, string> = {
   BinaryField: "BYTEA",
   ForeignKey: "INTEGER REFERENCES {table}({column})",
   OneToOneField: "INTEGER UNIQUE REFERENCES {table}({column})",
+  FileField: "VARCHAR(500)",
+  ImageField: "VARCHAR(500)",
   // EmailField, URLField, SlugField use CharField's VARCHAR
 };
 
