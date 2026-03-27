@@ -8,6 +8,21 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.52.0] - 2026-03-27
+
+### Added
+
+- `@alexi/mail`: new package providing full Django-parity email sending API —
+  `sendMail()`, `sendMassMail()`, `mailAdmins()`, `mailManagers()`,
+  `EmailMessage`, `EmailMultiAlternatives`, and five backends: SMTP (STARTTLS +
+  implicit TLS), console, file, memory, and dummy (#429)
+
+### Fixed
+
+- Root `deno.json`: removed stale exports (`./db/config`,
+  `./staticfiles/config`, `./auth/config`, `./admin/config`, `./webui/commands`)
+  that pointed to non-existent files and broke `deno publish`
+
 ## [0.51.1] - 2026-03-23
 
 ### Fixed

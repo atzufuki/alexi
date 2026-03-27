@@ -1,6 +1,6 @@
 {
   "name": "@alexi/storage",
-  "version": "0.51.1",
+  "version": "0.52.0",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
@@ -10,6 +10,6 @@
     "./backends/s3": "./backends/s3.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.51.1"
+    "@alexi/types": "jsr:@alexi/types@0.52.0"
   }
 }
