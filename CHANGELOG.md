@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.52.3] - 2026-03-27
+
+### Fixed
+
+- `@alexi/db`: `FileField` and `ImageField` are now included in the Postgres
+  `FIELD_TYPE_MAP` (both `PostgresSchemaEditor` and
+  `PostgresMigrationSchemaEditor`), mapping to `VARCHAR(500)` — columns were
+  previously silently omitted from `CREATE TABLE` statements during migrations
+  (#435)
+
 ## [0.52.2] - 2026-03-27
 
 ### Fixed
