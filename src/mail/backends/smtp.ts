@@ -20,7 +20,7 @@
 
 import { BaseEmailBackend } from "./base.ts";
 import type { EmailMessage } from "../message.ts";
-import { registerBackend } from "../mail.ts";
+import { getMailSetting, registerBackend } from "../mail.ts";
 
 // =============================================================================
 // Types
@@ -104,13 +104,15 @@ export class SmtpEmailBackend extends BaseEmailBackend {
 
   constructor(options: SmtpEmailBackendOptions = {}) {
     super({ failSilently: options.failSilently });
-    this.host = options.host ?? _getSetting("EMAIL_HOST", "localhost");
-    this.port = options.port ?? _getSetting("EMAIL_PORT", 587);
-    this.username = options.username ?? _getSetting("EMAIL_HOST_USER", "");
-    this.password = options.password ?? _getSetting("EMAIL_HOST_PASSWORD", "");
-    this.useTls = options.useTls ?? _getSetting("EMAIL_USE_TLS", false);
-    this.useSsl = options.useSsl ?? _getSetting("EMAIL_USE_SSL", false);
-    this.timeout = options.timeout ?? _getSetting("EMAIL_TIMEOUT", undefined);
+    this.host = options.host ?? getMailSetting("EMAIL_HOST", "localhost");
+    this.port = options.port ?? getMailSetting("EMAIL_PORT", 587);
+    this.username = options.username ?? getMailSetting("EMAIL_HOST_USER", "");
+    this.password = options.password ??
+      getMailSetting("EMAIL_HOST_PASSWORD", "");
+    this.useTls = options.useTls ?? getMailSetting("EMAIL_USE_TLS", false);
+    this.useSsl = options.useSsl ?? getMailSetting("EMAIL_USE_SSL", false);
+    this.timeout = options.timeout ??
+      getMailSetting("EMAIL_TIMEOUT", undefined);
   }
 
   /**
@@ -245,7 +247,7 @@ class SmtpSession {
 
     // EHLO
     await this._sendCmd(`EHLO alexi`);
-    const ehloResp = await this._readResponse(250);
+    let ehloResp = await this._readResponse(250);
 
     // STARTTLS upgrade
     if (useTls && !useSsl) {
@@ -267,9 +269,11 @@ class SmtpSession {
       this.reader = this.conn.readable.getReader();
       this.writer = this.conn.writable.getWriter();
 
-      // Re-greet after TLS upgrade
+      // Re-greet after TLS upgrade and capture the post-TLS capabilities.
+      // AUTH methods are commonly only advertised inside the TLS tunnel, so
+      // _authenticate() must receive this updated response, not the pre-upgrade one.
       await this._sendCmd(`EHLO alexi`);
-      await this._readResponse(250);
+      ehloResp = await this._readResponse(250);
     }
 
     // AUTH
@@ -406,21 +410,4 @@ class SmtpSession {
 function extractAddress(address: string): string {
   const match = address.match(/<([^>]+)>/);
   return match ? match[1] : address.trim();
-}
-
-/**
- * Reads a value from the runtime-attached settings object.
- *
- * @param key - Setting key.
- * @param defaultValue - Fallback value.
- * @returns Setting value or default.
- */
-function _getSetting<T>(key: string, defaultValue: T): T {
-  try {
-    const settings = (globalThis as any).__alexiSettings;
-    if (settings && key in settings) return settings[key] as T;
-  } catch {
-    // ignore
-  }
-  return defaultValue;
 }
