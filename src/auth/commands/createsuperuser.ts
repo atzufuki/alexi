@@ -43,6 +43,11 @@ interface UserModelInterface {
   };
   /** Available when AUTH_USER_MODEL is an AbstractUser subclass. */
   hashPassword?: (password: string) => Promise<string>;
+  /**
+   * Extra fields the command must prompt for / accept as CLI arguments.
+   * Mirrors Django's `AbstractBaseUser.REQUIRED_FIELDS`.
+   */
+  REQUIRED_FIELDS?: string[];
 }
 
 /**
@@ -112,6 +117,21 @@ type HashPasswordFn = (password: string) => Promise<string>;
  *   --password secretpassword \
  *   --first-name Admin \
  *   --last-name User
+ * ```
+ *
+ * @example With extra REQUIRED_FIELDS
+ * ```bash
+ * # UserModel has REQUIRED_FIELDS = ["status"]
+ * # Interactive — prompts for "status":
+ * deno run -A --unstable-kv manage.ts createsuperuser --settings web
+ *
+ * # Non-interactive — supply via CLI or environment variable:
+ * deno run -A --unstable-kv manage.ts createsuperuser --settings web \
+ *   --no-input \
+ *   --email admin@example.com \
+ *   --password secret \
+ *   --status active
+ * # OR via env: ALEXI_SUPERUSER_STATUS=active
  * ```
  */
 export class CreateSuperuserCommand extends BaseCommand {
@@ -237,7 +257,7 @@ export class CreateSuperuserCommand extends BaseCommand {
       );
       return failure("DATABASES not configured");
     }
-    await setup({ DATABASES: databases });
+    await this.runSetup({ DATABASES: databases });
 
     try {
       // Get user details
@@ -291,7 +311,47 @@ export class CreateSuperuserCommand extends BaseCommand {
         isActive: true,
       };
 
-      // Add extra fields from settings if defined
+      // Collect values for REQUIRED_FIELDS defined on the model (Django parity).
+      // Each field is read from:
+      //   1. --<field-name> CLI argument, or
+      //   2. ALEXI_SUPERUSER_<FIELD_NAME> environment variable, or
+      //   3. interactive prompt (when not --no-input).
+      const requiredFields: string[] =
+        (UserModel as unknown as { REQUIRED_FIELDS?: string[] })
+          .REQUIRED_FIELDS ?? [];
+
+      for (const fieldName of requiredFields) {
+        const cliKey = fieldName.replace(
+          /([A-Z])/g,
+          (m) => `-${m.toLowerCase()}`,
+        );
+        const envKey = `ALEXI_SUPERUSER_${fieldName.toUpperCase()}`;
+
+        let value: string | undefined =
+          (options.args[cliKey] as string | undefined) ??
+            (options.args[fieldName] as string | undefined) ??
+            Deno.env.get(envKey);
+
+        if (!value) {
+          if (noInput) {
+            this.error(
+              `--${cliKey} is required when using --no-input (or set ${envKey}).`,
+            );
+            return failure(`Missing required field: ${fieldName}`);
+          }
+          const prompted = prompt(`${fieldName}:`);
+          if (!prompted || prompted.trim() === "") {
+            this.error(`${fieldName} is required.`);
+            return failure(`Missing required field: ${fieldName}`);
+          }
+          value = prompted.trim();
+        }
+
+        userData[fieldName] = value;
+      }
+
+      // Legacy escape hatch — still supported for backwards compatibility.
+      // Prefer REQUIRED_FIELDS on the model instead.
       const extraFields = settings.AUTH_USER_EXTRA_FIELDS as
         | Record<string, unknown>
         | undefined;
@@ -332,6 +392,20 @@ export class CreateSuperuserCommand extends BaseCommand {
   // ===========================================================================
   // Settings and Model Loading
   // ===========================================================================
+
+  /**
+   * Initialize the database backends from settings.
+   *
+   * Extracted as a protected method so tests can override it without a real
+   * database connection.
+   *
+   * @param config - The databases configuration to pass to `setup()`.
+   */
+  protected async runSetup(
+    config: { DATABASES: DatabasesConfig },
+  ): Promise<void> {
+    await setup(config);
+  }
 
   /**
    * Load project settings.

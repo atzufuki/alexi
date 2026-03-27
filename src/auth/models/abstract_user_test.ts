@@ -99,6 +99,30 @@ Deno.test("AbstractUser.verifyPassword: hash from different password returns fal
 // Round-trip via ORM (hashPassword → create → fetch → verifyPassword)
 // =============================================================================
 
+// =============================================================================
+// REQUIRED_FIELDS
+// =============================================================================
+
+Deno.test("AbstractUser.REQUIRED_FIELDS: defaults to empty array", () => {
+  assertEquals(TestUser.REQUIRED_FIELDS, []);
+});
+
+Deno.test("AbstractUser.REQUIRED_FIELDS: subclass can override", () => {
+  class ExtendedUser extends AbstractUser {
+    static objects = new Manager(ExtendedUser);
+    static override meta = { dbTable: "extended_users" };
+    static override REQUIRED_FIELDS = ["status", "phone"];
+  }
+
+  assertEquals(ExtendedUser.REQUIRED_FIELDS, ["status", "phone"]);
+  // Base class unchanged
+  assertEquals(TestUser.REQUIRED_FIELDS, []);
+});
+
+// =============================================================================
+// Round-trip via ORM (hashPassword → create → fetch → verifyPassword)
+// =============================================================================
+
 Deno.test({
   name: "AbstractUser: round-trip create/fetch/verify via ORM",
   async fn() {
