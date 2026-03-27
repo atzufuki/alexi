@@ -12,6 +12,7 @@ Alexi is a Django-inspired full-stack framework for Deno, written in TypeScript.
 | `@alexi/urls`          | `django.urls`                | URL routing: `path()`, `include()`                    |
 | `@alexi/db`            | `django.db`                  | ORM with DenoKV, SQLite, IndexedDB, REST backends     |
 | `@alexi/storage`       | `django.core.files.storage`  | File storage backends                                 |
+| `@alexi/mail`          | `django.core.mail`           | Email sending: SMTP, console, file, memory backends   |
 | `@alexi/middleware`    | `django.middleware.*`        | CORS, logging, error handling                         |
 | `@alexi/views`         | `django.views`               | Template engine, CBVs, `templateView()`               |
 | `@alexi/restframework` | `djangorestframework`        | Serializers, ViewSets, Routers, Permissions           |
@@ -33,7 +34,7 @@ Layer 0 — Primitives
   @alexi/types   @alexi/urls
 
 Layer 1 — Data & Transport
-  @alexi/db   @alexi/storage   @alexi/middleware
+  @alexi/db   @alexi/storage   @alexi/mail   @alexi/middleware
 
 Layer 2 — Application Logic
   @alexi/views   @alexi/restframework   @alexi/auth
@@ -942,6 +943,140 @@ const adminRouter = new AdminRouter(adminSite, backend);
 export const urlpatterns = [
   path("admin/", adminRouter.asView()),
 ];
+```
+
+---
+
+## Mail (`@alexi/mail`)
+
+### Quick send
+
+```typescript
+import { sendMail } from "@alexi/mail";
+
+await sendMail(
+  "Subject here",
+  "Here is the message.",
+  "from@example.com",
+  ["to@example.com"],
+);
+```
+
+### sendMassMail()
+
+Reuses a single backend connection for all messages:
+
+```typescript
+import { sendMassMail } from "@alexi/mail";
+
+await sendMassMail([
+  ["Subject 1", "Body 1", "from@example.com", ["alice@example.com"]],
+  ["Subject 2", "Body 2", "from@example.com", ["bob@example.com"]],
+]);
+```
+
+### EmailMessage
+
+```typescript
+import { EmailMessage } from "@alexi/mail";
+
+const email = new EmailMessage({
+  subject: "Hello",
+  body: "Plain text body.",
+  fromEmail: "from@example.com",
+  to: ["to@example.com"],
+  cc: ["cc@example.com"],
+  bcc: ["bcc@example.com"],
+  replyTo: ["reply@example.com"],
+  headers: { "X-Custom": "value" },
+});
+
+email.attach("report.pdf", pdfBytes, "application/pdf");
+await email.attachFile("/var/reports/annual.pdf"); // server only
+await email.send();
+```
+
+### EmailMultiAlternatives (text + HTML)
+
+```typescript
+import { EmailMultiAlternatives } from "@alexi/mail";
+
+const msg = new EmailMultiAlternatives({
+  subject: "Welcome!",
+  body: "Plain text version.",
+  fromEmail: "noreply@example.com",
+  to: ["user@example.com"],
+});
+msg.attachAlternative("<p>HTML version.</p>", "text/html");
+await msg.send();
+```
+
+### mailAdmins() / mailManagers()
+
+```typescript
+import { mailAdmins, mailManagers } from "@alexi/mail";
+
+await mailAdmins("Server error", "500 on /api/users/");
+await mailManagers("New signup", "User john@example.com signed up.");
+```
+
+Reads recipients from `ADMINS` / `MANAGERS` settings. Subject is prefixed with
+`EMAIL_SUBJECT_PREFIX`; From address is `SERVER_EMAIL`.
+
+### Backends
+
+| Backend | Key         | Description                                 |
+| ------- | ----------- | ------------------------------------------- |
+| SMTP    | `"smtp"`    | Production — delivers via SMTP (default)    |
+| Console | `"console"` | Dev — prints formatted email to stdout      |
+| File    | `"file"`    | Dev — writes `.eml` files to disk           |
+| Memory  | `"memory"`  | Testing — stores messages in `outbox` array |
+| Dummy   | `"dummy"`   | Dev — silently discards all messages        |
+
+Configure in settings:
+
+```typescript
+export const EMAIL_BACKEND = "console"; // or "smtp", "file", "memory", "dummy"
+
+// SMTP settings (used by SmtpEmailBackend)
+export const EMAIL_HOST = "smtp.example.com";
+export const EMAIL_PORT = 587;
+export const EMAIL_HOST_USER = "user@example.com";
+export const EMAIL_HOST_PASSWORD = "secret";
+export const EMAIL_USE_TLS = true; // STARTTLS on port 587
+export const EMAIL_USE_SSL = false; // implicit TLS on port 465
+
+// Defaults
+export const DEFAULT_FROM_EMAIL = "webmaster@localhost";
+export const EMAIL_SUBJECT_PREFIX = "[Alexi] ";
+export const SERVER_EMAIL = "root@localhost";
+export const ADMINS: Array<[string, string]> = [["Admin", "admin@example.com"]];
+export const MANAGERS: Array<[string, string]> = [[
+  "Manager",
+  "manager@example.com",
+]];
+export const EMAIL_FILE_PATH = "/tmp/alexi-messages"; // file backend only
+```
+
+Import the backend module at startup to register it:
+
+```typescript
+// http.ts or app startup
+import "@alexi/mail/backends/console"; // registers "console" backend
+```
+
+### Testing
+
+```typescript
+import "@alexi/mail/backends/memory";
+import { outbox } from "@alexi/mail/backends/memory";
+import { sendMail } from "@alexi/mail";
+import { assertEquals } from "@std/assert";
+
+outbox.length = 0;
+await sendMail("Hi", "Hello", null, ["to@example.com"]);
+assertEquals(outbox.length, 1);
+assertEquals(outbox[0].subject, "Hi");
 ```
 
 ---

@@ -116,6 +116,7 @@ jobs:
           publish_package "src/urls"
           # Layer 1 — Data & Transport (depend on types/urls)
           publish_package "src/middleware"
+          publish_package "src/mail"
           publish_package "src/db"
           publish_package "src/views"
           publish_package "src/storage"
