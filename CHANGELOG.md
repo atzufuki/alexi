@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.52.2] - 2026-03-27
+
+### Fixed
+
+- `@alexi/core`: `flush` management command now uses the configured `DATABASES`
+  backend instead of always hard-coding DenoKV; works with DenoKV, SQLite,
+  PostgreSQL, and IndexedDB backends. Added `--database <name>` flag to target a
+  named backend (#433)
+
 ## [0.52.1] - 2026-03-27
 
 ### Fixed
