@@ -8,6 +8,14 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.52.6] - 2026-03-27
+
+### Fixed
+
+- `@alexi/mail`: SMTP DATA terminator was `\r\n.` instead of the RFC
+  5321-mandated `\r\n.\r\n`, causing the server to wait indefinitely for more
+  data and `send()` to hang forever (#443)
+
 ## [0.52.5] - 2026-03-27
 
 ### Added
