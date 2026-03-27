@@ -8,6 +8,17 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.52.4] - 2026-03-27
+
+### Fixed
+
+- `@alexi/db`: SQLite migration state is now stored in the SQLite database
+  instead of DenoKV; added `SQLiteMigrationRecorder` and
+  `SQLiteDeprecationRecorder` that use `_alexi_migrations` and
+  `_alexi_deprecations` tables with SQLite-compatible SQL syntax.
+  `MigrationRecorderFactory` now detects `SQLiteBackend` via
+  `backend.config.engine` and returns the correct recorder (#437)
+
 ## [0.52.3] - 2026-03-27
 
 ### Fixed
