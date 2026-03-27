@@ -1,21 +1,21 @@
 {
   "name": "@alexi/core",
-  "version": "0.52.4",
+  "version": "0.52.5",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",
     "./management": "./management/mod.ts"
   },
   "imports": {
-    "@alexi/types": "jsr:@alexi/types@0.52.4",
-    "@alexi/db": "jsr:@alexi/db@0.52.4",
-    "@alexi/db/migrations": "jsr:@alexi/db@0.52.4/migrations",
-    "@alexi/db/migrations/schema": "jsr:@alexi/db@0.52.4/migrations/schema",
-    "@alexi/storage": "jsr:@alexi/storage@0.52.4",
-    "@alexi/mail": "jsr:@alexi/mail@0.52.4",
-    "@alexi/urls": "jsr:@alexi/urls@0.52.4",
-    "@alexi/middleware": "jsr:@alexi/middleware@0.52.4",
-    "@alexi/views": "jsr:@alexi/views@0.52.4",
+    "@alexi/types": "jsr:@alexi/types@0.52.5",
+    "@alexi/db": "jsr:@alexi/db@0.52.5",
+    "@alexi/db/migrations": "jsr:@alexi/db@0.52.5/migrations",
+    "@alexi/db/migrations/schema": "jsr:@alexi/db@0.52.5/migrations/schema",
+    "@alexi/storage": "jsr:@alexi/storage@0.52.5",
+    "@alexi/mail": "jsr:@alexi/mail@0.52.5",
+    "@alexi/urls": "jsr:@alexi/urls@0.52.5",
+    "@alexi/middleware": "jsr:@alexi/middleware@0.52.5",
+    "@alexi/views": "jsr:@alexi/views@0.52.5",
     "@std/path": "jsr:@std/path@1"
   },
   "compilerOptions": {

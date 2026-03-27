@@ -8,6 +8,24 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.52.5] - 2026-03-27
+
+### Added
+
+- `@alexi/mail`: `configureMailSettings()` — mail settings (`EMAIL_BACKEND`,
+  `EMAIL_HOST`, `EMAIL_PORT`, `DEFAULT_FROM_EMAIL`, etc.) are now automatically
+  read from the framework settings module. `_buildApplication()` in
+  `@alexi/core` calls `configureMailSettings(settings)` on boot, so both
+  `getHttpApplication()` and `getWorkerApplication()` wire mail without any
+  extra project configuration (#439)
+
+### Fixed
+
+- `@alexi/mail`: `SmtpSession._connect()` now reassigns `ehloResp` after the
+  post-STARTTLS re-EHLO handshake. Previously the response was discarded
+  (`const`), so AUTH methods advertised only inside the TLS tunnel were never
+  seen, causing AUTH failures on Gmail port 465 and similar servers (#440)
+
 ## [0.52.4] - 2026-03-27
 
 ### Fixed
