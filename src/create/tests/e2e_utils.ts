@@ -175,6 +175,12 @@ async function patchProjectForLocalAlexi(projectPath: string): Promise<void> {
       `${alexiRoot}src/storage/backends/filesystem.ts`,
     "@alexi/storage/backends/memory":
       `${alexiRoot}src/storage/backends/memory.ts`,
+    "@alexi/mail": `${alexiRoot}src/mail/mod.ts`,
+    "@alexi/mail/backends/smtp": `${alexiRoot}src/mail/backends/smtp.ts`,
+    "@alexi/mail/backends/console": `${alexiRoot}src/mail/backends/console.ts`,
+    "@alexi/mail/backends/file": `${alexiRoot}src/mail/backends/file.ts`,
+    "@alexi/mail/backends/memory": `${alexiRoot}src/mail/backends/memory.ts`,
+    "@alexi/mail/backends/dummy": `${alexiRoot}src/mail/backends/dummy.ts`,
     "@alexi/capacitor": `${alexiRoot}src/capacitor/mod.ts`,
     "@alexi/types": `${alexiRoot}src/types/mod.ts`,
   };
