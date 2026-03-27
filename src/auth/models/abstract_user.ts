@@ -144,8 +144,59 @@ async function pbkdf2Verify(plain: string, stored: string): Promise<boolean> {
  * Mirrors Django's `AbstractUser` — subclass it and add a concrete `Manager`
  * and `meta.dbTable` to get a fully functional user model with built-in
  * password hashing.
+ *
+ * ### Extra fields and `createsuperuser`
+ *
+ * If your concrete user model adds fields that are required at creation time
+ * (especially `NOT NULL` fields without a database default), list them in
+ * `REQUIRED_FIELDS`.  The `createsuperuser` management command will then
+ * prompt for — or accept via `--<field-name>` CLI argument — each of those
+ * fields before calling `objects.create()`.
+ *
+ * ```typescript
+ * export class UserModel extends AbstractUser {
+ *   phone  = new CharField({ maxLength: 32, blank: true, default: "" });
+ *   status = new CharField({ maxLength: 20 });   // NOT NULL
+ *
+ *   // createsuperuser will prompt for "status"
+ *   static override REQUIRED_FIELDS = ["status"];
+ *
+ *   static objects = new Manager(UserModel);
+ *   static override meta = { dbTable: "users" };
+ * }
+ * ```
+ *
+ * Fields that already have a `default` value (or `blank: true`) do **not**
+ * need to appear in `REQUIRED_FIELDS` — the ORM / database will supply the
+ * default automatically.
  */
 export abstract class AbstractUser extends Model {
+  /**
+   * Extra fields that the `createsuperuser` management command must prompt
+   * for (or accept as `--<field-name>` CLI arguments) in addition to the
+   * built-in `email` / `password` / `firstName` / `lastName` fields.
+   *
+   * Mirrors Django's `AbstractBaseUser.REQUIRED_FIELDS`.  Subclasses should
+   * override this with the names of any `NOT NULL` fields (or other fields
+   * that must be supplied at account-creation time) that are not already
+   * handled by the base command.
+   *
+   * @default []
+   *
+   * @example
+   * ```typescript
+   * export class UserModel extends AbstractUser {
+   *   status = new CharField({ maxLength: 20 });
+   *
+   *   static override REQUIRED_FIELDS = ["status"];
+   *   static objects = new Manager(UserModel);
+   *   static override meta = { dbTable: "users" };
+   * }
+   * ```
+   */
+  static REQUIRED_FIELDS: string[] = [];
+
+  /** Auto-incrementing primary key. */
   id = new AutoField({ primaryKey: true });
 
   /** Login identifier — used as the username equivalent. */
@@ -157,7 +208,10 @@ export abstract class AbstractUser extends Model {
    */
   password = new CharField({ maxLength: 256, blank: true });
 
+  /** The user's first (given) name. */
   firstName = new CharField({ maxLength: 150, blank: true });
+
+  /** The user's last (family) name. */
   lastName = new CharField({ maxLength: 150, blank: true });
 
   /** Grants access to the admin panel when `true`. */
@@ -166,7 +220,10 @@ export abstract class AbstractUser extends Model {
   /** Inactive users cannot log in. */
   isActive = new BooleanField({ default: true });
 
+  /** Timestamp of when the account was created. Set automatically on insert. */
   dateJoined = new DateTimeField({ autoNowAdd: true });
+
+  /** Timestamp of the user's most recent login. `null` if never logged in. */
   lastLogin = new DateTimeField({ null: true, blank: true });
 
   // ---------------------------------------------------------------------------

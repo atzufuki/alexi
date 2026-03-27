@@ -831,6 +831,44 @@ const hash = await UserModel.hashPassword("secret");
 const valid = await user.verifyPassword("secret"); // true | false
 ```
 
+#### REQUIRED_FIELDS
+
+Declare extra fields that `createsuperuser` must collect. Values are read from
+CLI args (`--<field>`), env vars (`ALEXI_SUPERUSER_<FIELD>`), or an interactive
+prompt — matching Django's behaviour.
+
+```typescript
+export class UserModel extends AbstractUser {
+  status = new CharField({ maxLength: 20, default: "active" });
+  department = new CharField({ maxLength: 100 });
+
+  // Tell createsuperuser to prompt for these fields
+  static override REQUIRED_FIELDS = ["status", "department"];
+
+  static objects = new Manager(UserModel);
+  static meta = { dbTable: "users" };
+}
+```
+
+```bash
+# Interactive
+deno run -A --unstable-kv manage.ts createsuperuser --settings ./project/settings.ts
+
+# Non-interactive via CLI args
+deno run -A --unstable-kv manage.ts createsuperuser \
+  --email admin@example.com --password secret \
+  --status active --department engineering \
+  --no-input --settings ./project/settings.ts
+
+# Non-interactive via environment variables
+ALEXI_SUPERUSER_EMAIL=admin@example.com \
+ALEXI_SUPERUSER_PASSWORD=secret \
+ALEXI_SUPERUSER_STATUS=active \
+ALEXI_SUPERUSER_DEPARTMENT=engineering \
+deno run -A --unstable-kv manage.ts createsuperuser --no-input \
+  --settings ./project/settings.ts
+```
+
 ### View Decorators
 
 ```typescript
