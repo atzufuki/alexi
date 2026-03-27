@@ -1,0 +1,13 @@
+{
+  "name": "@alexi/mail",
+  "version": "0.51.1",
+  "license": "MIT",
+  "exports": {
+    ".": "./mod.ts",
+    "./backends/smtp": "./backends/smtp.ts",
+    "./backends/console": "./backends/console.ts",
+    "./backends/file": "./backends/file.ts",
+    "./backends/memory": "./backends/memory.ts",
+    "./backends/dummy": "./backends/dummy.ts"
+  }
+}
