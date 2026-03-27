@@ -8,6 +8,16 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.52.1] - 2026-03-27
+
+### Fixed
+
+- `@alexi/auth`: `createsuperuser` now supports `REQUIRED_FIELDS` — extra
+  `NOT
+  NULL` fields declared on the concrete user model are collected from CLI
+  args (`--<field>`), env vars (`ALEXI_SUPERUSER_<FIELD>`), or an interactive
+  prompt, matching Django's `AbstractBaseUser.REQUIRED_FIELDS` behaviour (#431)
+
 ## [0.52.0] - 2026-03-27
 
 ### Added
