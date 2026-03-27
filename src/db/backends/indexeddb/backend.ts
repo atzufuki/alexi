@@ -1252,6 +1252,35 @@ export class IndexedDBBackend extends DatabaseBackend {
   }
 
   // ============================================================================
+  // Flush
+  // ============================================================================
+
+  /**
+   * Clear all records from every IndexedDB object store.
+   *
+   * @returns The number of object stores cleared.
+   */
+  async flush(): Promise<number> {
+    this.ensureConnected();
+    const db = this._db!;
+    const storeNames = Array.from(
+      { length: db.objectStoreNames.length },
+      (_, i) => db.objectStoreNames[i],
+    );
+
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(storeNames, "readwrite");
+      for (const name of storeNames) {
+        tx.objectStore(name).clear();
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+
+    return storeNames.length;
+  }
+
+  // ============================================================================
   // Query Compilation
   // ============================================================================
 

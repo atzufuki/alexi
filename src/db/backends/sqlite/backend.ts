@@ -767,6 +767,45 @@ export class SQLiteBackend extends DatabaseBackend {
   }
 
   // ============================================================================
+  // Flush
+  // ============================================================================
+
+  /**
+   * Delete all rows from every user table in the SQLite database.
+   *
+   * Iterates over all tables in `sqlite_master` (excluding SQLite internal
+   * tables) and executes `DELETE FROM <table>` for each, then resets the
+   * auto-increment counters via `DELETE FROM sqlite_sequence`.
+   *
+   * @returns The total number of rows deleted across all tables.
+   */
+  async flush(): Promise<number> {
+    this.ensureConnected();
+
+    const tables: Array<{ name: string }> = this.db.prepare(
+      `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'`,
+    ).all();
+
+    await Promise.resolve();
+
+    let deleted = 0;
+    for (const { name } of tables) {
+      const result = this.db.prepare(`DELETE FROM "${name}"`).run();
+      deleted += result.changes ?? 0;
+    }
+
+    // Reset auto-increment counters if the sequence table exists
+    const hasSeq = this.db.prepare(
+      `SELECT COUNT(*) AS cnt FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'`,
+    ).all() as Array<{ cnt: number }>;
+    if ((hasSeq[0]?.cnt ?? 0) > 0) {
+      this.db.exec(`DELETE FROM sqlite_sequence`);
+    }
+
+    return deleted;
+  }
+
+  // ============================================================================
   // Query Compilation
   // ============================================================================
 

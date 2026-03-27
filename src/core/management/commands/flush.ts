@@ -1,89 +1,60 @@
 /**
  * Flush Command for Alexi DB
  *
- * Django-style command that clears all data from the database.
- * Similar to Django's `manage.py flush` command.
- *
- * NOTE: This module requires `--unstable-kv` flag when running Deno.
+ * Django-style command that clears all data from the configured database
+ * backend. Similar to Django's `manage.py flush` command.
  *
  * @module @alexi/core/commands/flush
  */
 
-// Type definitions for Deno KV (unstable API)
-// These are local interfaces to avoid type errors when publishing
-// The actual runtime uses Deno.openKv which requires --unstable-kv flag
-interface DenoKv {
-  delete(key: DenoKvKey): Promise<void>;
-  list<T>(selector: DenoKvListSelector): DenoKvListIterator<T>;
-  close(): void;
-}
-
-type DenoKvKey = readonly DenoKvKeyPart[];
-type DenoKvKeyPart = string | number | bigint | boolean | Uint8Array;
-
-interface DenoKvEntry<T> {
-  key: DenoKvKey;
-  value: T;
-  versionstamp: string;
-}
-
-interface DenoKvListSelector {
-  prefix?: DenoKvKey;
-}
-
-interface DenoKvListIterator<T> extends AsyncIterableIterator<DenoKvEntry<T>> {
-  cursor: string;
-}
-
-// deno-lint-ignore no-explicit-any
-const DenoKvOpen = (Deno as any).openKv as (
-  path?: string,
-) => Promise<DenoKv>;
-
-import { BaseCommand, success } from "../base_command.ts";
+import { BaseCommand, failure, success } from "../base_command.ts";
 import type {
   CommandOptions,
   CommandResult,
   IArgumentParser,
 } from "../types.ts";
+import { configure } from "../config.ts";
+import { getBackend, getBackendByName } from "@alexi/db";
 
 // =============================================================================
 // FlushCommand Class
 // =============================================================================
 
 /**
- * Built-in command for clearing all data from the database
+ * Built-in command for clearing all data from the configured database backend.
  *
- * Removes all data from the database while preserving the schema.
- * For DenoKV, this deletes all key-value pairs.
+ * Uses the `DATABASES` configuration from settings (the same way `migrate`
+ * does) and delegates to {@link DatabaseBackend.flush} — so it works with
+ * DenoKV, SQLite, and PostgreSQL backends alike.
  *
  * @example Basic usage
  * ```bash
- * deno run -A --unstable-kv manage.ts flush
+ * deno run -A --unstable-kv manage.ts flush --settings ./project/settings.ts
  * ```
  *
  * @example Skip confirmation prompt
  * ```bash
- * deno run -A --unstable-kv manage.ts flush --no-input
+ * deno run -A --unstable-kv manage.ts flush --no-input --settings ./project/settings.ts
  * ```
  *
- * @example Specify custom database path
+ * @example Target a named backend
  * ```bash
- * deno run -A --unstable-kv manage.ts flush --database ./data/myapp.db
+ * deno run -A --unstable-kv manage.ts flush --database secondary --settings ./project/settings.ts
  * ```
  */
 export class FlushCommand extends BaseCommand {
   readonly name = "flush";
   readonly help = "Clear database by removing all data";
   override readonly description =
-    "Removes all data from the database. This action is irreversible. " +
+    "Removes all data from the configured database backend. " +
+    "This action is irreversible. " +
     "Use --no-input to skip the confirmation prompt.";
 
   override readonly examples = [
-    "manage.ts flush                    - Clear database (prompts for confirmation)",
-    "manage.ts flush --yes              - Clear without confirmation",
-    "manage.ts flush --no-input         - Clear without confirmation (same as --yes)",
-    "manage.ts flush --database ./db    - Use specific database path",
+    "manage.ts flush --settings ./project/settings.ts                    - Clear database (prompts for confirmation)",
+    "manage.ts flush --yes --settings ./project/settings.ts              - Clear without confirmation",
+    "manage.ts flush --no-input --settings ./project/settings.ts         - Clear without confirmation (same as --yes)",
+    "manage.ts flush --database secondary --settings ./project/settings.ts - Use a named backend",
   ];
 
   // ===========================================================================
@@ -91,6 +62,12 @@ export class FlushCommand extends BaseCommand {
   // ===========================================================================
 
   override addArguments(parser: IArgumentParser): void {
+    parser.addArgument("--settings", {
+      type: "string",
+      required: false,
+      help: "Settings module to use (e.g. web, desktop, or a file path)",
+    });
+
     parser.addArgument("--no-input", {
       type: "boolean",
       default: false,
@@ -106,8 +83,7 @@ export class FlushCommand extends BaseCommand {
     parser.addArgument("--database", {
       type: "string",
       required: false,
-      help:
-        "Database path (DenoKV). Defaults to DENO_KV_PATH or default location.",
+      help: "Named backend from DATABASES settings (defaults to 'default')",
     });
   }
 
@@ -116,10 +92,11 @@ export class FlushCommand extends BaseCommand {
   // ===========================================================================
 
   async handle(options: CommandOptions): Promise<CommandResult> {
+    const settingsName = options.args.settings as string | undefined;
     const noInput = options.args["no-input"] as boolean;
     const yes = options.args["yes"] as boolean;
     const skipConfirmation = noInput || yes;
-    const databasePath = options.args.database as string | undefined;
+    const databaseName = options.args.database as string | undefined;
 
     // Show warning
     this.stdout.log("");
@@ -140,9 +117,32 @@ export class FlushCommand extends BaseCommand {
       }
     }
 
-    // Perform the flush
     try {
-      const deletedCount = await this.flushDatabase(databasePath);
+      // Load settings and register the configured backend(s)
+      await this.runConfigure(settingsName);
+
+      // Resolve the backend to flush
+      const backend = databaseName
+        ? getBackendByName(databaseName)
+        : getBackend();
+
+      if (!backend) {
+        return failure(
+          "No database backend configured. Check your DATABASES settings.",
+        );
+      }
+
+      if (!backend.isConnected) {
+        await backend.connect();
+      }
+
+      const backendLabel = databaseName ?? "default";
+      this.stdout.log("");
+      this.stdout.log(
+        `Clearing database (backend: ${backendLabel}, engine: ${backend.config.engine})...`,
+      );
+
+      const deletedCount = await backend.flush();
 
       this.stdout.log("");
       this.stdout.log("✓ Database cleared successfully!");
@@ -156,7 +156,7 @@ export class FlushCommand extends BaseCommand {
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return { exitCode: 1 };
+      return failure(error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -165,7 +165,9 @@ export class FlushCommand extends BaseCommand {
   // ===========================================================================
 
   /**
-   * Ask for confirmation before flushing
+   * Ask for confirmation before flushing.
+   *
+   * @returns `true` if the user confirmed.
    */
   private confirmFlush(): boolean {
     const confirmText = "yes";
@@ -184,43 +186,14 @@ export class FlushCommand extends BaseCommand {
   }
 
   /**
-   * Flush all data from the database
+   * Load settings and register database backends.
    *
-   * @param databasePath - Optional path to the DenoKV database
-   * @returns Number of deleted entries
+   * Extracted as a protected method so tests can override it without
+   * touching the filesystem or real settings modules.
+   *
+   * @param settingsArg - Settings module name or path.
    */
-  private async flushDatabase(databasePath?: string): Promise<number> {
-    // Determine database path
-    const kvPath = databasePath ?? Deno.env.get("DENO_KV_PATH");
-
-    this.stdout.log("");
-    this.stdout.log(
-      `Clearing database${kvPath ? `: ${kvPath}` : " (default location)"}...`,
-    );
-
-    // Open DenoKV
-    const kv = await DenoKvOpen(kvPath);
-
-    let deletedCount = 0;
-
-    try {
-      // List and delete all entries
-      const entries = kv.list({ prefix: [] });
-
-      for await (const entry of entries) {
-        await kv.delete(entry.key);
-        deletedCount++;
-
-        // Show progress for large databases
-        if (deletedCount % 100 === 0) {
-          this.stdout.log(`  Deleted ${deletedCount} entries...`);
-        }
-      }
-    } finally {
-      // Always close the KV connection
-      kv.close();
-    }
-
-    return deletedCount;
+  protected async runConfigure(settingsArg?: string): Promise<void> {
+    await configure(settingsArg);
   }
 }
