@@ -18,6 +18,10 @@ export type {
 export { PostgresMigrationRecorder } from "./postgres_migration.ts";
 export { PostgresDeprecationRecorder } from "./postgres_deprecation.ts";
 
+// SQLite implementations
+export { SQLiteMigrationRecorder } from "./sqlite_migration.ts";
+export { SQLiteDeprecationRecorder } from "./sqlite_deprecation.ts";
+
 // DenoKV implementations
 export { DenoKVMigrationRecorder } from "./denokv_migration.ts";
 export { DenoKVDeprecationRecorder } from "./denokv_deprecation.ts";

@@ -12,6 +12,8 @@ import { PostgresMigrationRecorder } from "./postgres_migration.ts";
 import { PostgresDeprecationRecorder } from "./postgres_deprecation.ts";
 import { DenoKVMigrationRecorder } from "./denokv_migration.ts";
 import { DenoKVDeprecationRecorder } from "./denokv_deprecation.ts";
+import { SQLiteMigrationRecorder } from "./sqlite_migration.ts";
+import { SQLiteDeprecationRecorder } from "./sqlite_deprecation.ts";
 
 // ============================================================================
 // Backend Type Detection
@@ -26,6 +28,13 @@ function isDenoKVBackend(
   return "kv" in backend && backend.kv !== undefined;
 }
 
+/**
+ * Check if backend is a SQLite backend
+ */
+function isSQLiteBackend(backend: DatabaseBackend): boolean {
+  return backend.config?.engine === "sqlite";
+}
+
 // ============================================================================
 // Factory Functions
 // ============================================================================
@@ -35,6 +44,7 @@ function isDenoKVBackend(
  *
  * Automatically selects the appropriate implementation based on backend type:
  * - DenoKV backends → DenoKVMigrationRecorder
+ * - SQLite backends → SQLiteMigrationRecorder
  * - SQL backends (PostgreSQL, etc.) → PostgresMigrationRecorder
  *
  * @param backend - The database backend
@@ -53,6 +63,10 @@ export function createMigrationRecorder(
     return new DenoKVMigrationRecorder(backend.kv);
   }
 
+  if (isSQLiteBackend(backend)) {
+    return new SQLiteMigrationRecorder(backend);
+  }
+
   // Default to PostgreSQL recorder for SQL-based backends
   return new PostgresMigrationRecorder(backend);
 }
@@ -62,6 +76,7 @@ export function createMigrationRecorder(
  *
  * Automatically selects the appropriate implementation based on backend type:
  * - DenoKV backends → DenoKVDeprecationRecorder
+ * - SQLite backends → SQLiteDeprecationRecorder
  * - SQL backends (PostgreSQL, etc.) → PostgresDeprecationRecorder
  *
  * @param backend - The database backend
@@ -85,6 +100,10 @@ export function createDeprecationRecorder(
 ): IDeprecationRecorder {
   if (isDenoKVBackend(backend)) {
     return new DenoKVDeprecationRecorder(backend.kv);
+  }
+
+  if (isSQLiteBackend(backend)) {
+    return new SQLiteDeprecationRecorder(backend);
   }
 
   // Default to PostgreSQL recorder for SQL-based backends
