@@ -362,21 +362,78 @@ export async function mailManagers(
 // Settings helper
 // =============================================================================
 
+/** Module-level mail settings store, populated by configureMailSettings(). */
+// deno-lint-ignore no-explicit-any
+let _mailSettings: Record<string, any> | null = null;
+
 /**
- * Reads a value from the lazily-loaded settings module attached to
- * `globalThis.__alexiSettings`, falling back to `defaultValue` when the
- * settings module is not loaded or the key is absent.
+ * Configure the mail settings store.
+ *
+ * This is called automatically by `getHttpApplication()` and
+ * `getWorkerApplication()` — you do not normally need to call it directly.
+ *
+ * Calling it replaces any previously configured settings. Pass `null` to
+ * reset (useful in tests).
+ *
+ * @param settings - An object whose keys are mail-related settings constants
+ *   (e.g. `EMAIL_BACKEND`, `EMAIL_HOST`, `DEFAULT_FROM_EMAIL`, …).
+ *
+ * @example
+ * ```ts
+ * import { configureMailSettings } from "@alexi/mail";
+ *
+ * configureMailSettings({
+ *   EMAIL_BACKEND: "smtp",
+ *   EMAIL_HOST: "smtp.example.com",
+ *   EMAIL_PORT: 587,
+ *   EMAIL_HOST_USER: "user@example.com",
+ *   EMAIL_HOST_PASSWORD: "secret",
+ *   EMAIL_USE_TLS: true,
+ * });
+ * ```
+ *
+ * @category Configuration
+ */
+// deno-lint-ignore no-explicit-any
+export function configureMailSettings(
+  settings: Record<string, any> | null,
+): void {
+  _mailSettings = settings;
+  // Also write to globalThis.__alexiMailSettings so that modules that cannot
+  // import from mail.ts (e.g. message.ts, which mail.ts imports from) can
+  // still access the configured settings synchronously.
+  // deno-lint-ignore no-explicit-any
+  (globalThis as any).__alexiMailSettings = settings;
+}
+
+/**
+ * Reads a value from the mail settings store, falling back to
+ * `globalThis.__alexiSettings` (legacy) and then to `defaultValue`.
+ *
+ * Exported so that mail backend modules can share the same settings store
+ * without duplicating the lookup logic.
  *
  * @param key - Settings key.
  * @param defaultValue - Fallback value.
  * @returns The setting value or `defaultValue`.
+ *
+ * @internal
  */
-function _getSetting<T>(key: string, defaultValue: T): T {
+export function getMailSetting<T>(key: string, defaultValue: T): T {
+  // 1. Prefer the framework-configured settings store
+  if (_mailSettings !== null && key in _mailSettings) {
+    return _mailSettings[key] as T;
+  }
+  // 2. Legacy fallback: globalThis.__alexiSettings (manual user assignment)
   try {
-    const settings = (globalThis as any).__alexiSettings;
-    if (settings && key in settings) return settings[key] as T;
+    // deno-lint-ignore no-explicit-any
+    const legacy = (globalThis as any).__alexiSettings;
+    if (legacy && key in legacy) return legacy[key] as T;
   } catch {
     // ignore
   }
   return defaultValue;
 }
+
+// Internal alias used within this module
+const _getSetting = getMailSetting;

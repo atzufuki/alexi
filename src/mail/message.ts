@@ -500,9 +500,16 @@ export function buildMimeMessage(msg: EmailMessage): string {
  */
 function _getDefaultFromEmail(): string {
   try {
-    // Lazy import to avoid circular deps; settings are loaded at runtime.
-    const settings = (globalThis as any).__alexiSettings;
-    return settings?.DEFAULT_FROM_EMAIL ?? "webmaster@localhost";
+    // Read from the shared mail settings store written by configureMailSettings()
+    // deno-lint-ignore no-explicit-any
+    const mailSettings = (globalThis as any).__alexiMailSettings;
+    if (mailSettings && "DEFAULT_FROM_EMAIL" in mailSettings) {
+      return mailSettings["DEFAULT_FROM_EMAIL"];
+    }
+    // Legacy fallback: manual user assignment
+    // deno-lint-ignore no-explicit-any
+    const legacy = (globalThis as any).__alexiSettings;
+    return legacy?.DEFAULT_FROM_EMAIL ?? "webmaster@localhost";
   } catch {
     return "webmaster@localhost";
   }

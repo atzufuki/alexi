@@ -17,7 +17,7 @@
 
 import { BaseEmailBackend } from "./base.ts";
 import type { EmailMessage } from "../message.ts";
-import { registerBackend } from "../mail.ts";
+import { getMailSetting, registerBackend } from "../mail.ts";
 
 // =============================================================================
 // FileEmailBackend
@@ -60,7 +60,7 @@ export class FileEmailBackend extends BaseEmailBackend {
   constructor(options: FileEmailBackendOptions = {}) {
     super({ failSilently: options.failSilently });
     this.filePath = options.filePath ??
-      _getSetting("EMAIL_FILE_PATH", "/tmp/alexi-messages");
+      getMailSetting("EMAIL_FILE_PATH", "/tmp/alexi-messages");
   }
 
   /**
@@ -103,17 +103,3 @@ export class FileEmailBackend extends BaseEmailBackend {
 }
 
 registerBackend("file", FileEmailBackend);
-
-// =============================================================================
-// Helpers
-// =============================================================================
-
-function _getSetting<T>(key: string, defaultValue: T): T {
-  try {
-    const settings = (globalThis as any).__alexiSettings;
-    if (settings && key in settings) return settings[key] as T;
-  } catch {
-    // ignore
-  }
-  return defaultValue;
-}

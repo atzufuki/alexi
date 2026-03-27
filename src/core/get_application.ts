@@ -27,6 +27,7 @@ import { appRegistrationHooks } from "@alexi/types";
 import { registerTemplateDir } from "@alexi/views";
 import { setStorage } from "@alexi/storage";
 import type { Storage } from "@alexi/storage";
+import { configureMailSettings } from "@alexi/mail";
 
 export type { Middleware, MiddlewareClass } from "@alexi/middleware";
 export type { URLPattern } from "@alexi/urls";
@@ -227,6 +228,148 @@ export interface GetApplicationSettings {
    * ```
    */
   MEDIA_URL?: string;
+
+  // ---------------------------------------------------------------------------
+  // Mail settings (mirrors django.core.mail / settings.py)
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Email backend key or module specifier.
+   *
+   * Mirrors Django's `EMAIL_BACKEND` setting.
+   * Built-in keys: `"smtp"` (default), `"console"`, `"file"`, `"memory"`,
+   * `"dummy"`.
+   *
+   * @default "smtp"
+   *
+   * @example
+   * ```ts
+   * export const EMAIL_BACKEND = "console"; // log emails to stdout in dev
+   * ```
+   */
+  EMAIL_BACKEND?: string;
+
+  /**
+   * Hostname of the outgoing mail server.
+   *
+   * Mirrors Django's `EMAIL_HOST`.
+   *
+   * @default "localhost"
+   */
+  EMAIL_HOST?: string;
+
+  /**
+   * Port used for the SMTP connection.
+   *
+   * Mirrors Django's `EMAIL_PORT`.
+   *
+   * @default 587
+   */
+  EMAIL_PORT?: number;
+
+  /**
+   * Username for SMTP authentication.
+   *
+   * Mirrors Django's `EMAIL_HOST_USER`.
+   *
+   * @default ""
+   */
+  EMAIL_HOST_USER?: string;
+
+  /**
+   * Password for SMTP authentication.
+   *
+   * Mirrors Django's `EMAIL_HOST_PASSWORD`.
+   *
+   * @default ""
+   */
+  EMAIL_HOST_PASSWORD?: string;
+
+  /**
+   * Whether to use STARTTLS (port 587 style).
+   *
+   * Mutually exclusive with `EMAIL_USE_SSL`.
+   * Mirrors Django's `EMAIL_USE_TLS`.
+   *
+   * @default false
+   */
+  EMAIL_USE_TLS?: boolean;
+
+  /**
+   * Whether to use implicit TLS (port 465 style).
+   *
+   * Mutually exclusive with `EMAIL_USE_TLS`.
+   * Mirrors Django's `EMAIL_USE_SSL`.
+   *
+   * @default false
+   */
+  EMAIL_USE_SSL?: boolean;
+
+  /**
+   * SMTP connection timeout in milliseconds.
+   *
+   * Mirrors Django's `EMAIL_TIMEOUT`.
+   */
+  EMAIL_TIMEOUT?: number;
+
+  /**
+   * Default email address used for the `From` header when none is provided.
+   *
+   * Mirrors Django's `DEFAULT_FROM_EMAIL`.
+   *
+   * @default "webmaster@localhost"
+   */
+  DEFAULT_FROM_EMAIL?: string;
+
+  /**
+   * Email address used as the `From` header for `mailAdmins()` and
+   * `mailManagers()`.
+   *
+   * Mirrors Django's `SERVER_EMAIL`.
+   *
+   * @default "root@localhost"
+   */
+  SERVER_EMAIL?: string;
+
+  /**
+   * Subject-line prefix prepended by `mailAdmins()` and `mailManagers()`.
+   *
+   * Mirrors Django's `EMAIL_SUBJECT_PREFIX`.
+   *
+   * @default "[Alexi] "
+   */
+  EMAIL_SUBJECT_PREFIX?: string;
+
+  /**
+   * List of `[name, email]` tuples that receive admin mail via `mailAdmins()`.
+   *
+   * Mirrors Django's `ADMINS`.
+   *
+   * @example
+   * ```ts
+   * export const ADMINS: Array<[string, string]> = [
+   *   ["Alice", "alice@example.com"],
+   * ];
+   * ```
+   */
+  ADMINS?: Array<[string, string]>;
+
+  /**
+   * List of `[name, email]` tuples that receive manager mail via
+   * `mailManagers()`.
+   *
+   * Mirrors Django's `MANAGERS`.
+   */
+  MANAGERS?: Array<[string, string]>;
+
+  /**
+   * Filesystem path where `FileEmailBackend` writes `.eml` files.
+   *
+   * Mirrors Django's `EMAIL_FILE_PATH`.
+   *
+   * @default "/tmp/alexi-messages"
+   */
+  EMAIL_FILE_PATH?: string;
 }
 
 // =============================================================================
@@ -326,7 +469,11 @@ async function _buildApplication(
     setStorage(settings.DEFAULT_FILE_STORAGE);
   }
 
-  // 3. Process INSTALLED_APPS and TEMPLATES
+  // 3. Configure mail settings so @alexi/mail reads from the active settings
+  //    module automatically — no manual wiring needed in user settings files.
+  configureMailSettings(settings);
+
+  // 4. Process INSTALLED_APPS and TEMPLATES
   if (settings.INSTALLED_APPS || settings.TEMPLATES) {
     await _processInstalledApps(
       settings.INSTALLED_APPS ?? [],
@@ -334,14 +481,14 @@ async function _buildApplication(
     );
   }
 
-  // 4. Resolve URL patterns
+  // 5. Resolve URL patterns
   const urls = await _resolveUrlPatterns(settings);
 
-  // 5. Build middleware
+  // 6. Build middleware
   const debug = settings.DEBUG ?? false;
   const middleware = _resolveMiddleware(settings, debug);
 
-  // 6. Create and return Application
+  // 7. Create and return Application
   const options: ApplicationOptions = {
     urls,
     middleware,
