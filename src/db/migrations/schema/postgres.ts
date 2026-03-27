@@ -47,6 +47,8 @@ const FIELD_TYPE_MAP: Record<string, string> = {
   BinaryField: "BYTEA",
   JSONField: "JSONB",
   ArrayField: "JSONB",
+  FileField: "VARCHAR(500)",
+  ImageField: "VARCHAR(500)",
   ForeignKey: "INTEGER",
   OneToOneField: "INTEGER UNIQUE",
 };
