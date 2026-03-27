@@ -323,7 +323,7 @@ class SmtpSession {
     await this._readResponse(354);
 
     const rawMsg = msg.message().replace(/\n\./g, "\n.."); // dot-stuffing
-    await this._send(rawMsg + "\r\n.");
+    await this._send(rawMsg + "\r\n.\r\n");
     await this._readResponse(250);
   }
 
