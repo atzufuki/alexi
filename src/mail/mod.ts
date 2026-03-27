@@ -92,6 +92,7 @@ export { BaseEmailBackend } from "./backends/base.ts";
 
 // Core API
 export {
+  configureMailSettings,
   getConnection,
   mailAdmins,
   mailManagers,
