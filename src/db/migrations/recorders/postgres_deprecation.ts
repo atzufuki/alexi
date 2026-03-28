@@ -8,6 +8,7 @@
  */
 
 import type { DatabaseBackend } from "../../backends/backend.ts";
+import type { PostgresBackend } from "../../backends/postgres/backend.ts";
 import type { DeprecationInfo } from "../schema_editor.ts";
 import type { DeprecationRecord, IDeprecationRecorder } from "./interfaces.ts";
 
@@ -44,10 +45,17 @@ import type { DeprecationRecord, IDeprecationRecorder } from "./interfaces.ts";
 export class PostgresDeprecationRecorder implements IDeprecationRecorder {
   private _backend: DatabaseBackend;
   private _tableName = "_alexi_deprecations";
+  private _schema: string;
   private _tableCreated = false;
 
   constructor(backend: DatabaseBackend) {
     this._backend = backend;
+    this._schema = (backend as unknown as PostgresBackend).schema ?? "public";
+  }
+
+  /** Fully schema-qualified table reference, e.g. `"public"."_alexi_deprecations"` */
+  private get _qualifiedTable(): string {
+    return `"${this._schema}"."${this._tableName}"`;
   }
 
   // ==========================================================================
@@ -70,7 +78,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
 
   private async _createTable(): Promise<void> {
     const sql = `
-      CREATE TABLE IF NOT EXISTS "${this._tableName}" (
+      CREATE TABLE IF NOT EXISTS ${this._qualifiedTable} (
         "id" SERIAL PRIMARY KEY,
         "type" VARCHAR(20) NOT NULL,
         "original_name" VARCHAR(255) NOT NULL,
@@ -98,7 +106,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
     await this.ensureTable();
 
     await this._backend.executeRaw(
-      `INSERT INTO "${this._tableName}" 
+      `INSERT INTO ${this._qualifiedTable} 
        ("type", "original_name", "deprecated_name", "migration_name", "table_name", "deprecated_at")
        VALUES ($1, $2, $3, $4, $5, $6)`,
       [
@@ -132,7 +140,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
     await this.ensureTable();
 
     await this._backend.executeRaw(
-      `DELETE FROM "${this._tableName}" WHERE "deprecated_name" = $1`,
+      `DELETE FROM ${this._qualifiedTable} WHERE "deprecated_name" = $1`,
       [deprecatedName],
     );
   }
@@ -186,7 +194,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
       cleaned_up: boolean;
       cleaned_up_at: string | null;
     }>(
-      `SELECT * FROM "${this._tableName}" ${whereClause} ORDER BY "deprecated_at" ASC`,
+      `SELECT * FROM ${this._qualifiedTable} ${whereClause} ORDER BY "deprecated_at" ASC`,
     );
 
     return results.map((row) => this._mapRow(row));
@@ -211,7 +219,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
       cleaned_up: boolean;
       cleaned_up_at: string | null;
     }>(
-      `SELECT * FROM "${this._tableName}" WHERE "migration_name" = $1 ORDER BY "deprecated_at" ASC`,
+      `SELECT * FROM ${this._qualifiedTable} WHERE "migration_name" = $1 ORDER BY "deprecated_at" ASC`,
       [migrationName],
     );
 
@@ -237,7 +245,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
       cleaned_up: boolean;
       cleaned_up_at: string | null;
     }>(
-      `SELECT * FROM "${this._tableName}" WHERE "table_name" = $1 ORDER BY "deprecated_at" ASC`,
+      `SELECT * FROM ${this._qualifiedTable} WHERE "table_name" = $1 ORDER BY "deprecated_at" ASC`,
       [tableName],
     );
 
@@ -257,7 +265,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
     await this.ensureTable();
 
     await this._backend.executeRaw(
-      `UPDATE "${this._tableName}" 
+      `UPDATE ${this._qualifiedTable} 
        SET "cleaned_up" = TRUE, "cleaned_up_at" = CURRENT_TIMESTAMP 
        WHERE "deprecated_name" = $1`,
       [deprecatedName],
@@ -288,7 +296,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
       cleaned_up: boolean;
       cleaned_up_at: string | null;
     }>(
-      `SELECT * FROM "${this._tableName}" 
+      `SELECT * FROM ${this._qualifiedTable} 
        WHERE "cleaned_up" = FALSE AND "deprecated_at" < $1 
        ORDER BY "deprecated_at" ASC`,
       [cutoffDate.toISOString()],
@@ -302,6 +310,6 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
    */
   async clear(): Promise<void> {
     await this.ensureTable();
-    await this._backend.executeRaw(`DELETE FROM "${this._tableName}"`);
+    await this._backend.executeRaw(`DELETE FROM ${this._qualifiedTable}`);
   }
 }

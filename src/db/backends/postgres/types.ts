@@ -81,6 +81,34 @@ export interface PostgresConfig extends DatabaseConfig {
   schema?: string;
 
   /**
+   * Test isolation strategy used by `migrate --test`.
+   *
+   * - `"database"` *(default)* — clones the database with
+   *   `CREATE DATABASE … TEMPLATE`.  Requires the `CREATEDB` privilege and is
+   *   not available on most managed PostgreSQL services (Deno Deploy, Supabase,
+   *   Railway, etc.).
+   * - `"schema"` — creates a temporary schema inside the **same** database
+   *   (`CREATE SCHEMA test_<timestamp>`).  Only requires normal table-creation
+   *   privileges and works on all managed environments.
+   *
+   * @default "database"
+   *
+   * @example
+   * ```ts
+   * // settings.ts — Deno Deploy / managed Postgres
+   * export const DATABASES = {
+   *   default: new PostgresBackend({
+   *     engine: "postgres",
+   *     name: "myapp",
+   *     connectionString: Deno.env.get("DATABASE_URL"),
+   *     testIsolation: "schema",
+   *   }),
+   * };
+   * ```
+   */
+  testIsolation?: "database" | "schema";
+
+  /**
    * Enable debug logging
    */
   debug?: boolean;

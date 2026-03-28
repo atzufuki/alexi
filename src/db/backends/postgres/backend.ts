@@ -130,6 +130,7 @@ export class PostgresBackend extends DatabaseBackend {
   private _pool: Pool | null = null;
   private _schema: string;
   private _debug: boolean;
+  private _testIsolation: "database" | "schema";
 
   constructor(config: PostgresConfig) {
     super({
@@ -144,10 +145,12 @@ export class PostgresBackend extends DatabaseBackend {
         ssl: config.ssl,
         pool: config.pool,
         schema: config.schema,
+        testIsolation: config.testIsolation,
       },
     });
     this._schema = config.schema ?? "public";
     this._debug = config.debug ?? false;
+    this._testIsolation = config.testIsolation ?? "database";
   }
 
   /**
@@ -254,26 +257,91 @@ export class PostgresBackend extends DatabaseBackend {
   /**
    * Create an isolated copy of this PostgreSQL database for `migrate --test`.
    *
-   * Uses PostgreSQL's native `CREATE DATABASE "<temp>" TEMPLATE "<original>"`
-   * to produce an identical copy in a single server-side operation.  A new,
-   * connected {@link PostgresBackend} pointing at the temp database is
-   * returned.
+   * The isolation strategy is controlled by the `testIsolation` config option:
    *
-   * The temporary database name is `<original>_test_<timestamp>` (e.g.
-   * `myapp_test_1700000000000`).
+   * - `"database"` *(default)* — uses `CREATE DATABASE "<temp>" TEMPLATE
+   *   "<original>"` to produce an identical copy.  Requires the `CREATEDB`
+   *   privilege and zero active sessions on the source database at call time.
+   *   This method temporarily disconnects the original backend, creates the
+   *   copy via a maintenance connection to the `postgres` system database, then
+   *   reconnects.
    *
-   * **Important:** `CREATE DATABASE … TEMPLATE` requires that no other
-   * sessions are connected to the template database at the time of the call.
-   * This method disconnects from the original backend, creates the copy via a
-   * maintenance connection to the `postgres` system database, then reconnects
-   * the original backend.
+   * - `"schema"` — creates a temporary schema inside the **same** database
+   *   (`CREATE SCHEMA "test_<timestamp>"`).  Only requires normal
+   *   table-creation privileges and works on managed environments such as
+   *   Deno Deploy, Supabase, and Railway.  The returned backend shares the same
+   *   connection pool but points at the new schema.
    *
-   * @returns A new connected backend backed by the temporary database.
-   * @throws {Error} If the backend uses a `connectionString` (the individual
-   *   host/user/password parameters are required to build the maintenance
-   *   connection).
+   * @returns A new connected backend backed by the temporary database/schema.
    */
   override async copyForTest(): Promise<PostgresBackend> {
+    if (this._testIsolation === "schema") {
+      return this._copyForTestSchema();
+    }
+    return this._copyForTestDatabase();
+  }
+
+  /**
+   * Schema-based test isolation: `CREATE SCHEMA "test_<timestamp>"`.
+   *
+   * Requires only normal table-creation privileges.  Works on all managed
+   * PostgreSQL environments.
+   */
+  private async _copyForTestSchema(): Promise<PostgresBackend> {
+    this.ensureConnected();
+
+    const tempSchema = `test_${Date.now()}`;
+
+    await this._pool!.query(`CREATE SCHEMA "${tempSchema}"`);
+
+    if (this._debug) {
+      console.log(
+        `[PostgresBackend] Created test schema: ${tempSchema}`,
+      );
+    }
+
+    const config = this._config;
+    const options = config.options as {
+      connectionString?: string;
+      ssl?: boolean | object;
+      pool?: Record<string, unknown>;
+      testIsolation?: "database" | "schema";
+    };
+
+    const tempConfig: PostgresConfig = {
+      engine: "postgres",
+      name: config.name,
+      host: config.host,
+      port: config.port,
+      user: config.user,
+      password: config.password,
+      schema: tempSchema,
+      debug: this._debug,
+      testIsolation: "schema",
+    };
+
+    if (options?.connectionString) {
+      tempConfig.connectionString = options.connectionString;
+    }
+
+    if (options?.ssl !== undefined) {
+      tempConfig.ssl = options.ssl as PostgresConfig["ssl"];
+    }
+
+    const copy = new PostgresBackend(tempConfig);
+    await copy.connect();
+    (copy as PostgresBackend & { _tempSchemaName?: string })._tempSchemaName =
+      tempSchema;
+    return copy;
+  }
+
+  /**
+   * Database-based test isolation: `CREATE DATABASE "<temp>" TEMPLATE "<original>"`.
+   *
+   * Requires the `CREATEDB` privilege.  Not available on most managed
+   * PostgreSQL services — use `testIsolation: "schema"` in those environments.
+   */
+  private async _copyForTestDatabase(): Promise<PostgresBackend> {
     const config = this._config;
     const options = config.options as {
       connectionString?: string;
@@ -292,7 +360,6 @@ export class PostgresBackend extends DatabaseBackend {
 
     if (options?.connectionString) {
       // Rewrite the database portion of the connection string to 'postgres'.
-      // We replace the last path segment before any query string.
       const url = new URL(options.connectionString);
       url.pathname = "/postgres";
       maintenancePoolConfig.connectionString = url.toString();
@@ -315,7 +382,6 @@ export class PostgresBackend extends DatabaseBackend {
     try {
       const client = await maintenancePool.connect();
       try {
-        // identifiers are double-quoted to handle mixed-case names
         await client.query(
           `CREATE DATABASE "${tempName}" TEMPLATE "${originalName}"`,
         );
@@ -358,18 +424,46 @@ export class PostgresBackend extends DatabaseBackend {
     (copy as PostgresBackend & { _tempDbName?: string })._tempDbName = tempName;
     (copy as PostgresBackend & {
       _maintenancePoolConfig?: Record<string, unknown>;
-    })
-      ._maintenancePoolConfig = maintenancePoolConfig;
+    })._maintenancePoolConfig = maintenancePoolConfig;
     return copy;
   }
 
   /**
-   * Destroy the temporary database created by {@link copyForTest}.
+   * Destroy the temporary database or schema created by {@link copyForTest}.
    *
-   * Disconnects and runs `DROP DATABASE "<temp>"` via a maintenance connection
-   * to the `postgres` system database.
+   * - For `"schema"` isolation: runs `DROP SCHEMA "<temp>" CASCADE`.
+   * - For `"database"` isolation: disconnects and runs `DROP DATABASE "<temp>"`
+   *   via a maintenance connection to the `postgres` system database.
    */
   override async destroyTestCopy(): Promise<void> {
+    if (this._testIsolation === "schema") {
+      return this._destroyTestCopySchema();
+    }
+    return this._destroyTestCopyDatabase();
+  }
+
+  private async _destroyTestCopySchema(): Promise<void> {
+    const tempSchemaName =
+      (this as PostgresBackend & { _tempSchemaName?: string })._tempSchemaName;
+
+    if (tempSchemaName) {
+      if (this._pool) {
+        await this._pool.query(
+          `DROP SCHEMA IF EXISTS "${tempSchemaName}" CASCADE`,
+        );
+
+        if (this._debug) {
+          console.log(
+            `[PostgresBackend] Dropped test schema: ${tempSchemaName}`,
+          );
+        }
+      }
+    }
+
+    await this.disconnect();
+  }
+
+  private async _destroyTestCopyDatabase(): Promise<void> {
     const tempDbName =
       (this as PostgresBackend & { _tempDbName?: string })._tempDbName;
     const maintenancePoolConfig = (
