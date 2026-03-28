@@ -8,6 +8,23 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.53.0] - 2026-03-28
+
+### Added
+
+- `@alexi/db`: `PostgresBackend` now supports `testIsolation: "schema"` — uses
+  `CREATE SCHEMA test_<timestamp>` inside the same database instead of
+  `CREATE DATABASE … TEMPLATE`, enabling `migrate --test` on managed PostgreSQL
+  environments (Deno Deploy, Supabase, Railway) where the `CREATEDB` privilege
+  is unavailable (#445)
+
+### Fixed
+
+- `@alexi/db`: `PostgresMigrationRecorder` and `PostgresDeprecationRecorder` now
+  use schema-qualified table names (`"schema"."_alexi_migrations"` /
+  `"schema"."_alexi_deprecations"`), fixing a bug where custom `schema`
+  configurations were silently ignored (#445)
+
 ## [0.52.6] - 2026-03-27
 
 ### Fixed
