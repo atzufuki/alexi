@@ -170,6 +170,22 @@ export const MIDDLEWARE = [
 `ROOT_URLCONF` uses an import function so that the user project's import map
 (defined in `deno.json`) is in scope when the import runs.
 
+### Accessing Settings at Runtime
+
+Use `import settings from "@alexi/core/conf"` to access the active settings from
+any module — mirroring Django's `from django.conf import settings` pattern. The
+`settings` object is a lazy proxy that is populated automatically by
+`getHttpApplication()`, `getWorkerApplication()`, or `migrate`/`flush` and other
+management commands.
+
+```typescript
+import settings from "@alexi/core/conf";
+
+// In a view, middleware, data migration, or any module:
+const debug = settings.DEBUG ?? false;
+const db = settings.DATABASES?.default;
+```
+
 ---
 
 ## Application Entry Points

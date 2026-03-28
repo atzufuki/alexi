@@ -9,6 +9,7 @@
 
 import { setup } from "../setup.ts";
 import type { DatabasesConfig } from "../setup.ts";
+import { configureSettings, resetSettings } from "../conf.ts";
 import { toImportUrl } from "./settings_utils.ts";
 import type { AppConfig, InstalledApp } from "@alexi/types";
 
@@ -383,8 +384,14 @@ export function isDatabaseInitialized(): boolean {
  * @param settingsArg - Settings name or path (e.g., "web", "desktop")
  */
 export async function configure(settingsArg?: string): Promise<void> {
-  // Load settings
-  await loadSettings(settingsArg);
+  // Load settings into config.ts registry
+  const settings = await loadSettings(settingsArg);
+
+  // Also populate the conf.ts global registry so that `conf.*` is accessible
+  // inside management commands (e.g. data migrations, signal handlers) without
+  // requiring getHttpApplication() to have been called first.
+  // deno-lint-ignore no-explicit-any
+  configureSettings(settings as any);
 
   // Initialize database
   await initializeDatabase();
@@ -401,4 +408,5 @@ export function resetConfiguration(): void {
   _settingsModule = null;
   _initialized = false;
   _loadedApps = [];
+  resetSettings();
 }
