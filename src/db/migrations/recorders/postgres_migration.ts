@@ -8,6 +8,7 @@
  */
 
 import type { DatabaseBackend } from "../../backends/backend.ts";
+import type { PostgresBackend } from "../../backends/postgres/backend.ts";
 import type { IMigrationRecorder, MigrationRecord } from "./interfaces.ts";
 
 // ============================================================================
@@ -39,10 +40,17 @@ import type { IMigrationRecorder, MigrationRecord } from "./interfaces.ts";
 export class PostgresMigrationRecorder implements IMigrationRecorder {
   private _backend: DatabaseBackend;
   private _tableName = "_alexi_migrations";
+  private _schema: string;
   private _tableCreated = false;
 
   constructor(backend: DatabaseBackend) {
     this._backend = backend;
+    this._schema = (backend as unknown as PostgresBackend).schema ?? "public";
+  }
+
+  /** Fully schema-qualified table reference, e.g. `"public"."_alexi_migrations"` */
+  private get _qualifiedTable(): string {
+    return `"${this._schema}"."${this._tableName}"`;
   }
 
   // ==========================================================================
@@ -65,7 +73,7 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
 
   private async _createTable(): Promise<void> {
     const sql = `
-      CREATE TABLE IF NOT EXISTS "${this._tableName}" (
+      CREATE TABLE IF NOT EXISTS ${this._qualifiedTable} (
         "id" SERIAL PRIMARY KEY,
         "name" VARCHAR(255) NOT NULL UNIQUE,
         "app_label" VARCHAR(255) NOT NULL,
@@ -88,7 +96,7 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
     await this.ensureTable();
 
     const results = await this._backend.executeRaw<{ count: number }>(
-      `SELECT COUNT(*) as count FROM "${this._tableName}" WHERE "name" = $1`,
+      `SELECT COUNT(*) as count FROM ${this._qualifiedTable} WHERE "name" = $1`,
       [fullName],
     );
 
@@ -106,7 +114,7 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
       app_label: string;
       applied_at: string;
     }>(
-      `SELECT "name", "app_label", "applied_at" FROM "${this._tableName}" ORDER BY "applied_at" ASC`,
+      `SELECT "name", "app_label", "applied_at" FROM ${this._qualifiedTable} ORDER BY "applied_at" ASC`,
     );
 
     return results.map((row) => ({
@@ -129,7 +137,7 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
       app_label: string;
       applied_at: string;
     }>(
-      `SELECT "name", "app_label", "applied_at" FROM "${this._tableName}" 
+      `SELECT "name", "app_label", "applied_at" FROM ${this._qualifiedTable} 
        WHERE "app_label" = $1 ORDER BY "applied_at" ASC`,
       [appLabel],
     );
@@ -151,7 +159,7 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
     await this.ensureTable();
 
     await this._backend.executeRaw(
-      `INSERT INTO "${this._tableName}" ("name", "app_label", "applied_at") 
+      `INSERT INTO ${this._qualifiedTable} ("name", "app_label", "applied_at") 
        VALUES ($1, $2, CURRENT_TIMESTAMP)`,
       [fullName, appLabel],
     );
@@ -166,7 +174,7 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
     await this.ensureTable();
 
     await this._backend.executeRaw(
-      `DELETE FROM "${this._tableName}" WHERE "name" = $1`,
+      `DELETE FROM ${this._qualifiedTable} WHERE "name" = $1`,
       [fullName],
     );
   }
@@ -184,7 +192,7 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
       app_label: string;
       applied_at: string;
     }>(
-      `SELECT "name", "app_label", "applied_at" FROM "${this._tableName}" 
+      `SELECT "name", "app_label", "applied_at" FROM ${this._qualifiedTable} 
        WHERE "app_label" = $1 ORDER BY "applied_at" DESC LIMIT 1`,
       [appLabel],
     );
@@ -203,6 +211,6 @@ export class PostgresMigrationRecorder implements IMigrationRecorder {
    */
   async clear(): Promise<void> {
     await this.ensureTable();
-    await this._backend.executeRaw(`DELETE FROM "${this._tableName}"`);
+    await this._backend.executeRaw(`DELETE FROM ${this._qualifiedTable}`);
   }
 }

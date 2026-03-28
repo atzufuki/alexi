@@ -450,6 +450,31 @@ Key design principles:
 | `IndexedDBBackend` | `@alexi/db/backends/indexeddb` | Browser     | Local browser storage          |
 | `RestBackend`      | `@alexi/db/backends/rest`      | Browser     | Maps ORM calls to REST API     |
 
+#### `PostgresBackend` — `testIsolation` option
+
+`migrate --test` requires an isolated copy of the database. `PostgresBackend`
+supports two strategies, configured via `testIsolation`:
+
+| Value                    | How it works                                              | Privilege required               |
+| ------------------------ | --------------------------------------------------------- | -------------------------------- |
+| `"database"` _(default)_ | `CREATE DATABASE … TEMPLATE`                              | `CREATEDB`                       |
+| `"schema"`               | `CREATE SCHEMA test_<timestamp>` inside the same database | Normal table-creation privileges |
+
+Use `"schema"` on managed PostgreSQL services (Deno Deploy, Supabase, Railway,
+etc.) where `CREATEDB` is not available:
+
+```typescript
+// settings.ts
+export const DATABASES = {
+  default: new PostgresBackend({
+    engine: "postgres",
+    name: "myapp",
+    connectionString: Deno.env.get("DATABASE_URL"),
+    testIsolation: "schema",
+  }),
+};
+```
+
 ---
 
 ## REST Framework
