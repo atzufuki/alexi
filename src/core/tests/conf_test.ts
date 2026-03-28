@@ -9,6 +9,7 @@ import {
   isSettingsConfigured,
   resetSettings,
 } from "../conf.ts";
+import { resetConfiguration } from "../management/config.ts";
 
 Deno.test("conf: throws before configuration", () => {
   resetSettings();
@@ -70,3 +71,21 @@ Deno.test("conf: reads all configured fields correctly", () => {
 
   resetSettings();
 });
+
+Deno.test(
+  "conf: resetConfiguration() clears conf registry so conf throws again",
+  () => {
+    // Simulate configure() populating conf (as happens during `migrate`)
+    configureSettings({ DEBUG: true });
+    assertEquals(isSettingsConfigured(), true);
+
+    // resetConfiguration() must also clear the conf registry
+    resetConfiguration();
+    assertEquals(isSettingsConfigured(), false);
+    assertThrows(
+      () => conf.DEBUG,
+      Error,
+      "Alexi settings are not configured",
+    );
+  },
+);
