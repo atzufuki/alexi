@@ -8,6 +8,22 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.53.1] - 2026-03-28
+
+### Added
+
+- `@alexi/core`: `@alexi/core/conf` now exposes a default export `settings` —
+  the Django-style `import settings from "@alexi/core/conf"` pattern mirroring
+  `from django.conf import settings`. The named `conf` export is retained for
+  backwards compatibility but marked `@deprecated` (#447)
+
+### Fixed
+
+- `@alexi/core`: `configure()` (called by `migrate`, `flush`, and other
+  management commands) now populates the `conf` proxy in addition to the
+  internal config registry, so `import settings from "@alexi/core/conf"` works
+  correctly inside data migrations and other management-command contexts (#447)
+
 ## [0.53.0] - 2026-03-28
 
 ### Added
