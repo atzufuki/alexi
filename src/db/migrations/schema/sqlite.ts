@@ -260,6 +260,25 @@ export class SQLiteMigrationSchemaEditor implements IBackendSchemaEditor {
     return (rows[0]?.cnt ?? 0) > 0;
   }
 
+  /**
+   * Check whether a column exists in the given table.
+   *
+   * @param tableName - The table to inspect.
+   * @param columnName - The column name to look for.
+   * @returns `true` if the column exists, `false` otherwise.
+   */
+  async columnExists(
+    tableName: string,
+    columnName: string,
+  ): Promise<boolean> {
+    if (this._dryRun) return false;
+    const rows = this._db.prepare<{ name: string }>(
+      `PRAGMA table_info(${this.quote(tableName)})`,
+    ).all();
+    await Promise.resolve();
+    return rows.some((r) => r.name === columnName);
+  }
+
   // ==========================================================================
   // Column Operations
   // ==========================================================================

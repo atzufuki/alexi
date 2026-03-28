@@ -129,6 +129,7 @@ export interface IBackendSchemaEditor {
   dropTable(tableName: string): Promise<void>;
   renameTable(oldName: string, newName: string): Promise<void>;
   tableExists(tableName: string): Promise<boolean>;
+  columnExists(tableName: string, columnName: string): Promise<boolean>;
 
   // Column operations
   addColumn(
@@ -288,6 +289,15 @@ export class MigrationSchemaEditor {
     this._log(`Deprecating model ${model.name}...`);
 
     if (!this._recordOnly) {
+      // If a stale deprecated artifact from a prior rollback cycle exists,
+      // drop it before renaming so that repeated rollbacks don't fail.
+      const staleExists = await this._backendEditor.tableExists(deprecatedName);
+      if (staleExists) {
+        this._logVerbose(
+          `  Dropping stale deprecated table ${deprecatedName} from prior rollback`,
+        );
+        await this._backendEditor.dropTable(deprecatedName);
+      }
       await this._backendEditor.renameTable(tableName, deprecatedName);
     }
 
@@ -405,6 +415,18 @@ export class MigrationSchemaEditor {
     this._log(`Deprecating field ${fieldName} on ${model.name}...`);
 
     if (!this._recordOnly) {
+      // If a stale deprecated artifact from a prior rollback cycle exists,
+      // drop it before renaming so that repeated rollbacks don't fail.
+      const staleExists = await this._backendEditor.columnExists(
+        tableName,
+        deprecatedName,
+      );
+      if (staleExists) {
+        this._logVerbose(
+          `  Dropping stale deprecated column ${deprecatedName} from prior rollback`,
+        );
+        await this._backendEditor.dropColumn(tableName, deprecatedName);
+      }
       await this._backendEditor.renameColumn(
         tableName,
         fieldName,

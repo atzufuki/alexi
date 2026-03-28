@@ -297,7 +297,7 @@ export class PostgresDeprecationRecorder implements IDeprecationRecorder {
       cleaned_up_at: string | null;
     }>(
       `SELECT * FROM ${this._qualifiedTable} 
-       WHERE "cleaned_up" = FALSE AND "deprecated_at" < $1 
+       WHERE "cleaned_up" = FALSE AND "deprecated_at" <= $1 
        ORDER BY "deprecated_at" ASC`,
       [cutoffDate.toISOString()],
     );

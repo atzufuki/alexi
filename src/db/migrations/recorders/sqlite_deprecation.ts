@@ -295,7 +295,7 @@ export class SQLiteDeprecationRecorder implements IDeprecationRecorder {
       cleaned_up_at: string | null;
     }>(
       `SELECT * FROM "${this._tableName}"
-       WHERE "cleaned_up" = 0 AND "deprecated_at" < ?
+       WHERE "cleaned_up" = 0 AND "deprecated_at" <= ?
        ORDER BY "deprecated_at" ASC`,
       [cutoffDate.toISOString()],
     );

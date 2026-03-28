@@ -414,6 +414,12 @@ export class MigrationExecutor {
           await schemaEditor.autoReverse(log);
         }
 
+        // Record deprecations produced by backwards() / autoReverse()
+        const deprecations = schemaEditor.getDeprecations();
+        if (deprecations.length > 0) {
+          await this._deprecationRecorder.recordMany(deprecations);
+        }
+
         // Remove the migration record
         await this._recorder.recordUnapplied(fullName);
       }
