@@ -165,6 +165,21 @@ export class DenoKVMigrationSchemaEditor implements IBackendSchemaEditor {
     return result.value !== null;
   }
 
+  async columnExists(
+    tableName: string,
+    columnName: string,
+  ): Promise<boolean> {
+    if (this._dryRun) return false;
+
+    const result = await this._kv.get([
+      "_schema",
+      "columns",
+      tableName,
+      columnName,
+    ]);
+    return result.value !== null;
+  }
+
   // ==========================================================================
   // Column Operations
   // ==========================================================================

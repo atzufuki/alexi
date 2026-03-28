@@ -268,7 +268,7 @@ export class DenoKVDeprecationRecorder implements IDeprecationRecorder {
     cutoffDate.setDate(cutoffDate.getDate() - minAgeDays);
 
     const all = await this.getAll(false); // Only non-cleaned-up
-    return all.filter((r) => r.deprecatedAt < cutoffDate);
+    return all.filter((r) => r.deprecatedAt <= cutoffDate);
   }
 
   /**

@@ -407,6 +407,13 @@ class DryRunSchemaEditor implements IBackendSchemaEditor {
     return false;
   }
 
+  async columnExists(
+    _tableName: string,
+    _columnName: string,
+  ): Promise<boolean> {
+    return false;
+  }
+
   async addColumn(
     tableName: string,
     columnName: string,

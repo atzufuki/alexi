@@ -204,6 +204,22 @@ export class PostgresMigrationSchemaEditor implements IBackendSchemaEditor {
     return result.rows[0]?.exists === true;
   }
 
+  async columnExists(
+    tableName: string,
+    columnName: string,
+  ): Promise<boolean> {
+    if (this._dryRun) return false;
+
+    const result = await this._pool.query(
+      `SELECT EXISTS (
+        SELECT FROM information_schema.columns
+        WHERE table_schema = $1 AND table_name = $2 AND column_name = $3
+      )`,
+      [this._schema, tableName, columnName],
+    );
+    return result.rows[0]?.exists === true;
+  }
+
   // ==========================================================================
   // Column Operations
   // ==========================================================================
