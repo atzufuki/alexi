@@ -1,6 +1,6 @@
 {
   "name": "@alexi/mail",
-  "version": "0.53.1",
+  "version": "0.53.2",
   "license": "MIT",
   "exports": {
     ".": "./mod.ts",

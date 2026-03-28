@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.53.2] - 2026-03-28
+
+### Fixed
+
+- `@alexi/db`: `deprecateModel()` and `deprecateField()` now drop any
+  pre-existing deprecated artifact before renaming, preventing
+  `relation already exists` errors when `migrate <app> zero` is run more than
+  once (#449)
+- `@alexi/db`: `_unapplyMigration()` now records deprecations in
+  `_alexi_deprecations`, fixing missing entries after a rollback (#449)
+- `@alexi/db`: `getPendingCleanup()` now uses `<=` instead of `<` so that
+  `--cleanup-days 0` correctly matches records created in the current second
+  (#449)
+
 ## [0.53.1] - 2026-03-28
 
 ### Added
