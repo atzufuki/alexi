@@ -814,6 +814,48 @@ Deno.test({
   },
 });
 
+Deno.test({
+  name:
+    "renderChangeForm: POST change with ForeignKey field succeeds (no 500) — #451",
+  async fn() {
+    const originalKey = Deno.env.get("SECRET_KEY");
+    if (originalKey) Deno.env.delete("SECRET_KEY");
+
+    const backend = await makeBackend();
+    try {
+      const category = await CategoryModel.objects.create({ name: "Tech" });
+      const categoryId = category.id.get() as number;
+      const article = await ArticleModel.objects.create({
+        title: "Original FK Article",
+        category: categoryId,
+      });
+      const id = String(article.id.get());
+
+      const site = makeSite();
+      site.register(ArticleModel, ModelAdmin);
+      // POST a change — category FK value submitted as plain integer string
+      const req = makePostRequest(
+        `/admin/articlemodel/${id}/`,
+        { title: "Updated FK Article", category: String(categoryId) },
+        makeValidToken(),
+      );
+      const res = await renderChangeForm(
+        { request: req, params: { id }, adminSite: site, backend },
+        "articlemodel",
+        id,
+      );
+      // Must redirect (302), not return 500
+      assertEquals(res.status, 302);
+
+      const updated = await ArticleModel.objects.get({ id: parseInt(id, 10) });
+      assertEquals(updated.title.get(), "Updated FK Article");
+    } finally {
+      await teardownBackend(backend);
+      if (originalKey) Deno.env.set("SECRET_KEY", originalKey);
+    }
+  },
+});
+
 // =============================================================================
 // readonlyFields support (#162)
 // =============================================================================

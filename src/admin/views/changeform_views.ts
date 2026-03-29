@@ -541,7 +541,13 @@ async function saveInstance(
         }
       }
 
-      await (instance as { save(): Promise<void> }).save();
+      // Use updateFields to perform a partial update (PATCH-style). This
+      // avoids calling toDB() on ForeignKey fields that were not submitted
+      // (e.g. readonlyFields or unloaded relations), which would cause a
+      // runtime error. See: https://github.com/atzufuki/alexi/issues/451
+      await (instance as {
+        save(opts: { updateFields: string[] }): Promise<void>;
+      }).save({ updateFields: Object.keys(data) });
       const id = (instance as Record<string, { get(): unknown }>).id?.get();
       return { success: true, id };
     } else {
