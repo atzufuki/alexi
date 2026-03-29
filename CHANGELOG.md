@@ -8,6 +8,15 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.53.3] - 2026-03-29
+
+### Fixed
+
+- `@alexi/admin`: `POST /admin/<model>/<id>/` no longer returns 500 for models
+  with `ForeignKey` fields — `saveInstance()` now uses `updateFields` to only
+  update the submitted fields, avoiding serialisation of unloaded relations
+  (#451)
+
 ## [0.53.2] - 2026-03-28
 
 ### Fixed
