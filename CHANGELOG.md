@@ -8,6 +8,26 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.53.4] - 2026-03-29
+
+### Fixed
+
+- `@alexi/restframework`: `QueryParamFilterBackend` now correctly handles FK
+  fields — `filtersetFields = ["author"]` no longer silently drops `?author=1`
+  params when the ORM translates the field name to a column name (`author_id`);
+  `resolveFieldName()` reverse-maps column names back to field names for the
+  allow-list check (#453)
+- `@alexi/db`: `RestBackend` now sends `?author=1` instead of `?author_id=1`
+  when filtering by a `ForeignKey` field, matching what the server-side viewset
+  expects (#453)
+- `@alexi/db`: `QuerySet._getFieldValue` now correctly matches `ForeignKey`
+  instances by column name during in-memory filtering after `.fetch()`, fixing
+  silent 0-match results for FK filters (#453)
+- `@alexi/db`: `QueryState.ordering` type corrected to `ParsedOrdering[]`
+  (`direction: "ASC" | "DESC"`) — aligns the type declaration with what
+  `_parseOrdering()` actually stores; SQLite `QueryBuilder` updated to use
+  `o.direction` accordingly
+
 ## [0.53.3] - 2026-03-29
 
 ### Fixed
