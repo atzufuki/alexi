@@ -368,8 +368,9 @@ export class SQLiteQueryBuilder<T extends Model> {
 
     return ordering
       .map((o) => {
-        // QueryState uses `descending: boolean`; reversed flips the direction.
-        const descending = this.state.reversed ? !o.descending : o.descending;
+        // ParsedOrdering uses `direction: "ASC" | "DESC"`; reversed flips the direction.
+        const isDesc = o.direction === "DESC";
+        const descending = this.state.reversed ? !isDesc : isDesc;
         return `${this.quote(o.field)} ${descending ? "DESC" : "ASC"}`;
       })
       .join(", ");

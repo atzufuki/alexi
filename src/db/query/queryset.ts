@@ -435,6 +435,10 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
   /**
    * Get the value of a field from a model instance
    * Supports nested field access (e.g., "author__name")
+   *
+   * Handles both the field name form ("author") and the column name form
+   * ("author_id") so that in-memory filtering after `.fetch()` works correctly
+   * for ForeignKey fields regardless of which form was stored in the filter.
    */
   private _getFieldValue(item: T, fieldPath: string): unknown {
     const parts = fieldPath.split("__");
@@ -446,11 +450,32 @@ export class QuerySet<T extends Model> implements AsyncIterable<T> {
         return null;
       }
 
-      // Check if it's a Field instance
+      // Check if it's a Field instance by its property name
       if (current[part] && typeof current[part].get === "function") {
         current = current[part].get();
-      } else {
+      } else if (current[part] !== undefined) {
         current = current[part];
+      } else {
+        // `part` was not found directly — it may be the column name of a FK
+        // (e.g. "author_id").  Walk the object's fields looking for a
+        // ForeignKey whose getColumnName() matches `part`.
+        let resolved = false;
+        if (typeof current === "object") {
+          for (const key of Object.keys(current)) {
+            const fieldObj = current[key];
+            if (
+              fieldObj instanceof ForeignKey &&
+              fieldObj.getColumnName() === part
+            ) {
+              current = fieldObj.id;
+              resolved = true;
+              break;
+            }
+          }
+        }
+        if (!resolved) {
+          current = undefined;
+        }
       }
     }
 

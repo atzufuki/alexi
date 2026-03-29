@@ -7,7 +7,7 @@
  * @module @alexi/restframework/filters/filter_backend
  */
 
-import type { Model, QuerySet } from "@alexi/db";
+import { ForeignKey, type Model, type QuerySet } from "@alexi/db";
 import type { ViewSetContext } from "../viewsets/viewset.ts";
 
 export type { Model, QuerySet } from "@alexi/db";
@@ -143,13 +143,17 @@ export class QueryParamFilterBackend implements FilterBackend {
       // Parse the key to extract field name and lookup
       const { field, lookup } = this.parseFilterKey(key);
 
-      // Only allow filtering on configured fields
-      if (!allowedFields.includes(field)) {
+      // Only allow filtering on configured fields.
+      // Accept both the field name ("author") and the column name ("author_id")
+      // so that the REST backend's FK column-name translation is transparent.
+      const resolvedField = this.resolveFieldName(field, queryset);
+      if (!allowedFields.includes(resolvedField)) {
         continue;
       }
 
-      // Build the filter key (with lookup if present)
-      const filterKey = lookup ? `${field}__${lookup}` : field;
+      // Build the filter key using the resolved (field-name) form so the ORM
+      // can do its own FK translation correctly downstream.
+      const filterKey = lookup ? `${resolvedField}__${lookup}` : resolvedField;
 
       // Parse and set the value
       filterConditions[filterKey] = this.parseFilterValue(value, lookup);
@@ -161,6 +165,46 @@ export class QueryParamFilterBackend implements FilterBackend {
     }
 
     return queryset;
+  }
+
+  /**
+   * Resolve a URL param field name to the canonical field name on the model.
+   *
+   * If `field` matches the column name of a ForeignKey (e.g. `"author_id"`),
+   * returns the corresponding field name (e.g. `"author"`).  Otherwise returns
+   * `field` unchanged.
+   *
+   * This makes `filtersetFields = ["author"]` accept both `?author=5` and
+   * `?author_id=5`, matching Django's behaviour.
+   */
+  private resolveFieldName<T extends Model>(
+    field: string,
+    queryset: QuerySet<T>,
+  ): string {
+    try {
+      // deno-lint-ignore no-explicit-any
+      const state = (queryset as any)._state;
+      if (!state?.model) return field;
+      const instance = new state.model();
+      const fields = instance.getFields() as Record<string, unknown>;
+
+      // Check direct match first (most common path)
+      if (fields[field] !== undefined) return field;
+
+      // Check if field is a column-name alias for any FK field
+      for (const [fieldName, fieldObj] of Object.entries(fields)) {
+        if (
+          fieldObj instanceof ForeignKey &&
+          fieldObj.getColumnName() === field
+        ) {
+          return fieldName;
+        }
+      }
+    } catch {
+      // If model introspection fails, return field as-is
+    }
+
+    return field;
   }
 
   /**
