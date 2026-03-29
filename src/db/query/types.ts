@@ -209,7 +209,7 @@ export interface QueryState<T extends Model> {
   /** Filter conditions */
   filters: ParsedFilter[];
   /** Ordering specifications */
-  ordering: Array<{ field: string; descending: boolean }>;
+  ordering: ParsedOrdering[];
   /** Fields to select (empty = all) */
   selectFields: string[];
   /** Fields to defer loading */
@@ -289,7 +289,7 @@ export interface CompiledQuery {
     type: "select" | "insert" | "update" | "delete" | "count";
     table: string;
     filters: ParsedFilter[];
-    ordering: Array<{ field: string; descending: boolean }>;
+    ordering: ParsedOrdering[];
     fields: string[];
     limit: number | null;
     offset: number | null;

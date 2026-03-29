@@ -65,6 +65,7 @@
 import { DatabaseBackend } from "../backend.ts";
 import type { SchemaEditor, Transaction } from "../backend.ts";
 import { Model } from "../../models/model.ts";
+import { ForeignKey } from "../../fields/relations.ts";
 import type {
   Aggregations,
   CompiledQuery,
@@ -1039,9 +1040,18 @@ export class RestBackend extends DatabaseBackend {
     const params = new URLSearchParams();
 
     for (const filter of state.filters) {
+      // Reverse-translate column names back to field names before emitting as
+      // URL params. The queryset translates ForeignKey field names to column
+      // names (e.g. "author" → "author_id") for SQL/KV backends. However,
+      // REST APIs (and DRF's QueryParamFilterBackend) expect the field name
+      // form ("author"), not the column name form ("author_id").
+      const fieldName = this._getFieldNameFromColumnName(
+        state.model as unknown as new () => Model,
+        filter.field,
+      );
       const paramName = filter.lookup === "exact"
-        ? filter.field
-        : `${filter.field}__${filter.lookup}`;
+        ? fieldName
+        : `${fieldName}__${filter.lookup}`;
       params.set(paramName, String(filter.value));
     }
 
@@ -1554,6 +1564,48 @@ export class RestBackend extends DatabaseBackend {
     if (this._debug) {
       console.log("[RestBackend]", ...args);
     }
+  }
+
+  /**
+   * Reverse-translate a column name to the canonical field name on the model.
+   *
+   * The queryset pre-translates ForeignKey field names to column names
+   * (e.g. `"author"` → `"author_id"`) so SQL/KV backends receive the correct
+   * column identifier.  For REST requests we need the original field name
+   * because REST APIs (and DRF's `QueryParamFilterBackend`) expect field names,
+   * not column names, as URL query parameters.
+   *
+   * If `columnName` is already a plain field name (no FK mapping found) it is
+   * returned unchanged.
+   *
+   * @param modelClass - The model class whose fields are inspected.
+   * @param columnName - The column name to resolve (e.g. `"author_id"`).
+   * @returns The field name (e.g. `"author"`) or `columnName` unchanged.
+   */
+  private _getFieldNameFromColumnName(
+    modelClass: new () => Model,
+    columnName: string,
+  ): string {
+    try {
+      const instance = new modelClass();
+      const fields = instance.getFields() as Record<string, unknown>;
+
+      // Fast path: column name IS already a field name
+      if (fields[columnName] !== undefined) return columnName;
+
+      // Reverse-map: find any FK whose getColumnName() matches columnName
+      for (const [fieldName, field] of Object.entries(fields)) {
+        if (
+          field instanceof ForeignKey &&
+          field.getColumnName() === columnName
+        ) {
+          return fieldName;
+        }
+      }
+    } catch {
+      // If model introspection fails, return as-is
+    }
+    return columnName;
   }
 
   // ============================================================================

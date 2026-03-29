@@ -19,8 +19,11 @@ import {
   BooleanField,
   CharField,
   DateTimeField,
+  ForeignKey,
   IntegerField,
+  Manager,
   Model,
+  OnDelete,
   QuerySet,
 } from "@alexi/db";
 
@@ -473,3 +476,104 @@ Deno.test("SearchFilter - returns unfiltered when search param is whitespace onl
 
   assertEquals(filtered.state.filters.length, 0);
 });
+
+// ============================================================================
+// ForeignKey Filter Tests (Issue #453)
+// ============================================================================
+
+class TestAuthorModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(TestAuthorModel);
+  static override meta = { dbTable: "test_authors" };
+}
+
+class TestArticleModel extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  author = new ForeignKey<TestAuthorModel>(TestAuthorModel, {
+    onDelete: OnDelete.CASCADE,
+  });
+
+  static objects = new Manager(TestArticleModel);
+  static override meta = { dbTable: "test_articles" };
+}
+
+Deno.test(
+  "QueryParamFilterBackend - FK field name accepted when filtersetFields uses field name",
+  () => {
+    // ?author=5 with filtersetFields = ["author"] → should filter
+    const backend = new QueryParamFilterBackend();
+    const queryset = new QuerySet(TestArticleModel);
+    const context = createMockContext(
+      "http://localhost/api/articles/?author=5",
+    );
+    const viewset = createMockViewSet({ filtersetFields: ["author"] });
+
+    const filtered = backend.filterQueryset(queryset, context, viewset);
+
+    // Filter should be accepted and translated to the FK field name
+    assertEquals(filtered.state.filters.length, 1);
+    assertEquals(filtered.state.filters[0].field, "author_id");
+    assertEquals(filtered.state.filters[0].value, 5);
+  },
+);
+
+Deno.test(
+  "QueryParamFilterBackend - FK column name accepted when filtersetFields uses field name (Issue #453)",
+  () => {
+    // ?author_id=5 with filtersetFields = ["author"]
+    // Before the fix this was silently dropped, causing a data leak.
+    const backend = new QueryParamFilterBackend();
+    const queryset = new QuerySet(TestArticleModel);
+    const context = createMockContext(
+      "http://localhost/api/articles/?author_id=5",
+    );
+    const viewset = createMockViewSet({ filtersetFields: ["author"] });
+
+    const filtered = backend.filterQueryset(queryset, context, viewset);
+
+    // author_id must resolve to "author" in the allow-list check and then
+    // be passed to the queryset as "author" so the ORM translates it to
+    // "author_id" internally.
+    assertEquals(filtered.state.filters.length, 1);
+    assertEquals(filtered.state.filters[0].field, "author_id");
+    assertEquals(filtered.state.filters[0].value, 5);
+  },
+);
+
+Deno.test(
+  "QueryParamFilterBackend - FK column name with lookup accepted (Issue #453)",
+  () => {
+    // ?author_id__in=1,2,3 with filtersetFields = ["author"]
+    const backend = new QueryParamFilterBackend();
+    const queryset = new QuerySet(TestArticleModel);
+    const context = createMockContext(
+      "http://localhost/api/articles/?author_id__in=1,2,3",
+    );
+    const viewset = createMockViewSet({ filtersetFields: ["author"] });
+
+    const filtered = backend.filterQueryset(queryset, context, viewset);
+
+    assertEquals(filtered.state.filters.length, 1);
+    assertEquals(filtered.state.filters[0].field, "author_id");
+    assertEquals(filtered.state.filters[0].lookup, "in");
+  },
+);
+
+Deno.test(
+  "QueryParamFilterBackend - non-FK fields still rejected if not in filtersetFields",
+  () => {
+    const backend = new QueryParamFilterBackend();
+    const queryset = new QuerySet(TestArticleModel);
+    const context = createMockContext(
+      "http://localhost/api/articles/?secret=hidden",
+    );
+    const viewset = createMockViewSet({ filtersetFields: ["author"] });
+
+    const filtered = backend.filterQueryset(queryset, context, viewset);
+
+    assertEquals(filtered.state.filters.length, 0);
+  },
+);

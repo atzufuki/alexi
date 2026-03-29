@@ -1793,3 +1793,71 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// Issue #453: In-memory FK filtering after fetch()
+// ============================================================================
+
+Deno.test({
+  name:
+    "QuerySet - in-memory filter({ fkField: id }) works after fetch() (Issue #453)",
+  sanitizeOps: false,
+  sanitizeResources: false,
+  async fn() {
+    const backend = new DenoKVBackend({
+      name: "fk453-inmemory-1",
+      path: ":memory:",
+    });
+    await backend.connect();
+    registerBackend("default", backend);
+
+    try {
+      const org1 = await Organisation.objects.create({
+        name: "Org One",
+        country: "Finland",
+      });
+      const org2 = await Organisation.objects.create({
+        name: "Org Two",
+        country: "Sweden",
+      });
+
+      await Project.objects.create({
+        name: "Project A",
+        organisation: org1,
+      });
+      await Project.objects.create({
+        name: "Project B",
+        organisation: org2,
+      });
+      await Project.objects.create({
+        name: "Project C",
+        organisation: org1,
+      });
+
+      // Fetch all, then in-memory filter by FK field name
+      const allProjects = await Project.objects.all().fetch();
+      assertEquals(allProjects.array().length, 3);
+
+      // Filter using FK field name form ("organisation")
+      const org1Projects = allProjects.filter({ organisation: org1.id.get() });
+      assertEquals(
+        org1Projects.array().length,
+        2,
+        "filter({ organisation: id }) should return 2 projects for org1",
+      );
+
+      // Filter using FK column name form ("organisation_id")
+      const org2Projects = allProjects.filter({
+        organisation_id: org2.id.get(),
+      });
+      assertEquals(
+        org2Projects.array().length,
+        1,
+        "filter({ organisation_id: id }) should return 1 project for org2",
+      );
+    } finally {
+      await reset();
+      await backend.disconnect();
+    }
+  },
+});

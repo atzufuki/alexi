@@ -4,6 +4,9 @@
  * Tests that ForeignKey fields are correctly serialized using .id
  * instead of .get() which throws when the relation is not loaded.
  *
+ * Also covers Issue #453: FK column names must be reverse-translated back to
+ * field names when building URL query parameters for REST requests.
+ *
  * @module
  */
 
@@ -17,7 +20,8 @@ import {
   Model,
 } from "../mod.ts";
 import { ForeignKey, OnDelete } from "../fields/relations.ts";
-import { RestBackend } from "../backends/rest/mod.ts";
+import { ModelEndpoint, RestBackend } from "../backends/rest/mod.ts";
+import { createQueryState } from "../query/types.ts";
 
 // ============================================================================
 // Test Models
@@ -61,6 +65,34 @@ class ProjectRole extends Model {
   static override meta = {
     dbTable: "project_roles",
   };
+}
+
+// ============================================================================
+// Test Helper: Intercept fetch calls (Fix #453)
+// ============================================================================
+
+type FetchCall = { url: string; options?: RequestInit };
+
+class ProjectEndpoint extends ModelEndpoint {
+  model = Project;
+  path = "/projects/";
+}
+
+class TrackingRestBackend extends RestBackend {
+  fetchCalls: FetchCall[] = [];
+
+  constructor(apiUrl = "http://test.local/api") {
+    super({ apiUrl, endpoints: [ProjectEndpoint] });
+  }
+
+  // deno-lint-ignore require-await
+  protected override async request<T>(
+    path: string,
+    options?: RequestInit,
+  ): Promise<T> {
+    this.fetchCalls.push({ url: path, options });
+    return [] as unknown as T;
+  }
 }
 
 // ============================================================================
@@ -223,5 +255,81 @@ Deno.test({
     assertEquals(data.name, "Lead Developer");
     assertEquals(data.description, "Leads the dev team");
     assertEquals(data.project, 99);
+  },
+});
+
+// ============================================================================
+// RestBackend execute() — FK column name reverse-translation (Issue #453)
+// ============================================================================
+
+Deno.test({
+  name:
+    "RestBackend execute() — FK filter emitted as field name, not column name (Issue #453)",
+  async fn() {
+    // When a queryset has filter({ organisation: 1 }), the queryset pre-translates
+    // it to { field: "organisation_id", value: 1 } in state.filters.
+    // The REST backend must reverse-translate "organisation_id" back to
+    // "organisation" when building the URL, so the server receives ?organisation=1
+    // instead of ?organisation_id=1.
+    const backend = new TrackingRestBackend();
+    await backend.connect();
+
+    const state = createQueryState(Project);
+    // Simulate the translated filter that queryset produces for filter({ organisation: 1 })
+    state.filters = [{
+      field: "organisation_id",
+      lookup: "exact",
+      value: 1,
+      negated: false,
+    }];
+
+    await backend.execute(state);
+
+    assertEquals(backend.fetchCalls.length, 1);
+    const requestedUrl = backend.fetchCalls[0].url;
+
+    // Must use field name "organisation", not column name "organisation_id"
+    assertEquals(
+      requestedUrl.includes("organisation=1"),
+      true,
+      `Expected ?organisation=1 in URL but got: ${requestedUrl}`,
+    );
+    assertEquals(
+      requestedUrl.includes("organisation_id=1"),
+      false,
+      `URL must not contain organisation_id=1: ${requestedUrl}`,
+    );
+
+    await backend.disconnect();
+  },
+});
+
+Deno.test({
+  name:
+    "RestBackend execute() — non-FK filter field name unchanged (Issue #453)",
+  async fn() {
+    // Plain (non-FK) field names must pass through unchanged.
+    const backend = new TrackingRestBackend();
+    await backend.connect();
+
+    const state = createQueryState(Project);
+    state.filters = [{
+      field: "name",
+      lookup: "exact",
+      value: "Test",
+      negated: false,
+    }];
+
+    await backend.execute(state);
+
+    assertEquals(backend.fetchCalls.length, 1);
+    const requestedUrl = backend.fetchCalls[0].url;
+    assertEquals(
+      requestedUrl.includes("name=Test"),
+      true,
+      `Expected ?name=Test in URL but got: ${requestedUrl}`,
+    );
+
+    await backend.disconnect();
   },
 });
