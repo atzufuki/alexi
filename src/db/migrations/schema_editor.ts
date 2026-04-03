@@ -34,13 +34,19 @@ export type ForwardsOp =
     model: typeof Model;
     tableName: string;
   }
+  | { type: "dropModel"; tableName: string }
   | {
     type: "addField";
     model: typeof Model;
     fieldName: string;
     field: AnyField;
   }
-  | { type: "deprecateField"; model: typeof Model; fieldName: string }
+  | {
+    type: "deprecateField";
+    model: typeof Model;
+    fieldName: string;
+    columnName: string;
+  }
   | {
     type: "alterField";
     model: typeof Model;
@@ -318,6 +324,40 @@ export class MigrationSchemaEditor {
   }
 
   /**
+   * Drop a model's table permanently.
+   *
+   * **Warning:** This permanently deletes the table and all its data.
+   * Use {@link deprecateModel} instead if you want to preserve data.
+   *
+   * This is the correct operation to use in `backwards()` to reverse a
+   * `createModel` call in `forwards()` — the table did not exist before
+   * the migration ran, so it should be dropped entirely rather than renamed.
+   *
+   * @param model - Model class whose table should be dropped
+   *
+   * @example
+   * ```ts
+   * async forwards(schema: MigrationSchemaEditor): Promise<void> {
+   *   await schema.createModel(TicketThreadModel);
+   * }
+   *
+   * async backwards(schema: MigrationSchemaEditor): Promise<void> {
+   *   await schema.dropModel(TicketThreadModel);
+   * }
+   * ```
+   */
+  async dropModel(model: typeof Model): Promise<void> {
+    const tableName = this._getTableName(model);
+
+    this._log(`Dropping table for ${model.name}...`);
+    if (!this._recordOnly) {
+      await this._backendEditor.dropTable(tableName);
+    }
+    this._operationLog.push({ type: "dropModel", tableName });
+    this._logVerbose(`  Dropped table: ${tableName}`);
+  }
+
+  /**
    * Restore a deprecated model (reverse deprecation)
    *
    * @param originalTableName - Original table name before deprecation
@@ -401,16 +441,26 @@ export class MigrationSchemaEditor {
    *
    * This preserves the data but frees the column name for reuse.
    *
+   * For `ForeignKey` and `OneToOneField` fields the actual database column has
+   * an `_id` suffix (e.g. field `"provider"` → column `"provider_id"`).
+   * Pass the optional `field` argument so the correct column name is resolved
+   * automatically; without it the JS field name is used as-is.
+   *
    * @param model - Model class
-   * @param fieldName - Field name to deprecate
+   * @param fieldName - JS field name to deprecate (e.g. `"provider"`)
+   * @param field - Optional field instance used to resolve the column name
    * @returns Deprecation info for tracking
    */
   async deprecateField(
     model: typeof Model,
     fieldName: string,
+    field?: AnyField,
   ): Promise<DeprecationInfo> {
     const tableName = this._getTableName(model);
-    const deprecatedName = this._getDeprecatedName(fieldName);
+    const columnName = field
+      ? this._resolveColumnName(fieldName, field)
+      : fieldName;
+    const deprecatedName = this._getDeprecatedName(columnName);
 
     this._log(`Deprecating field ${fieldName} on ${model.name}...`);
 
@@ -429,14 +479,14 @@ export class MigrationSchemaEditor {
       }
       await this._backendEditor.renameColumn(
         tableName,
-        fieldName,
+        columnName,
         deprecatedName,
       );
     }
 
     const info: DeprecationInfo = {
       type: "field",
-      originalName: fieldName,
+      originalName: columnName,
       deprecatedName,
       migrationName: this._migrationName,
       tableName,
@@ -444,8 +494,13 @@ export class MigrationSchemaEditor {
     };
 
     this._deprecations.push(info);
-    this._operationLog.push({ type: "deprecateField", model, fieldName });
-    this._logVerbose(`  Renamed ${fieldName} → ${deprecatedName}`);
+    this._operationLog.push({
+      type: "deprecateField",
+      model,
+      fieldName,
+      columnName,
+    });
+    this._logVerbose(`  Renamed ${columnName} → ${deprecatedName}`);
 
     return info;
   }
@@ -689,6 +744,7 @@ export class MigrationSchemaEditor {
    * |---|---|
    * | `createModel` | `deprecateModel` |
    * | `deprecateModel` | `restoreModel` |
+   * | `dropModel` | *(skipped — table was permanently dropped)* |
    * | `addField` | `deprecateField` |
    * | `deprecateField` | `restoreField` |
    * | `alterField(new)` | restores original column from deprecated slot |
@@ -719,6 +775,13 @@ export class MigrationSchemaEditor {
           await this.restoreModel(op.tableName, this._migrationName);
           break;
 
+        case "dropModel":
+          // Table was permanently dropped — cannot auto-recreate.
+          this._logVerbose(
+            `  Skipping auto-reverse of dropModel(${op.tableName}) — table was permanently dropped`,
+          );
+          break;
+
         case "addField":
           await this.deprecateField(
             op.model,
@@ -727,7 +790,11 @@ export class MigrationSchemaEditor {
           break;
 
         case "deprecateField":
-          await this.restoreField(op.model, op.fieldName, this._migrationName);
+          await this.restoreField(
+            op.model,
+            op.columnName,
+            this._migrationName,
+          );
           break;
 
         case "alterField": {
