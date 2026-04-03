@@ -8,6 +8,18 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.53.6] - 2026-04-03
+
+### Fixed
+
+- `@alexi/db`: `MigrationSchemaEditor.deprecateField()` now automatically
+  resolves the correct database column name even when no `field` argument is
+  supplied — the field is looked up from a model instance internally and
+  `_resolveColumnName()` is called, so
+  `schema.deprecateField(Ticket, "provider")` correctly targets column
+  `"provider_id"` without requiring the caller to pass the `ForeignKey` instance
+  explicitly (#458)
+
 ## [0.53.5] - 2026-04-03
 
 ### Fixed
