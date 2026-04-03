@@ -55,6 +55,17 @@ class CategoryModel extends Model {
   static objects = new Manager(CategoryModel);
 }
 
+/** Snapshot model with a ForeignKey field — used to test auto-resolution. */
+class TicketModel extends Model {
+  static override meta = { dbTable: "tickets" };
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  provider = new ForeignKey<CategoryModel>("CategoryModel", {
+    onDelete: OnDelete.CASCADE,
+  });
+  static objects = new Manager(TicketModel);
+}
+
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
@@ -415,6 +426,45 @@ Deno.test(
     // autoReverse should call restoreField without error (recordOnly)
     const bwdEditor = makeEditor("0003_remove_fk");
     await bwdEditor.autoReverse(log); // must not throw
+  },
+);
+
+// ============================================================================
+// fix #458 — deprecateField auto-resolves FK column name without field arg
+// ============================================================================
+
+Deno.test(
+  "MigrationSchemaEditor: deprecateField without field arg auto-resolves FK column name",
+  async () => {
+    // Reproduces the exact failure from #458:
+    // schema.deprecateField(Ticket, "provider") — no third argument —
+    // should resolve to column "provider_id", not "provider".
+    const editor = makeEditor();
+    await editor.deprecateField(TicketModel, "provider");
+
+    const log = editor.getOperationLog();
+    assertEquals(log.length, 1);
+    assertEquals(log[0].type, "deprecateField");
+    if (log[0].type === "deprecateField") {
+      assertEquals(log[0].fieldName, "provider");
+      // Must be auto-resolved to provider_id (FK suffix)
+      assertEquals(log[0].columnName, "provider_id");
+    }
+  },
+);
+
+Deno.test(
+  "MigrationSchemaEditor: deprecateField without field arg keeps plain fieldName for non-FK",
+  async () => {
+    // Non-FK fields should not gain an _id suffix even without a field arg.
+    const editor = makeEditor();
+    await editor.deprecateField(TicketModel, "title");
+
+    const log = editor.getOperationLog();
+    assertEquals(log.length, 1);
+    if (log[0].type === "deprecateField") {
+      assertEquals(log[0].columnName, "title");
+    }
   },
 );
 
