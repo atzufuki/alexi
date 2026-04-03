@@ -443,12 +443,14 @@ export class MigrationSchemaEditor {
    *
    * For `ForeignKey` and `OneToOneField` fields the actual database column has
    * an `_id` suffix (e.g. field `"provider"` → column `"provider_id"`).
-   * Pass the optional `field` argument so the correct column name is resolved
-   * automatically; without it the JS field name is used as-is.
+   * The correct column name is resolved automatically by instantiating the
+   * model snapshot and inspecting the field. The optional `field` argument
+   * is kept for backward compatibility but is no longer required.
    *
    * @param model - Model class
    * @param fieldName - JS field name to deprecate (e.g. `"provider"`)
-   * @param field - Optional field instance used to resolve the column name
+   * @param field - Optional field instance; if omitted the field is looked up
+   *   from a model instance automatically
    * @returns Deprecation info for tracking
    */
   async deprecateField(
@@ -457,8 +459,13 @@ export class MigrationSchemaEditor {
     field?: AnyField,
   ): Promise<DeprecationInfo> {
     const tableName = this._getTableName(model);
-    const columnName = field
-      ? this._resolveColumnName(fieldName, field)
+    // Resolve the field instance: prefer the caller-supplied one, then fall back
+    // to looking it up on a fresh model instance (handles FK _id suffix, etc.)
+    const resolvedField: AnyField | undefined = field ??
+      // deno-lint-ignore no-explicit-any
+      (new (model as any)())[fieldName] as AnyField | undefined;
+    const columnName = resolvedField
+      ? this._resolveColumnName(fieldName, resolvedField)
       : fieldName;
     const deprecatedName = this._getDeprecatedName(columnName);
 
