@@ -8,6 +8,20 @@ and this project adheres to
 
 ## [Unreleased]
 
+## [0.53.5] - 2026-04-03
+
+### Fixed
+
+- `@alexi/db`: `MigrationSchemaEditor.deprecateField()` now accepts an optional
+  `field` argument and calls `_resolveColumnName()` to derive the correct
+  database column name for `ForeignKey`/`OneToOneField` fields (e.g. field
+  `"provider"` → column `"provider_id"`), fixing a _"column does not exist"_
+  error when deprecating FK fields (#455)
+- `@alexi/db`: Added `MigrationSchemaEditor.dropModel()` as the permanent-drop
+  counterpart to `deprecateModel()`, enabling `backwards()` to correctly reverse
+  a `createModel()` call by dropping the table entirely rather than renaming it
+  (#456)
+
 ## [0.53.4] - 2026-03-29
 
 ### Fixed
