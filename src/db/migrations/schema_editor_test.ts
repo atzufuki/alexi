@@ -13,7 +13,14 @@ import { assertEquals, assertRejects } from "jsr:@std/assert@1";
 import type { IBackendSchemaEditor } from "./schema_editor.ts";
 import { MigrationSchemaEditor } from "./schema_editor.ts";
 import type { DatabaseBackend } from "../backends/backend.ts";
-import { AutoField, CharField, Manager, Model } from "../mod.ts";
+import {
+  AutoField,
+  CharField,
+  ForeignKey,
+  Manager,
+  Model,
+  OnDelete,
+} from "../mod.ts";
 
 // ============================================================================
 // Stubs
@@ -39,6 +46,13 @@ class UserModel extends Model {
   id = new AutoField({ primaryKey: true });
   name = new CharField({ maxLength: 100 });
   static objects = new Manager(UserModel);
+}
+
+class CategoryModel extends Model {
+  static override meta = { dbTable: "categories" };
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+  static objects = new Manager(CategoryModel);
 }
 
 // ---------------------------------------------------------------------------
@@ -321,5 +335,119 @@ Deno.test(
     if (bwdLog[1].type === "deprecateModel") {
       assertEquals(bwdLog[1].tableName, "users");
     }
+  },
+);
+
+// ============================================================================
+// fix #455 — deprecateField resolves FK column name (_id suffix)
+// ============================================================================
+
+Deno.test(
+  "MigrationSchemaEditor: deprecateField without field arg uses fieldName as-is",
+  async () => {
+    const editor = makeEditor();
+    await editor.deprecateField(ArticleModel, "title");
+
+    const log = editor.getOperationLog();
+    assertEquals(log.length, 1);
+    assertEquals(log[0].type, "deprecateField");
+    if (log[0].type === "deprecateField") {
+      assertEquals(log[0].fieldName, "title");
+      // No field provided → columnName equals fieldName
+      assertEquals(log[0].columnName, "title");
+    }
+  },
+);
+
+Deno.test(
+  "MigrationSchemaEditor: deprecateField with ForeignKey field resolves _id suffix",
+  async () => {
+    const editor = makeEditor();
+    const fkField = new ForeignKey<CategoryModel>("CategoryModel", {
+      onDelete: OnDelete.CASCADE,
+    });
+    await editor.deprecateField(ArticleModel, "category", fkField);
+
+    const log = editor.getOperationLog();
+    assertEquals(log.length, 1);
+    assertEquals(log[0].type, "deprecateField");
+    if (log[0].type === "deprecateField") {
+      assertEquals(log[0].fieldName, "category");
+      // ForeignKey → column name must be category_id
+      assertEquals(log[0].columnName, "category_id");
+    }
+  },
+);
+
+Deno.test(
+  "MigrationSchemaEditor: deprecateField with CharField field keeps fieldName",
+  async () => {
+    const editor = makeEditor();
+    const field = new CharField({ maxLength: 50 });
+    await editor.deprecateField(ArticleModel, "slug", field);
+
+    const log = editor.getOperationLog();
+    assertEquals(log.length, 1);
+    if (log[0].type === "deprecateField") {
+      assertEquals(log[0].columnName, "slug");
+    }
+  },
+);
+
+Deno.test(
+  "MigrationSchemaEditor.autoReverse: reverses deprecateField FK → restoreField uses columnName",
+  async () => {
+    // If a FK field was deprecated in forwards(), autoReverse must
+    // restore using the DB column name (category_id), not the JS field
+    // name (category).
+    const fwdEditor = makeEditor("0003_remove_fk");
+    const fkField = new ForeignKey<CategoryModel>("CategoryModel", {
+      onDelete: OnDelete.CASCADE,
+    });
+    await fwdEditor.deprecateField(ArticleModel, "category", fkField);
+    const log = fwdEditor.getOperationLog();
+
+    // Verify the recorded columnName is category_id
+    if (log[0].type === "deprecateField") {
+      assertEquals(log[0].columnName, "category_id");
+    }
+
+    // autoReverse should call restoreField without error (recordOnly)
+    const bwdEditor = makeEditor("0003_remove_fk");
+    await bwdEditor.autoReverse(log); // must not throw
+  },
+);
+
+// ============================================================================
+// fix #456 — dropModel method
+// ============================================================================
+
+Deno.test("MigrationSchemaEditor: records dropModel op", async () => {
+  const editor = makeEditor();
+  await editor.dropModel(ArticleModel);
+
+  const log = editor.getOperationLog();
+  assertEquals(log.length, 1);
+  assertEquals(log[0].type, "dropModel");
+  if (log[0].type === "dropModel") {
+    assertEquals(log[0].tableName, "articles");
+  }
+});
+
+Deno.test(
+  "MigrationSchemaEditor.autoReverse: skips dropModel (cannot recreate permanently dropped table)",
+  async () => {
+    // If a migration calls dropModel() in forwards(), autoReverse() must
+    // not attempt to recreate the table — it just skips silently.
+    const fwdEditor = makeEditor("0004_drop_articles");
+    await fwdEditor.dropModel(ArticleModel);
+    const log = fwdEditor.getOperationLog();
+
+    const bwdEditor = makeEditor("0004_drop_articles");
+    await bwdEditor.autoReverse(log); // must not throw
+
+    // The bwdLog should be empty — nothing can be done to reverse a permanent drop
+    const bwdLog = bwdEditor.getOperationLog();
+    assertEquals(bwdLog.length, 0);
   },
 );

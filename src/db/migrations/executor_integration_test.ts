@@ -955,3 +955,249 @@ Deno.test({
     }
   },
 });
+
+// ============================================================================
+// fix #455 — deprecateField with explicit field arg resolves FK column name
+// ============================================================================
+
+class ProviderModel455 extends Model {
+  id = new AutoField({ primaryKey: true });
+  name = new CharField({ maxLength: 100 });
+
+  static objects = new Manager(ProviderModel455);
+  static override meta = { dbTable: "providers_455" };
+}
+
+class TicketModel455 extends Model {
+  id = new AutoField({ primaryKey: true });
+  title = new CharField({ maxLength: 200 });
+  provider = new ForeignKey<ProviderModel455>("ProviderModel455", {
+    onDelete: OnDelete.CASCADE,
+  });
+
+  static objects = new Manager(TicketModel455);
+  static override meta = { dbTable: "tickets_455" };
+}
+
+class Migration455Base extends Migration {
+  name = "myapp455.0001_base";
+  override dependencies = [];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(ProviderModel455);
+    await schema.createModel(TicketModel455);
+  }
+
+  override async backwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.dropModel(TicketModel455);
+    await schema.dropModel(ProviderModel455);
+  }
+}
+
+/** Explicitly deprecates the FK field using the field instance */
+class Migration455DeprecateFk extends Migration {
+  name = "myapp455.0002_deprecate_provider";
+  override dependencies = ["myapp455.0001_base"];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.deprecateField(
+      TicketModel455,
+      "provider",
+      new ForeignKey<ProviderModel455>("ProviderModel455", {
+        onDelete: OnDelete.CASCADE,
+      }),
+    );
+  }
+
+  override async backwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.restoreField(TicketModel455, "provider_id");
+  }
+}
+
+Deno.test({
+  name:
+    "fix #455 — deprecateField with FK field arg renames provider_id, not provider",
+  async fn() {
+    const backend = new SQLiteBackend({ path: ":memory:" });
+    await backend.connect();
+
+    const loader = new MigrationLoader();
+    loader.register(new Migration455Base(), "myapp455");
+    loader.register(new Migration455DeprecateFk(), "myapp455");
+
+    const executor = new MigrationExecutor(backend, loader);
+
+    const db = (backend as unknown as {
+      _db: {
+        prepare: (s: string) => { all: () => Array<{ name: string }> };
+      };
+    })._db;
+
+    try {
+      // Apply forwards: create tables + deprecate provider_id
+      const fwdResults = await executor.migrate({ verbosity: 0 });
+      for (const r of fwdResults) {
+        assertEquals(r.success, true, `forwards failed: ${r.error}`);
+      }
+
+      // After forwards, provider_id must be renamed to _deprecated_*_provider_id
+      const colsAfterFwd: Array<{ name: string }> = db
+        .prepare(`PRAGMA table_info(tickets_455)`)
+        .all();
+
+      const hasProviderIdAfterFwd = colsAfterFwd.some(
+        (c) => c.name === "provider_id",
+      );
+      assertEquals(
+        hasProviderIdAfterFwd,
+        false,
+        "provider_id must be renamed after deprecateField forwards()",
+      );
+
+      const hasDeprecatedProviderId = colsAfterFwd.some(
+        (c) =>
+          c.name.startsWith("_deprecated_") &&
+          c.name.endsWith("_provider_id"),
+      );
+      assertEquals(
+        hasDeprecatedProviderId,
+        true,
+        "deprecated provider_id column must exist (fix #455: column was 'provider', not 'provider_id')",
+      );
+
+      // Roll back migration 0002
+      const bwdResults = await executor.migrate({
+        to: "myapp455.0001_base",
+        verbosity: 0,
+      });
+      for (const r of bwdResults) {
+        assertEquals(
+          r.success,
+          true,
+          `backwards failed: ${r.error}`,
+        );
+      }
+
+      // After backwards, provider_id must be restored
+      const colsAfterBwd: Array<{ name: string }> = db
+        .prepare(`PRAGMA table_info(tickets_455)`)
+        .all();
+      const hasProviderIdAfterBwd = colsAfterBwd.some(
+        (c) => c.name === "provider_id",
+      );
+      assertEquals(
+        hasProviderIdAfterBwd,
+        true,
+        "provider_id must be restored after backwards()",
+      );
+    } finally {
+      await backend.disconnect();
+    }
+  },
+});
+
+// ============================================================================
+// fix #456 — dropModel permanently drops the table
+// ============================================================================
+
+class ThreadModel456 extends Model {
+  id = new AutoField({ primaryKey: true });
+  body = new CharField({ maxLength: 1000 });
+
+  static objects = new Manager(ThreadModel456);
+  static override meta = { dbTable: "threads_456" };
+}
+
+class Migration456Create extends Migration {
+  name = "myapp456.0001_create_threads";
+  override dependencies = [];
+
+  async forwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.createModel(ThreadModel456);
+  }
+
+  override async backwards(schema: MigrationSchemaEditor): Promise<void> {
+    await schema.dropModel(ThreadModel456);
+  }
+}
+
+Deno.test({
+  name: "fix #456 — dropModel permanently drops the table (not rename)",
+  async fn() {
+    const backend = new SQLiteBackend({ path: ":memory:" });
+    await backend.connect();
+
+    const loader = new MigrationLoader();
+    loader.register(new Migration456Create(), "myapp456");
+
+    const executor = new MigrationExecutor(backend, loader);
+
+    const db = (backend as unknown as {
+      _db: {
+        prepare: (s: string) => {
+          all: () => Array<{ name: string }>;
+          get: () => { count: number } | undefined;
+        };
+      };
+    })._db;
+
+    try {
+      // Apply forwards: create threads_456 table
+      const fwdResults = await executor.migrate({ verbosity: 0 });
+      for (const r of fwdResults) {
+        assertEquals(r.success, true, `forwards failed: ${r.error}`);
+      }
+
+      // Verify the table exists
+      const tableExistsAfterFwd = db
+        .prepare(
+          `SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='threads_456'`,
+        )
+        .get();
+      assertEquals(
+        tableExistsAfterFwd?.count,
+        1,
+        "threads_456 must exist after forwards()",
+      );
+
+      // Roll back: backwards() calls dropModel → should permanently delete
+      const bwdResults = await executor.migrate({
+        to: "zero",
+        verbosity: 0,
+      });
+      for (const r of bwdResults) {
+        assertEquals(
+          r.success,
+          true,
+          `backwards failed: ${r.error}`,
+        );
+      }
+
+      // Table must be gone entirely (not renamed to _deprecated_*)
+      const tableExistsAfterBwd = db
+        .prepare(
+          `SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name='threads_456'`,
+        )
+        .get();
+      assertEquals(
+        tableExistsAfterBwd?.count,
+        0,
+        "threads_456 must be permanently dropped after backwards() dropModel()",
+      );
+
+      // Also confirm no _deprecated_* table was created
+      const deprecatedExists = db
+        .prepare(
+          `SELECT count(*) as count FROM sqlite_master WHERE type='table' AND name LIKE '_deprecated_%threads_456'`,
+        )
+        .get();
+      assertEquals(
+        deprecatedExists?.count,
+        0,
+        "No deprecated table must exist — dropModel drops permanently",
+      );
+    } finally {
+      await backend.disconnect();
+    }
+  },
+});
