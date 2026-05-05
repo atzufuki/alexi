@@ -560,6 +560,16 @@ export class IndexedDBBackend extends DatabaseBackend {
         reject(request.error);
       };
 
+      // If another connection holds the database open the upgrade is blocked
+      // indefinitely. Reject immediately so callers fail fast rather than hang.
+      request.onblocked = () => {
+        reject(
+          new Error(
+            `IndexedDB upgrade to version ${newVersion} is blocked by another open connection`,
+          ),
+        );
+      };
+
       request.onsuccess = () => {
         this._db = request.result;
         this._version = newVersion;
