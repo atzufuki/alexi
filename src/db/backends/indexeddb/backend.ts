@@ -561,12 +561,13 @@ export class IndexedDBBackend extends DatabaseBackend {
       };
 
       // If another connection holds the database open the upgrade is blocked
-      // indefinitely. Reject immediately so callers fail fast rather than hang.
+      // indefinitely. Log a warning — the upgrade will eventually proceed once
+      // the blocking connection closes. Rejecting here would be too aggressive
+      // because the connection we just called close() on may still be in the
+      // "closing" state while its transactions commit.
       request.onblocked = () => {
-        reject(
-          new Error(
-            `IndexedDB upgrade to version ${newVersion} is blocked by another open connection`,
-          ),
+        console.warn(
+          `[IndexedDB] upgrade to version ${newVersion} is blocked by another open connection — waiting for it to close`,
         );
       };
 
